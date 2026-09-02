@@ -1,0 +1,68 @@
+# Cline Documentation Maintenance Instructions
+
+## Overview
+This file contains instructions for Cline (the AI assistant) to maintain and keep up-to-date the documentation files for the Terminology Server component.
+
+## Documentation Files to Maintain
+
+### 1. USER_DOCUMENTATION.md
+**Purpose**: User-facing documentation explaining how to use the Terminology Server features
+**Update Triggers**:
+- When new features are added
+- When the user interface changes
+- When user workflows are modified
+- When new functionality is implemented
+
+**Maintenance Rules**:
+- Keep language simple and accessible for end users
+- Include step-by-step instructions for common tasks
+- Update screenshots/diagrams if UI changes significantly
+- Maintain consistent formatting and structure
+
+### 2. REQUIREMENTS_ARCHITECTURE.md
+**Purpose**: Technical documentation covering requirements, architecture, and design decisions
+**Update Triggers**:
+- When new requirements are added or existing ones change
+- When architecture decisions are made or modified
+- When new dependencies are added
+- When design patterns or data flows change
+- When new features are planned or implemented
+
+**Maintenance Rules**:
+- Keep functional requirements (FR-*) and non-functional requirements (NFR-*) up-to-date
+- Document all key design decisions with rationale
+- Update component structure diagrams when code changes
+- Maintain accurate dependency lists
+- Document error handling patterns
+
+## Maintenance Protocol
+
+### When Code Changes Occur
+1. **Review Impact**: Determine if changes affect user experience or technical architecture
+2. **Update Documentation**: Modify appropriate sections in both files
+3. **Verify Accuracy**: Ensure documentation matches current implementation
+4. **Test References**: Verify that all code references and examples are current
+
+### Documentation Standards
+- Use Markdown formatting consistently
+- Include code examples where helpful
+- Maintain clear section hierarchy
+- Use descriptive headings and subheadings
+- Include acceptance criteria for requirements
+- Document both current state and future plans
+
+### Quality Checks
+- [ ] All features mentioned in code are documented
+- [ ] All user-facing functionality has user documentation
+- [ ] Technical decisions are explained with rationale
+- [ ] Diagrams and examples are accurate
+- [ ] Links and references are working
+- [ ] Documentation is free of outdated information
+
+## File Locations
+- User Documentation: `USER_DOCUMENTATION.md`
+- Requirements & Architecture: `REQUIREMENTS_ARCHITECTURE.md`
+- Maintenance Instructions: `.cline` (this file)
+
+## Contact
+If you encounter issues with documentation maintenance or need clarification on these instructions, reference this file for guidance.

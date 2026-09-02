@@ -1,0 +1,471 @@
+/*
+ * TRICC editor styles.
+ *
+ * Node colour encodes the group and shape encodes the structural role, so a node is
+ * identifiable without reading its label. Validation state is a border treatment plus a
+ * badge, never colour alone — colour is already spoken for here.
+ */
+
+.tricc-editor {
+  --tricc-flow: #64748b;
+  --tricc-flow-bg: #f1f5f9;
+  --tricc-question: #2563eb;
+  --tricc-question-bg: #eff6ff;
+  --tricc-logic: #b45309;
+  --tricc-logic-bg: #fffbeb;
+  --tricc-data: #7c3aed;
+  --tricc-data-bg: #f5f3ff;
+  --tricc-clinical: #be123c;
+  --tricc-clinical-bg: #fff1f2;
+  --tricc-error: #dc2626;
+  --tricc-warning: #d97706;
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  font:
+    14px/1.5 system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  color: #0f172a;
+}
+
+.tricc-editor__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  flex: 0 0 auto;
+}
+
+.tricc-editor__header h1 {
+  font-size: 16px;
+  margin: 0;
+  flex: 1;
+}
+
+.tricc-editor__body {
+  display: grid;
+  grid-template-columns: 190px 1fr 320px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ---------------------------------------------------------------- palette */
+
+.tricc-palette,
+.tricc-inspector {
+  overflow-y: auto;
+  padding: 12px;
+  min-height: 0;
+}
+
+.tricc-palette {
+  border-right: 1px solid #e2e8f0;
+  background: #fafafa;
+}
+
+.tricc-inspector {
+  border-left: 1px solid #e2e8f0;
+  background: #fafafa;
+}
+
+.tricc-palette h2,
+.tricc-inspector h2 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin: 0 0 8px;
+}
+
+.tricc-palette__group {
+  border: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tricc-palette__group legend {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #94a3b8;
+  padding: 0 0 4px;
+}
+
+.tricc-palette__group button {
+  font-size: 12px;
+  padding: 3px 7px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.tricc-palette__group button:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+/* ---------------------------------------------------------------- canvas */
+
+.tricc-canvas {
+  min-height: 0;
+  min-width: 0;
+  background: #fff;
+}
+
+.tricc-canvas .react-flow__attribution {
+  display: none;
+}
+
+.tricc-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 200px;
+  min-height: 48px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--group-colour, #94a3b8);
+  background: var(--group-bg, #fff);
+  font-size: 12px;
+  position: relative;
+}
+
+.tricc-node--flow {
+  --group-colour: var(--tricc-flow);
+  --group-bg: var(--tricc-flow-bg);
+}
+.tricc-node--question {
+  --group-colour: var(--tricc-question);
+  --group-bg: var(--tricc-question-bg);
+}
+.tricc-node--logic {
+  --group-colour: var(--tricc-logic);
+  --group-bg: var(--tricc-logic-bg);
+}
+.tricc-node--data {
+  --group-colour: var(--tricc-data);
+  --group-bg: var(--tricc-data-bg);
+}
+.tricc-node--clinical {
+  --group-colour: var(--tricc-clinical);
+  --group-bg: var(--tricc-clinical-bg);
+}
+
+/* Shape carries the structural role. */
+.tricc-node--box {
+  border-radius: 4px;
+}
+.tricc-node--rounded {
+  border-radius: 14px;
+}
+.tricc-node--terminator {
+  border-radius: 24px;
+  width: 160px;
+}
+.tricc-node--diamond {
+  border-radius: 4px;
+  border-style: solid;
+  border-width: 1.5px;
+  box-shadow: inset 0 0 0 2px #fff;
+}
+.tricc-node--junction {
+  border-radius: 50%;
+  width: 56px;
+  min-height: 56px;
+  justify-content: center;
+  padding: 0;
+}
+.tricc-node--gate {
+  border-radius: 4px;
+  border-style: dashed;
+}
+
+.tricc-node.is-selected {
+  outline: 2px solid #0f172a;
+  outline-offset: 2px;
+}
+
+.tricc-node.has-error {
+  border-color: var(--tricc-error);
+  border-width: 2px;
+}
+.tricc-node.has-warning {
+  border-color: var(--tricc-warning);
+  border-style: dashed;
+}
+
+.tricc-node__glyph {
+  font-size: 15px;
+  color: var(--group-colour);
+  flex: 0 0 auto;
+}
+
+.tricc-node--junction .tricc-node__body,
+.tricc-node--junction .tricc-node__badges {
+  display: none;
+}
+
+.tricc-node__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.tricc-node__label {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tricc-node__code {
+  font-size: 10px;
+  color: #64748b;
+  font-family: ui-monospace, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tricc-node__badges {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.tricc-badge {
+  font-size: 9px;
+  line-height: 1;
+  padding: 2px 3px;
+  border-radius: 3px;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.tricc-badge--error {
+  background: var(--tricc-error);
+  color: #fff;
+}
+.tricc-badge--warning {
+  background: var(--tricc-warning);
+  color: #fff;
+}
+
+/* ---------------------------------------------------------------- edges */
+
+.tricc-edge {
+  stroke: #94a3b8;
+  stroke-width: 1.5;
+}
+.tricc-edge--yes {
+  stroke: #16a34a;
+}
+.tricc-edge--no {
+  stroke: #dc2626;
+}
+.tricc-edge--score {
+  stroke: #b45309;
+}
+.tricc-edge--condition {
+  stroke: #2563eb;
+}
+.tricc-edge.is-selected {
+  stroke-width: 2.5;
+}
+
+.tricc-edge__label {
+  position: absolute;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  pointer-events: all;
+}
+
+.tricc-edge__label--yes {
+  border-color: #16a34a;
+  color: #15803d;
+}
+.tricc-edge__label--no {
+  border-color: #dc2626;
+  color: #b91c1c;
+}
+.tricc-edge__label--condition {
+  border-color: #2563eb;
+  color: #1d4ed8;
+  font-family: ui-monospace, monospace;
+}
+
+/* ---------------------------------------------------------------- inspector */
+
+.tricc-inspector label {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  margin: 8px 0 2px;
+}
+
+.tricc-inspector input,
+.tricc-inspector select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.tricc-inspector input:disabled,
+.tricc-inspector select:disabled {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.tricc-inspector section {
+  margin-bottom: 20px;
+}
+
+.tricc-inspector ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 12px;
+}
+
+.tricc-inspector li {
+  margin-bottom: 3px;
+}
+
+.tricc-inspector li[data-severity='error'] {
+  color: #b91c1c;
+}
+.tricc-inspector li[data-severity='warning'] {
+  color: #b45309;
+}
+
+.tricc-edge-list button {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  font: inherit;
+  font-size: 12px;
+  color: #2563eb;
+  cursor: pointer;
+  text-align: left;
+}
+
+/* ---------------------------------------------------------------- typeahead */
+
+.tricc-typeahead {
+  position: relative;
+  max-width: 340px;
+}
+
+.tricc-typeahead input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.tricc-typeahead__list {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  margin: 2px 0 0;
+  padding: 2px;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgb(15 23 42 / 12%);
+}
+
+.tricc-typeahead__list li {
+  display: flex;
+  flex-direction: column;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.tricc-typeahead__list li.is-highlighted {
+  background: #eff6ff;
+}
+
+.tricc-typeahead__empty {
+  color: #64748b;
+  cursor: default;
+}
+
+.tricc-typeahead__hint {
+  font-size: 10px;
+  color: #64748b;
+  font-family: ui-monospace, monospace;
+}
+
+.tricc-editor__kind {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: #e2e8f0;
+  color: #475569;
+}
+.tricc-editor__kind[data-kind='process'] {
+  background: #0f172a;
+  color: #fff;
+}
+.tricc-editor__process {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #64748b;
+}
+.tricc-editor__process input {
+  padding: 3px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.tricc-ref-field {
+  margin: 8px 0;
+}
+.tricc-ref-field__label {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+.tricc-ref-field__value {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: #e2e8f0;
+  font-size: 12px;
+  margin-right: 6px;
+}
+.tricc-ref-field__missing {
+  color: #b91c1c;
+}

@@ -1,0 +1,248 @@
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  color: #0f172a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+  font-size: 13px;
+  flex: 0 0 auto;
+}
+header > a:first-child {
+  font-weight: 600;
+  text-decoration: none;
+  color: #0f172a;
+}
+header label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+header [data-testid='storage-mode'] {
+  flex: 1;
+  color: #64748b;
+}
+
+main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+main > [data-testid='activity-editor'] {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+[data-testid='project-list'],
+[data-testid='preferences'],
+[data-testid='project-overview'] {
+  padding: 16px 24px;
+  overflow-y: auto;
+}
+
+[data-testid='save-status'] {
+  margin: 0;
+  padding: 4px 16px;
+  font-size: 12px;
+  color: #64748b;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+[data-testid='save-status'][data-state='unsaved'] {
+  color: #b45309;
+}
+[data-testid='save-status'][data-state='error'] {
+  color: #b91c1c;
+}
+
+[data-testid='activity-navigator'] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+  font-size: 12px;
+}
+[data-testid='activity-navigator'] ul {
+  display: flex;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+[data-testid='activity-navigator'] button {
+  padding: 3px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+}
+[data-testid='activity-navigator'] button[aria-current='true'] {
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+
+button {
+  font: inherit;
+}
+input {
+  font: inherit;
+}
+
+.tricc-project-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+.tricc-project-bar [data-testid='save-status'] {
+  background: none;
+  border: none;
+  padding: 0;
+  flex: 1;
+}
+
+[data-testid='project-list'] section {
+  margin-top: 24px;
+}
+[data-testid='project-list'] h2 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+[data-testid='project-list'] label {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin: 10px 0 2px;
+}
+[data-testid='import-error'] {
+  color: #b91c1c;
+}
+
+.tricc-intervention-list > li {
+  margin-bottom: 16px;
+}
+.tricc-intervention {
+  max-width: 560px;
+  padding: 8px 0;
+}
+.tricc-intervention label {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  margin: 8px 0 2px;
+}
+.tricc-intervention input,
+.tricc-intervention select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+}
+.tricc-intervention h4 {
+  margin: 16px 0 4px;
+  font-size: 12px;
+}
+.tricc-process-list li {
+  margin-bottom: 6px;
+}
+.tricc-process-list input {
+  max-width: 320px;
+  margin-left: 8px;
+}
+.tricc-add-process {
+  margin-top: 12px;
+}
+details > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: #2563eb;
+}
+
+[data-testid='activity-navigator'] section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+[data-testid='activity-navigator'] h2 {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+  margin: 0;
+}
+[data-testid='activity-navigator'] button[data-kind='process'] {
+  border-color: #0f172a;
+  font-weight: 600;
+}
+[data-testid='activity-navigator'] button[data-kind='process'][aria-current='true'] {
+  background: #0f172a;
+  color: #fff;
+}
+.tricc-nav__process {
+  margin-left: 6px;
+  font-weight: 400;
+  font-size: 10px;
+  color: #64748b;
+}
+[data-testid='activity-navigator'] button[aria-current='true'] .tricc-nav__process {
+  color: #cbd5e1;
+}
+.tricc-add-process-activity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tricc-add-process-activity label {
+  font-size: 11px;
+  color: #64748b;
+}
+.tricc-add-process-activity input {
+  padding: 3px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 12px;
+}
+[data-testid='no-process-activities'] {
+  font-size: 11px;
+  color: #64748b;
+  margin: 0;
+  max-width: 420px;
+}
