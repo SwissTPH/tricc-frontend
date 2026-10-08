@@ -40,6 +40,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   link_out: V('rounded', 'flow', '↦', true, false),
   bridge: V('junction', 'flow', '＋'),
   wait: V('gate', 'flow', '⏳'),
+  continue_with: V('rounded', 'flow', '→'),
 
   // Questions
   select_one: V('box', 'question', '◉'),
@@ -48,6 +49,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   select_option: V('box', 'question', '•'),
   integer: V('box', 'question', '#'),
   decimal: V('box', 'question', '#'),
+  quantity: V('box', 'question', '㎏'),
   text: V('box', 'question', 'A'),
   date: V('box', 'question', '▤'),
   note: V('box', 'question', '✎'),

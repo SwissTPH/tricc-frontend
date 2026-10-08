@@ -69,11 +69,15 @@ export function decodeNode(raw: NodeInput, lang: string): TriccNode {
   if (raw.default !== undefined) n.default = raw.default
   if (raw.min !== undefined) n.min = raw.min
   if (raw.max !== undefined) n.max = raw.max
+  if (raw.unit !== undefined) n.unit = raw.unit
+  if (raw.unit_system !== undefined) n.unit_system = raw.unit_system
+  if (raw.unit_code !== undefined) n.unit_code = raw.unit_code
   if (raw.repeat !== undefined) n.repeat = raw.repeat
   if (raw.instance !== undefined) n.instance = raw.instance
   if (raw.reference !== undefined) n.reference = raw.reference as TriccNode['reference']
   if (raw.link !== undefined) n.link = raw.link
   if (raw.listName !== undefined) n.listName = raw.listName
+  if (raw.filter !== undefined) n.filter = raw.filter
 
   if (raw.options) {
     n.options = raw.options.map((o) => {
@@ -92,8 +96,14 @@ export function decodeNode(raw: NodeInput, lang: string): TriccNode {
   if (raw.priority !== undefined) n.priority = raw.priority
   if (raw.context !== undefined) n.context = raw.context
   if (raw.period !== undefined) n.period = raw.period
-  if (raw.formId !== undefined) n.formId = raw.formId
+  if (raw.type === 'start') {
+    const formId = raw.form_id ?? raw.formId
+    if (formId !== undefined) n.form_id = formId
+  }
   if (raw.process !== undefined) n.process = raw.process
+  if (raw.intervention !== undefined) n.intervention = raw.intervention
+  if (raw.condition !== undefined) n.condition = raw.condition
+  if (raw.delay !== undefined) n.delay = raw.delay
   if (raw.media) n.media = { ...raw.media }
   if (raw.notAvailable) {
     const na: NonNullable<TriccNode['notAvailable']> = {}
@@ -142,16 +152,7 @@ export function decodeActivity(input: unknown, lang: string): Activity {
 function decodeIntervention(raw: InterventionInput, lang: string): Intervention {
   const i: Intervention = {
     id: raw.id,
-    processes: raw.processes.map((p) => ({
-      process: p.process,
-      activities: p.activities.map((r) => {
-        if (typeof r === 'string') return { ref: r }
-        const out: { ref: string; applicability?: ReturnType<typeof toExpression> } = { ref: r.ref }
-        const a = expr(r.applicability, lang)
-        if (a) out.applicability = a
-        return out
-      }),
-    })),
+    activities: raw.activities.map((r) => ({ ref: refOf(r) })),
   }
   if (raw.code !== undefined) i.code = raw.code
   const t = loc(raw.title, lang)
@@ -257,8 +258,12 @@ export function encodeNode(n: TriccNode, lang: string): Record<string, unknown> 
   put(o, 'required', n.required)
   put(o, 'min', n.min)
   put(o, 'max', n.max)
+  put(o, 'unit', n.unit)
+  put(o, 'unit_system', n.unit_system)
+  put(o, 'unit_code', n.unit_code)
   put(o, 'default', n.default)
   put(o, 'listName', n.listName)
+  put(o, 'filter', n.filter)
   put(
     o,
     'options',
@@ -285,8 +290,11 @@ export function encodeNode(n: TriccNode, lang: string): Record<string, unknown> 
   put(o, 'priority', n.priority)
   put(o, 'context', n.context)
   put(o, 'period', n.period)
-  put(o, 'formId', n.formId)
+  if (n.type === 'start') put(o, 'form_id', n.form_id)
   put(o, 'process', n.process)
+  put(o, 'intervention', n.intervention)
+  put(o, 'condition', n.condition)
+  put(o, 'delay', n.delay)
   put(o, 'hint', n.hint && fromLocalized(n.hint, lang))
   put(o, 'help', n.help && fromLocalized(n.help, lang))
   put(o, 'media', n.media && { ...n.media })
@@ -374,14 +382,7 @@ export function encodeProjectMeta(p: Project): Record<string, unknown> {
       put(io, 'description', i.description && fromLocalized(i.description, lang))
       put(io, 'applicability', i.applicability && fromExpression(i.applicability, lang))
       put(io, 'trigger', i.trigger && { ...i.trigger })
-      io['processes'] = i.processes.map((pg) => ({
-        process: pg.process,
-        activities: pg.activities.map((r) =>
-          r.applicability
-            ? { ref: r.ref, applicability: fromExpression(r.applicability, lang) }
-            : r.ref,
-        ),
-      }))
+      io['activities'] = i.activities.map((r) => r.ref)
       return io
     }),
   )

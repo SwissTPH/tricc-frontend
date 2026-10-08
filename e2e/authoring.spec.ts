@@ -46,6 +46,7 @@ test('adds an activity, adds a node, and the work survives a reload', async ({ p
   await createProject(page, 'Reload guideline')
 
   await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
   await expect(page.getByTestId('activity-editor')).toBeVisible()
 
   await page.getByTestId('add-integer').click()
@@ -65,28 +66,72 @@ test('adds an activity, adds a node, and the work survives a reload', async ({ p
 test('the palette refuses a second start node', async ({ page }) => {
   await createProject(page, 'Palette guideline')
   await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
 
   // The new activity already has an activity_start.
   await expect(page.getByTestId('add-activity_start')).toHaveCount(0)
   await expect(page.getByTestId('add-note')).toBeVisible()
 })
 
+test('an activity can finish in more than one place', async ({ page }) => {
+  await createProject(page, 'Several ends')
+  await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
+
+  await page.getByTestId('add-activity_end').click()
+  await page.getByTestId('tab-nodes').click()
+  await expect(page.getByTestId('add-activity_end')).toBeVisible()
+  await page.getByTestId('add-activity_end').click()
+
+  await expect(page.getByTestId('node-n-activity_end')).toBeVisible()
+  await expect(page.getByTestId('node-n-activity_end-2')).toBeVisible()
+})
+
 test('the palette never offers an injection-only type', async ({ page }) => {
   await createProject(page, 'Injection guideline')
   await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
 
   await expect(page.getByTestId('add-factor')).toHaveCount(0)
-  // bridge and wait are drawable, and must be offered.
+  // bridge, wait, and continue with are drawable, and must be offered.
   await expect(page.getByTestId('add-bridge')).toBeVisible()
   await expect(page.getByTestId('add-wait')).toBeVisible()
+  await expect(page.getByTestId('add-continue_with')).toBeVisible()
+  await expect(page.getByTestId('add-continue_with')).toHaveText('Continue with')
+})
+
+test('a continue with node keeps the intervention, condition, and ISO delay', async ({ page }) => {
+  await createProject(page, 'Follow up guideline')
+  await page.getByTestId('add-intervention').click()
+  await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
+
+  await page.getByTestId('add-continue_with').click()
+  await page.getByTestId('field-continue-intervention').selectOption('intervention')
+  await page.getByTestId('field-continue-condition').fill('AgeInMonths() >= 2')
+  await page.getByTestId('field-continue-delay').fill('P3D')
+  await expect(page.getByText('An ISO-8601 period, for example P3D.')).toBeVisible()
+  await expect(page.getByTestId('field-filter')).toHaveCount(0)
+
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', {
+    timeout: 10_000,
+  })
+  await page.reload()
+  await page.getByTestId('nav-activity-activity').click()
+  await page.getByTestId('node-n-continue_with').click()
+  await expect(page.getByTestId('field-continue-intervention')).toHaveValue('intervention')
+  await expect(page.getByTestId('field-continue-condition')).toHaveValue('AgeInMonths() >= 2')
+  await expect(page.getByTestId('field-continue-delay')).toHaveValue('P3D')
 })
 
 test('an intent without CQL blocks export and explains why', async ({ page }) => {
   await createProject(page, 'Handoff guideline')
   await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
   await page.getByTestId('add-note').click()
 
   await page.getByTestId('field-relevance-intent').fill('Only for children under five')
+  await page.getByTestId('tab-validation').click()
 
   const issue = page.getByTestId('issue-expression.open-handoff')
   await expect(issue).toBeVisible()
@@ -94,16 +139,21 @@ test('an intent without CQL blocks export and explains why', async ({ page }) =>
   await expect(issue).toContainText('CQL')
 
   // Editing is never blocked while invalid.
+  await page.getByTestId('tab-details').click()
   await page.getByTestId('field-relevance-expression').fill('AgeInMonths() < 60')
+  await page.getByTestId('tab-validation').click()
   await expect(page.getByTestId('issue-expression.open-handoff')).toHaveCount(0)
 })
 
 test('validation surfaces inline without preventing further editing', async ({ page }) => {
   await createProject(page, 'Validation guideline')
   await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
   await page.getByTestId('add-select_one').click()
+  await page.getByTestId('tab-validation').click()
 
   await expect(page.getByTestId('issue-select.no-options')).toBeVisible()
+  await page.getByTestId('tab-details').click()
   await page.getByTestId('field-label').fill('Which colour?')
   await expect(page.getByTestId('field-label')).toHaveValue('Which colour?')
 })
@@ -111,14 +161,57 @@ test('validation surfaces inline without preventing further editing', async ({ p
 test('read-only removes every mutating affordance and restores them', async ({ page }) => {
   await createProject(page, 'Read only guideline')
   await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
   await expect(page.getByTestId('add-note')).toBeVisible()
 
   await page.getByTestId('read-only-toggle').check()
+  await expect(page.getByTestId('add-activity')).toHaveCount(0)
+  await expect(page.getByTestId('import-activity')).toHaveCount(0)
   await expect(page.getByTestId('add-note')).toHaveCount(0)
   await expect(page.getByTestId('add-integer')).toHaveCount(0)
 
   await page.getByTestId('read-only-toggle').uncheck()
+  await expect(page.getByTestId('add-activity')).toBeVisible()
+  await expect(page.getByTestId('import-activity')).toBeVisible()
   await expect(page.getByTestId('add-note')).toBeVisible()
+})
+
+test('undo and redo arrows sit in the single top bar', async ({ page }) => {
+  await createProject(page, 'History')
+  const bar = page.locator('body > #root header')
+  await expect(bar).toHaveCount(1)
+  await expect(bar.getByTestId('save-status')).toBeVisible()
+  await expect(bar.getByTestId('export-archive')).toBeVisible()
+  await expect(bar.getByTestId('undo')).toBeDisabled()
+  await expect(bar.getByTestId('redo')).toBeDisabled()
+  await expect(page.locator('.tricc-project-bar')).toHaveCount(0)
+
+  await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
+  await page.getByTestId('add-note').click()
+  await expect(page.getByTestId('node-n-note')).toBeVisible()
+  await expect(page.getByTestId('undo')).toBeEnabled()
+
+  await page.getByTestId('undo').click()
+  await expect(page.getByTestId('node-n-note')).toHaveCount(0)
+  await expect(page.getByTestId('redo')).toBeEnabled()
+  await page.getByTestId('redo').click()
+  await expect(page.getByTestId('node-n-note')).toBeVisible()
+
+  await page.setViewportSize({ width: 390, height: 700 })
+  await expect(page.getByTestId('undo')).toBeVisible()
+  await expect(page.getByTestId('redo')).toBeVisible()
+  const headerOverflows = await page.evaluate(() => {
+    const header = document.querySelector('#root > header')
+    if (!header) return true
+    const box = header.getBoundingClientRect()
+    return box.right > window.innerWidth + 1 || box.left < -1
+  })
+  expect(headerOverflows).toBe(false)
+
+  await page.getByTestId('read-only-toggle').check()
+  await expect(page.getByTestId('undo')).toBeDisabled()
+  await expect(page.getByTestId('redo')).toBeDisabled()
 })
 
 test('an added intervention appears in the overview', async ({ page }) => {
@@ -132,6 +225,7 @@ test('an added intervention appears in the overview', async ({ page }) => {
 test('an activity in no intervention is visible rather than hidden', async ({ page }) => {
   await createProject(page, 'Orphan guideline')
   await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
   await page.getByTestId('nav-overview').click()
 
   await expect(page.getByTestId('unassigned-activity')).toBeVisible()
@@ -170,6 +264,7 @@ test('preferences set a display name, with no account anywhere', async ({ page }
 test('a project reopens from the project list', async ({ page }) => {
   await createProject(page, 'Reopen guideline')
   await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
   await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', {
     timeout: 10_000,
   })

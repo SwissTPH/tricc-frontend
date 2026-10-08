@@ -29,18 +29,12 @@ export const CPG_PROCESSES = [
 ] as const
 
 /**
- * An activity reference inside an intervention. A bare string is shorthand for `{ ref }`;
- * the object form carries per-intervention applicability, ANDed with the activity's own.
- * feature/20260826-project-and-interventions.md §2.
+ * An activity reference inside an intervention. A bare string is shorthand for `{ ref }`.
+ * Who the intervention is for lives on the intervention `start`, not on each reference.
  */
 export const activityRefSchema = z.union([
   z.string().min(1),
-  z
-    .object({
-      ref: z.string().min(1),
-      applicability: expressionSchema.optional(),
-    })
-    .strict(),
+  z.object({ ref: z.string().min(1) }).strict(),
 ])
 
 export const TRIGGER_MODES = ['on-demand', 'planned', 'event'] as const
@@ -55,13 +49,6 @@ export const triggerSchema = z
   })
   .strict()
 
-export const processGroupSchema = z
-  .object({
-    process: z.string().min(1),
-    activities: z.array(activityRefSchema).default([]),
-  })
-  .strict()
-
 export const interventionSchema = z
   .object({
     id: z.string().min(1),
@@ -70,7 +57,7 @@ export const interventionSchema = z
     description: localizedTextSchema.optional(),
     applicability: expressionSchema.optional(),
     trigger: triggerSchema.optional(),
-    processes: z.array(processGroupSchema).default([]),
+    activities: z.array(activityRefSchema).default([]),
   })
   .strict()
 

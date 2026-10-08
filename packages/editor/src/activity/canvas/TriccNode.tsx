@@ -1,5 +1,6 @@
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import { isSequenceNode, resolve, type NodeType, type TriccNode as Model } from '@tricc/core'
+import { NODE_OUT_HANDLE, answerHandleId, answerLabel, optionCode } from './answer.js'
 import { visualFor } from './node-visuals.js'
 
 export type TriccFlowNode = Node<
@@ -9,6 +10,8 @@ export type TriccFlowNode = Node<
     /** Highest severity attached to this node, or undefined when clean. */
     severity?: 'error' | 'warning'
     conceptDisplay?: string
+    /** Goto whose target activity is not in this project. */
+    missing?: boolean
   },
   'tricc'
 >
@@ -21,9 +24,45 @@ export type TriccFlowNode = Node<
  * (feature/20260825-activity-editor.md §3).
  */
 export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
-  const { model, lang, severity, conceptDisplay } = data
+  const { model, lang, severity, conceptDisplay, missing } = data
   const visual = visualFor(model.type as NodeType)
   const display = displayText(model, lang, conceptDisplay)
+  const answers =
+    model.type === 'select_one' || model.type === 'select_multiple' ? (model.options ?? []) : []
+
+  const head = (
+    <>
+      <span className="tricc-node__glyph" aria-hidden="true">
+        {visual.glyph}
+      </span>
+      <span className="tricc-node__body">
+        <span className="tricc-node__label">{display}</span>
+        {model.concept && <span className="tricc-node__code">{model.concept.code}</span>}
+        {!model.concept && model.name && display !== model.name && (
+          <span className="tricc-node__code">{model.name}</span>
+        )}
+      </span>
+      <span className="tricc-node__badges">
+        {model.notAvailable && <span className="tricc-badge">Not available</span>}
+        {model.hint && <span className="tricc-badge">Hint</span>}
+        {model.help && <span className="tricc-badge">Help</span>}
+        {model.repeat !== undefined && model.repeat !== 1 && (
+          <span className="tricc-badge">Repeat {model.repeat}</span>
+        )}
+        {missing && (
+          <span className="tricc-badge" data-testid="goto-missing">
+            <span aria-hidden="true">⚠ </span>
+            Missing activity
+          </span>
+        )}
+        {severity && (
+          <span className={`tricc-badge tricc-badge--${severity}`}>
+            {severity === 'error' ? 'Error' : 'Warning'}
+          </span>
+        )}
+      </span>
+    </>
+  )
 
   return (
     <div
@@ -31,6 +70,7 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
         'tricc-node',
         `tricc-node--${visual.shape}`,
         `tricc-node--${visual.group}`,
+        answers.length > 0 ? 'tricc-node--answers' : '',
         selected ? 'is-selected' : '',
         severity ? `has-${severity}` : '',
       ]
@@ -43,46 +83,37 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
     >
       {visual.targets && <Handle type="target" position={Position.Top} />}
 
-      <span className="tricc-node__glyph" aria-hidden="true">
-        {visual.glyph}
-      </span>
-      <span className="tricc-node__body">
-        <span className="tricc-node__label">{display}</span>
-        {model.concept && <span className="tricc-node__code">{model.concept.code}</span>}
-        {!model.concept && model.name && display !== model.name && (
-          <span className="tricc-node__code">{model.name}</span>
-        )}
-      </span>
+      {answers.length > 0 ? <div className="tricc-node__head">{head}</div> : head}
 
-      <span className="tricc-node__badges">
-        {model.notAvailable && (
-          <span className="tricc-badge" title="Adds a branchable “not available” output">
-            ∅
-          </span>
-        )}
-        {model.hint && (
-          <span className="tricc-badge" title="Has a hint">
-            i
-          </span>
-        )}
-        {model.help && (
-          <span className="tricc-badge" title="Has a help message">
-            ?
-          </span>
-        )}
-        {model.repeat !== undefined && model.repeat !== 1 && (
-          <span className="tricc-badge" title={`Repeat slot ${model.repeat}`}>
-            R{model.repeat}
-          </span>
-        )}
-        {severity && (
-          <span className={`tricc-badge tricc-badge--${severity}`} title={severity}>
-            {severity === 'error' ? '!' : '△'}
-          </span>
-        )}
-      </span>
+      {answers.length > 0 && (
+        <ul className="tricc-node__answers">
+          {answers.map((option) => {
+            const text = answerLabel(option, lang)
+            return (
+              <li
+                key={option.id}
+                className="tricc-node__answer"
+                data-testid={`node-${model.id}-answer-${option.id}`}
+                data-answer={optionCode(option)}
+              >
+                <span className="tricc-node__answer-label" title={text}>
+                  {text}
+                </span>
+                <Handle
+                  type="source"
+                  id={answerHandleId(option.id)}
+                  position={Position.Right}
+                  title={`Link from ${text}`}
+                />
+              </li>
+            )
+          })}
+        </ul>
+      )}
 
-      {visual.sources && <Handle type="source" position={Position.Bottom} />}
+      {visual.sources && (
+        <Handle type="source" id={NODE_OUT_HANDLE} position={Position.Bottom} title="Link onward" />
+      )}
     </div>
   )
 }

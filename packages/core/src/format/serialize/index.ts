@@ -1,16 +1,10 @@
 import type { Activity, Project } from '../../model/types.js'
 import { activityPath, codeSystemPath, libraryPath, PATHS } from '../../model/types.js'
-import {
-  decodeActivity,
-  decodeCodeSystem,
-  decodeProjectMeta,
-  encodeActivity,
-  encodeCodeSystem,
-  encodeProjectMeta,
-} from '../codec.js'
+import { decodeActivity, decodeCodeSystem, encodeActivity, encodeCodeSystem } from '../codec.js'
 import { fromJson, fromYaml, toJson, toYaml } from './yaml.js'
+import { encodeTriccYaml, peekTriccLanguages, readTriccYamlMeta, triccConfigText } from './tricc-yaml.js'
 import { FORMAT_VERSION } from '../schema/project.js'
-import { migrate, needsMigration, FormatVersionError } from '../migrations/index.js'
+import { FormatVersionError } from '../migrations/index.js'
 
 /** The file set that makes up a project on disk. Keys are project-relative paths. */
 export type ProjectFiles = Record<string, string>
@@ -21,12 +15,13 @@ export interface ReadResult {
   migratedFrom?: string
 }
 
-/** Serialize a whole project to its file set. */
+/** Serialize a whole project to its file set. `project.json` is never written. */
 export function writeProject(project: Project): ProjectFiles {
   const files: ProjectFiles = {}
   const lang = project.languages.default
 
-  files[PATHS.project] = toJson(encodeProjectMeta(project))
+  // Same activities, referenced by path. Not a second copy of the flow.
+  files[PATHS.tricc] = toYaml(encodeTriccYaml(project))
 
   for (const id of Object.keys(project.activities).sort()) {
     const a = project.activities[id]
@@ -55,62 +50,124 @@ export function writeChanged(
 } {
   const files = writeProject(project)
   const changed = Object.keys(files).filter((p) => previous[p] !== files[p])
-  const removed = Object.keys(previous).filter((p) => !(p in files))
+  // A `.drawio` stays in the folder. Saving writes activity YAML and points
+  // tricc.yaml at those paths; it does not delete or rewrite the drawing.
+  // Anything else that is not part of the project file set (a README, media
+  // that was never in the baseline) is left alone. `project.json` is removed
+  // when it was part of the baseline, because it is no longer the document.
+  const removed = Object.keys(previous).filter((p) => !(p in files) && isManaged(p))
   return { files, changed, removed }
 }
 
-const ACTIVITY_RE = /^activities\/(.+)\.activity\.yaml$/
+function isManaged(path: string): boolean {
+  if (path.endsWith('.drawio')) return false
+  return (
+    path === PATHS.project ||
+    path === PATHS.tricc ||
+    path === 'tricc.yml' ||
+    path.startsWith(`${PATHS.activities}/`) ||
+    path.startsWith(`${PATHS.terminology}/`) ||
+    path.startsWith(`${PATHS.cql}/`)
+  )
+}
+
+const ACTIVITY_RE = /^activities\/[^/]+\.ya?ml$/
 const CODESYSTEM_RE = /^terminology\/(.+)\.codesystem\.json$/
 const LIBRARY_RE = /^cql\/(.+)\.cql$/
 
 /** Parse a file set into a project. Deterministic: same files always give the same structure. */
 export function readProject(files: ProjectFiles): ReadResult {
-  const projectRaw = files[PATHS.project]
-  if (projectRaw === undefined) {
-    throw new Error(`missing ${PATHS.project} — not a TRICC project directory`)
+  const triccRaw = triccConfigText(files)
+  if (triccRaw === undefined) {
+    throw new Error(
+      `missing ${PATHS.tricc} — not a TRICC project directory. Add a tricc.yaml whose activity paths point at activity YAML or draw.io files.`,
+    )
   }
+  // An old project.json beside tricc.yaml is not the document. It is ignored.
+  return readFromTriccYaml(files, triccRaw)
+}
 
-  let raw = fromJson(projectRaw) as Record<string, unknown>
-  const declared = String(raw['formatVersion'] ?? '')
-  let migratedFrom: string | undefined
-  if (needsMigration(declared)) {
-    raw = migrate(raw, declared) as Record<string, unknown>
-    migratedFrom = declared
+/**
+ * `tricc.yaml` plus activity YAML. A listed `.drawio` is expanded into activities.
+ * Saving then writes those activities as YAML. The drawing file is not the saved form.
+ */
+function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
+  const languages = peekTriccLanguages(triccRaw)
+  const { project: loaded, idByPath } = attachFiles(
+    {
+      formatVersion: FORMAT_VERSION,
+      id: 'project',
+      languages,
+      interventions: [],
+      contexts: [],
+    },
+    files,
+    languages.default,
+  )
+  const meta = readTriccYamlMeta(triccRaw, files, idByPath, new Set(Object.keys(loaded.activities)))
+  loaded.id = meta.id
+  loaded.languages = meta.languages
+  loaded.interventions = meta.interventions
+  loaded.contexts = meta.contexts
+  if (meta.title) loaded.title = meta.title
+  if (meta.description) loaded.description = meta.description
+  if (meta.system) loaded.system = meta.system
+  if (meta.code) loaded.code = meta.code
+  if (meta.version) loaded.version = meta.version
+  if (meta.defaultCodeSystem) loaded.defaultCodeSystem = meta.defaultCodeSystem
+  if (meta.mediaPath) loaded.mediaPath = meta.mediaPath
+  for (const [id, activity] of Object.entries(meta.drawioActivities)) {
+    if (loaded.activities[id]) {
+      throw new Error(
+        `The draw.io page "${id}" uses the same id as an activity file already in this folder. Rename one of them so each activity is stored once.`,
+      )
+    }
+    loaded.activities[id] = activity
   }
+  const result: ReadResult = { project: loaded }
+  // Opening a diagram is unsaved until activity YAML is written, so the next
+  // save points tricc.yaml at those files and the edit is not lost.
+  if (meta.expandedDrawio) result.migratedFrom = 'drawio'
+  return result
+}
 
-  const meta = decodeProjectMeta(raw)
-  const lang = meta.languages.default
-
-  const project: Project = {
-    ...meta,
-    activities: {},
-    codeSystems: {},
-    libraries: {},
-  }
-
+function attachFiles(
+  meta: Omit<Project, 'activities' | 'codeSystems' | 'libraries'>,
+  files: ProjectFiles,
+  lang: string,
+): { project: Project; idByPath: Map<string, string> } {
+  const project: Project = { ...meta, activities: {}, codeSystems: {}, libraries: {} }
+  const idByPath = new Map<string, string>()
   for (const path of Object.keys(files).sort()) {
     const content = files[path] as string
-    const am = ACTIVITY_RE.exec(path)
-    if (am) {
-      const activity = decodeActivity(fromYaml(content), lang)
+    if (ACTIVITY_RE.test(path)) {
+      let activity
+      try {
+        activity = decodeActivity(fromYaml(content), lang)
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e)
+        throw new Error(
+          `${path} could not be read as an activity (${message}). Fix that file, or remove it from the folder, then import again.`,
+        )
+      }
+      if (project.activities[activity.id]) {
+        throw new Error(
+          `Two files declare the activity id "${activity.id}". An activity is stored once — keep one file and point every intervention at it.`,
+        )
+      }
       project.activities[activity.id] = activity
+      idByPath.set(path, activity.id)
       continue
     }
-    const cm = CODESYSTEM_RE.exec(path)
-    if (cm) {
+    if (CODESYSTEM_RE.test(path)) {
       const cs = decodeCodeSystem(fromJson(content))
       project.codeSystems[cs.url] = cs
       continue
     }
     const lm = LIBRARY_RE.exec(path)
-    if (lm) {
-      project.libraries[lm[1] as string] = content
-    }
+    if (lm) project.libraries[lm[1] as string] = content
   }
-
-  const result: ReadResult = { project }
-  if (migratedFrom !== undefined) result.migratedFrom = migratedFrom
-  return result
+  return { project, idByPath }
 }
 
 /** An empty project, ready to author into. */
@@ -180,7 +237,6 @@ export function createProcessActivity(opts: {
         type: 'start',
         name: toName(opts.id),
         process: opts.process,
-        formId: toName(opts.id),
         ui: { x: 80, y: 40 },
       },
     },

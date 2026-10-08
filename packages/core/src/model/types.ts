@@ -61,6 +61,12 @@ export interface TriccNode {
   default?: string
   min?: number
   max?: number
+  /** Quantity: the human-readable unit, for example `C` or `kg`. */
+  unit?: string
+  /** Quantity: unit system. UCUM when the author sets one. */
+  unit_system?: string
+  /** Quantity: code inside `unit_system`, for example `Cel` or `kg`. */
+  unit_code?: string
   repeat?: number
   instance?: number
 
@@ -68,6 +74,11 @@ export interface TriccNode {
   link?: string
 
   listName?: string
+  /**
+   * Draw.io `filter` on a select. When set, conversion uses it as the concept
+   * code (the name on the drawing is often only a local placeholder).
+   */
+  filter?: string
   options?: SelectOption[]
 
   severity?: 'light' | 'mild' | 'moderate' | 'severe'
@@ -76,8 +87,21 @@ export interface TriccNode {
   context?: 'patient' | 'facility' | 'practitioner' | 'location' | 'encounter' | 'history'
   period?: string
 
-  formId?: string
+  /**
+   * Process-start form id, spelled `form_id` to match `tricc_oo`.
+   * Export names the form from the process `start`. An activity start does not carry it.
+   */
+  form_id?: string
   process?: string
+
+  /**
+   * `continue_with`: the intervention this follow-up starts, an expression string,
+   * and a delay as an ISO-8601 period (`P3D`). An intervention `start.due` stays
+   * a UCUM duration (`3 d`); this field does not reuse that spelling.
+   */
+  intervention?: string
+  condition?: string
+  delay?: string
 
   media?: { image: string }
   notAvailable?: NotAvailable
@@ -111,14 +135,9 @@ export interface Activity {
   edgeOrder: string[]
 }
 
+/** A path to one activity file. The same ref may appear on more than one intervention. */
 export interface ActivityRef {
   ref: string
-  applicability?: Expression
-}
-
-export interface ProcessGroup {
-  process: string
-  activities: ActivityRef[]
 }
 
 export interface Trigger {
@@ -131,9 +150,11 @@ export interface Intervention {
   code?: string
   title?: LocalizedText
   description?: LocalizedText
+  /** Who this intervention is for. Saved as `start.condition` (and the intent text beside it). */
   applicability?: Expression
   trigger?: Trigger
-  processes: ProcessGroup[]
+  /** Flat list. A process page is itself an activity in this list, not a group of pages. */
+  activities: ActivityRef[]
 }
 
 export interface TriccContext {
@@ -196,7 +217,10 @@ export interface Project {
 
 /** Where a project's files live, relative to the project root. */
 export const PATHS = {
+  /** Legacy editor file. Ignored on open and never written. */
   project: 'project.json',
+  /** The project file. Activity bodies live beside it under `activities/`. */
+  tricc: 'tricc.yaml',
   activities: 'activities',
   terminology: 'terminology',
   cql: 'cql',

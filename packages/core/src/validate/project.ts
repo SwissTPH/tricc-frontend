@@ -1,5 +1,5 @@
 import type { Project } from '../model/types.js'
-import { activityKind, calledActivities, processOf } from '../model/activity-kind.js'
+import { activityKind, calledActivities } from '../model/activity-kind.js'
 import { IMPLEMENTED_TRIGGER_MODES } from '../format/schema/project.js'
 import { isOpenHandoff } from '../format/schema/expression.js'
 import { validateActivity } from './activity.js'
@@ -65,6 +65,28 @@ function validateCrossActivity(project: Project): Issue[] {
           ),
         )
       }
+      if (node.type === 'continue_with') {
+        if (node.intervention && !project.interventions.some((iv) => iv.id === node.intervention)) {
+          issues.push(
+            issue(
+              'continue_with.missing-intervention',
+              'error',
+              `This follow-up points at "${node.intervention}", which is not an intervention in this project. Choose one from the list.`,
+              { activityId, nodeId: node.id, field: 'intervention' },
+            ),
+          )
+        }
+        if (node.delay && !ISO_PERIOD.test(node.delay)) {
+          issues.push(
+            issue(
+              'continue_with.delay',
+              'warning',
+              `The delay "${node.delay}" is not an ISO-8601 period such as P3D. An intervention start.due stays a UCUM duration and is a different field.`,
+              { activityId, nodeId: node.id, field: 'delay' },
+            ),
+          )
+        }
+      }
       if (node.type === 'wait' && isActivityReference(node.reference)) {
         const target = (node.reference as { activity: string }).activity
         if (!activityIds.has(target)) {
@@ -123,6 +145,9 @@ function validateCrossActivity(project: Project): Issue[] {
   return issues
 }
 
+/** ISO-8601 duration with at least one component. Not the UCUM spelling `3 d`. */
+const ISO_PERIOD = /^P(?!$)(\d+Y)?(\d+M)?(\d+W)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+S)?)?$/
+
 function isActivityReference(ref: unknown): boolean {
   return typeof ref === 'object' && ref !== null && 'activity' in ref
 }
@@ -139,12 +164,12 @@ function validateInterventions(project: Project): Issue[] {
     const code = iv.code ?? iv.id
     seenCodes.set(code, [...(seenCodes.get(code) ?? []), iv.id])
 
-    if (iv.processes.length === 0) {
+    if (iv.activities.length === 0) {
       issues.push(
         issue(
           'intervention.empty',
           'warning',
-          'This intervention contains no processes, so selecting it would do nothing.',
+          'This intervention lists no activities, so selecting it would do nothing.',
           loc,
         ),
       )
@@ -173,87 +198,42 @@ function validateInterventions(project: Project): Issue[] {
     }
 
     const seenRefs = new Set<string>()
-    for (const pg of iv.processes) {
-      for (const ref of pg.activities) {
-        usedActivities.add(ref.ref)
+    for (const ref of iv.activities) {
+      usedActivities.add(ref.ref)
 
-        const referenced = project.activities[ref.ref]
-        if (referenced) {
-          // An intervention lists process activities, not normal ones. The wrapper is what
-          // keeps a reusable activity from being owned by a process - a normal activity
-          // used directly here could not also be called from inside another activity.
-          if (activityKind(referenced) !== 'process') {
-            issues.push(
-              issue(
-                'intervention.not-a-process-activity',
-                'error',
-                `"${ref.ref}" is a normal activity, so it cannot be the entry point for a process. Create a process activity for "${pg.process}" that calls it, and list that instead.`,
-                { ...loc, activityId: ref.ref },
-                {
-                  label: 'Create a process activity that calls it',
-                  kind: 'intervention.wrap-activity',
-                },
-              ),
-            )
-          } else {
-            const declared = processOf(referenced)
-            if (declared && declared !== pg.process) {
-              issues.push(
-                issue(
-                  'intervention.process-mismatch',
-                  'error',
-                  `"${ref.ref}" is the entry point for "${declared}", but it is listed under "${pg.process}". Move it, or change the process it starts.`,
-                  { ...loc, activityId: ref.ref },
-                ),
-              )
-            }
-            if (calledActivities(referenced).length === 0) {
-              issues.push(
-                issue(
-                  'process-activity.no-calls',
-                  'warning',
-                  `"${ref.ref}" starts the "${pg.process}" process but calls no activity, so this process would do nothing.`,
-                  { ...loc, activityId: ref.ref },
-                ),
-              )
-            }
-          }
-        }
-
-        if (!activityIds.has(ref.ref)) {
-          issues.push(
-            issue(
-              'intervention.dangling-activity',
-              'error',
-              `"${ref.ref}" is listed in this intervention but is not an activity in this project.`,
-              { ...loc, activityId: ref.ref },
-            ),
-          )
-        }
-        const key = `${pg.process}/${ref.ref}`
-        if (seenRefs.has(key)) {
-          issues.push(
-            issue(
-              'intervention.duplicate-activity',
-              'warning',
-              `"${ref.ref}" appears twice in the "${pg.process}" process of this intervention.`,
-              { ...loc, activityId: ref.ref },
-            ),
-          )
-        }
-        seenRefs.add(key)
-
-        if (isOpenHandoff(ref.applicability)) {
-          issues.push(
-            issue(
-              'expression.open-handoff',
-              'error',
-              `The intent for when "${ref.ref}" applies is written but the logic is not.`,
-              { ...loc, activityId: ref.ref, field: 'applicability' },
-            ),
-          )
-        }
+      const referenced = project.activities[ref.ref]
+      if (referenced && activityKind(referenced) === 'process' && calledActivities(referenced).length === 0) {
+        issues.push(
+          issue(
+            'process-activity.no-calls',
+            'warning',
+            `"${ref.ref}" is a process activity but calls no activity, so opening it would do nothing.`,
+            { ...loc, activityId: ref.ref },
+          ),
+        )
       }
+
+      if (!activityIds.has(ref.ref)) {
+        issues.push(
+          issue(
+            'intervention.dangling-activity',
+            'error',
+            `"${ref.ref}" is listed in this intervention but is not an activity in this project.`,
+            { ...loc, activityId: ref.ref },
+          ),
+        )
+      }
+      if (seenRefs.has(ref.ref)) {
+        issues.push(
+          issue(
+            'intervention.duplicate-activity',
+            'warning',
+            `"${ref.ref}" is listed twice on this intervention. Keep one reference to the same activity file.`,
+            { ...loc, activityId: ref.ref },
+          ),
+        )
+      }
+      seenRefs.add(ref.ref)
     }
   }
 

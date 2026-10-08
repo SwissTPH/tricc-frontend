@@ -23,6 +23,7 @@ import { OpenProjectProvider, TriccRuntimeProvider } from './runtime/context.js'
 import { useSave } from './runtime/useSave.js'
 import { ProjectOverview } from './project/Overview.js'
 import { ActivityEditor } from './activity/ActivityEditor.js'
+import { HistoryButtons } from './project/HistoryButtons.js'
 import { ActivityNavigator } from './project/ActivityNavigator.js'
 
 /**
@@ -130,6 +131,22 @@ describe('authoring an activity end to end', () => {
     expect(screen.queryByTestId('add-start')).not.toBeInTheDocument()
   })
 
+  it('keeps offering activity end after one is placed', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+
+    await user.click(screen.getByTestId('add-activity_end'))
+    await user.click(screen.getByTestId('tab-nodes'))
+    expect(screen.getByTestId('add-activity_end')).toBeInTheDocument()
+    await user.click(screen.getByTestId('add-activity_end'))
+
+    expect(screen.getByTestId('node-n-activity_end')).toBeInTheDocument()
+    expect(screen.getByTestId('node-n-activity_end-2')).toBeInTheDocument()
+    const nodes = h.open.document.snapshot().activities['triage']?.nodes ?? {}
+    expect(Object.values(nodes).filter((node) => node.type === 'activity_end')).toHaveLength(2)
+  })
+
   it('never offers an injection-only type', async () => {
     const h = await harness()
     renderWith(h, <ActivityEditor activityId="triage" />)
@@ -148,6 +165,44 @@ describe('authoring an activity end to end', () => {
     renderWith(h, <ActivityEditor activityId="nope" />)
     expect(screen.getByTestId('activity-missing')).toBeInTheDocument()
   })
+
+  it('shows nodes, details, and connections on separate inspector tabs', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+
+    expect(screen.queryByTestId('tab-details')).not.toBeInTheDocument()
+    expect(screen.getByTestId('tab-nodes')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByTestId('node-list')).toBeInTheDocument()
+    expect(screen.queryByTestId('edge-list')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('node-properties')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('validation-summary')).not.toBeInTheDocument()
+
+    await user.click(screen.getByTestId('tab-validation'))
+    expect(screen.getByTestId('validation-scope')).toHaveTextContent('Whole activity')
+    expect(screen.getByTestId('issue-activity.no-end')).toBeInTheDocument()
+
+    await user.click(screen.getByTestId('tab-nodes'))
+    await user.click(screen.getByTestId('tab-connection'))
+    expect(screen.getByTestId('edge-list')).toBeInTheDocument()
+    expect(screen.queryByTestId('node-list')).not.toBeInTheDocument()
+
+    await user.click(screen.getByTestId('tab-nodes'))
+    await user.click(screen.getByTestId('select-node-s'))
+    expect(screen.getByTestId('tab-details')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByTestId('node-properties')).toBeInTheDocument()
+    expect(screen.queryByTestId('node-list')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('edge-list')).not.toBeInTheDocument()
+
+    await user.click(screen.getByTestId('tab-nodes'))
+    expect(screen.getByTestId('node-list')).toBeInTheDocument()
+    expect(screen.queryByTestId('node-properties')).not.toBeInTheDocument()
+    expect(screen.getByTestId('tab-details')).toBeInTheDocument()
+
+    await user.click(screen.getByTestId('tab-validation'))
+    expect(screen.getByTestId('validation-scope')).toHaveTextContent('This node')
+    expect(screen.queryByTestId('issue-activity.no-end')).not.toBeInTheDocument()
+  })
 })
 
 describe('validation surfaces in the UI', () => {
@@ -157,11 +212,31 @@ describe('validation surfaces in the UI', () => {
     renderWith(h, <ActivityEditor activityId="triage" />)
 
     await user.click(screen.getByTestId('add-select_one'))
+    await user.click(screen.getByTestId('tab-validation'))
 
+    expect(screen.getByTestId('validation-scope')).toHaveTextContent('This node')
     expect(screen.getByTestId('issue-select.no-options')).toHaveAttribute('data-severity', 'error')
     // Editing is still possible - a guideline is invalid for most of the time it is written.
+    await user.click(screen.getByTestId('tab-details'))
     await user.type(screen.getByTestId('field-label'), 'Colour')
     expect(screen.getByTestId('field-label')).toHaveValue('Colour')
+  })
+
+  it('shows each answer as a line on a single or multiple choice', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+
+    await user.click(screen.getByTestId('add-select_one'))
+    await user.click(screen.getByTestId('add-option'))
+    await user.clear(screen.getByTestId('option-label-option'))
+    await user.type(screen.getByTestId('option-label-option'), 'Fever')
+    expect(screen.getByTestId('node-n-select_one-answer-option')).toHaveTextContent('Fever')
+
+    await user.click(screen.getByTestId('tab-nodes'))
+    await user.click(screen.getByTestId('add-select_multiple'))
+    await user.click(screen.getByTestId('add-option'))
+    expect(screen.getByTestId('node-n-select_multiple-answer-option')).toHaveTextContent('New answer')
   })
 
   it('shows an open handoff as an error', async () => {
@@ -171,6 +246,7 @@ describe('validation surfaces in the UI', () => {
 
     await user.click(screen.getByTestId('add-note'))
     await user.type(screen.getByTestId('field-relevance-intent'), 'Only for infants')
+    await user.click(screen.getByTestId('tab-validation'))
 
     expect(screen.getByTestId('issue-expression.open-handoff')).toHaveAttribute(
       'data-severity',
@@ -187,7 +263,67 @@ describe('validation surfaces in the UI', () => {
     await user.type(screen.getByTestId('field-relevance-intent'), 'Only for infants')
     await user.type(screen.getByTestId('field-relevance-expression'), 'AgeInMonths() < 12')
 
+    await user.click(screen.getByTestId('tab-validation'))
     expect(screen.queryByTestId('issue-expression.open-handoff')).not.toBeInTheDocument()
+    await user.click(screen.getByTestId('tab-details'))
+    expect(screen.getByTestId('field-relevance-expression-display')).toHaveTextContent('AgeInMonths')
+    expect(screen.queryByText(/not rewritten into CQL/)).not.toBeInTheDocument()
+  })
+
+  it('shows a calculation as CQL and names a broken quote without rewriting it', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+
+    await user.click(screen.getByTestId('add-calculate'))
+    const field = screen.getByTestId('field-calculate')
+    await user.type(field, '"age')
+    expect(screen.getByTestId('field-calculate-lint')).toHaveTextContent(/closing quote/)
+
+    await user.clear(field)
+    const expression = '"age_in_days" < 60 and "CHE.B6.DE07" > 9'
+    await user.type(field, expression)
+
+    expect(screen.queryByTestId('field-calculate-lint')).not.toBeInTheDocument()
+    const display = screen.getByTestId('field-calculate-display')
+    expect(display.querySelector('.tricc-cql__name')).toHaveTextContent('age_in_days')
+    expect(display).toHaveTextContent('CHE.B6.DE07')
+    expect(display.querySelector('.tricc-cql__keyword')).toHaveTextContent('and')
+    expect(screen.queryByText(/not rewritten into CQL/)).not.toBeInTheDocument()
+
+    const nodes = h.open.document.snapshot().activities['triage']?.nodes ?? {}
+    const calculate = Object.values(nodes).find((node) => node.type === 'calculate')
+    expect(calculate?.calculate).toEqual({ expression })
+  })
+
+  it('shows a concept label in place of the code, with a tooltip and a way to open the question', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+
+    await user.click(screen.getByTestId('add-decimal'))
+    await user.clear(screen.getByTestId('field-name'))
+    await user.type(screen.getByTestId('field-name'), 'CHE.B6.DE07')
+    await user.type(screen.getByTestId('field-label'), 'Weight (kilograms)')
+
+    await user.click(screen.getByTestId('tab-nodes'))
+    await user.click(screen.getByTestId('add-calculate'))
+    await user.type(screen.getByTestId('field-calculate'), '"CHE.B6.DE07" > 9')
+
+    const term = screen.getByTestId('field-calculate-term-0')
+    expect(term).toHaveTextContent('Weight (kilograms)')
+    expect(term).toHaveAttribute('title', 'Weight (kilograms) — CHE.B6.DE07')
+    expect(screen.getByTestId('field-calculate')).toHaveValue('"CHE.B6.DE07" > 9')
+
+    await user.click(screen.getByTestId('field-calculate-about-0'))
+    expect(screen.getByTestId('field-calculate-card-0')).toHaveTextContent('Question in Triage')
+    await user.click(screen.getByTestId('field-calculate-show-0'))
+    expect(screen.getByTestId('field-name')).toHaveValue('CHE.B6.DE07')
+    expect(screen.getByTestId('field-label')).toHaveValue('Weight (kilograms)')
+
+    const nodes = h.open.document.snapshot().activities['triage']?.nodes ?? {}
+    const calculate = Object.values(nodes).find((node) => node.type === 'calculate')
+    expect(calculate?.calculate).toEqual({ expression: '"CHE.B6.DE07" > 9' })
   })
 })
 
@@ -221,22 +357,30 @@ describe('read-only sessions', () => {
 })
 
 describe('project overview', () => {
-  it('lists interventions and their activities', async () => {
+  it('lists the processes on an intervention, not its page activities', async () => {
     const project = seed()
+    project.activities['triage-process'] = createProcessActivity({
+      id: 'triage-process',
+      process: 'triage',
+      title: 'Triage',
+    })
     project.interventions = [
       {
         id: 'sick-child',
         code: 'sick-child',
         title: { en: 'Sick child' },
         trigger: { mode: 'on-demand' },
-        processes: [{ process: 'triage', activities: [{ ref: 'triage' }] }],
+        activities: [{ ref: 'triage' }, { ref: 'triage-process' }],
       },
     ]
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
 
     expect(screen.getByTestId('intervention-sick-child')).toBeInTheDocument()
-    expect(screen.getByTestId('intervention-sick-child-activity-triage')).toBeInTheDocument()
+    expect(screen.queryByTestId('intervention-sick-child-activity-triage')).not.toBeInTheDocument()
+    expect(screen.getByTestId('intervention-sick-child-activity-triage-process')).toHaveTextContent(
+      'Triage',
+    )
     expect(screen.getByTestId('intervention-sick-child-trigger')).toHaveTextContent('on-demand')
   })
 
@@ -246,16 +390,20 @@ describe('project overview', () => {
     expect(screen.getByTestId('unassigned-triage')).toBeInTheDocument()
   })
 
-  it('marks an activity shared between two interventions', async () => {
+  it('marks a process shared between two interventions', async () => {
     const project = seed()
-    const processes = [{ process: 'triage', activities: [{ ref: 'triage' }] }]
+    project.activities['triage-process'] = createProcessActivity({
+      id: 'triage-process',
+      process: 'triage',
+      title: 'Triage',
+    })
     project.interventions = [
-      { id: 'a', code: 'a', processes },
-      { id: 'b', code: 'b', processes },
+      { id: 'a', code: 'a', activities: [{ ref: 'triage-process' }] },
+      { id: 'b', code: 'b', activities: [{ ref: 'triage-process' }] },
     ]
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
-    expect(screen.getAllByTestId('shared-triage').length).toBeGreaterThan(0)
+    expect(screen.getAllByTestId('shared-triage-process').length).toBeGreaterThan(0)
   })
 
   it('blocks export for a reserved trigger mode, saying why', async () => {
@@ -265,7 +413,7 @@ describe('project overview', () => {
         id: 'a',
         code: 'a',
         trigger: { mode: 'planned' },
-        processes: [{ process: 'triage', activities: [{ ref: 'triage' }] }],
+        activities: [{ ref: 'triage' }],
       },
     ]
     const h = await harness(project)
@@ -385,6 +533,46 @@ describe('undo across the UI', () => {
       (before ?? 0) - 1,
     )
   })
+
+  it('the undo and redo arrows reverse the last change', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(
+      h,
+      <>
+        <HistoryButtons />
+        <ActivityEditor activityId="triage" />
+      </>,
+    )
+
+    expect(screen.getByTestId('undo')).toBeDisabled()
+    expect(screen.getByTestId('redo')).toBeDisabled()
+
+    await user.click(screen.getByTestId('add-integer'))
+    expect(screen.getByTestId('undo')).toBeEnabled()
+
+    await user.click(screen.getByTestId('undo'))
+    expect(screen.queryByTestId('node-n-integer')).not.toBeInTheDocument()
+    expect(screen.getByTestId('redo')).toBeEnabled()
+
+    await user.click(screen.getByTestId('redo'))
+    expect(screen.getByTestId('node-n-integer')).toBeInTheDocument()
+  })
+
+  it('Ctrl+Z undoes the last change and Ctrl+Shift+Z restores it', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+
+    await user.click(screen.getByTestId('add-integer'))
+    expect(h.open.document.snapshot().activities['triage']?.nodes['n-integer']).toBeTruthy()
+
+    await user.keyboard('{Control>}z{/Control}')
+    expect(h.open.document.snapshot().activities['triage']?.nodes['n-integer']).toBeUndefined()
+
+    await user.keyboard('{Control>}{Shift>}z{/Shift}{/Control}')
+    expect(h.open.document.snapshot().activities['triage']?.nodes['n-integer']).toBeTruthy()
+  })
 })
 
 /** Drive the typeahead the way an author does: type, then pick. */
@@ -424,7 +612,7 @@ describe('intervention editing', () => {
         code: 'sick-child',
         title: { en: 'Sick child' },
         trigger: { mode: 'on-demand' },
-        processes: [],
+        activities: [],
       },
     ]
     return harness(project)
@@ -435,110 +623,90 @@ describe('intervention editing', () => {
     const h = await withIntervention()
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-sick-child'))
     const title = screen.getByTestId('iv-title-sick-child')
     await user.clear(title)
     await user.type(title, 'Sick child under five')
 
     expect(h.open.document.snapshot().interventions[0]?.title?.['en']).toBe('Sick child under five')
+    await user.click(screen.getByTestId('intervention-settings-sick-child-save'))
+    expect(screen.queryByTestId('intervention-settings-sick-child')).not.toBeInTheDocument()
+    expect(h.open.document.snapshot().interventions[0]?.title?.['en']).toBe('Sick child under five')
   })
 
-  it('adds a process, then an activity to it', async () => {
+  it('adds an activity to the flat list', async () => {
     const user = userEvent.setup()
     const h = await withIntervention()
     renderWith(h, <ProjectOverview />)
 
-    await user.type(screen.getByTestId('process-name-sick-child'), 'triage')
-    await user.click(screen.getByTestId('add-process-sick-child'))
-
-    const processes = h.open.document.snapshot().interventions[0]?.processes
-    expect(processes).toEqual([{ process: 'triage', activities: [] }])
-
-    await pickActivity(user, 'add-activity-to-sick-child-triage', 'triage-process')
-    expect(h.open.document.snapshot().interventions[0]?.processes[0]?.activities).toEqual([
+    await user.click(screen.getByTestId('add-process-to-sick-child'))
+    await pickActivity(user, 'add-activity-to-sick-child', 'triage-process')
+    expect(h.open.document.snapshot().interventions[0]?.activities).toEqual([
       { ref: 'triage-process' },
     ])
   })
 
-  it('refuses to add the same process twice', async () => {
+  it('only offers activities that are not already listed', async () => {
     const user = userEvent.setup()
     const h = await withIntervention()
     renderWith(h, <ProjectOverview />)
 
-    await user.type(screen.getByTestId('process-name-sick-child'), 'triage')
-    await user.click(screen.getByTestId('add-process-sick-child'))
-    await user.type(screen.getByTestId('process-name-sick-child'), 'triage')
+    await user.click(screen.getByTestId('add-process-to-sick-child'))
+    await pickActivity(user, 'add-activity-to-sick-child', 'triage-process')
 
-    expect(screen.getByTestId('add-process-sick-child')).toBeDisabled()
+    await user.click(screen.getByTestId('add-process-to-sick-child'))
+    expect(screen.getByTestId('add-activity-to-sick-child-exhausted')).toHaveTextContent('already listed')
+    expect(screen.queryByTestId('add-activity-to-sick-child-option-triage')).not.toBeInTheDocument()
   })
 
-  it('only offers activities not already in the process', async () => {
+  it('keeps the intervention condition off the activity itself', async () => {
     const user = userEvent.setup()
     const h = await withIntervention()
     renderWith(h, <ProjectOverview />)
 
-    await user.type(screen.getByTestId('process-name-sick-child'), 'triage')
-    await user.click(screen.getByTestId('add-process-sick-child'))
-    await pickActivity(user, 'add-activity-to-sick-child-triage', 'triage-process')
-
-    // The project has exactly one process activity for triage, and it is now used.
-    expect(screen.queryByTestId('add-activity-to-sick-child-triage')).not.toBeInTheDocument()
-    expect(screen.getByTestId('add-activity-to-sick-child-triage-exhausted')).toHaveTextContent(
-      'already listed',
-    )
-  })
-
-  it('sets per-reference applicability without touching the activity itself', async () => {
-    const user = userEvent.setup()
-    const h = await withIntervention()
-    renderWith(h, <ProjectOverview />)
-
-    await user.type(screen.getByTestId('process-name-sick-child'), 'triage')
-    await user.click(screen.getByTestId('add-process-sick-child'))
-    await pickActivity(user, 'add-activity-to-sick-child-triage', 'triage-process')
-    await user.type(
-      screen.getByTestId('iv-activity-cql-sick-child-triage-process'),
-      '"Diarrhoea reported"',
-    )
+    await user.click(screen.getByTestId('add-process-to-sick-child'))
+    await pickActivity(user, 'add-activity-to-sick-child', 'triage-process')
+    await user.click(screen.getByTestId('configure-intervention-sick-child'))
+    await user.type(screen.getByTestId('iv-cql-sick-child'), 'AgeInMonths() < 60')
 
     const snapshot = h.open.document.snapshot()
-    expect(snapshot.interventions[0]?.processes[0]?.activities[0]?.applicability).toEqual({
-      expression: '"Diarrhoea reported"',
-    })
-    // The activity's own applicability is a different statement and must be untouched.
+    expect(snapshot.interventions[0]?.applicability?.expression).toBe('AgeInMonths() < 60')
     expect(snapshot.activities['triage-process']?.applicability).toBeUndefined()
+    expect(snapshot.interventions[0]?.activities[0]).toEqual({ ref: 'triage-process' })
   })
 
-  it('removes an activity from a process', async () => {
+  it('removes an activity from the intervention', async () => {
     const user = userEvent.setup()
     const h = await withIntervention()
     renderWith(h, <ProjectOverview />)
 
-    await user.type(screen.getByTestId('process-name-sick-child'), 'triage')
-    await user.click(screen.getByTestId('add-process-sick-child'))
-    await pickActivity(user, 'add-activity-to-sick-child-triage', 'triage-process')
-    await user.click(screen.getByTestId('remove-activity-sick-child-triage-triage-process'))
+    await user.click(screen.getByTestId('add-process-to-sick-child'))
+    await pickActivity(user, 'add-activity-to-sick-child', 'triage-process')
+    await user.click(screen.getByTestId('remove-activity-sick-child-triage-process'))
 
-    expect(h.open.document.snapshot().interventions[0]?.processes[0]?.activities).toEqual([])
+    expect(h.open.document.snapshot().interventions[0]?.activities).toEqual([])
   })
 
-  it('removes a process', async () => {
+  it('deletes an intervention after confirmation', async () => {
     const user = userEvent.setup()
     const h = await withIntervention()
     renderWith(h, <ProjectOverview />)
 
-    await user.type(screen.getByTestId('process-name-sick-child'), 'triage')
-    await user.click(screen.getByTestId('add-process-sick-child'))
-    await user.click(screen.getByTestId('remove-process-sick-child-triage'))
+    await user.click(screen.getByTestId('configure-intervention-sick-child'))
+    await user.click(screen.getByTestId('delete-intervention-sick-child'))
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    expect(h.open.document.snapshot().interventions).toHaveLength(1)
 
-    expect(h.open.document.snapshot().interventions[0]?.processes).toEqual([])
-  })
-
-  it('deletes an intervention', async () => {
-    const user = userEvent.setup()
-    const h = await withIntervention()
-    renderWith(h, <ProjectOverview />)
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByTestId('intervention-settings-sick-child')).toBeInTheDocument()
 
     await user.click(screen.getByTestId('delete-intervention-sick-child'))
+    await user.click(screen.getByTestId('delete-intervention-sick-child-cancel'))
+    expect(h.open.document.snapshot().interventions).toHaveLength(1)
+
+    await user.click(screen.getByTestId('delete-intervention-sick-child'))
+    await user.click(screen.getByTestId('delete-intervention-sick-child-confirm'))
     expect(h.open.document.snapshot().interventions).toEqual([])
   })
 
@@ -547,6 +715,7 @@ describe('intervention editing', () => {
     const h = await withIntervention()
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-sick-child'))
     const trigger = screen.getByTestId('iv-trigger-sick-child')
     expect(trigger).toHaveTextContent('planned (needs the planning layer)')
 
@@ -558,15 +727,50 @@ describe('intervention editing', () => {
   })
 
   it('is entirely read-only without write capability', async () => {
+    const user = userEvent.setup()
     const h = await withIntervention()
     h.identity.setCapabilities(['project.read'])
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-sick-child'))
     expect(screen.getByTestId('iv-title-sick-child')).toBeDisabled()
-    expect(screen.queryByTestId('add-process-sick-child')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('intervention-settings-sick-child-save')).not.toBeInTheDocument()
+    await user.click(screen.getByTestId('intervention-settings-sick-child-close'))
+    expect(screen.queryByTestId('intervention-settings-sick-child')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('add-process-to-sick-child')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('add-activity-to-sick-child')).not.toBeInTheDocument()
     expect(screen.queryByTestId('delete-intervention-sick-child')).not.toBeInTheDocument()
   })
 })
+
+const COUGH_YAML = `
+id: cough
+title: Cough
+nodes:
+  - id: start
+    type: activity_start
+    name: cough
+    ui: { x: 40, y: 40 }
+  - id: n1
+    type: note
+    label: Ask about cough
+    ui: { x: 40, y: 140 }
+edges: []
+`
+
+const AIRWAY_YAML = `
+id: airway-process
+process: airway
+title: Airway
+nodes:
+  - id: start
+    type: start
+    name: airway
+    process: airway
+    form_id: ETAT
+    ui: { x: 40, y: 40 }
+edges: []
+`
 
 describe('process activities versus activities', () => {
   it('creates the two kinds with different roots', async () => {
@@ -575,6 +779,9 @@ describe('process activities versus activities', () => {
     renderWith(h, <ActivityNavigator selected={undefined} onSelect={() => {}} />)
 
     await user.click(screen.getByTestId('add-activity'))
+    await user.click(screen.getByTestId('create-activity'))
+    await user.click(screen.getByTestId('tab-processes'))
+    await user.click(screen.getByTestId('add-process'))
     await user.type(screen.getByTestId('new-process-name'), 'registration')
     await user.click(screen.getByTestId('add-process-activity'))
 
@@ -590,61 +797,154 @@ describe('process activities versus activities', () => {
     const h = await harness()
     renderWith(h, <ActivityNavigator selected={undefined} onSelect={() => {}} />)
 
+    await user.click(screen.getByTestId('tab-processes'))
+    await user.click(screen.getByTestId('add-process'))
     await user.type(screen.getByTestId('new-process-name'), 'triage')
     await user.click(screen.getByTestId('add-process-activity'))
 
-    // Each kind appears in its own list, not in one undifferentiated pile.
+    // Each kind appears on its own tab, not in one undifferentiated pile.
     expect(screen.getByTestId('process-activity-list')).toContainElement(
       screen.getByTestId('nav-activity-triage-process'),
     )
+    expect(screen.queryByTestId('activity-list')).not.toBeInTheDocument()
+    await user.click(screen.getByTestId('tab-activities'))
     expect(screen.getByTestId('activity-list')).toContainElement(
       screen.getByTestId('nav-activity-triage'),
     )
+    expect(screen.queryByTestId('process-activity-list')).not.toBeInTheDocument()
+    expect(screen.getByTestId('nav-activity-triage')).toHaveAttribute('data-kind', 'activity')
+    await user.click(screen.getByTestId('tab-processes'))
     expect(screen.getByTestId('nav-activity-triage-process')).toHaveAttribute(
       'data-kind',
       'process',
     )
-    expect(screen.getByTestId('nav-activity-triage')).toHaveAttribute('data-kind', 'activity')
   })
 
-  it('refuses a normal activity in an intervention, and says what to do', async () => {
+  it('imports an activity after confirmation and keeps a process file on its own tab', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityNavigator selected={undefined} onSelect={() => {}} />)
+
+    const cough = new File([COUGH_YAML], 'cough.activity.yaml', { type: 'text/yaml' })
+    const airway = new File([AIRWAY_YAML], 'airway.activity.yaml', { type: 'text/yaml' })
+
+    await user.upload(screen.getByTestId('import-activity-file', { hidden: true }), cough)
+    await waitFor(() =>
+      expect(screen.getByTestId('import-modal')).toHaveTextContent('Nothing is added until you import.'),
+    )
+    expect(screen.getByTestId('import-id-cough')).toHaveTextContent('cough')
+    await user.click(screen.getByTestId('import-cancel'))
+    expect(h.open.document.snapshot().activities.cough).toBeUndefined()
+
+    await user.upload(screen.getByTestId('import-activity-file', { hidden: true }), cough)
+    await waitFor(() => expect(screen.getByTestId('import-confirm')).toBeEnabled())
+    await user.click(screen.getByTestId('import-confirm'))
+    expect(screen.queryByTestId('import-modal')).not.toBeInTheDocument()
+    expect(h.open.document.snapshot().activities.cough?.nodes.n1?.label).toEqual({
+      en: 'Ask about cough',
+    })
+    expect(screen.getByTestId('nav-activity-cough')).toBeInTheDocument()
+
+    await user.upload(screen.getByTestId('import-activity-file', { hidden: true }), cough)
+    await waitFor(() =>
+      expect(screen.getByTestId('import-id-cough-2')).toHaveTextContent('saved as cough-2'),
+    )
+    await user.click(screen.getByTestId('import-cancel'))
+
+    await user.upload(screen.getByTestId('import-activity-file', { hidden: true }), airway)
+    await waitFor(() =>
+      expect(screen.getByTestId('import-skipped')).toHaveTextContent('Processes tab'),
+    )
+    expect(screen.queryByTestId('import-confirm')).not.toBeInTheDocument()
+    await user.click(screen.getByTestId('import-cancel'))
+    expect(h.open.document.snapshot().activities['airway-process']).toBeUndefined()
+
+    await user.click(screen.getByTestId('tab-processes'))
+    await user.upload(screen.getByTestId('import-process-file', { hidden: true }), airway)
+    await waitFor(() => expect(screen.getByTestId('import-confirm')).toBeEnabled())
+    await user.click(screen.getByTestId('import-confirm'))
+    expect(activityKind(h.open.document.snapshot().activities['airway-process']!)).toBe('process')
+    expect(screen.getByTestId('nav-activity-airway-process')).toHaveAttribute('data-kind', 'process')
+  })
+
+  it('hides import when the project is read-only', async () => {
+    const h = await harness()
+    h.identity.setCapabilities(['project.read'])
+    renderWith(h, <ActivityNavigator selected={undefined} onSelect={() => {}} />)
+    expect(screen.queryByTestId('import-activity')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('add-activity')).not.toBeInTheDocument()
+  })
+
+  it('searches the activity tab and the process tab', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityNavigator selected={undefined} onSelect={() => {}} />)
+
+    await user.click(screen.getByTestId('add-activity'))
+    await user.click(screen.getByTestId('create-activity'))
+    await user.click(screen.getByTestId('add-activity'))
+    await user.click(screen.getByTestId('create-activity'))
+    await user.click(screen.getByTestId('tab-processes'))
+    await user.click(screen.getByTestId('add-process'))
+    await user.type(screen.getByTestId('new-process-name'), 'registration')
+    await user.click(screen.getByTestId('add-process-activity'))
+    await user.click(screen.getByTestId('add-process'))
+    await user.type(screen.getByTestId('new-process-name'), 'followup')
+    await user.click(screen.getByTestId('add-process-activity'))
+
+    expect(screen.getByTestId('nav-expand')).toBeDisabled()
+    await user.click(screen.getByTestId('tab-activities'))
+    await user.type(screen.getByTestId('activity-search'), 'activity-2')
+    expect(screen.getByTestId('nav-activity-activity-2')).toBeInTheDocument()
+    expect(screen.queryByTestId('nav-activity-activity')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('nav-activity-triage')).not.toBeInTheDocument()
+
+    await user.clear(screen.getByTestId('activity-search'))
+    await user.type(screen.getByTestId('activity-search'), 'no-such-activity')
+    expect(screen.getByTestId('activity-no-match')).toBeInTheDocument()
+
+    await user.click(screen.getByTestId('tab-processes'))
+    await user.type(screen.getByTestId('process-search'), 'followup')
+    expect(screen.getByTestId('nav-activity-followup-process')).toBeInTheDocument()
+    expect(screen.queryByTestId('nav-activity-registration-process')).not.toBeInTheDocument()
+  })
+
+  it('lists a normal activity on an intervention', async () => {
     const project = seed()
     project.interventions = [
       {
         id: 'iv',
         code: 'iv',
         trigger: { mode: 'on-demand' },
-        // `triage` is a normal activity, so it cannot be a process entry point.
-        processes: [{ process: 'triage', activities: [{ ref: 'triage' }] }],
+        activities: [{ ref: 'triage' }],
       },
     ]
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
 
-    const issue = screen.getByTestId('issue-intervention.not-a-process-activity')
-    expect(issue).toHaveAttribute('data-severity', 'error')
-    expect(issue).toHaveTextContent(/process activity for "triage" that calls it/)
+    expect(screen.queryByTestId('issue-intervention.not-a-process-activity')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('intervention-iv-activity-triage')).not.toBeInTheDocument()
   })
 
   it('creates a process activity straight from the intervention and lists it', async () => {
     const user = userEvent.setup()
     const project = seed()
     project.interventions = [
-      { id: 'iv', code: 'iv', trigger: { mode: 'on-demand' }, processes: [] },
+      { id: 'iv', code: 'iv', trigger: { mode: 'on-demand' }, activities: [] },
     ]
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('add-process-to-iv'))
     await user.type(screen.getByTestId('process-name-iv'), 'triage')
-    await user.click(screen.getByTestId('add-process-iv'))
-    await user.click(screen.getByTestId('create-process-activity-iv-triage'))
+    await user.click(screen.getByTestId('create-process-activity-iv'))
 
     const snapshot = h.open.document.snapshot()
     expect(activityKind(snapshot.activities['triage-process']!)).toBe('process')
-    expect(snapshot.interventions[0]?.processes[0]?.activities).toEqual([{ ref: 'triage-process' }])
+    expect(snapshot.interventions[0]?.activities).toEqual([{ ref: 'triage-process' }])
   })
 
-  it('only offers process activities that start this process', async () => {
+  it('offers every activity that is not already listed', async () => {
     const user = userEvent.setup()
     const project = seed()
     project.activities['reg-process'] = createProcessActivity({
@@ -660,22 +960,16 @@ describe('process activities versus activities', () => {
         id: 'iv',
         code: 'iv',
         trigger: { mode: 'on-demand' },
-        processes: [{ process: 'triage', activities: [] }],
+        activities: [],
       },
     ]
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
 
-    await user.click(screen.getByTestId('add-activity-to-iv-triage'))
-    expect(
-      screen.getByTestId('add-activity-to-iv-triage-option-triage-process'),
-    ).toBeInTheDocument()
-    // A wrapper for another process would be an error if listed here.
-    expect(
-      screen.queryByTestId('add-activity-to-iv-triage-option-reg-process'),
-    ).not.toBeInTheDocument()
-    // And a normal activity is never offered.
-    expect(screen.queryByTestId('add-activity-to-iv-triage-option-triage')).not.toBeInTheDocument()
+    await user.click(screen.getByTestId('add-process-to-iv'))
+    expect(screen.getByTestId('add-activity-to-iv-option-triage-process')).toBeInTheDocument()
+    expect(screen.getByTestId('add-activity-to-iv-option-reg-process')).toBeInTheDocument()
+    expect(screen.queryByTestId('add-activity-to-iv-option-triage')).not.toBeInTheDocument()
   })
 
   it('reorders activities within a process, since order is the sequence', async () => {
@@ -688,18 +982,17 @@ describe('process activities versus activities', () => {
         id: 'iv',
         code: 'iv',
         trigger: { mode: 'on-demand' },
-        processes: [
-          { process: 'triage', activities: [{ ref: 'a-process' }, { ref: 'b-process' }] },
-        ],
+        activities: [{ ref: 'a-process' }, { ref: 'b-process' }],
       },
     ]
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
 
-    await user.click(screen.getByTestId('move-down-iv-triage-a-process'))
-    expect(
-      h.open.document.snapshot().interventions[0]?.processes[0]?.activities.map((a) => a.ref),
-    ).toEqual(['b-process', 'a-process'])
+    await user.click(screen.getByTestId('move-down-iv-a-process'))
+    expect(h.open.document.snapshot().interventions[0]?.activities.map((a) => a.ref)).toEqual([
+      'b-process',
+      'a-process',
+    ])
   })
 
   it('cannot move the first activity earlier or the last later', async () => {
@@ -711,16 +1004,14 @@ describe('process activities versus activities', () => {
         id: 'iv',
         code: 'iv',
         trigger: { mode: 'on-demand' },
-        processes: [
-          { process: 'triage', activities: [{ ref: 'a-process' }, { ref: 'b-process' }] },
-        ],
+        activities: [{ ref: 'a-process' }, { ref: 'b-process' }],
       },
     ]
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
 
-    expect(screen.getByTestId('move-up-iv-triage-a-process')).toBeDisabled()
-    expect(screen.getByTestId('move-down-iv-triage-b-process')).toBeDisabled()
+    expect(screen.getByTestId('move-up-iv-a-process')).toBeDisabled()
+    expect(screen.getByTestId('move-down-iv-b-process')).toBeDisabled()
   })
 
   it('does not offer a second root node once the activity has one', async () => {

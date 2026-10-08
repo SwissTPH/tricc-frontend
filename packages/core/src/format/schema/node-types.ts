@@ -15,6 +15,7 @@ export const NODE_TYPES = [
   'link_out',
   'bridge',
   'wait',
+  'continue_with',
   // Questions
   'select_one',
   'select_multiple',
@@ -22,6 +23,7 @@ export const NODE_TYPES = [
   'select_option',
   'integer',
   'decimal',
+  'quantity',
   'text',
   'date',
   'note',
@@ -63,6 +65,7 @@ export const NODE_TYPE_GROUPS = {
     'link_out',
     'bridge',
     'wait',
+    'continue_with',
   ],
   questions: [
     'select_one',
@@ -71,6 +74,7 @@ export const NODE_TYPE_GROUPS = {
     'select_option',
     'integer',
     'decimal',
+    'quantity',
     'text',
     'date',
     'note',
@@ -88,6 +92,7 @@ export const CAPTURE_TYPES = [
   'select_yesno',
   'integer',
   'decimal',
+  'quantity',
   'text',
   'date',
 ] as const

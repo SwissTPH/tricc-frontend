@@ -314,7 +314,7 @@ describe('project scope', () => {
 
   it('flags an intervention referring to a missing activity', () => {
     const p = clean()
-    p.interventions[0]!.processes[1]!.activities.push({ ref: 'never-created' })
+    p.interventions[0]!.activities.push({ ref: 'never-created' })
     expect(rules(validateProject(p))).toContain('intervention.dangling-activity')
   })
 
@@ -434,9 +434,7 @@ describe('process activities', () => {
         e2: { id: 'e2', source: 'call', target: 'e' },
       },
     }
-    p.interventions[0]!.processes = [
-      { process: 'registration', activities: [{ ref: 'reg-process' }] },
-    ]
+    p.interventions[0]!.activities = [{ ref: 'reg-process' }]
     return p
   }
 
@@ -446,20 +444,16 @@ describe('process activities', () => {
     )
   })
 
-  it('refuses an intervention referencing a normal activity, and offers the fix', () => {
+  it('accepts a normal activity listed on an intervention', () => {
     const p = withProcessActivity()
-    p.interventions[0]!.processes = [{ process: 'registration', activities: [{ ref: 'hp-cough' }] }]
-    const issues = find(validateProject(p), 'intervention.not-a-process-activity')
-    expect(issues[0]?.severity).toBe('error')
-    expect(issues[0]?.message).toMatch(/process activity for "registration" that calls it/)
-    expect(issues[0]?.fix?.kind).toBe('intervention.wrap-activity')
+    p.interventions[0]!.activities = [{ ref: 'hp-cough' }]
+    expect(rules(validateProject(p))).not.toContain('intervention.not-a-process-activity')
   })
 
-  it('flags a process activity listed under the wrong process', () => {
+  it('lists a process activity without filing the intervention under a guessed process', () => {
     const p = withProcessActivity()
-    p.interventions[0]!.processes = [{ process: 'triage', activities: [{ ref: 'reg-process' }] }]
-    const issues = find(validateProject(p), 'intervention.process-mismatch')
-    expect(issues[0]?.message).toMatch(/entry point for "registration".*listed under "triage"/)
+    p.interventions[0]!.activities = [{ ref: 'reg-process' }]
+    expect(rules(validateProject(p))).not.toContain('intervention.process-mismatch')
   })
 
   it('warns about a process activity that calls nothing', () => {
@@ -487,6 +481,41 @@ describe('process activities', () => {
       (i) => i.location.activityId,
     )
     expect(unassigned).not.toContain('hp-cough')
+  })
+})
+
+describe('continue_with', () => {
+  it('accepts an ISO delay aimed at an intervention in this project', () => {
+    const p = sampleProject()
+    const a = p.activities['triage-danger-signs']!
+    a.nodes['follow'] = {
+      id: 'follow',
+      type: 'continue_with',
+      intervention: 'sick-child',
+      condition: 'AgeInMonths() < 2',
+      delay: 'P3D',
+    }
+    a.nodeOrder.push('follow')
+    expect(rules(validateProject(p))).not.toContain('continue_with.missing-intervention')
+    expect(rules(validateProject(p))).not.toContain('continue_with.delay')
+  })
+
+  it('reports a missing intervention and a delay that is not an ISO period', () => {
+    const p = sampleProject()
+    const a = p.activities['triage-danger-signs']!
+    a.nodes['follow'] = {
+      id: 'follow',
+      type: 'continue_with',
+      intervention: 'not-in-project',
+      delay: '3 d',
+    }
+    a.nodeOrder.push('follow')
+    const missing = find(validateProject(p), 'continue_with.missing-intervention')
+    const delay = find(validateProject(p), 'continue_with.delay')
+    expect(missing[0]?.severity).toBe('error')
+    expect(missing[0]?.message.length).toBeGreaterThan(40)
+    expect(delay[0]?.severity).toBe('warning')
+    expect(delay[0]?.message).toMatch(/P3D/)
   })
 })
 

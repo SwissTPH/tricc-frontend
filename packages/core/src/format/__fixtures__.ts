@@ -96,16 +96,7 @@ export function sampleProject(): Project {
           expression: 'AgeInMonths() >= 2 and AgeInMonths() < 60',
         },
         trigger: { mode: 'on-demand' },
-        processes: [
-          { process: 'triage', activities: [{ ref: 'triage-danger-signs' }] },
-          {
-            process: 'history-and-physical',
-            activities: [
-              { ref: 'hp-cough' },
-              { ref: 'hp-diarrhoea', applicability: { expression: '"diarrhoea"' } },
-            ],
-          },
-        ],
+        activities: [{ ref: 'triage-danger-signs' }, { ref: 'hp-cough' }],
       },
     ],
     contexts: [{ system: 'http://tricc.org/context', code: 'encounter', display: 'Encounter' }],

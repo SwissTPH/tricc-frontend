@@ -261,6 +261,7 @@ function needsName(n: TriccNode): boolean {
       'select_yesno',
       'integer',
       'decimal',
+      'quantity',
       'text',
       'date',
       'calculate',

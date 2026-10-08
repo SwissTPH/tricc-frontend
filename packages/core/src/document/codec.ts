@@ -46,17 +46,24 @@ const PLAIN_NODE_KEYS = [
   'default',
   'min',
   'max',
+  'unit',
+  'unit_system',
+  'unit_code',
   'repeat',
   'instance',
   'reference',
   'link',
   'listName',
+  'filter',
   'severity',
   'priority',
   'context',
   'period',
-  'formId',
+  'form_id',
   'process',
+  'intervention',
+  'condition',
+  'delay',
   'save',
 ] as const
 
@@ -141,6 +148,7 @@ export function nodeFromY(m: Y.Map<unknown>): TriccNode {
   }
   const opts = m.get('options') as Y.Array<Y.Map<unknown>> | undefined
   if (opts) n.options = opts.toArray().map(optionFromY)
+  if (n.type !== 'start') delete n.form_id
   return n
 }
 
@@ -287,42 +295,26 @@ export function interventionToY(i: Intervention): Y.Map<unknown> {
   if (i.description) m.set('description', localizedToY(i.description))
   if (i.applicability) m.set('applicability', expressionToY(i.applicability))
   setPlain(m, 'trigger', i.trigger)
-  const processes = new Y.Array<Y.Map<unknown>>()
-  processes.insert(
+  const activities = new Y.Array<Y.Map<unknown>>()
+  activities.insert(
     0,
-    i.processes.map((pg) => {
-      const pm = new Y.Map<unknown>()
-      pm.set('process', pg.process)
-      const acts = new Y.Array<Y.Map<unknown>>()
-      acts.insert(
-        0,
-        pg.activities.map((r) => {
-          const am = new Y.Map<unknown>()
-          am.set('ref', r.ref)
-          if (r.applicability) am.set('applicability', expressionToY(r.applicability))
-          return am
-        }),
-      )
-      pm.set('activities', acts)
-      return pm
+    i.activities.map((r) => {
+      const am = new Y.Map<unknown>()
+      am.set('ref', r.ref)
+      return am
     }),
   )
-  m.set('processes', processes)
+  m.set('activities', activities)
   return m
 }
 
 export function interventionFromY(m: Y.Map<unknown>): Intervention {
+  const stored = m.get('activities') as Y.Array<Y.Map<unknown>> | undefined
   const i: Intervention = {
     id: m.get('id') as string,
-    processes: (m.get('processes') as Y.Array<Y.Map<unknown>>).toArray().map((pm) => ({
-      process: pm.get('process') as string,
-      activities: (pm.get('activities') as Y.Array<Y.Map<unknown>>).toArray().map((am) => {
-        const ref: { ref: string; applicability?: Expression } = { ref: am.get('ref') as string }
-        const app = expressionFromY(am.get('applicability') as Y.Map<unknown> | undefined)
-        if (app) ref.applicability = app
-        return ref
-      }),
-    })),
+    activities: stored
+      ? stored.toArray().map((am) => ({ ref: am.get('ref') as string }))
+      : [],
   }
   const code = m.get('code') as string | undefined
   if (code !== undefined) i.code = code

@@ -51,6 +51,7 @@ test('the project list offers a way in besides creating', async ({ page, browser
 test('exports a project and imports it back unchanged', async ({ page }) => {
   await createProject(page, 'Exportable guideline')
   await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
   await page.getByTestId('add-integer').click()
   await page.getByTestId('field-name').fill('weight')
   await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', {
@@ -121,16 +122,25 @@ function writeProjectDir(files: Record<string, string>): string {
 
 test('imports a project directory from disk', async ({ page }) => {
   const dir = writeProjectDir({
-    'project.json': JSON.stringify(
-      {
-        formatVersion: '1.0.0',
-        id: 'from-disk',
-        title: { en: 'Loaded from disk' },
-        languages: { default: 'en', available: ['en'] },
-      },
-      null,
-      2,
-    ),
+    'tricc.yaml': [
+      'title: Loaded from disk',
+      'input_strategy: YamlStrategy',
+      'output_strategies:',
+      '- XLSFormCHTStrategy',
+      'parameters:',
+      '  languages:',
+      '    default: en',
+      '    available:',
+      '    - en',
+      'interventions:',
+      '- id: screening',
+      '  title: Screening',
+      '  activity:',
+      '  - activities/screening.activity.yaml',
+      '  start:',
+      '    on: demand',
+      '',
+    ].join('\n'),
     'activities/screening.activity.yaml':
       'id: screening\ntitle: Screening\nnodes:\n  - id: s\n    type: activity_start\n    name: screening\n',
   })
@@ -145,7 +155,7 @@ test('imports a project directory from disk', async ({ page }) => {
   }
 })
 
-test('a directory with no project.json is refused rather than half-adopted', async ({ page }) => {
+test('a directory with no tricc.yaml is refused rather than half-adopted', async ({ page }) => {
   const dir = writeProjectDir({
     'activities/orphan.activity.yaml': 'id: orphan\nnodes: []\n',
   })

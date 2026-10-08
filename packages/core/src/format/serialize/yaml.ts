@@ -1,4 +1,12 @@
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
+import { Document, Scalar, parse as parseYaml, visit } from 'yaml'
+
+/**
+ * PyYAML 1.1 (what `tricc_oo` uses) reads unquoted yes/no/on/off as booleans.
+ * An edge value `yes` would then fail YamlStrategy, which expects a string.
+ * YAML 1.2, which this writer speaks, does not. Quote only those scalars.
+ */
+const YAML11_BOOL =
+  /^(?:y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF)$/
 
 /**
  * Deterministic YAML. Two collaborators whose documents have converged must produce
@@ -7,12 +15,15 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
  * generated ids appear in output.
  */
 export function toYaml(value: unknown): string {
-  return stringifyYaml(value, {
-    indent: 2,
-    lineWidth: 100,
-    singleQuote: false,
-    nullStr: '',
+  const doc = new Document(value)
+  visit(doc, {
+    Scalar(_key, node) {
+      if (typeof node.value === 'string' && YAML11_BOOL.test(node.value)) {
+        node.type = Scalar.QUOTE_DOUBLE
+      }
+    },
   })
+  return doc.toString({ indent: 2, lineWidth: 100 })
 }
 
 export function fromYaml(text: string): unknown {

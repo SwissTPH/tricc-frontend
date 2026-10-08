@@ -8,13 +8,16 @@ import {
 
 export type BranchKind = 'unconditional' | 'yes' | 'no' | 'continue' | 'score' | 'condition'
 
-export type TriccFlowEdge = Edge<{ value?: string; kind: BranchKind }, 'branch'>
+export type TriccFlowEdge = Edge<
+  { value?: string; kind: BranchKind; display?: string; title?: string },
+  'branch'
+>
 
 /**
  * Edge branch semantics, shown as a chosen label rather than free text.
  *
- * `follow` / `suivre` are read but never written, so an edge loaded with one displays as
- * Continue and is normalized on save (feature/20260825-project-format.md §5).
+ * `follow` / `suivre` are read but never written. The canvas says Follow; the stored
+ * value is `continue`, and save rewrites the deprecated spellings.
  */
 export function branchKindOf(value: string | undefined): BranchKind {
   const v = value?.trim().toLowerCase()
@@ -36,7 +39,7 @@ export function branchLabel(value: string | undefined): string {
     case 'no':
       return 'No'
     case 'continue':
-      return 'Continue'
+      return 'Follow'
     case 'score':
       return `Score ${value}`
     case 'condition':
@@ -67,7 +70,13 @@ export function TriccEdgeView({
     borderRadius: 8,
   })
   const kind = data?.kind ?? 'unconditional'
-  const label = branchLabel(data?.value)
+  const full = data?.display ?? branchLabel(data?.value)
+  const label = full.length > 42 ? `${full.slice(0, 41)}…` : full
+  const tip =
+    data?.title ??
+    (data?.display && data.value && data.display !== data.value
+      ? `${data.display}\n${data.value}`
+      : undefined)
 
   return (
     <>
@@ -83,6 +92,7 @@ export function TriccEdgeView({
             className={`tricc-edge__label tricc-edge__label--${kind}`}
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
             data-testid={`edge-label-${id}`}
+            title={tip}
           >
             {label}
           </div>

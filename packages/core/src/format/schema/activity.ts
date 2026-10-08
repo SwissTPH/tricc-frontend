@@ -80,6 +80,10 @@ export const nodeSchema = z
     default: z.string().optional(),
     min: z.number().optional(),
     max: z.number().optional(),
+    /** Quantity. `unit` is the human-readable code (`C`, `kg`). */
+    unit: z.string().min(1).optional(),
+    unit_system: z.string().min(1).optional(),
+    unit_code: z.string().min(1).optional(),
 
     repeat: z.number().int().optional(),
     instance: z.number().int().optional(),
@@ -92,6 +96,11 @@ export const nodeSchema = z
 
     // selects
     listName: z.string().min(1).optional(),
+    /**
+     * Draw.io `filter`. A non-empty value is the concept code conversion exports.
+     * An empty value is not stored.
+     */
+    filter: z.string().min(1).optional(),
     options: z.array(optionSchema).optional(),
 
     // diagnoses
@@ -104,9 +113,16 @@ export const nodeSchema = z
       .optional(),
     period: z.string().optional(),
 
-    // start
+    // Process `start` only. `formId` is the old spelling; read and stored as `form_id`.
+    // A value on any other node type is ignored on load.
+    form_id: z.string().optional(),
     formId: z.string().optional(),
     process: z.string().optional(),
+
+    // continue_with. `delay` is an ISO-8601 period (P3D), not a UCUM duration.
+    intervention: z.string().min(1).optional(),
+    condition: z.string().optional(),
+    delay: z.string().optional(),
 
     media: mediaSchema.optional(),
     notAvailable: notAvailableSchema.optional(),

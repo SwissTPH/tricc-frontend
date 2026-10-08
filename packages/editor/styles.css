@@ -22,8 +22,9 @@
 
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
   font:
     14px/1.5 system-ui,
     -apple-system,
@@ -47,30 +48,57 @@
   flex: 1;
 }
 
+.tricc-history {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.tricc-history button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.tricc-history button:disabled {
+  color: #cbd5e1;
+  cursor: default;
+}
+
 .tricc-editor__body {
   display: grid;
-  grid-template-columns: 190px 1fr 320px;
+  /* Canvas and the right-hand inspector. Add a node lives in the Nodes tab. */
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-areas: 'canvas inspector';
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
 }
 
 /* ---------------------------------------------------------------- palette */
 
-.tricc-palette,
 .tricc-inspector {
   overflow-y: auto;
   padding: 12px;
   min-height: 0;
+  grid-area: inspector;
+  border-left: 1px solid #e2e8f0;
+  background: #fafafa;
 }
 
 .tricc-palette {
-  border-right: 1px solid #e2e8f0;
-  background: #fafafa;
-}
-
-.tricc-inspector {
-  border-left: 1px solid #e2e8f0;
-  background: #fafafa;
+  margin: 0 0 12px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .tricc-palette h2,
@@ -98,13 +126,22 @@
   padding: 0 0 4px;
 }
 
+.tricc-palette__hint {
+  margin: -4px 0 10px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #64748b;
+}
+
 .tricc-palette__group button {
   font-size: 12px;
   padding: 3px 7px;
   border: 1px solid #cbd5e1;
   border-radius: 5px;
   background: #fff;
-  cursor: pointer;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
 }
 
 .tricc-palette__group button:hover {
@@ -112,12 +149,366 @@
   background: #f8fafc;
 }
 
+.tricc-palette__group button:active {
+  cursor: grabbing;
+}
+
+.tricc-palette-ghost {
+  position: fixed;
+  z-index: 40;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  padding: 4px 8px;
+  border: 1px solid #0f172a;
+  border-radius: 5px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.16);
+}
+
 /* ---------------------------------------------------------------- canvas */
 
 .tricc-canvas {
+  grid-area: canvas;
+  position: relative;
   min-height: 0;
   min-width: 0;
   background: #fff;
+}
+
+.tricc-canvas[data-dropping='true'] {
+  box-shadow: inset 0 0 0 2px #0f172a;
+}
+
+.tricc-branch-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(15 23 42 / 0.35);
+}
+
+.tricc-branch-modal__card {
+  width: min(22rem, calc(100% - 32px));
+  padding: 16px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 40px rgb(15 23 42 / 0.2);
+}
+
+.tricc-branch-modal__card h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.tricc-branch-modal__card p {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.tricc-branch-modal__choices {
+  display: flex;
+  gap: 8px;
+}
+
+.tricc-branch-modal__choices button,
+.tricc-branch-modal__cancel {
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  cursor: pointer;
+}
+
+.tricc-branch-modal__choices button:hover,
+.tricc-branch-modal__cancel:hover {
+  background: #f8fafc;
+}
+
+.tricc-branch-modal__choices button:focus-visible,
+.tricc-branch-modal__cancel:focus-visible {
+  outline: 2px solid #0f172a;
+  outline-offset: 2px;
+}
+
+.tricc-branch-modal__choices button[data-testid='branch-choice-yes'] {
+  border-color: #16a34a;
+  color: #15803d;
+}
+
+.tricc-branch-modal__choices button[data-testid='branch-choice-no'] {
+  border-color: #dc2626;
+  color: #b91c1c;
+}
+
+.tricc-branch-modal__cancel {
+  display: block;
+  margin-top: 12px;
+}
+
+/* ---------------------------------------------------- new activity / process */
+
+.tricc-library-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(15 23 42 / 0.35);
+}
+
+.tricc-library-modal__card {
+  width: min(22rem, calc(100% - 32px));
+  padding: 16px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 40px rgb(15 23 42 / 0.2);
+}
+
+.tricc-library-modal__card--wide {
+  width: min(28rem, calc(100% - 32px));
+}
+
+/* --------------------------------------------------------- intervention cards */
+
+.tricc-intervention-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tricc-intervention-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.tricc-intervention-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.tricc-intervention-card h3 {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 15px;
+}
+
+.tricc-intervention-card > p {
+  margin: 0;
+  font-size: 12px;
+  color: #475569;
+}
+
+.tricc-process-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tricc-process-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tricc-process-row__actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.tricc-intervention-card__add {
+  align-self: flex-start;
+}
+
+.tricc-chip {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tricc-chip[data-kind='process'] {
+  border-color: #0f172a;
+  font-weight: 600;
+}
+
+.tricc-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tricc-icon-button:disabled {
+  color: #cbd5e1;
+  cursor: default;
+}
+
+.tricc-icon-button--danger {
+  color: #b91c1c;
+}
+
+.tricc-icon-button--primary {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #fff;
+}
+
+.tricc-library-modal__actions button.tricc-danger-text {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #fff;
+}
+
+.tricc-import-note {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+.tricc-import-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  max-height: min(40vh, 240px);
+  overflow: auto;
+}
+
+.tricc-import-list li {
+  padding: 6px 0;
+  border-top: 1px solid #e2e8f0;
+  font-size: 13px;
+}
+
+.tricc-import-list li span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.tricc-library-modal__card h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.tricc-library-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.tricc-library-modal__header h2 {
+  margin: 0;
+  min-width: 0;
+}
+
+.tricc-library-modal__header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.tricc-library-modal__card label {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.tricc-library-modal__card input {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.tricc-library-modal__id {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.tricc-library-modal__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.tricc-library-modal__actions button {
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  cursor: pointer;
+}
+
+.tricc-library-modal__actions button[type='submit'] {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #fff;
+}
+
+.tricc-library-modal__actions button:disabled {
+  background: #e2e8f0;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  cursor: default;
+}
+
+.tricc-library-modal__actions button:focus-visible,
+.tricc-library-modal__card input:focus-visible {
+  outline: 2px solid #0f172a;
+  outline-offset: 2px;
 }
 
 .tricc-canvas .react-flow__attribution {
@@ -135,6 +526,12 @@
   background: var(--group-bg, #fff);
   font-size: 12px;
   position: relative;
+}
+
+/* The node output sits on the border, above answer rows, and stays a circle. */
+.tricc-node > .react-flow__handle {
+  z-index: 2;
+  flex: none;
 }
 
 .tricc-node--flow {
@@ -241,6 +638,44 @@
   flex: 0 0 auto;
 }
 
+.tricc-node--answers {
+  flex-direction: column;
+  align-items: stretch;
+  width: 220px;
+  gap: 6px;
+}
+
+.tricc-node__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tricc-node__answers {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--group-colour) 35%, white);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tricc-node__answer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 1px 12px 1px 0;
+}
+
+.tricc-node__answer-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tricc-badge {
   font-size: 9px;
   line-height: 1;
@@ -315,7 +750,8 @@
 }
 
 .tricc-inspector input,
-.tricc-inspector select {
+.tricc-inspector select,
+.tricc-inspector textarea {
   width: 100%;
   box-sizing: border-box;
   padding: 4px 6px;
@@ -325,9 +761,171 @@
   font-size: 12px;
 }
 
+.tricc-inspector textarea {
+  min-height: 4.5em;
+  resize: vertical;
+}
+
+.tricc-cql__input {
+  min-height: 2.6em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.tricc-cql__read {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.tricc-cql__name {
+  display: inline-block;
+  margin: 0 2px;
+  padding: 0 4px 0 6px;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #312e81;
+  font-weight: 600;
+}
+
+.tricc-cql__name--unknown {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.tricc-cql__about {
+  margin-left: 4px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: inherit;
+  font: italic 11px/16px ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.tricc-cql__about:focus-visible {
+  outline: 2px solid #0f172a;
+  outline-offset: 1px;
+}
+
+.tricc-cql__card {
+  display: block;
+  margin-top: 4px;
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  font-weight: 400;
+  white-space: normal;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.12);
+}
+
+.tricc-cql__card strong,
+.tricc-cql__card span {
+  display: block;
+}
+
+.tricc-cql__card button {
+  margin-top: 6px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.tricc-cql__keyword {
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.tricc-cql__function {
+  color: #7c3aed;
+  font-weight: 600;
+}
+
+.tricc-cql__number {
+  color: #0f766e;
+}
+
+.tricc-cql__operator {
+  color: #334155;
+}
+
+.tricc-cql__error {
+  text-decoration: underline wavy #dc2626;
+}
+
+.tricc-cql__lint {
+  margin: 4px 0 0;
+}
+
 .tricc-inspector input:disabled,
-.tricc-inspector select:disabled {
+.tricc-inspector select:disabled,
+.tricc-inspector textarea:disabled {
   background: #f1f5f9;
+  color: #64748b;
+}
+
+.tricc-inspector__tabs {
+  display: flex;
+  position: sticky;
+  top: -12px;
+  z-index: 1;
+  margin: -12px -12px 12px;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tricc-inspector__tabs button {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding: 5px 4px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.tricc-inspector__tabs button + button {
+  margin-left: -1px;
+}
+
+.tricc-inspector__tabs button:first-child {
+  border-radius: 5px 0 0 5px;
+}
+
+.tricc-inspector__tabs button:last-child {
+  border-radius: 0 5px 5px 0;
+}
+
+.tricc-inspector__tabs button[aria-selected='true'] {
+  position: relative;
+  z-index: 1;
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+
+.tricc-inspector__count {
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.tricc-inspector__tabs button[aria-selected='true'] .tricc-inspector__count {
+  color: #cbd5e1;
+}
+
+.tricc-validation > p {
+  margin: 0 0 8px;
+  font-size: 12px;
   color: #64748b;
 }
 
@@ -353,6 +951,7 @@
   color: #b45309;
 }
 
+.tricc-node-list button,
 .tricc-edge-list button {
   background: none;
   border: none;
@@ -362,6 +961,12 @@
   color: #2563eb;
   cursor: pointer;
   text-align: left;
+}
+
+.tricc-node-list button[aria-current='true'],
+.tricc-edge-list button[aria-current='true'] {
+  font-weight: 600;
+  color: #0f172a;
 }
 
 /* ---------------------------------------------------------------- typeahead */

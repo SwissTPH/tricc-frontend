@@ -34,6 +34,7 @@ export {
   stripCommonRoot,
   ARCHIVE_EXTENSION,
 } from './format/archive.js'
+export { readActivityFile, type ParsedActivity } from './format/import-activity.js'
 export {
   MIGRATIONS,
   compareVersions,

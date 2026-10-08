@@ -29,7 +29,12 @@ export function OpenProjectProvider({
   project: OpenProject
   children: ReactNode
 }) {
-  return <OpenProjectContext.Provider value={project}>{children}</OpenProjectContext.Provider>
+  return (
+    <OpenProjectContext.Provider value={project}>
+      <UndoKeys />
+      {children}
+    </OpenProjectContext.Provider>
+  )
 }
 
 export function useRuntime(): TriccRuntime {
@@ -97,4 +102,45 @@ export function useMutate() {
     (fn: Parameters<typeof document.transact>[0]) => document.transact(fn),
     [document],
   )
+}
+
+/**
+ * Ctrl+Z undoes the last local change. Ctrl+Shift+Z and Ctrl+Y restore it.
+ * Cmd is accepted as well. A search box or an open dialog keeps the browser's own undo.
+ */
+function UndoKeys() {
+  const { document } = useOpenProject()
+  const canWrite = useCanWrite()
+
+  useEffect(() => {
+    if (!canWrite) return
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return
+      const key = event.key.toLowerCase()
+      const redo = key === 'y' || (key === 'z' && event.shiftKey)
+      const undo = key === 'z' && !event.shiftKey
+      if (!undo && !redo) return
+      if (keepsNativeUndo(event.target)) return
+      // A dialog is a draft. Undo waits until it closes, so a preview cannot land on a stale id.
+      // `document` here is the project document, so the page is reached through the window.
+      if (window.document.querySelector('[role="dialog"]')) return
+      event.preventDefault()
+      if (redo) document.undo.redo()
+      else document.undo.undo()
+    }
+    // Capture so a focused field or the canvas cannot swallow the shortcut.
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [canWrite, document])
+
+  return null
+}
+
+/** Search fields and dialog drafts are not document edits yet. */
+function keepsNativeUndo(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  const field = target.closest('input, textarea, select, [contenteditable="true"]')
+  if (!field) return false
+  if (field.closest('[role="dialog"]')) return true
+  return field instanceof HTMLInputElement && (field.type === 'search' || field.type === 'file')
 }

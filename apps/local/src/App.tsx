@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import {
   ARCHIVE_EXTENSION,
@@ -15,6 +15,7 @@ import {
 import {
   ActivityEditor,
   ActivityNavigator,
+  HistoryButtons,
   OpenProjectProvider,
   ProjectOverview,
   TriccRuntimeProvider,
@@ -26,29 +27,49 @@ export function App({ local }: { local: LocalRuntime }) {
   const [storageLabel, setStorageLabel] = useState(defaultStorageLabel(local))
   return (
     <TriccRuntimeProvider runtime={local.runtime}>
-      <Chrome local={local} storageLabel={storageLabel}>
-        <Routes>
-          <Route path="/" element={<ProjectList local={local} />} />
-          <Route
-            path="/project/:id/*"
-            element={<ProjectWorkspace local={local} onStorageLabel={setStorageLabel} />}
-          />
-          <Route path="/preferences" element={<Preferences local={local} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Chrome>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <Shell local={local} storageLabel={storageLabel}>
+              <ProjectList local={local} />
+            </Shell>
+          }
+        />
+        <Route
+          path="/project/:id/*"
+          element={
+            <ProjectWorkspace
+              local={local}
+              storageLabel={storageLabel}
+              onStorageLabel={setStorageLabel}
+            />
+          }
+        />
+        <Route
+          path="/preferences"
+          element={
+            <Shell local={local} storageLabel={storageLabel}>
+              <Preferences local={local} />
+            </Shell>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </TriccRuntimeProvider>
   )
 }
 
-function Chrome({
+function Shell({
   local,
   storageLabel,
+  tools,
   children,
 }: {
   local: LocalRuntime
   storageLabel: string
-  children: React.ReactNode
+  tools?: ReactNode
+  children: ReactNode
 }) {
   const [readOnly, setReadOnly] = useState(local.identity.isReadOnly())
   return (
@@ -58,6 +79,7 @@ function Chrome({
         {/* Which store backs the open project. A user must know before they close the
             tab, not after. */}
         <span data-testid="storage-mode">{storageLabel}</span>
+        <div className="tricc-topbar__project">{tools}</div>
         <label>
           <input
             type="checkbox"
@@ -131,7 +153,11 @@ function ProjectList({ local }: { local: LocalRuntime }) {
           </li>
         ))}
       </ul>
-      {projects.length === 0 && <p data-testid="no-projects">No projects yet.</p>}
+      {projects.length === 0 && (
+        <p data-testid="no-projects">
+          No projects yet. Create one below, or import a project folder.
+        </p>
+      )}
 
       <section aria-labelledby="open-heading">
         <h2 id="open-heading">Open an existing project</h2>
@@ -264,15 +290,22 @@ function defaultStorageLabel(local: LocalRuntime): string {
 
 function ProjectWorkspace({
   local,
+  storageLabel,
   onStorageLabel,
 }: {
   local: LocalRuntime
+  storageLabel: string
   onStorageLabel: (label: string) => void
 }) {
   const { id } = useParams()
   const [open, setOpen] = useState<OpenProject | undefined>(undefined)
   const [error, setError] = useState<string | undefined>(undefined)
   const [activityId, setActivityId] = useState<string | undefined>(undefined)
+  const [focus, setFocus] = useState<{ activityId: string; nodeId: string } | null>(null)
+  const openNode = useCallback((nextActivity: string, nodeId: string) => {
+    setFocus({ activityId: nextActivity, nodeId })
+    setActivityId(nextActivity)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -304,17 +337,57 @@ function ProjectWorkspace({
     }
   }, [id, local, onStorageLabel])
 
-  if (error) return <p data-testid="project-error">{error}</p>
-  if (!open) return <p data-testid="project-loading">Opening…</p>
+  if (error) {
+    return (
+      <Shell local={local} storageLabel={storageLabel}>
+        <p data-testid="project-error">{error}</p>
+      </Shell>
+    )
+  }
+  if (!open) {
+    return (
+      <Shell local={local} storageLabel={storageLabel}>
+        <p data-testid="project-loading">Opening…</p>
+      </Shell>
+    )
+  }
 
   return (
     <OpenProjectProvider project={open}>
-      <div className="tricc-project-bar">
-        <SaveIndicator />
-        <ExportButton open={open} />
-      </div>
-      <ActivityNavigator onSelect={setActivityId} selected={activityId} />
-      {activityId ? <ActivityEditor activityId={activityId} /> : <ProjectOverview />}
+      <Shell
+        local={local}
+        storageLabel={storageLabel}
+        tools={
+          <>
+            <SaveIndicator />
+            <HistoryButtons />
+            <ExportButton open={open} />
+          </>
+        }
+      >
+        <ActivityNavigator
+          onSelect={(id) => {
+            setFocus(null)
+            setActivityId(id)
+          }}
+          selected={activityId}
+        />
+        {activityId ? (
+          <ActivityEditor
+            activityId={activityId}
+            focusNodeId={focus?.activityId === activityId ? focus.nodeId : undefined}
+            onOpen={openNode}
+          />
+        ) : (
+          <ProjectOverview
+            onOpen={openNode}
+            onSelect={(id) => {
+              setFocus(null)
+              setActivityId(id)
+            }}
+          />
+        )}
+      </Shell>
     </OpenProjectProvider>
   )
 }
@@ -323,10 +396,16 @@ function SaveIndicator() {
   const status = useSave()
   return (
     <p data-testid="save-status" data-state={status.state}>
-      {status.state}
-      {status.error ? `: ${status.error}` : ''}
+      {saveLabel(status.state, status.error)}
     </p>
   )
+}
+
+function saveLabel(state: string, error?: string): string {
+  if (state === 'saved') return 'Saved'
+  if (state === 'saving') return 'Saving…'
+  if (state === 'unsaved') return 'Unsaved changes. They will be saved automatically.'
+  return `Could not save${error ? `: ${error}` : ''}. Export a copy so the work is not only in this browser.`
 }
 
 function Preferences({ local }: { local: LocalRuntime }) {

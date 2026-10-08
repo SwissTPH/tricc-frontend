@@ -11,7 +11,15 @@ import { InterventionEditor } from './InterventionEditor.js'
  * Deliberately not a canvas. The project layer is a structured list — until planning
  * exists there is nothing spatial to draw.
  */
-export function ProjectOverview() {
+export function ProjectOverview({
+  onOpen,
+  onSelect,
+}: {
+  /** Open the question named by an expression. */
+  onOpen?: (activityId: string, nodeId: string) => void
+  /** Open a process activity. */
+  onSelect?: (activityId: string) => void
+} = {}) {
   const project = useProjectSnapshot()
   const canWrite = useCanWrite()
   const mutate = useMutate()
@@ -31,45 +39,17 @@ export function ProjectOverview() {
             This project has no interventions yet, so nothing would be offered to a health worker.
           </p>
         )}
-        <ul>
+        <ul className="tricc-intervention-grid">
           {project.interventions.map((iv) => (
-            <li key={iv.id} data-testid={`intervention-${iv.id}`}>
-              <h3>{resolve(iv.title, lang, lang) ?? iv.id}</h3>
-              <p data-testid={`intervention-${iv.id}-trigger`}>
-                Starts: {iv.trigger?.mode ?? 'on-demand'}
-              </p>
-              {iv.applicability && (
-                <p data-testid={`intervention-${iv.id}-applicability`}>
-                  Applies when:{' '}
-                  {resolve(iv.applicability.intent, lang, lang) ??
-                    iv.applicability.expression ??
-                    'not yet specified'}
-                </p>
-              )}
-              <ol>
-                {iv.processes.map((pg) => (
-                  <li key={pg.process}>
-                    <strong>{pg.process}</strong>
-                    <ul>
-                      {pg.activities.map((ref) => (
-                        <li key={ref.ref} data-testid={`intervention-${iv.id}-activity-${ref.ref}`}>
-                          {ref.ref}
-                          {ref.applicability && <span title="conditional"> (conditional)</span>}
-                          {(usage.get(ref.ref)?.length ?? 0) > 1 && (
-                            <span data-testid={`shared-${ref.ref}`}> (shared)</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ))}
-              </ol>
-
-              <details data-testid={`edit-intervention-${iv.id}`}>
-                <summary>Edit</summary>
-                <InterventionEditor intervention={iv} project={project} readOnly={!canWrite} />
-              </details>
-            </li>
+            <InterventionEditor
+              key={iv.id}
+              intervention={iv}
+              project={project}
+              readOnly={!canWrite}
+              onReveal={onOpen}
+              onSelect={onSelect}
+              sharedWith={usage}
+            />
           ))}
         </ul>
         {canWrite && (
@@ -84,7 +64,7 @@ export function ProjectOverview() {
                   code: id,
                   title: { [lang]: 'New intervention' },
                   trigger: { mode: 'on-demand' },
-                  processes: [],
+                  activities: [],
                 }),
               )
             }}
@@ -114,12 +94,23 @@ export function ProjectOverview() {
   )
 }
 
-export function ValidationSummary({ issues }: { issues: Issue[] }) {
+export function ValidationSummary({
+  issues,
+  heading = true,
+}: {
+  issues: Issue[]
+  /** The inspector tab already names this panel. The project overview keeps the heading. */
+  heading?: boolean
+}) {
   const errors = issues.filter((i) => i.severity === 'error')
   const warnings = issues.filter((i) => i.severity === 'warning')
   return (
-    <section aria-labelledby="validation-heading" data-testid="validation-summary">
-      <h2 id="validation-heading">Validation</h2>
+    <section
+      aria-labelledby={heading ? 'validation-heading' : undefined}
+      aria-label={heading ? undefined : 'Validation'}
+      data-testid="validation-summary"
+    >
+      {heading && <h2 id="validation-heading">Validation</h2>}
       <p data-testid="validation-counts">
         {errors.length} error{errors.length === 1 ? '' : 's'}, {warnings.length} warning
         {warnings.length === 1 ? '' : 's'}
@@ -141,10 +132,8 @@ export function ValidationSummary({ issues }: { issues: Issue[] }) {
 function activityUsage(project: Project): Map<string, string[]> {
   const map = new Map<string, string[]>()
   for (const iv of project.interventions) {
-    for (const pg of iv.processes) {
-      for (const ref of pg.activities) {
-        map.set(ref.ref, [...(map.get(ref.ref) ?? []), iv.id])
-      }
+    for (const ref of iv.activities) {
+      map.set(ref.ref, [...(map.get(ref.ref) ?? []), iv.id])
     }
   }
   return map

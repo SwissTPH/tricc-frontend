@@ -58,8 +58,11 @@ export function stripCommonRoot(files: ProjectFiles): ProjectFiles {
   for (const [path, content] of Object.entries(files)) {
     stripped[path.slice(root.length)] = content
   }
-  // Only accept the strip if it actually produced a project.
-  return 'project.json' in stripped ? stripped : files
+  // Only accept the strip if it actually produced a project. `tricc.yaml` is
+  // the backend's project file; a folder of only that plus activities is enough.
+  return 'project.json' in stripped || 'tricc.yaml' in stripped || 'tricc.yml' in stripped
+    ? stripped
+    : files
 }
 
 function stripRoot(path: string): string {
