@@ -12,6 +12,14 @@ import type { CollaborationPort, CollaborationSession, ProjectRef } from '@tricc
 export class IndexedDbCollaboration implements CollaborationPort {
   readonly id = 'indexeddb'
 
+  /** Drop the local editing log of a deleted project. */
+  async forget(ref: ProjectRef): Promise<void> {
+    await new Promise<void>((resolve) => {
+      const req = indexedDB.deleteDatabase(`tricc-doc-${ref.id}`)
+      req.onsuccess = req.onerror = req.onblocked = () => resolve()
+    })
+  }
+
   async connect(doc: Y.Doc, ref: ProjectRef): Promise<CollaborationSession> {
     const provider = new IndexeddbPersistence(`tricc-doc-${ref.id}`, doc)
     let synced = false

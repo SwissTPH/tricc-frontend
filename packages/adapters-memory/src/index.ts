@@ -97,6 +97,11 @@ export class MemoryCatalog implements ProjectCatalogPort {
     this.projects.delete(ref.id)
   }
 
+  async rename(ref: ProjectRef, name: string): Promise<void> {
+    const existing = this.projects.get(ref.id)
+    if (existing) existing.name = name
+  }
+
   async touch(ref: ProjectRef): Promise<void> {
     const existing = this.projects.get(ref.id)
     if (existing) existing.lastOpened = this.counter

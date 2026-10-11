@@ -5,6 +5,7 @@ import type { ProjectFiles, ProjectRef } from '@tricc/core'
 import { DownloadPersistence, FileSystemPersistence } from './persistence.js'
 import { LocalProjectCatalog } from './catalog.js'
 import { LocalIdentity, type PreferenceStore } from './identity.js'
+import { LocalPreferences } from './preferences.js'
 import { FakeDir } from './fake-fs.js'
 import { BrowserStoragePersistence, LocalPersistence } from './browser-storage.js'
 
@@ -277,5 +278,41 @@ describe('LocalProjectCatalog', () => {
   it('resolves undefined when no directory picker exists', async () => {
     // Firefox and Safari: the port must report "cannot", not throw.
     expect(await new LocalProjectCatalog().open()).toBeUndefined()
+  })
+})
+
+describe('LocalPreferences', () => {
+  it('defaults to three lines, keeps an update, and clamps it', () => {
+    const prefs = memoryPrefs()
+    expect(new LocalPreferences(prefs).current().labelLines).toBe(3)
+    const p = new LocalPreferences(prefs)
+    let notified = 0
+    p.onChange(() => notified++)
+    p.update({ labelLines: 5 })
+    expect(new LocalPreferences(prefs).current().labelLines).toBe(5)
+    p.update({ labelLines: 40 })
+    expect(p.current().labelLines).toBe(6)
+    expect(notified).toBe(2)
+    p.update({ labelChars: 1 })
+    expect(p.current().labelChars).toBe(5)
+    expect(new LocalPreferences(memoryPrefs()).current().labelChars).toBe(20)
+  })
+
+  it('falls back to the defaults when storage is corrupt or throws', () => {
+    const prefs = memoryPrefs()
+    prefs.set('tricc.preferences', 'not json')
+    expect(new LocalPreferences(prefs).current().labelLines).toBe(3)
+    const broken: PreferenceStore = {
+      get: () => {
+        throw new Error('blocked')
+      },
+      set: () => {
+        throw new Error('blocked')
+      },
+    }
+    const p = new LocalPreferences(broken)
+    expect(p.current().labelLines).toBe(3)
+    p.update({ labelLines: 2 })
+    expect(p.current().labelLines).toBe(2)
   })
 })

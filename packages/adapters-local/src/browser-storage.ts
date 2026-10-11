@@ -104,6 +104,14 @@ export class LocalPersistence implements PersistencePort {
     return this.port(ref).write(ref, req)
   }
 
+  /**
+   * Forget a project this browser holds. Browser-stored files are deleted. A folder is
+   * never touched: the files stay on disk for the author.
+   */
+  async forget(ref: ProjectRef): Promise<void> {
+    if (!ref.handle) await (this.browser as { clear?(ref: ProjectRef): Promise<void> }).clear?.(ref)
+  }
+
   watch(ref: ProjectRef, onExternalChange: (paths: string[]) => void) {
     const port = this.port(ref)
     return port.watch?.(ref, onExternalChange) ?? { dispose: () => undefined }

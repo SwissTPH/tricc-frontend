@@ -74,6 +74,13 @@ export class LocalProjectCatalog implements ProjectCatalogPort {
     await db.delete(STORE, ref.id)
   }
 
+  async rename(ref: ProjectRef, name: string): Promise<void> {
+    const db = await this.connect()
+    const existing = (await db.get(STORE, ref.id)) as StoredProject | undefined
+    if (!existing) return
+    await db.put(STORE, { ...existing, name })
+  }
+
   async touch(ref: ProjectRef): Promise<void> {
     const db = await this.connect()
     const existing = (await db.get(STORE, ref.id)) as StoredProject | undefined

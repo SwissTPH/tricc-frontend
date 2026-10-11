@@ -9,3 +9,4 @@ export {
 } from './identity.js'
 export { IndexedDbCollaboration } from './collaboration.js'
 export { type DirHandle, type FileHandle, readAll, resolveFile } from './fs.js'
+export { LocalPreferences } from './preferences.js'
