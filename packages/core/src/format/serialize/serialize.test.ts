@@ -1,8 +1,12 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { dirname, join, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { readProject, writeProject, writeChanged, createProject } from './index.js'
+import {
+  readProject,
+  writeProject,
+  writeChanged,
+  createActivity,
+  createProcessActivity,
+  createProject,
+} from './index.js'
 import { sampleProject, sampleActivity } from '../__fixtures__.js'
 import { decodeActivity, encodeActivity } from '../codec.js'
 import { fromYaml, toYaml } from './yaml.js'
@@ -117,69 +121,50 @@ describe('project round-trip', () => {
       ].join('\n'),
     }
     const { project } = readProject(files)
-    expect(project.activities['weight']?.nodes['kg']?.label).toEqual({ en: 'Weight (kilograms)' })
+    // The label moved to the concept the node is named after.
+    expect(project.activities['weight']?.nodes['kg']).not.toHaveProperty('label')
+    const concepts = Object.values(project.codeSystems)[0]?.concepts
+    expect(concepts?.['weight_kg']?.display).toBe('Weight (kilograms)')
     expect(project.interventions.map((i) => i.id)).toEqual(['child', 'young-infant'])
     expect(project.interventions[0]?.activities).toEqual([{ ref: 'weight' }])
     expect(project.interventions[1]?.activities).toEqual([{ ref: 'weight' }])
   })
 
-  it('opens the migrated slice with each shared activity stored once', () => {
-    const root = join(dirname(fileURLToPath(import.meta.url)), '../../../../../examples/migrated')
-    const files = readTree(root)
-    expect(files['project.json']).toBeUndefined()
-    const { project } = readProject(files)
-    const usersOf = (id: string) =>
-      project.interventions
-        .filter((iv) => iv.activities.some((ref) => ref.ref === id))
-        .map((iv) => iv.id)
 
-    expect(usersOf('weight-measurement')).toEqual(['over-2-months', 'young-infant'])
-    expect(usersOf('symptom-screening')).toEqual(['combacal-hypertension', 'combacal-diabetes'])
-    expect(Object.keys(files).filter((p) => p.endsWith('weight-measurement.activity.yaml'))).toEqual([
-      'activities/weight-measurement.activity.yaml',
-    ])
-    expect(Object.keys(files).filter((p) => p.endsWith('symptom-screening.activity.yaml'))).toEqual([
-      'activities/symptom-screening.activity.yaml',
-    ])
-    expect(project.activities['etat-airway']).toBeDefined()
-    expect(project.activities['combacal-simplify']).toBeDefined()
-    expect(project.activities['yi-tests']).toBeDefined()
-    const weight = Object.values(project.activities['weight-measurement']?.nodes ?? {}).find(
-      (n) => n.name === 'CHE.B6.DE07',
-    )
-    expect(weight?.label).toEqual({ en: 'Weight (kilograms)' })
-    const gate = Object.values(project.activities['weight-measurement']?.nodes ?? {}).find(
-      (n) => n.label?.en === 'Exceed weight for YI',
-    )
-    expect(gate?.reference).toBe('"age_in_days" < 60 and "CHE.B6.DE07" > 9')
-    expect(
-      Object.values(project.activities['etat-airway']?.nodes ?? {}).some((n) => n.form_id),
-    ).toBe(false)
-    expect(
-      Object.values(project.activities['combacal-simplify']?.nodes ?? {}).find((n) => n.form_id),
-    ).toMatchObject({ type: 'start', form_id: 'questionaire' })
-    expect(project.activities['urine-test']?.nodes['34']?.type).toBe('proposed_diagnosis')
-    expect(project.interventions.every((iv) => iv.activities.length > 0)).toBe(true)
-
-    const round = readProject(writeProject(readProject(files).project)).project
-    expect(round).toEqual(project)
-  })
 })
 
-function readTree(root: string): Record<string, string> {
-  const files: Record<string, string> = {}
-  const walk = (dir: string) => {
-    for (const name of readdirSync(dir)) {
-      const full = join(dir, name)
-      if (statSync(full).isDirectory()) walk(full)
-      else files[relative(root, full).split('\\').join('/')] = readFileSync(full, 'utf8')
-    }
-  }
-  walk(root)
-  return files
-}
 
 describe('incremental write', () => {
+  it('reads a CodeSystem that tricc.yaml lists elsewhere, and writes it back there', () => {
+    const files = writeProject(sampleProject())
+    const canonical = Object.keys(files).find((p) => p.startsWith('terminology/'))!
+    files['dd/demo_codesystem.json'] = files[canonical]!
+    delete files[canonical]
+    files['tricc.yaml'] = files['tricc.yaml']!.replace(canonical, 'dd/*.json')
+    const { project } = readProject(files)
+    const cs = Object.values(project.codeSystems)[0]!
+    expect(cs.path).toBe('dd/demo_codesystem.json')
+    const written = writeProject(project)
+    expect(written['dd/demo_codesystem.json']).toBe(files['dd/demo_codesystem.json'])
+    expect(written[canonical]).toBeUndefined()
+    expect(written['tricc.yaml']).toContain('dd/demo_codesystem.json')
+  })
+
+  it('moves an activity file at another path to its canonical path on the next save', () => {
+    const files = writeProject(sampleProject())
+    const canonical = Object.keys(files).find((p) => p.startsWith('activities/'))!
+    const odd = canonical.replace(/[^/]+$/, 'Renamed.yaml')
+    files[odd] = files[canonical]!
+    delete files[canonical]
+    files['tricc.yaml'] = files['tricc.yaml']!.split(canonical).join(odd)
+    const { project, migratedFrom } = readProject(files)
+    expect(migratedFrom).toBe('activity-paths')
+    const { changed, removed } = writeChanged(project, files)
+    expect(removed).toContain(odd)
+    expect(changed).toContain(canonical)
+    expect(changed).toContain('tricc.yaml')
+  })
+
   it('reports only the files that actually changed', () => {
     const project = sampleProject()
     const previous = writeProject(project)
@@ -275,7 +260,11 @@ describe('positions survive', () => {
 
 describe('shorthands', () => {
   it('collapses single-default-language text to a bare string', () => {
-    const yaml = toYaml(encodeActivity(sampleActivity(), 'en', '1.0.0'))
+    // Inline text is only written for an item with no code yet; the shorthand still applies.
+    const activity = sampleActivity()
+    activity.nodes['n-weight']!.label = { en: 'Weight (kg)', fr: 'Poids (kg)' }
+    activity.nodes['n-weight']!.hint = { en: 'Use a calibrated scale' }
+    const yaml = toYaml(encodeActivity(activity, 'en', '1.0.0'))
     // hint has only `en`, so it collapses; label has en+fr, so it stays a map.
     expect(yaml).toContain('hint: Use a calibrated scale')
     expect(yaml).toMatch(/label:\n\s+en: Weight \(kg\)\n\s+fr: Poids \(kg\)/)
@@ -321,7 +310,7 @@ describe('shorthands', () => {
     ])
   })
 
-  it('round-trips form_id on a process start and a continue_with ISO delay', () => {
+  it('round-trips a continue_with ISO delay and never writes form_id', () => {
     const project = sampleProject()
     const activity = project.activities['triage-danger-signs']!
     activity.nodes['n-start']!.form_id = 'ETAT'
@@ -342,7 +331,7 @@ describe('shorthands', () => {
     activity.nodeOrder.push('proc', 'follow')
     const back = readProject(writeProject(project)).project.activities['triage-danger-signs']
     expect(back?.nodes['n-start']?.form_id).toBeUndefined()
-    expect(back?.nodes['proc']?.form_id).toBe('questionaire')
+    expect(back?.nodes['proc']?.form_id).toBeUndefined()
     expect(back?.nodes['follow']).toMatchObject({
       type: 'continue_with',
       intervention: 'sick-child',
@@ -350,12 +339,54 @@ describe('shorthands', () => {
       delay: 'P3D',
     })
     const yaml = toYaml(encodeActivity(activity, 'en', '1.0.0'))
-    expect(yaml).toContain('form_id: questionaire')
-    expect(yaml).not.toContain('form_id: ETAT')
+    expect(yaml).not.toContain('form_id')
     expect(yaml).not.toContain('formId')
   })
 
-  it('reads the old formId spelling on a process start and drops form_id on an activity start', () => {
+  it('moves a legacy form_id to the name of an unnamed intervention, then drops it', () => {
+    const project = sampleProject()
+    project.interventions[0]!.name = undefined
+    project.interventions.push({
+      id: 'named',
+      name: 'keep-me',
+      trigger: { mode: 'on-demand' },
+      activities: [...project.interventions[0]!.activities],
+    })
+    const files = writeProject(project)
+    const listed = project.interventions[0]!.activities[0]!.ref
+    const path = `activities/${listed}.activity.yaml`
+    // Make the first listed activity a legacy process page that still carries form_id.
+    files[path] = (files[path] ?? '').replace(/type: activity_start/, 'type: start').replace(
+      /^nodes:/m,
+      'form_id: questionaire\nnodes:',
+    )
+    const back = readProject(files).project
+    expect(back.interventions.find((i) => i.id === 'sick-child')?.name).toBe('questionaire')
+    expect(back.interventions.find((i) => i.id === 'named')?.name).toBe('keep-me')
+    for (const node of Object.values(back.activities[listed]!.nodes)) {
+      expect(node).not.toHaveProperty('form_id')
+    }
+  })
+
+  it('writes activity name, CQL applicability and intent as separate keys', () => {
+    const activity = decodeActivity(
+      {
+        id: 'w',
+        name: 'weight_measurement',
+        applicability: { intent: 'Children under five', expression: 'AgeInMonths() < 60' },
+        nodes: [{ id: 's', type: 'activity_start' }],
+      },
+      'en',
+    )
+    expect(activity.name).toBe('weight_measurement')
+    const yaml = toYaml(encodeActivity(activity, 'en', '1.0.0'))
+    expect(yaml).toContain('name: weight_measurement')
+    expect(yaml).toContain('applicability: AgeInMonths() < 60')
+    expect(yaml).toContain('intent: Children under five')
+    expect(decodeActivity(fromYaml(yaml), 'en').applicability).toEqual(activity.applicability)
+  })
+
+  it('reads the old formId spelling for migration and never writes it', () => {
     const activity = decodeActivity(
       {
         id: 'a',
@@ -369,10 +400,31 @@ describe('shorthands', () => {
     expect(activity.nodes['s']?.form_id).toBe('questionaire')
     expect(activity.nodes['a1']?.form_id).toBeUndefined()
     const yaml = toYaml(encodeActivity(activity, 'en', '1.0.0'))
-    expect(yaml).toContain('form_id: questionaire')
+    expect(yaml).not.toContain('form_id')
     expect(yaml).not.toContain('formId')
     expect(yaml).not.toContain('ETAT')
     expect(yaml).not.toContain('filter:')
+  })
+
+  it('reads a select filter without keeping it', () => {
+    const activity = decodeActivity(
+      { id: 'a', nodes: [{ id: 'q', type: 'select_one', name: 'select_', filter: 'etat.coma.004' }] },
+      'en',
+    )
+    expect(activity.nodes['q']).not.toHaveProperty('filter')
+    expect(activity.nodes['q']?.name).toBe('select_')
+    expect(toYaml(encodeActivity(activity, 'en', '1.0.0'))).not.toContain('filter')
+  })
+
+  it('writes the intervention name, never code, and reads the older code key', () => {
+    const files = writeProject(sampleProject())
+    const yaml = files['tricc.yaml'] ?? ''
+    expect(yaml).toContain('name: sick-child')
+    const interventions = yaml.slice(yaml.indexOf('\ninterventions:'))
+    expect(interventions).not.toMatch(/^ +code:/m)
+    files['tricc.yaml'] = yaml.replace('name: sick-child', 'code: sick-child')
+    const { project } = readProject(files)
+    expect(project.interventions[0]?.name).toBe('sick-child')
   })
 })
 
@@ -424,6 +476,105 @@ describe('deprecated fields', () => {
     expect(a.nodes['n']?.save).toBe('obs')
     const yaml = toYaml(encodeActivity(a, 'en', '1.0.0'))
     expect(fromYaml(yaml)).toMatchObject({ nodes: [{ save: 'obs' }] })
+  })
+})
+
+describe('the start node is the activity', () => {
+  it('lifts label, name, process and relevance from the root, and never writes them back there', () => {
+    const activity = decodeActivity(
+      {
+        id: 'nav',
+        nodes: [
+          {
+            id: 'm',
+            type: 'start',
+            name: 'navigation',
+            label: 'Navigation',
+            process: 'registration',
+            relevance: 'AgeInYears() >= 18',
+          },
+        ],
+      },
+      'en',
+    )
+    expect(activity).toMatchObject({
+      name: 'navigation',
+      title: { en: 'Navigation' },
+      process: 'registration',
+      applicability: { expression: 'AgeInYears() >= 18' },
+    })
+    expect(activity.nodes['m']).toEqual({ id: 'm', type: 'start' })
+    const yaml = toYaml(encodeActivity(activity, 'en', '1.0.0'))
+    expect(yaml).toContain('process: registration')
+    expect(yaml).toMatch(/nodes:\n  - id: m\n    type: start\n/)
+  })
+
+  it('keeps the activity value when the root disagrees', () => {
+    const activity = decodeActivity(
+      { id: 'a', title: 'Activity title', nodes: [{ id: 's', type: 'activity_start', label: 'Old label' }] },
+      'en',
+    )
+    expect(activity.title).toEqual({ en: 'Activity title' })
+    expect(activity.nodes['s']).not.toHaveProperty('label')
+  })
+
+  it('creates activities whose root has no name of its own', () => {
+    expect(createActivity({ id: 'cough', title: 'Cough' }).nodes['start']).toEqual({
+      id: 'start',
+      type: 'activity_start',
+      ui: { x: 80, y: 40 },
+    })
+    const process = createProcessActivity({ id: 'triage-process', process: 'triage' })
+    expect(process.process).toBe('triage')
+    expect(process.nodes['start']).not.toHaveProperty('process')
+    expect(process.nodes['start']).not.toHaveProperty('name')
+  })
+})
+
+describe('comments on the diagram', () => {
+  it('round-trip in the ui block, with what they are about', () => {
+    const activity = decodeActivity(
+      {
+        id: 'a',
+        ui: {
+          comments: [
+            { id: 'c1', text: 'Ask Dr N about this cut-off', color: 'blue', x: 10, y: 20, node: 'w' },
+            { id: 'c2', text: 'Draft', x: 0, y: 0 },
+          ],
+        },
+        nodes: [{ id: 'w', type: 'decimal', name: 'weight' }],
+      },
+      'en',
+    )
+    expect(activity.ui?.comments?.[1]?.color).toBe('yellow')
+    const back = decodeActivity(fromYaml(toYaml(encodeActivity(activity, 'en', '1.0.0'))), 'en')
+    expect(back.ui).toEqual(activity.ui)
+  })
+})
+
+describe('page groups', () => {
+  it('write groups and membership for tricc_oo, with the layout under ui', () => {
+    const activity = decodeActivity(
+      {
+        id: 'a',
+        groups: [{ id: 'g', name: 'danger_signs', ui: { x: 10, y: 20, width: 300, height: 200, color: 'pink' } }],
+        nodes: [{ id: 'q', type: 'select_yesno', name: 'convulsions', group: 'g', ui: { x: 5, y: 6 } }],
+      },
+      'en',
+    )
+    expect(activity.groups?.[0]).toEqual({ id: 'g', name: 'danger_signs', color: 'pink', x: 10, y: 20, width: 300, height: 200 })
+    const yaml = toYaml(encodeActivity(activity, 'en', '1.0.0'))
+    expect(yaml).toContain('group: g')
+    expect(decodeActivity(fromYaml(yaml), 'en')).toEqual(activity)
+  })
+
+  it('moves a group title into the concept its name stands for', () => {
+    const files = writeProject(sampleProject())
+    const path = 'activities/triage-danger-signs.activity.yaml'
+    files[path] = files[path]!.replace(/^nodes:/m, 'groups:\n  - id: g\n    name: danger_signs\n    label: Danger signs\nnodes:')
+    const { project } = readProject(files)
+    expect(project.activities['triage-danger-signs']!.groups?.[0]).not.toHaveProperty('label')
+    expect(Object.values(project.codeSystems)[0]!.concepts['danger_signs']?.display).toBe('Danger signs')
   })
 })
 

@@ -52,7 +52,8 @@ describe('readActivityFile', () => {
 
     const [process] = readActivityFile('airway.activity.yaml', airway, taken, 'en')
     expect(activityKind(process!.activity)).toBe('process')
-    expect(process?.activity.nodes.start?.form_id).toBe('ETAT')
+    // The page joins no intervention yet, so the legacy form_id is dropped.
+    expect(process?.activity.nodes.start).not.toHaveProperty('form_id')
     expect([...taken].sort()).toEqual(['airway-process', 'cough'])
   })
 

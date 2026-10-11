@@ -12,6 +12,7 @@ export const designationSchema = z
     language: z.string().min(1),
     value: z.string(),
     use: z.object({ system: z.string(), code: z.string() }).partial().optional(),
+    extension: z.array(z.unknown()).optional(),
   })
   .strict()
 
@@ -33,7 +34,8 @@ export const csConceptSchema = z
     designation: z.array(designationSchema).optional(),
     property: z.array(propertyValueSchema).optional(),
   })
-  .strict()
+  // Other FHIR concept keys (`id`, extensions) are kept and written back.
+  .passthrough()
 
 export const codeSystemSchema = z
   .object({

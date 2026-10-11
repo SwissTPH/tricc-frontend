@@ -318,10 +318,62 @@ describe('project scope', () => {
     expect(rules(validateProject(p))).toContain('intervention.dangling-activity')
   })
 
-  it('flags duplicate intervention codes', () => {
+  it('warns on a condition on an edge into Not available', () => {
+    const p = clean()
+    const a = Object.values(p.activities)[0]!
+    a.nodes['na'] = { id: 'na', type: 'not_available', name: 'weight_na' }
+    a.nodeOrder.push('na')
+    const source = a.nodeOrder[0]!
+    a.edges['ena'] = { id: 'ena', source, target: 'na', value: 'yes' }
+    a.edgeOrder.push('ena')
+    const found = find(validateProject(p), 'edge.extension-conditional')
+    expect(found).toHaveLength(1)
+    expect(found[0]?.location.edgeId).toBe('ena')
+    delete a.edges['ena']!.value
+    expect(find(validateProject(p), 'edge.extension-conditional')).toHaveLength(0)
+  })
+
+  it('never flags the internal name of a goto, a decision or a start', () => {
+    const p = clean()
+    const a = Object.values(p.activities)[0]!
+    const taken = Object.values(a.nodes).find((n) => n.name)!.name!
+    a.nodes['g1'] = { id: 'g1', type: 'goto', name: taken, link: Object.keys(p.activities)[1] }
+    a.nodes['g2'] = { id: 'g2', type: 'goto', name: 'goto' }
+    a.nodes['g3'] = { id: 'g3', type: 'goto', name: 'goto' }
+    a.nodes['r'] = { id: 'r', type: 'rhombus', name: taken, reference: 'true' }
+    a.nodeOrder.push('g1', 'g2', 'g3', 'r')
+    const dup = find(validateProject(p), 'node.duplicate-name').map((i) => i.location.nodeId)
+    expect(dup).not.toContain('g1')
+    expect(dup).not.toContain('g2')
+    expect(dup).not.toContain('r')
+  })
+
+  it('flags a malformed intervention name', () => {
+    const p = clean()
+    p.interventions[0]!.name = '1 bad name'
+    expect(rules(validateProject(p))).toContain('intervention.name-pattern')
+  })
+
+  it('flags duplicate and malformed activity names, and an activity intent without CQL', () => {
+    const p = clean()
+    const ids = Object.keys(p.activities)
+    const second = structuredClone(p.activities[ids[0]!]!)
+    second.id = 'copy'
+    p.activities['copy'] = second
+    p.activities[ids[0]!]!.name = 'same'
+    second.name = 'same'
+    expect(find(validateProject(p), 'activity.duplicate-name')).toHaveLength(2)
+    second.name = 'has space'
+    second.applicability = { intent: { en: 'Under five' } }
+    const r = rules(validateProject(p))
+    expect(r).toContain('activity.name-pattern')
+    expect(r).toContain('expression.open-handoff')
+  })
+
+  it('flags duplicate intervention names', () => {
     const p = clean()
     p.interventions.push({ ...p.interventions[0]!, id: 'second' })
-    const issues = find(validateProject(p), 'intervention.duplicate-code')
+    const issues = find(validateProject(p), 'intervention.duplicate-name')
     expect(issues).toHaveLength(2)
   })
 

@@ -8,8 +8,10 @@ import type {
   SelectOption,
   TriccEdge,
   TriccNode,
+  Designation,
 } from '../model/types.js'
 import type { LocalizedText } from '../format/schema/localized.js'
+import { fieldsOf, type CustomField } from '../format/node-fields.js'
 import type { Expression } from '../format/schema/expression.js'
 import {
   expressionFromY,
@@ -38,34 +40,87 @@ function assign<T extends object>(target: T, key: string, value: unknown): void 
   ;(target as unknown as Record<string, unknown>)[key] = value
 }
 
-const LOCALIZED_NODE_KEYS = ['label', 'hint', 'help', 'constraintMessage'] as const
-const EXPRESSION_NODE_KEYS = ['relevance', 'calculate', 'expression', 'constraint'] as const
-const PLAIN_NODE_KEYS = [
-  'name',
-  'required',
-  'default',
-  'min',
-  'max',
-  'unit',
-  'unit_system',
-  'unit_code',
-  'repeat',
-  'instance',
-  'reference',
-  'link',
-  'listName',
-  'filter',
-  'severity',
-  'priority',
-  'context',
-  'period',
-  'form_id',
-  'process',
-  'intervention',
-  'condition',
-  'delay',
-  'save',
-] as const
+// Field lists come from NODE_FIELDS (format/node-fields.ts), the table the YAML codec walks too.
+const LOCALIZED_NODE_KEYS = fieldsOf('localized')
+const EXPRESSION_NODE_KEYS = fieldsOf('expression')
+const PLAIN_NODE_KEYS = fieldsOf('scalar')
+const JSON_NODE_KEYS = fieldsOf('json')
+
+/** The document side of the fields NODE_FIELDS marks `custom`. Typed by it, so none is forgotten. */
+const DOC_CUSTOM: {
+  [F in CustomField]: {
+    toY(m: Y.Map<unknown>, n: TriccNode): void
+    fromY(m: Y.Map<unknown>, n: TriccNode): void
+    update(m: Y.Map<unknown>, n: TriccNode, detached: boolean): void
+  }
+} = {
+  options: {
+    toY(m, n) {
+      if (!n.options) return
+      const arr = new Y.Array<Y.Map<unknown>>()
+      arr.insert(0, n.options.map(optionToY))
+      m.set('options', arr)
+    },
+    fromY(m, n) {
+      const opts = m.get('options') as Y.Array<Y.Map<unknown>> | undefined
+      if (opts) n.options = opts.toArray().map(optionFromY)
+    },
+    update(m, n, detached) {
+      if (n.options) DOC_CUSTOM.options.toY(m, n)
+      else if (!detached && m.has('options')) m.delete('options')
+    },
+  },
+  notAvailable: {
+    toY(m, n) {
+      if (!n.notAvailable) return
+      const na = new Y.Map<unknown>()
+      setScalar(na, 'name', n.notAvailable.name)
+      if (n.notAvailable.label) na.set('label', localizedToY(n.notAvailable.label))
+      setPlain(na, 'concept', n.notAvailable.concept)
+      m.set('notAvailable', na)
+    },
+    fromY(m, n) {
+      const naM = m.get('notAvailable') as Y.Map<unknown> | undefined
+      if (!naM) return
+      const na: NonNullable<TriccNode['notAvailable']> = {}
+      const nn = naM.get('name') as string | undefined
+      if (nn !== undefined) na.name = nn
+      const nl = localizedFromY(naM.get('label') as Y.Map<Y.Text> | undefined)
+      if (nl) na.label = nl
+      const nc = naM.get('concept') as TriccNode['concept']
+      if (nc) na.concept = structuredClone(nc)
+      n.notAvailable = na
+    },
+    update(m, n, detached) {
+      if (!n.notAvailable) {
+        if (!detached && m.has('notAvailable')) m.delete('notAvailable')
+        return
+      }
+      let na = detached ? undefined : (m.get('notAvailable') as Y.Map<unknown> | undefined)
+      if (!na) {
+        na = new Y.Map<unknown>()
+        m.set('notAvailable', na)
+      }
+      setScalar(na, 'name', n.notAvailable.name)
+      const existing = na.doc === null ? undefined : (na.get('label') as Y.Map<Y.Text> | undefined)
+      if (n.notAvailable.label) {
+        if (existing) updateLocalized(existing, n.notAvailable.label)
+        else na.set('label', localizedToY(n.notAvailable.label))
+      } else if (existing) na.delete('label')
+      setPlain(na, 'concept', n.notAvailable.concept)
+    },
+  },
+  ui: {
+    toY: (m, n) => setPlain(m, 'ui', n.ui),
+    fromY(m, n) {
+      const ui = m.get('ui') as TriccNode['ui']
+      if (ui) n.ui = structuredClone(ui)
+    },
+    update: (m, n) => setPlain(m, 'ui', n.ui),
+  },
+  // Legacy: moved to the intervention name when a project is read, so never in the document.
+  form_id: { toY: () => undefined, fromY: () => undefined, update: () => undefined },
+}
 
 export function nodeToY(n: TriccNode): Y.Map<unknown> {
   const m = new Y.Map<unknown>()
@@ -74,21 +129,8 @@ export function nodeToY(n: TriccNode): Y.Map<unknown> {
   for (const k of PLAIN_NODE_KEYS) setScalar(m, k, n[k])
   for (const k of LOCALIZED_NODE_KEYS) if (n[k]) m.set(k, localizedToY(n[k] as LocalizedText))
   for (const k of EXPRESSION_NODE_KEYS) if (n[k]) m.set(k, expressionToY(n[k] as Expression))
-  setPlain(m, 'concept', n.concept)
-  setPlain(m, 'media', n.media)
-  setPlain(m, 'ui', n.ui)
-  if (n.notAvailable) {
-    const na = new Y.Map<unknown>()
-    setScalar(na, 'name', n.notAvailable.name)
-    if (n.notAvailable.label) na.set('label', localizedToY(n.notAvailable.label))
-    setPlain(na, 'concept', n.notAvailable.concept)
-    m.set('notAvailable', na)
-  }
-  if (n.options) {
-    const arr = new Y.Array<Y.Map<unknown>>()
-    arr.insert(0, n.options.map(optionToY))
-    m.set('options', arr)
-  }
+  for (const k of JSON_NODE_KEYS) setPlain(m, k, n[k])
+  for (const custom of Object.values(DOC_CUSTOM)) custom.toY(m, n)
   return m
 }
 
@@ -129,26 +171,11 @@ export function nodeFromY(m: Y.Map<unknown>): TriccNode {
     const v = expressionFromY(m.get(k) as Y.Map<unknown> | undefined)
     if (v) assign(n, k, v)
   }
-  const concept = m.get('concept') as TriccNode['concept']
-  if (concept) n.concept = structuredClone(concept)
-  const media = m.get('media') as TriccNode['media']
-  if (media) n.media = structuredClone(media)
-  const ui = m.get('ui') as TriccNode['ui']
-  if (ui) n.ui = structuredClone(ui)
-  const naM = m.get('notAvailable') as Y.Map<unknown> | undefined
-  if (naM) {
-    const na: NonNullable<TriccNode['notAvailable']> = {}
-    const nn = naM.get('name') as string | undefined
-    if (nn !== undefined) na.name = nn
-    const nl = localizedFromY(naM.get('label') as Y.Map<Y.Text> | undefined)
-    if (nl) na.label = nl
-    const nc = naM.get('concept') as TriccNode['concept']
-    if (nc) na.concept = structuredClone(nc)
-    n.notAvailable = na
+  for (const k of JSON_NODE_KEYS) {
+    const v = m.get(k)
+    if (v) assign(n, k, structuredClone(v))
   }
-  const opts = m.get('options') as Y.Array<Y.Map<unknown>> | undefined
-  if (opts) n.options = opts.toArray().map(optionFromY)
-  if (n.type !== 'start') delete n.form_id
+  for (const custom of Object.values(DOC_CUSTOM)) custom.fromY(m, n)
   return n
 }
 
@@ -172,29 +199,8 @@ export function updateNodeY(m: Y.Map<unknown>, n: TriccNode): void {
       else m.set(k, expressionToY(value))
     } else if (existing) m.delete(k)
   }
-  setPlain(m, 'concept', n.concept)
-  setPlain(m, 'media', n.media)
-  setPlain(m, 'ui', n.ui)
-  if (n.notAvailable) {
-    let na = m.doc === null ? undefined : (m.get('notAvailable') as Y.Map<unknown> | undefined)
-    if (!na) {
-      na = new Y.Map<unknown>()
-      m.set('notAvailable', na)
-    }
-    setScalar(na, 'name', n.notAvailable.name)
-    const existing = na.doc === null ? undefined : (na.get('label') as Y.Map<Y.Text> | undefined)
-    if (n.notAvailable.label) {
-      if (existing) updateLocalized(existing, n.notAvailable.label)
-      else na.set('label', localizedToY(n.notAvailable.label))
-    } else if (existing) na.delete('label')
-    setPlain(na, 'concept', n.notAvailable.concept)
-  } else if (!detached && m.has('notAvailable')) m.delete('notAvailable')
-
-  if (n.options) {
-    const arr = new Y.Array<Y.Map<unknown>>()
-    arr.insert(0, n.options.map(optionToY))
-    m.set('options', arr)
-  } else if (!detached && m.has('options')) m.delete('options')
+  for (const k of JSON_NODE_KEYS) setPlain(m, k, n[k])
+  for (const custom of Object.values(DOC_CUSTOM)) custom.update(m, n, detached)
 }
 
 export function edgeToY(e: TriccEdge): Y.Map<unknown> {
@@ -223,10 +229,12 @@ export function edgeFromY(m: Y.Map<unknown>): TriccEdge {
 export function activityToY(a: Activity): Y.Map<unknown> {
   const m = new Y.Map<unknown>()
   m.set('id', a.id)
+  setScalar(m, 'name', a.name)
   setScalar(m, 'process', a.process)
   if (a.title) m.set('title', localizedToY(a.title))
   if (a.applicability) m.set('applicability', expressionToY(a.applicability))
   setPlain(m, 'ui', a.ui)
+  setPlain(m, 'groups', a.groups)
   const nodes = new Y.Map<Y.Map<unknown>>()
   for (const id of a.nodeOrder) {
     const n = a.nodes[id]
@@ -265,12 +273,16 @@ export function activityFromY(m: Y.Map<unknown>): Activity {
   const a: Activity = { id: m.get('id') as string, nodes, edges, nodeOrder, edgeOrder }
   const title = localizedFromY(m.get('title') as Y.Map<Y.Text> | undefined)
   if (title) a.title = title
+  const name = m.get('name') as string | undefined
+  if (name !== undefined) a.name = name
   const process = m.get('process') as string | undefined
   if (process !== undefined) a.process = process
   const app = expressionFromY(m.get('applicability') as Y.Map<unknown> | undefined)
   if (app) a.applicability = app
   const ui = m.get('ui') as Activity['ui']
   if (ui) a.ui = structuredClone(ui)
+  const groups = m.get('groups') as Activity['groups']
+  if (groups?.length) a.groups = structuredClone(groups)
   return a
 }
 
@@ -290,7 +302,7 @@ function reconcileOrder(order: string[], present: Record<string, unknown>): stri
 export function interventionToY(i: Intervention): Y.Map<unknown> {
   const m = new Y.Map<unknown>()
   m.set('id', i.id)
-  setScalar(m, 'code', i.code)
+  setScalar(m, 'name', i.name)
   if (i.title) m.set('title', localizedToY(i.title))
   if (i.description) m.set('description', localizedToY(i.description))
   if (i.applicability) m.set('applicability', expressionToY(i.applicability))
@@ -316,8 +328,9 @@ export function interventionFromY(m: Y.Map<unknown>): Intervention {
       ? stored.toArray().map((am) => ({ ref: am.get('ref') as string }))
       : [],
   }
-  const code = m.get('code') as string | undefined
-  if (code !== undefined) i.code = code
+  // `code` is the key before it was renamed to `name` (2026-10-08), still read for recovered drafts.
+  const name = (m.get('name') ?? m.get('code')) as string | undefined
+  if (name !== undefined) i.name = name
   const title = localizedFromY(m.get('title') as Y.Map<Y.Text> | undefined)
   if (title) i.title = title
   const desc = localizedFromY(m.get('description') as Y.Map<Y.Text> | undefined)
@@ -341,6 +354,7 @@ export function codeSystemToY(cs: CodeSystem): Y.Map<unknown> {
     'status',
     'content',
     'caseSensitive',
+    'path',
   ] as const) {
     setScalar(m, k, cs[k])
   }
@@ -366,13 +380,22 @@ const CONCEPT_PLAIN = [
   'targetPath',
 ] as const
 
-function conceptToY(c: Concept): Y.Map<unknown> {
+/** Designations are a plain list. An older document stored a map of text by language. */
+function designationsFromY(value: unknown): Designation[] {
+  if (Array.isArray(value)) return structuredClone(value) as Designation[]
+  const byLang = localizedFromY(value as Y.Map<Y.Text> | undefined) ?? {}
+  return Object.entries(byLang).map(([language, text]) => ({ language, value: text }))
+}
+
+export function conceptToY(c: Concept): Y.Map<unknown> {
   const m = new Y.Map<unknown>()
   m.set('system', c.system)
   m.set('code', c.code)
   setScalar(m, 'display', c.display)
   if (c.definition !== undefined) m.set('definition', newText(c.definition))
-  m.set('designations', localizedToY(c.designations))
+  setPlain(m, 'designations', c.designations)
+  setPlain(m, 'extra', c.extra)
+  setPlain(m, 'stringProperties', c.stringProperties)
   for (const k of CONCEPT_PLAIN) setScalar(m, k, c[k])
   return m
 }
@@ -381,8 +404,12 @@ function conceptFromY(m: Y.Map<unknown>): Concept {
   const c: Concept = {
     system: m.get('system') as string,
     code: m.get('code') as string,
-    designations: localizedFromY(m.get('designations') as Y.Map<Y.Text> | undefined) ?? {},
+    designations: designationsFromY(m.get('designations')),
   }
+  const extra = m.get('extra') as Concept['extra']
+  if (extra) c.extra = structuredClone(extra)
+  const stringProperties = m.get('stringProperties') as Concept['stringProperties']
+  if (stringProperties) c.stringProperties = [...stringProperties]
   const display = m.get('display') as string | undefined
   if (display !== undefined) c.display = display
   const def = m.get('definition') as Y.Text | undefined
@@ -409,7 +436,7 @@ export function codeSystemFromY(m: Y.Map<unknown>): CodeSystem {
     concepts,
     conceptOrder: reconcileOrder((m.get('conceptOrder') as Y.Array<string>).toArray(), concepts),
   }
-  for (const k of ['version', 'name', 'title', 'description', 'caseSensitive'] as const) {
+  for (const k of ['version', 'name', 'title', 'description', 'caseSensitive', 'path'] as const) {
     const v = m.get(k)
     if (v !== undefined) assign(cs, k, v)
   }

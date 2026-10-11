@@ -1,6 +1,10 @@
 import * as Y from 'yjs'
 import type {
   Activity,
+  ActivityUi,
+  CanvasComment,
+  CanvasGroup,
+  NodeUi,
   Intervention,
   TriccEdge,
   TriccNode,
@@ -10,12 +14,14 @@ import type {
 import {
   activityToY,
   codeSystemToY,
+  conceptToY,
   edgeToY,
   interventionToY,
   nodeToY,
   updateNodeY,
 } from './codec.js'
-import { localizedToY, newText, setPlain, setScalar, updateLocalized } from './ytypes.js'
+import { expressionToY, localizedToY, newText, setPlain, setScalar, updateLocalized } from './ytypes.js'
+import type { Expression } from '../format/schema/expression.js'
 import type { LocalizedText } from '../format/schema/localized.js'
 
 /**
@@ -50,6 +56,21 @@ export class Mutations {
     this.activities().delete(activityId)
   }
 
+  /**
+   * Delete an activity and take it off every intervention that lists it. Links to it
+   * from other activities stay, so they show as missing and an undo restores them.
+   */
+  deleteActivity(activityId: string): void {
+    for (const iv of this.doc.getMap<Y.Map<unknown>>('interventions').values()) {
+      const refs = iv.get('activities') as Y.Array<Y.Map<unknown>> | undefined
+      if (!refs) continue
+      for (let i = refs.length - 1; i >= 0; i--) {
+        if (refs.get(i).get('ref') === activityId) refs.delete(i, 1)
+      }
+    }
+    this.removeActivity(activityId)
+  }
+
   setActivityTitle(activityId: string, title: LocalizedText): void {
     const a = this.activity(activityId)
     const existing = a.get('title') as Y.Map<Y.Text> | undefined
@@ -61,8 +82,86 @@ export class Mutations {
     setScalar(this.activity(activityId), 'process', process)
   }
 
+  setActivityName(activityId: string, name: string | undefined): void {
+    setScalar(this.activity(activityId), 'name', name)
+  }
+
+  setActivityApplicability(activityId: string, applicability: Expression | undefined): void {
+    const a = this.activity(activityId)
+    if (applicability) a.set('applicability', expressionToY(applicability))
+    else a.delete('applicability')
+  }
+
   setActivityViewport(activityId: string, viewport: { x: number; y: number; zoom: number }): void {
-    setPlain(this.activity(activityId), 'ui', { viewport })
+    const a = this.activity(activityId)
+    setPlain(a, 'ui', { ...((a.get('ui') as ActivityUi | undefined) ?? {}), viewport })
+  }
+
+  /** Add or replace a comment on the diagram (matched by id). */
+  setComment(activityId: string, comment: CanvasComment): void {
+    const a = this.activity(activityId)
+    const ui = (a.get('ui') as ActivityUi | undefined) ?? {}
+    const comments = [...(ui.comments ?? [])]
+    const at = comments.findIndex((c) => c.id === comment.id)
+    if (at >= 0) comments[at] = { ...comment }
+    else comments.push({ ...comment })
+    setPlain(a, 'ui', { ...ui, comments })
+  }
+
+  /** Add or replace a page group (matched by id). */
+  setGroup(activityId: string, group: CanvasGroup): void {
+    const a = this.activity(activityId)
+    const groups = [...((a.get('groups') as CanvasGroup[] | undefined) ?? [])]
+    const at = groups.findIndex((g) => g.id === group.id)
+    if (at >= 0) groups[at] = { ...group }
+    else groups.push({ ...group })
+    setPlain(a, 'groups', groups)
+  }
+
+  /**
+   * Remove a group, keeping what was in it where it is on screen: its nodes and inner groups
+   * move to the group's own parent, with their positions made relative to that.
+   */
+  removeGroup(activityId: string, groupId: string): void {
+    const a = this.activity(activityId)
+    const all = (a.get('groups') as CanvasGroup[] | undefined) ?? []
+    const group = all.find((g) => g.id === groupId)
+    if (!group) return
+    const nodes = a.get('nodes') as Y.Map<Y.Map<unknown>>
+    for (const n of nodes.values()) {
+      if (n.get('group') !== groupId) continue
+      const ui = (n.get('ui') as NodeUi | undefined) ?? { x: 0, y: 0 }
+      n.set('ui', { ...ui, x: ui.x + group.x, y: ui.y + group.y })
+      setScalar(n, 'group', group.parent)
+    }
+    const groups = all
+      .filter((g) => g.id !== groupId)
+      .map((g) => {
+        if (g.parent !== groupId) return g
+        const next: CanvasGroup = { ...g, x: g.x + group.x, y: g.y + group.y }
+        if (group.parent) next.parent = group.parent
+        else delete next.parent
+        return next
+      })
+    setPlain(a, 'groups', groups.length ? groups : undefined)
+  }
+
+  /** Put a node in a group (or none), at a position relative to it. */
+  setNodeGroup(activityId: string, nodeId: string, group: string | undefined, x: number, y: number): void {
+    const nodes = this.activity(activityId).get('nodes') as Y.Map<Y.Map<unknown>>
+    const n = nodes.get(nodeId)
+    if (!n) throw new Error(`no such node: ${nodeId}`)
+    n.set('ui', { ...((n.get('ui') as NodeUi | undefined) ?? { x: 0, y: 0 }), x, y })
+    setScalar(n, 'group', group)
+  }
+
+  removeComment(activityId: string, commentId: string): void {
+    const a = this.activity(activityId)
+    const ui = (a.get('ui') as ActivityUi | undefined) ?? {}
+    const comments = (ui.comments ?? []).filter((c) => c.id !== commentId)
+    const next: ActivityUi = { ...ui, comments }
+    if (comments.length === 0) delete next.comments
+    setPlain(a, 'ui', Object.keys(next).length ? next : undefined)
   }
 
   // ------------------------------------------------------------- nodes
@@ -106,6 +205,19 @@ export class Mutations {
         edges.delete(id)
         removeFromOrder(order, id)
       }
+    }
+
+    // A comment about the node stays on the diagram; it is just no longer about anything.
+    const ui = a.get('ui') as ActivityUi | undefined
+    if (ui?.comments?.some((c) => c.node === nodeId)) {
+      setPlain(a, 'ui', {
+        ...ui,
+        comments: ui.comments.map((c) => {
+          if (c.node !== nodeId) return c
+          const { node: _node, ...rest } = c
+          return rest
+        }),
+      })
     }
   }
 
@@ -171,23 +283,7 @@ export class Mutations {
     if (!cs) throw new Error(`no such code system: ${systemUrl}`)
     const concepts = cs.get('concepts') as Y.Map<Y.Map<unknown>>
     const isNew = !concepts.has(concept.code)
-    const m = new Y.Map<unknown>()
-    m.set('system', concept.system)
-    m.set('code', concept.code)
-    setScalar(m, 'display', concept.display)
-    if (concept.definition !== undefined) m.set('definition', newText(concept.definition))
-    m.set('designations', localizedToY(concept.designations))
-    for (const k of [
-      'dataType',
-      'conceptType',
-      'unit',
-      'source',
-      'sourceVersion',
-      'targetResource',
-      'targetPath',
-    ] as const) {
-      setScalar(m, k, concept[k])
-    }
+    const m = conceptToY(concept)
     concepts.set(concept.code, m)
     if (isNew) (cs.get('conceptOrder') as Y.Array<string>).push([concept.code])
   }

@@ -60,6 +60,7 @@ export * from './validate/index.js'
 
 // Terminology
 export * from './terminology/index.js'
+export * from './text/index.js'
 
 // Ports and runtime
 export * from './ports/index.js'

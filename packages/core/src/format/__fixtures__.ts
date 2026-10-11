@@ -1,6 +1,9 @@
 import type { Activity, Project } from '../model/types.js'
 
-/** A small but semantically broad activity: branch, select, calculate, wait, diagnosis. */
+/**
+ * A small but semantically broad activity: branch, select, calculate, wait, diagnosis.
+ * Its texts live in the project CodeSystem (`sampleProject`), as saved files hold them.
+ */
 export function sampleActivity(): Activity {
   return {
     id: 'triage-danger-signs',
@@ -14,16 +17,12 @@ export function sampleActivity(): Activity {
       'n-start': {
         id: 'n-start',
         type: 'activity_start',
-        name: 'triage_danger_signs',
-        label: { en: 'Triage — danger signs' },
         ui: { x: 40, y: 40 },
       },
       'n-weight': {
         id: 'n-weight',
         type: 'integer',
         name: 'weight',
-        label: { en: 'Weight (kg)', fr: 'Poids (kg)' },
-        hint: { en: 'Use a calibrated scale' },
         concept: { system: 'http://tricc.org/CodeSystem/tricc', code: 'weight' },
         required: true,
         min: 0,
@@ -36,7 +35,6 @@ export function sampleActivity(): Activity {
         id: 'n-convulsions',
         type: 'select_yesno',
         name: 'convulsions',
-        label: { en: 'Convulsions?' },
         relevance: {
           intent: { en: 'Only for children under five with prolonged fever' },
           expression: 'AgeInMonths() < 60 and "Fever duration" > 3',
@@ -55,7 +53,6 @@ export function sampleActivity(): Activity {
         id: 'n-severe',
         type: 'proposed_diagnosis',
         name: 'severe_disease',
-        label: { en: 'Very severe disease' },
         severity: 'severe',
         priority: 10,
         ui: { x: 40, y: 420 },
@@ -89,7 +86,7 @@ export function sampleProject(): Project {
     interventions: [
       {
         id: 'sick-child',
-        code: 'sick-child',
+        name: 'sick-child',
         title: { en: 'Sick child consultation' },
         applicability: {
           intent: { en: 'Children from 2 months up to 5 years' },
@@ -109,14 +106,19 @@ export function sampleProject(): Project {
         status: 'draft',
         content: 'complete',
         caseSensitive: true,
-        conceptOrder: ['weight', 'date_of_birth'],
+        conceptOrder: ['weight', 'date_of_birth', 'convulsions', 'severe_disease'],
         concepts: {
           weight: {
             system: 'http://tricc.org/CodeSystem/tricc',
             code: 'weight',
             display: 'Weight',
             definition: 'Body weight measured at this encounter',
-            designations: { fr: 'Poids' },
+            designations: [
+              { language: 'fr', value: 'Poids' },
+              { language: 'en', use: { system: 'https://tricc.org/CodeSystem/designation-use', code: 'q-display' }, value: 'Weight (kg)' },
+              { language: 'fr', use: { system: 'https://tricc.org/CodeSystem/designation-use', code: 'q-display' }, value: 'Poids (kg)' },
+              { language: 'en', use: { system: 'https://tricc.org/CodeSystem/designation-use', code: 'hint' }, value: 'Use a calibrated scale' },
+            ],
             dataType: 'decimal',
             conceptType: 'vital',
             unit: 'kg',
@@ -125,11 +127,23 @@ export function sampleProject(): Project {
             system: 'http://tricc.org/CodeSystem/tricc',
             code: 'date_of_birth',
             display: 'Date of birth',
-            designations: {},
+            designations: [],
             dataType: 'date',
             conceptType: 'patient',
             targetResource: 'Patient',
             targetPath: 'birthDate',
+          },
+          convulsions: {
+            system: 'http://tricc.org/CodeSystem/tricc',
+            code: 'convulsions',
+            display: 'Convulsions?',
+            designations: [],
+          },
+          severe_disease: {
+            system: 'http://tricc.org/CodeSystem/tricc',
+            code: 'severe_disease',
+            display: 'Very severe disease',
+            designations: [],
           },
         },
       },
@@ -147,7 +161,7 @@ export function minimalActivity(id: string): Activity {
     nodeOrder: ['s'],
     edgeOrder: [],
     nodes: {
-      s: { id: 's', type: 'activity_start', name: id.replace(/-/g, '_'), ui: { x: 0, y: 0 } },
+      s: { id: 's', type: 'activity_start', ui: { x: 0, y: 0 } },
     },
     edges: {},
   }

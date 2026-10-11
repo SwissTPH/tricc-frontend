@@ -52,6 +52,8 @@ export const triggerSchema = z
 export const interventionSchema = z
   .object({
     id: z.string().min(1),
+    name: z.string().min(1).optional(),
+    /** Legacy key for `name`. */
     code: z.string().min(1).optional(),
     title: localizedTextSchema.optional(),
     description: localizedTextSchema.optional(),

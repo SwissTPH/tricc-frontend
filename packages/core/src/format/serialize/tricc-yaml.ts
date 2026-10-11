@@ -44,7 +44,7 @@ export function encodeTriccYaml(project: Project): Record<string, unknown> {
   }
 
   const terms = Object.values(project.codeSystems)
-    .map((cs) => codeSystemPath(cs.id))
+    .map((cs) => cs.path ?? codeSystemPath(cs.id))
     .sort()
   if (terms.length > 0) o['terminology'] = terms
   const libs = Object.keys(project.libraries)
@@ -89,7 +89,7 @@ function encodeIntervention(
   const description = writeText(iv.description, lang)
   if (description.text) item['description'] = description.text
   if (description.map) item['descriptions'] = description.map
-  put(item, 'code', iv.code)
+  put(item, 'name', iv.name)
   const intent = writeText(iv.applicability?.intent, lang)
   if (intent.text) item['intent'] = intent.text
   if (intent.map) item['intents'] = intent.map
@@ -309,7 +309,9 @@ function finishIntervention(
   if (title) iv.title = title
   const description = readText(rec['description'], rec['descriptions'], lang)
   if (description) iv.description = description
-  if (typeof rec['code'] === 'string' && rec['code'].trim()) iv.code = rec['code'].trim()
+  // `code` is what this app wrote before `tricc_oo` named the key `name` (2026-10-08).
+  const name = [rec['name'], rec['code']].find((v): v is string => typeof v === 'string' && v.trim() !== '')
+  if (name) iv.name = name.trim()
   const intent = readText(rec['intent'], rec['intents'], lang)
   const start = firstStart(rec['start'])
   const trigger = readTrigger(rec['trigger'])
@@ -503,6 +505,17 @@ export function triccConfigText(files: ProjectFiles): string | undefined {
 }
 
 /** Language block only, so activity files can be decoded before interventions are. */
+/** The `terminology` entries of `tricc.yaml`: paths or globs relative to it. */
+export function triccTerminologyGlobs(text: string): string[] {
+  try {
+    const raw = fromYaml(text) as Record<string, unknown> | null
+    const list = raw && typeof raw === 'object' ? raw['terminology'] : undefined
+    return Array.isArray(list) ? list.filter((v): v is string => typeof v === 'string') : []
+  } catch {
+    return []
+  }
+}
+
 export function peekTriccLanguages(text: string): { default: string; available: string[] } {
   try {
     const raw = fromYaml(text)

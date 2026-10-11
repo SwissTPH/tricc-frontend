@@ -1,8 +1,15 @@
 import type { Activity, Project } from '../../model/types.js'
 import { activityPath, codeSystemPath, libraryPath, PATHS } from '../../model/types.js'
 import { decodeActivity, decodeCodeSystem, encodeActivity, encodeCodeSystem } from '../codec.js'
+import { moveTextsToConcepts } from '../../terminology/texts-to-concepts.js'
 import { fromJson, fromYaml, toJson, toYaml } from './yaml.js'
-import { encodeTriccYaml, peekTriccLanguages, readTriccYamlMeta, triccConfigText } from './tricc-yaml.js'
+import {
+  encodeTriccYaml,
+  peekTriccLanguages,
+  readTriccYamlMeta,
+  triccConfigText,
+  triccTerminologyGlobs,
+} from './tricc-yaml.js'
 import { FORMAT_VERSION } from '../schema/project.js'
 import { FormatVersionError } from '../migrations/index.js'
 
@@ -31,7 +38,7 @@ export function writeProject(project: Project): ProjectFiles {
   for (const url of Object.keys(project.codeSystems).sort()) {
     const cs = project.codeSystems[url]
     if (!cs) continue
-    files[codeSystemPath(cs.id)] = toJson(encodeCodeSystem(cs))
+    files[cs.path ?? codeSystemPath(cs.id)] = toJson(encodeCodeSystem(cs))
   }
   for (const name of Object.keys(project.libraries).sort()) {
     files[libraryPath(name)] = project.libraries[name] as string
@@ -104,6 +111,7 @@ function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
     files,
     languages.default,
   )
+  readListedTerminology(loaded, files, triccTerminologyGlobs(triccRaw))
   const meta = readTriccYamlMeta(triccRaw, files, idByPath, new Set(Object.keys(loaded.activities)))
   loaded.id = meta.id
   loaded.languages = meta.languages
@@ -124,11 +132,82 @@ function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
     }
     loaded.activities[id] = activity
   }
+  migrateFormIds(loaded)
+  // Texts move from the activity files to the concepts they stand for.
+  const texts = moveTextsToConcepts(loaded)
   const result: ReadResult = { project: loaded }
   // Opening a diagram is unsaved until activity YAML is written, so the next
   // save points tricc.yaml at those files and the edit is not lost.
   if (meta.expandedDrawio) result.migratedFrom = 'drawio'
+  // An activity file at another path than activities/<id>.activity.yaml is moved there on
+  // the next save. Treating it as a migration keeps the baseline equal to the folder, so
+  // the save renames it and rewrites tricc.yaml, instead of leaving two copies of one id.
+  else if ([...idByPath].some(([path, id]) => path !== activityPath(id))) {
+    result.migratedFrom = 'activity-paths'
+  }
+  // Labels, hints and help moved into the CodeSystem: the first save writes both.
+  else if (texts.touched.length > 0) result.migratedFrom = 'concept-texts'
   return result
+}
+
+/**
+ * `form_id` is a remnant of the time one drawing was one form. The intervention names
+ * the form now. An intervention with no name takes the `form_id` of the first process
+ * it lists, so existing form names do not change. Then `form_id` is dropped everywhere.
+ */
+export function migrateFormIds(project: Project): void {
+  for (const iv of project.interventions) {
+    if (iv.name) continue
+    for (const ref of iv.activities) {
+      const activity = project.activities[ref.ref]
+      const start = activity && Object.values(activity.nodes).find((n) => n.type === 'start')
+      if (start?.form_id) {
+        iv.name = start.form_id
+        break
+      }
+    }
+  }
+  for (const activity of Object.values(project.activities)) {
+    for (const node of Object.values(activity.nodes)) delete node.form_id
+  }
+}
+
+/**
+ * CodeSystems that `tricc.yaml` lists under `terminology` (paths or globs, as `tricc_oo`
+ * reads them), wherever they sit. A file already read from `terminology/` is not read twice.
+ */
+function readListedTerminology(project: Project, files: ProjectFiles, globs: string[]): void {
+  if (globs.length === 0) return
+  const patterns = globs.map(globToRegExp)
+  for (const path of Object.keys(files).sort()) {
+    if (!path.endsWith('.json') || CODESYSTEM_RE.test(path)) continue
+    if (!patterns.some((re) => re.test(path))) continue
+    let raw: unknown
+    try {
+      raw = fromJson(files[path] as string)
+    } catch {
+      continue
+    }
+    if (!raw || (raw as { resourceType?: unknown }).resourceType !== 'CodeSystem') continue
+    const cs = decodeCodeSystem(raw)
+    if (project.codeSystems[cs.url]) continue
+    if (path !== codeSystemPath(cs.id)) cs.path = path
+    project.codeSystems[cs.url] = cs
+  }
+}
+
+function globToRegExp(glob: string): RegExp {
+  const body = glob
+    .replace(/^\.\//, '')
+    .split('**')
+    .map((part) =>
+      part
+        .split('*')
+        .map((chunk) => chunk.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+        .join('[^/]*'),
+    )
+    .join('.*')
+  return new RegExp(`^${body}$`)
 }
 
 function attachFiles(
@@ -201,7 +280,6 @@ export function createActivity(opts: { id: string; title?: string; language?: st
       [rootId]: {
         id: rootId,
         type: 'activity_start',
-        name: toName(opts.id),
         ui: { x: 80, y: 40 },
       },
     },
@@ -213,8 +291,7 @@ export function createActivity(opts: { id: string; title?: string; language?: st
 
 /**
  * A process activity: rooted by `start` carrying the process, and wrapping calls to
- * normal activities. `process` is set on both the root node and the activity so either
- * read path in `tricc_oo` resolves it.
+ * normal activities. `process` is on the activity: the start node is the activity.
  */
 export function createProcessActivity(opts: {
   id: string
@@ -235,8 +312,6 @@ export function createProcessActivity(opts: {
       [rootId]: {
         id: rootId,
         type: 'start',
-        name: toName(opts.id),
-        process: opts.process,
         ui: { x: 80, y: 40 },
       },
     },
@@ -267,8 +342,5 @@ export function createProcessActivity(opts: {
   return activity
 }
 
-function toName(id: string): string {
-  return id.replace(/[^A-Za-z0-9_]/g, '_').replace(/^(\d)/, '_$1')
-}
 
 export { FormatVersionError, toYaml, fromYaml, toJson, fromJson }

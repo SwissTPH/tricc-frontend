@@ -1,5 +1,16 @@
 import type { Activity, Project, TriccNode } from '../model/types.js'
-import { INJECTED_ONLY_TYPES, isSelect } from '../format/schema/node-types.js'
+import {
+  INJECTED_ONLY_TYPES,
+  canBranchFrom,
+  hasInternalName,
+  isExtensionTarget,
+  isSelect,
+  isSequenceNode,
+  isTextNode,
+  needsName,
+} from '../format/schema/node-types.js'
+import { NODE_TYPE_SPECS } from '../format/schema/node-spec.js'
+import { nodeConceptKey } from '../terminology/usage.js'
 import { isOpenHandoff } from '../format/schema/expression.js'
 import { activityKind, processOf } from '../model/activity-kind.js'
 import { issue, type Issue } from './types.js'
@@ -10,10 +21,36 @@ import { issue, type Issue } from './types.js'
  * Messages state what is wrong, why it matters clinically, and the next action —
  * never only the first (guided-authoring §8).
  */
+/** Machine names of activities and interventions. */
+export const MACHINE_NAME = /^[A-Za-z][A-Za-z0-9_.-]*$/
+
 export function validateActivity(activity: Activity, project?: Project): Issue[] {
   const issues: Issue[] = []
   const nodes = Object.values(activity.nodes)
   const at = (n: TriccNode) => ({ activityId: activity.id, nodeId: n.id })
+
+  // --- settings ----------------------------------------------------------
+
+  if (activity.name !== undefined && !MACHINE_NAME.test(activity.name)) {
+    issues.push(
+      issue(
+        'activity.name-pattern',
+        'error',
+        'An activity name starts with a letter and uses only letters, digits, ".", "_" and "-".',
+        { activityId: activity.id, field: 'name' },
+      ),
+    )
+  }
+  if (isOpenHandoff(activity.applicability)) {
+    issues.push(
+      issue(
+        'expression.open-handoff',
+        'error',
+        'The intent for this activity applicability is written but the logic is not. It cannot be exported until someone expresses it in CQL.',
+        { activityId: activity.id, field: 'applicability' },
+      ),
+    )
+  }
 
   // --- structure ---------------------------------------------------------
 
@@ -51,6 +88,22 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
     )
   }
 
+  // An edge into Not available attaches it to the question; it is never a branch.
+  for (const e of Object.values(activity.edges)) {
+    const target = activity.nodes[e.target]
+    if (target && isExtensionTarget(target.type) && e.value) {
+      issues.push(
+        issue(
+          'edge.extension-conditional',
+          'warning',
+          'This link attaches Not available to its question, so it takes no condition. The condition is ignored on export. Clear it.',
+          { activityId: activity.id, edgeId: e.id, field: 'value' },
+          { label: 'Clear the condition', kind: 'edge.clear-value' },
+        ),
+      )
+    }
+  }
+
   const ends = nodes.filter((n) => n.type === 'end' || n.type === 'activity_end')
   if (ends.length === 0) {
     issues.push(
@@ -82,7 +135,7 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
   for (const n of nodes) {
     // Dangling calculates are a legitimate authoring pattern - tricc_oo collects them
     // (manage_dangling_calculate), so they are not "unreachable" in the failing sense.
-    if (reachable.has(n.id) || n.type === 'calculate' || n.type === 'not_available') continue
+    if (reachable.has(n.id) || NODE_TYPE_SPECS[n.type]?.unreachableOk) continue
     issues.push(
       issue(
         'node.unreachable',
@@ -166,7 +219,7 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
       )
     }
 
-    if (needsName(n) && !n.name) {
+    if (needsName(n.type) && !n.name) {
       issues.push(
         issue(
           'node.missing-name',
@@ -177,7 +230,22 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
       )
     }
 
-    if (n.name) {
+    // A question's text lives on its concept. Without one the form has nothing to show.
+    if (project && isTextNode(n.type) && (n.name || n.concept) && !nodeConceptKey(project, n)) {
+      issues.push(
+        issue(
+          'node.missing-concept',
+          'error',
+          'This question has no concept in the data dictionary, so it has no text. Create one from its name, or pick an existing concept.',
+          { ...at(n), field: 'concept' },
+          { label: 'Create the concept', kind: 'concept.create' },
+        ),
+      )
+    }
+
+    // A goto, a decision or a start/end carries its name as an internal id the author never
+    // sees or edits, so no name rule may flag it.
+    if (n.name && !hasInternalName(n.type)) {
       // Uniqueness is per (name, repeat slot): the same concept captured in two slots is
       // a deliberate pattern, not a collision (tricc_oo concept-repeat).
       const key = `${n.name} ${n.repeat ?? 1}`
@@ -253,28 +321,6 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
   return issues
 }
 
-function needsName(n: TriccNode): boolean {
-  return (
-    [
-      'select_one',
-      'select_multiple',
-      'select_yesno',
-      'integer',
-      'decimal',
-      'quantity',
-      'text',
-      'date',
-      'calculate',
-      'count',
-      'add',
-      'populate',
-      'diagnosis',
-      'proposed_diagnosis',
-      'not_available',
-    ] as string[]
-  ).includes(n.type)
-}
-
 function expressionFields(n: TriccNode): [string, NonNullable<TriccNode['relevance']>][] {
   const out: [string, NonNullable<TriccNode['relevance']>][] = []
   for (const f of ['relevance', 'calculate', 'expression', 'constraint'] as const) {
@@ -343,7 +389,7 @@ function validateEdges(activity: Activity): Issue[] {
       branchesBySource.set(e.source, counts)
 
       const src = activity.nodes[e.source]
-      if (src && !canBranch(src)) {
+      if (src && !canBranchFrom(src.type)) {
         // Warning rather than error: the editor prevents creating these at connect time,
         // so anything reaching here came from a hand-edited or imported file. Blocking
         // export on a pattern we have not verified against a real corpus would stop a
@@ -376,18 +422,5 @@ function validateEdges(activity: Activity): Issue[] {
   return issues
 }
 
-function canBranch(n: TriccNode): boolean {
-  return (
-    [
-      'select_yesno',
-      'select_one',
-      'select_multiple',
-      'rhombus',
-      'calculate',
-      'count',
-      'add',
-      'not',
-      'not_available',
-    ] as string[]
-  ).includes(n.type)
-}
+
+

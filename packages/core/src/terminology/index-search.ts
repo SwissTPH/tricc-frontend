@@ -121,7 +121,7 @@ function toEntry(concept: Concept): Entry {
     concept,
     code: concept.code.toLowerCase(),
     display: (concept.display ?? '').toLowerCase(),
-    designations: Object.values(concept.designations).map((d) => d.toLowerCase()),
+    designations: concept.designations.map((d) => d.value.toLowerCase()),
     definition: (concept.definition ?? '').toLowerCase(),
   }
 }

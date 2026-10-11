@@ -1,6 +1,8 @@
 import { inflateSync, strFromU8, unzlibSync } from 'fflate'
-import type { Activity, TriccEdge, TriccNode } from '../model/types.js'
-import { NODE_TYPES, type NodeType } from './schema/node-types.js'
+import type { Activity, CanvasComment, CanvasGroup, TriccEdge, TriccNode } from '../model/types.js'
+import { NODE_TYPES, isExtensionTarget, isSelect, type NodeType } from './schema/node-types.js'
+import { liftRootAttributes } from '../model/activity-kind.js'
+import { fromHtml, isStructured } from '../text/message.js'
 
 /**
  * Open a draw.io file whose pages are either inline `mxGraphModel` XML or the
@@ -143,27 +145,53 @@ function pageToActivity(
   const shapes = collectShapes(page.graph)
   const nodes: Record<string, TriccNode> = {}
   const nodeOrder: string[] = []
+  // Answer cells folded into their question: which question, and the code the answer is stored as.
+  const optionOf = new Map<string, { nodeId: string; code: string }>()
+  // Author notes on the drawing, by shape id. They become comments, not nodes.
+  const comments = new Map<string, CanvasComment>()
+  // Hint and help shapes not inside a question, waiting for the edge that names it.
+  const messages = new Map<string, { kind: 'hint' | 'help'; text: string; shape: Shape }>()
+  const attached = new Set<string>()
   const folded = new Set<string>()
+  // A container_page is a TRICC page group: a section of the form, a frame on the canvas.
+  const typeOf = (sh: Shape) => (sh.attrs['odk_type'] ?? sh.attrs['tricc_type'] ?? '').trim()
+  const groups = new Map<string, CanvasGroup>()
 
   for (const shape of shapes) {
     if (shape.edge || !shape.id || shape.id === '0' || shape.id === '1') continue
+    if (typeOf(shape) === 'container_page') {
+      const group: CanvasGroup = {
+        id: shape.id,
+        color: 'grey',
+        x: shape.x ?? 0,
+        y: shape.y ?? 0,
+        width: shape.width ?? 240,
+        height: shape.height ?? 160,
+      }
+      const name = validName(shape.attrs['name'])
+      if (name) group.name = name
+      const label = plain(shape.attrs['label'] ?? shape.value)
+      if (label) group.label = { [lang]: label }
+      if (shape.parent && groups.has(shape.parent)) group.parent = shape.parent
+      groups.set(shape.id, group)
+      continue
+    }
     const rawType = (shape.attrs['odk_type'] ?? shape.attrs['tricc_type'] ?? '').trim()
     const kind = classify(rawType)
     if (kind === 'skip') {
+      // Text with no TRICC type is an author's note on the drawing: tricc_oo ignores it, so it
+      // becomes a comment, not a node that conversion would turn into a form note.
       const label = plain(shape.attrs['label'] ?? shape.value)
-      if (!label) continue
-      nodes[shape.id] = noteNode(shape, lang, label)
-      nodeOrder.push(shape.id)
+      if (label) comments.set(shape.id, commentOf(shape, label, 'yellow'))
       continue
     }
     if (kind === 'hint' || kind === 'help') {
       const parent = shape.parent ? nodes[shape.parent] : undefined
       const text = plain(shape.attrs['label'] ?? shape.value)
+      // Inside its question, or linked to it by an edge (message → question), as tricc_oo
+      // reads it. Linked ones are attached when the edges are read; leftovers become comments.
       if (parent && text) parent[kind] = { [lang]: text }
-      else if (text) {
-        nodes[shape.id] = noteNode(shape, lang, text)
-        nodeOrder.push(shape.id)
-      }
+      else if (text) messages.set(shape.id, { kind, text, shape })
       folded.add(shape.id)
       continue
     }
@@ -171,48 +199,90 @@ function pageToActivity(
       const parent = nodes[shape.parent]!
       const optionLabel = plain(shape.attrs['label'] ?? shape.value)
       const optionName = validName(shape.attrs['name'])
-      parent.options = [
-        ...(parent.options ?? []),
-        {
-          id: shape.id,
-          ...(optionName ? { name: optionName } : {}),
-          ...(optionLabel ? { label: { [lang]: optionLabel } } : {}),
-        },
-      ]
+      const option = {
+        id: shape.id,
+        ...(optionName ? { name: optionName } : {}),
+        ...(optionLabel ? { label: { [lang]: optionLabel } } : {}),
+      }
+      parent.options = [...(parent.options ?? []), option]
+      optionOf.set(shape.id, { nodeId: shape.parent, code: optionName ?? shape.id })
       folded.add(shape.id)
       continue
     }
+    if (kind.unmapped) {
+      const label = plain(shape.attrs['label'] ?? shape.value)
+      const text = `Unmapped type: ${kind.unmapped}${label ? ` — ${label}` : ''}`
+      comments.set(shape.id, commentOf(shape, text, 'pink'))
+      continue
+    }
     const node = shapeToNode(shape, kind, lang, pageActivity)
+    // In a container, draw.io positions are already relative to it, as the canvas wants.
+    if (shape.parent && groups.has(shape.parent)) node.group = shape.parent
     nodes[shape.id] = node
     nodeOrder.push(shape.id)
   }
 
+  // Hint and help shapes linked to their question by an edge become that question's text.
+  for (const shape of shapes) {
+    if (!shape.edge || !shape.source || !shape.target) continue
+    const message = messages.get(shape.source)
+    const target = nodes[shape.target]
+    if (!message || !target) continue
+    target[message.kind] = { [lang]: message.text }
+    messages.delete(shape.source)
+    attached.add(shape.id)
+  }
+  for (const [id, m] of messages) comments.set(id, commentOf(m.shape, m.text, 'grey'))
+
   const edges: Record<string, TriccEdge> = {}
   const edgeOrder: string[] = []
   let n = 0
+
   for (const shape of shapes) {
-    if (!shape.edge || !shape.source || !shape.target) continue
-    if (!nodes[shape.source] || !nodes[shape.target]) continue
-    if (folded.has(shape.source) || folded.has(shape.target)) continue
+    if (!shape.edge || !shape.source || !shape.target || attached.has(shape.id)) continue
+    // A line between a comment and a node says what the comment is about; it is not a flow.
+    const fromComment = comments.get(shape.source)
+    const toComment = comments.get(shape.target)
+    if (fromComment || toComment) {
+      const comment = (fromComment ?? toComment)!
+      const other = optionOf.get(fromComment ? shape.target : shape.source)?.nodeId ?? (fromComment ? shape.target : shape.source)
+      if (!comment.node && nodes[other]) comment.node = other
+      continue
+    }
+    // An edge leaving an answer leaves its question, on that answer.
+    const answer = optionOf.get(shape.source)
+    const source = answer ? answer.nodeId : shape.source
+    if (!nodes[source] || !nodes[shape.target]) continue
+    if ((!answer && folded.has(source)) || folded.has(shape.target)) continue
     n += 1
     const id = `e${n}`
-    const edge: TriccEdge = { id, source: shape.source, target: shape.target }
+    const edge: TriccEdge = { id, source, target: shape.target }
     const value = plain(shape.value)
-    if (value) edge.value = value
+    // An edge into Not available attaches it to the question: it never carries a condition.
+    const target = nodes[shape.target]
+    if (answer) edge.value = `Answer('${answer.code.replace(/'/g, "''")}')`
+    else if (value && !(target && isExtensionTarget(target.type))) edge.value = value
     edges[id] = edge
     edgeOrder.push(id)
   }
 
-  const activity: Activity = {
-    id: page.activityId,
-    title: { [lang]: page.name || page.activityId },
-    nodes,
-    edges,
-    nodeOrder,
-    edgeOrder,
+  const activity: Activity = { id: page.activityId, nodes, edges, nodeOrder, edgeOrder }
+  // Comments are not drawn inside groups: a comment in a container gets its page position.
+  for (const comment of comments.values()) {
+    let parent = shapes.find((sh) => sh.id === comment.id)?.parent
+    while (parent && groups.has(parent)) {
+      const g = groups.get(parent)!
+      comment.x += g.x
+      comment.y += g.y
+      parent = g.parent
+    }
   }
-  const start = Object.values(nodes).find((node) => node.type === 'start' || node.type === 'activity_start')
-  if (start?.process) activity.process = start.process
+  if (comments.size > 0) activity.ui = { comments: [...comments.values()] }
+  if (groups.size > 0) activity.groups = [...groups.values()]
+  // The start node is the activity: its label is the title, its name, process and
+  // relevance are the activity's. The page name is only the fallback title.
+  liftRootAttributes(activity)
+  if (!activity.title) activity.title = { [lang]: page.name || page.activityId }
   return activity
 }
 
@@ -229,11 +299,19 @@ function shapeToNode(
   const name = validName(shape.attrs['name'])
   if (name) node.name = name
   if (labelText) node.label = { [lang]: labelText }
+  // Keep the formatting the drawing had; the text migration puts it on the concept.
+  const rich = kind.unmapped ? undefined : fromHtml(shape.attrs['label'] ?? shape.value ?? '')
+  if (rich && isStructured(rich)) node.labelMessage = rich
   if (kind.type === 'start') {
     const formId = shape.attrs['form_id'] ?? shape.attrs['formId']
     if (formId) node.form_id = formId
   }
   if (shape.attrs['process']) node.process = shape.attrs['process']
+  // On a root, relevance is the activity's applicability (lifted after the page is read).
+  const relevance = shape.attrs['relevance']?.trim()
+  if (relevance && (kind.type === 'start' || kind.type === 'activity_start')) {
+    node.relevance = { expression: relevance }
+  }
   if (kind.populateDefault && !shape.attrs['context']) node.context = 'encounter'
   const context = shape.attrs['context']
   if (
@@ -263,10 +341,6 @@ function shapeToNode(
   if (min !== undefined) node.min = min
   if (max !== undefined) node.max = max
   if (shape.attrs['required'] === 'true' || shape.attrs['required'] === '1') node.required = true
-  // A non-empty draw.io `filter` is the concept code the conversion exports.
-  // Empty filters are the common case and are not a code.
-  const filter = shape.attrs['filter']?.trim()
-  if (filter && isSelectType(kind.type)) node.filter = filter
   const repeat = intAttr(shape.attrs['repeat'])
   const instance = intAttr(shape.attrs['instance'])
   if (repeat !== undefined) node.repeat = repeat
@@ -285,19 +359,13 @@ function resolveLink(raw: string, pageActivity: Map<string, string>, label?: str
   return pageActivity.get(token) ?? (label ? slug(label) : slug(token) || token)
 }
 
-function noteNode(shape: Shape, lang: string, label: string): TriccNode {
-  const node: TriccNode = {
-    id: shape.id,
-    type: 'note',
-    label: { [lang]: label },
-    ui: { x: shape.x ?? 0, y: shape.y ?? 0 },
-  }
-  if (shape.width) node.ui!.width = shape.width
-  if (shape.height) node.ui!.height = shape.height
-  const name = validName(shape.attrs['name'])
-  if (name) node.name = name
-  return node
+function commentOf(shape: Shape, text: string, color: CanvasComment['color']): CanvasComment {
+  const comment: CanvasComment = { id: shape.id, text, color, x: shape.x ?? 0, y: shape.y ?? 0 }
+  if (shape.width) comment.width = shape.width
+  if (shape.height) comment.height = shape.height
+  return comment
 }
+
 
 function classify(
   rawType: string,
@@ -311,12 +379,9 @@ function classify(
   return { type: 'note', unmapped: rawType }
 }
 
-function isSelectType(type: NodeType): boolean {
-  return type === 'select_one' || type === 'select_multiple' || type === 'select_yesno'
-}
 
 function isSelectNode(node: TriccNode): boolean {
-  return isSelectType(node.type)
+  return isSelect(node.type)
 }
 
 function collectShapes(graph: XmlNode): Shape[] {

@@ -2,8 +2,10 @@ import type { Project } from '../model/types.js'
 import { activityKind, calledActivities } from '../model/activity-kind.js'
 import { IMPLEMENTED_TRIGGER_MODES } from '../format/schema/project.js'
 import { isOpenHandoff } from '../format/schema/expression.js'
-import { validateActivity } from './activity.js'
+import { validateActivity, MACHINE_NAME } from './activity.js'
 import { issue, type Issue } from './types.js'
+import { designationInterventions, designationUse } from '../terminology/designation.js'
+import { designationText, references } from '../text/message.js'
 
 /**
  * Project-scoped rules: everything that cannot be decided from one activity alone.
@@ -17,9 +19,33 @@ export function validateProject(project: Project): Issue[] {
     if (a) issues.push(...validateActivity(a, project))
   }
 
+  issues.push(...duplicateActivityNames(project))
   issues.push(...validateCrossActivity(project))
   issues.push(...validateInterventions(project))
   issues.push(...validateTerminology(project))
+  return issues
+}
+
+function duplicateActivityNames(project: Project): Issue[] {
+  const byName = new Map<string, string[]>()
+  for (const id of Object.keys(project.activities).sort()) {
+    const name = project.activities[id]?.name
+    if (name) byName.set(name, [...(byName.get(name) ?? []), id])
+  }
+  const issues: Issue[] = []
+  for (const [name, ids] of byName) {
+    if (ids.length < 2) continue
+    for (const id of ids) {
+      issues.push(
+        issue(
+          'activity.duplicate-name',
+          'error',
+          `${ids.length} activities share the name "${name}". The name identifies an activity in the exported form and must be unique.`,
+          { activityId: id, field: 'name' },
+        ),
+      )
+    }
+  }
   return issues
 }
 
@@ -155,14 +181,24 @@ function isActivityReference(ref: unknown): boolean {
 function validateInterventions(project: Project): Issue[] {
   const issues: Issue[] = []
   const activityIds = new Set(Object.keys(project.activities))
-  const seenCodes = new Map<string, string[]>()
+  const seenNames = new Map<string, string[]>()
   const usedActivities = new Set<string>()
 
   for (const iv of project.interventions) {
     const loc = { interventionId: iv.id }
 
-    const code = iv.code ?? iv.id
-    seenCodes.set(code, [...(seenCodes.get(code) ?? []), iv.id])
+    const name = iv.name ?? iv.id
+    seenNames.set(name, [...(seenNames.get(name) ?? []), iv.id])
+    if (iv.name !== undefined && !MACHINE_NAME.test(iv.name)) {
+      issues.push(
+        issue(
+          'intervention.name-pattern',
+          'error',
+          'An intervention name starts with a letter and uses only letters, digits, ".", "_" and "-". It names the exported form.',
+          { ...loc, field: 'name' },
+        ),
+      )
+    }
 
     if (iv.activities.length === 0) {
       issues.push(
@@ -237,14 +273,14 @@ function validateInterventions(project: Project): Issue[] {
     }
   }
 
-  for (const [code, ids] of seenCodes) {
+  for (const [name, ids] of seenNames) {
     if (ids.length < 2) continue
     for (const id of ids) {
       issues.push(
         issue(
-          'intervention.duplicate-code',
+          'intervention.duplicate-name',
           'error',
-          `${ids.length} interventions share the code "${code}". Codes identify an intervention to the point-of-care app and must be unique.`,
+          `${ids.length} interventions share the name "${name}". The name identifies an intervention's form and must be unique.`,
           { interventionId: id },
         ),
       )
@@ -275,6 +311,14 @@ function validateInterventions(project: Project): Issue[] {
 
 function validateTerminology(project: Project): Issue[] {
   const issues: Issue[] = []
+  // Names a text may inject: every node name, and every CQL library define.
+  const known = new Set<string>()
+  for (const a of Object.values(project.activities)) {
+    for (const n of Object.values(a.nodes)) if (n.name) known.add(n.name)
+  }
+  for (const source of Object.values(project.libraries)) {
+    for (const m of source.matchAll(/define\s+"?([^":]+?)"?\s*:/g)) known.add((m[1] ?? '').trim())
+  }
   for (const cs of Object.values(project.codeSystems)) {
     for (const code of cs.conceptOrder) {
       const c = cs.concepts[code]
@@ -290,6 +334,49 @@ function validateTerminology(project: Project): Issue[] {
             { conceptCode: code, field: 'targetPath' },
           ),
         )
+      }
+      for (const d of c.designations) {
+        for (const name of references(designationText(d))) {
+          if (!known.has(name)) {
+            issues.push(
+              issue(
+                'text.unknown-reference',
+                'error',
+                `A text of "${code}" shows \${${name}}, but no question or calculation is called "${name}". Rename it to an existing name, or remove it.`,
+                { conceptCode: code, field: 'designation' },
+              ),
+            )
+          }
+        }
+      }
+      const interventionIds = new Set(project.interventions.map((iv) => iv.id))
+      const seen = new Set<string>()
+      for (const d of c.designations) {
+        const scope = designationInterventions(d)
+        for (const id of scope) {
+          if (!interventionIds.has(id)) {
+            issues.push(
+              issue(
+                'concept.unknown-intervention',
+                'warning',
+                `A text of "${code}" is meant for the intervention "${id}", which this project does not have. Pick an existing intervention, or make the text apply to all.`,
+                { conceptCode: code, field: 'designation' },
+              ),
+            )
+          }
+        }
+        const key = `${designationUse(d) ?? `${d.use?.system}|${d.use?.code}`}|${d.language}|${[...scope].sort().join(',')}`
+        if (seen.has(key)) {
+          issues.push(
+            issue(
+              'concept.duplicate-designation',
+              'error',
+              `"${code}" has two ${designationUse(d) ?? 'other'} texts in "${d.language}" for the same interventions. Keep one.`,
+              { conceptCode: code, field: 'designation' },
+            ),
+          )
+        }
+        seen.add(key)
       }
       if (!c.dataType) {
         issues.push(

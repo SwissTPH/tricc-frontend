@@ -32,8 +32,14 @@ export function readActivityFile(
 ): ParsedActivity[] {
   const body = text.replace(/^\uFEFF/, '').trim()
   if (!body) throw new Error('This file is empty.')
-  if (isDrawio(filename, body)) return drawioActivities(body, taken, lang)
-  return [yamlActivity(body, taken, lang)]
+  const parsed = isDrawio(filename, body)
+    ? drawioActivities(body, taken, lang)
+    : [yamlActivity(body, taken, lang)]
+  // An imported page joins no intervention yet, so a legacy `form_id` has nowhere to go.
+  for (const { activity } of parsed) {
+    for (const node of Object.values(activity.nodes)) delete node.form_id
+  }
+  return parsed
 }
 
 function isDrawio(filename: string, body: string): boolean {
@@ -50,9 +56,13 @@ function drawioActivities(body: string, taken: Set<string>, lang: string): Parse
   } catch (error) {
     throw new Error(error instanceof Error && error.message ? error.message : 'This file is not a draw.io diagram.')
   }
+  // Ids come from page names. An id with a numeric suffix whose base is already taken,
+  // in the project or earlier in this file, was renamed to stay unique.
+  const seen = new Set<string>()
   return activities.map((activity) => {
-    const base = slug(activity.title?.[lang] ?? '')
-    const renamedFrom = base && activity.id !== base ? base : undefined
+    const base = /^(.*)-\d+$/.exec(activity.id)?.[1]
+    const renamedFrom = base && (prior.has(base) || seen.has(base)) ? base : undefined
+    seen.add(activity.id)
     return {
       activity,
       renamedFrom,

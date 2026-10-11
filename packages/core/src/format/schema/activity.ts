@@ -97,10 +97,10 @@ export const nodeSchema = z
     // selects
     listName: z.string().min(1).optional(),
     /**
-     * Draw.io `filter`. A non-empty value is the concept code conversion exports.
-     * An empty value is not stored.
+     * Legacy select `filter`. It is not used: select choices compile from the
+     * options' relevance. Accepted so older files still load, then dropped.
      */
-    filter: z.string().min(1).optional(),
+    filter: z.string().optional(),
     options: z.array(optionSchema).optional(),
 
     // diagnoses
@@ -134,6 +134,8 @@ export const nodeSchema = z
      */
     save: z.string().optional(),
 
+    /** The page group (section) the node is in. */
+    group: z.string().min(1).optional(),
     ui: nodeUiSchema.optional(),
   })
   .strict()
@@ -159,12 +161,58 @@ export const activitySchema = z
   .object({
     formatVersion: z.string().optional(),
     id: z.string().min(1),
+    name: z.string().min(1).optional(),
     title: localizedTextSchema.optional(),
     process: z.string().optional(),
+    /** CQL. `tricc_oo` reads a string; the older `{intent, expression}` form is still read. */
     applicability: expressionSchema.optional(),
+    /** Plain-language twin of `applicability`. */
+    intent: localizedTextSchema.optional(),
+    /** Legacy. Read and moved to the root `start`, then to the intervention name. */
+    form_id: z.string().optional(),
     ui: z
-      .object({ viewport: z.object({ x: z.number(), y: z.number(), zoom: z.number() }).strict() })
+      .object({
+        viewport: z.object({ x: z.number(), y: z.number(), zoom: z.number() }).strict().optional(),
+        comments: z
+          .array(
+            z
+              .object({
+                id: z.string().min(1),
+                text: z.string(),
+                color: z.enum(['yellow', 'blue', 'green', 'pink', 'grey']).default('yellow'),
+                x: z.number(),
+                y: z.number(),
+                width: z.number().optional(),
+                height: z.number().optional(),
+                node: z.string().optional(),
+              })
+              .strict(),
+          )
+          .optional(),
+      })
       .strict()
+      .optional(),
+    groups: z
+      .array(
+        z
+          .object({
+            id: z.string().min(1),
+            name: z.string().min(1).optional(),
+            label: localizedTextSchema.optional(),
+            parent: z.string().min(1).optional(),
+            ui: z
+              .object({
+                x: z.number(),
+                y: z.number(),
+                width: z.number().positive(),
+                height: z.number().positive(),
+                color: z.enum(['yellow', 'blue', 'green', 'pink', 'grey']).default('grey'),
+              })
+              .strict()
+              .optional(),
+          })
+          .strict(),
+      )
       .optional(),
     nodes: z.array(nodeSchema),
     edges: z.array(edgeSchema).default([]),

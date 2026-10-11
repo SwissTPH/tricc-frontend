@@ -1,0 +1,322 @@
+[
+  {
+    "html": "Weight (kg)",
+    "tree": "Weight (kg)",
+    "markdown": "Weight (kg)"
+  },
+  {
+    "html": "Hello&nbsp;world",
+    "tree": "Hello world",
+    "markdown": "Hello world"
+  },
+  {
+    "html": "<b>Hello world</b>",
+    "tree": {
+      "type": "message",
+      "children": [
+        {
+          "type": "mark",
+          "kind": "strong",
+          "children": [
+            {
+              "type": "text",
+              "value": "Hello world"
+            }
+          ]
+        }
+      ]
+    },
+    "markdown": "**Hello world**"
+  },
+  {
+    "html": "<b>Give ${dose} mg</b>",
+    "tree": {
+      "type": "message",
+      "children": [
+        {
+          "type": "mark",
+          "kind": "strong",
+          "children": [
+            {
+              "type": "text",
+              "value": "Give "
+            },
+            {
+              "type": "interp",
+              "name": "dose"
+            },
+            {
+              "type": "text",
+              "value": " mg"
+            }
+          ]
+        }
+      ]
+    },
+    "markdown": "**Give ${dose} mg**"
+  },
+  {
+    "html": "Age is ${age} years",
+    "tree": {
+      "type": "message",
+      "children": [
+        {
+          "type": "text",
+          "value": "Age is "
+        },
+        {
+          "type": "interp",
+          "name": "age"
+        },
+        {
+          "type": "text",
+          "value": " years"
+        }
+      ]
+    },
+    "markdown": "Age is ${age} years"
+  },
+  {
+    "html": "${age}",
+    "tree": {
+      "type": "message",
+      "children": [
+        {
+          "type": "interp",
+          "name": "age"
+        }
+      ]
+    },
+    "markdown": "${age}"
+  },
+  {
+    "html": "<div>Check the child</div><div>Then weigh</div>",
+    "tree": {
+      "type": "message",
+      "children": [
+        {
+          "type": "text",
+          "value": "Check the child"
+        },
+        {
+          "type": "break"
+        },
+        {
+          "type": "text",
+          "value": "Then weigh"
+        }
+      ]
+    },
+    "markdown": "Check the child\nThen weigh"
+  },
+  {
+    "html": "Line one<br>Line two",
+    "tree": {
+      "type": "message",
+      "children": [
+        {
+          "type": "text",
+          "value": "Line one"
+        },
+        {
+          "type": "break"
+        },
+        {
+          "type": "text",
+          "value": "Line two"
+        }
+      ]
+    },
+    "markdown": "Line one\nLine two"
+  },
+  {
+    "html": "<i>Note:</i> give <b><i>with food</i></b>",
+    "tree": {
+      "type": "message",
+      "children": [
+        {
+          "type": "mark",
+          "kind": "em",
+          "children": [
+            {
+              "type": "text",
+              "value": "Note:"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "value": " give "
+        },
+        {
+          "type": "mark",
+          "kind": "strong",
+          "children": [
+            {
+              "type": "mark",
+              "kind": "em",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "with food"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "markdown": "_Note:_ give **_with food_**"
+  },
+  {
+    "html": "<u>Underlined</u> text",
+    "tree": {
+      "type": "message",
+      "children": [
+        {
+          "type": "mark",
+          "kind": "u",
+          "children": [
+            {
+              "type": "text",
+              "value": "Underlined"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "value": " text"
+        }
+      ]
+    },
+    "markdown": "Underlined text"
+  },
+  {
+    "html": "<ul><li>Fever</li><li>Cough</li></ul>",
+    "tree": {
+      "type": "message",
+      "children": [
+        {
+          "type": "list",
+          "ordered": false,
+          "items": [
+            {
+              "type": "item",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Fever"
+                }
+              ]
+            },
+            {
+              "type": "item",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Cough"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "markdown": "- Fever\n- Cough"
+  },
+  {
+    "html": "<ol><li>First</li><li><b>Second</b></li></ol>",
+    "tree": {
+      "type": "message",
+      "children": [
+        {
+          "type": "list",
+          "ordered": true,
+          "items": [
+            {
+              "type": "item",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "First"
+                }
+              ]
+            },
+            {
+              "type": "item",
+              "children": [
+                {
+                  "type": "mark",
+                  "kind": "strong",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Second"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "markdown": "1. First\n2. **Second**"
+  },
+  {
+    "html": "<span style=\"color:red\">Danger</span> <img src=\"x.png\"> sign",
+    "tree": "Danger sign",
+    "markdown": "Danger sign"
+  },
+  {
+    "html": "<p>Ask about ${symptom_name}</p>",
+    "tree": {
+      "type": "message",
+      "children": [
+        {
+          "type": "text",
+          "value": "Ask about "
+        },
+        {
+          "type": "interp",
+          "name": "symptom_name"
+        }
+      ]
+    },
+    "markdown": "Ask about ${symptom_name}"
+  },
+  {
+    "html": "<table><tr><td>dropped</td></tr></table>Kept",
+    "tree": "Kept",
+    "markdown": "Kept"
+  },
+  {
+    "html": "Tom &amp; Jerry &lt;3",
+    "tree": "Tom & Jerry <3",
+    "markdown": "Tom & Jerry <3"
+  },
+  {
+    "html": "<font face=\"Arial\"><b>Yes</b></font>",
+    "tree": {
+      "type": "message",
+      "children": [
+        {
+          "type": "mark",
+          "kind": "strong",
+          "children": [
+            {
+              "type": "text",
+              "value": "Yes"
+            }
+          ]
+        }
+      ]
+    },
+    "markdown": "**Yes**"
+  },
+  {
+    "html": "<a href=\"x\">Link text</a>",
+    "tree": "Link text",
+    "markdown": "Link text"
+  }
+]

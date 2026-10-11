@@ -133,6 +133,14 @@ export function testCatalogPort(harness: CatalogHarness): void {
       expect((await port.list()).map((s) => s.id)).not.toContain(ref.id)
     })
 
+    it('renames, and ignores a project it does not list', async () => {
+      const ref = await port.create('Draft name')
+      await port.rename(ref, 'Final name')
+      expect((await port.list()).find((s) => s.id === ref.id)?.name).toBe('Final name')
+      await expect(port.rename({ id: 'never-existed', name: 'x' }, 'y')).resolves.toBeUndefined()
+      expect((await port.list()).map((s) => s.id)).not.toContain('never-existed')
+    })
+
     it('removing something absent is not an error', async () => {
       await expect(port.remove({ id: 'never-existed', name: 'x' })).resolves.toBeUndefined()
     })

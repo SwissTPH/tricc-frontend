@@ -297,13 +297,13 @@ describe('mutations', () => {
         system: url,
         code: 'fever',
         display: 'Fever',
-        designations: { fr: 'Fièvre' },
+        designations: [{ language: 'fr', value: 'Fièvre' }],
         dataType: 'boolean',
       }),
     )
     const cs = doc.snapshot().codeSystems[url]
     expect(cs?.concepts['fever']?.display).toBe('Fever')
-    expect(cs?.conceptOrder).toEqual(['weight', 'date_of_birth', 'fever'])
+    expect(cs?.conceptOrder).toEqual(['weight', 'date_of_birth', 'convulsions', 'severe_disease', 'fever'])
   })
 })
 
@@ -338,3 +338,50 @@ describe('no derived state in the document', () => {
     ])
   })
 })
+
+describe('comments', () => {
+  it('adds, edits, keeps the viewport, and detaches from a deleted node', () => {
+    const doc = docOf()
+    const id = 'triage-danger-signs'
+    const node = doc.snapshot().activities[id]!.nodeOrder[1]!
+    doc.transact((tx) => tx.setComment(id, { id: 'c', text: 'Check', color: 'yellow', x: 1, y: 2, node }))
+    doc.transact((tx) => tx.setActivityViewport(id, { x: 5, y: 5, zoom: 1 }))
+    doc.transact((tx) => tx.setComment(id, { id: 'c', text: 'Checked', color: 'green', x: 1, y: 2, node }))
+    expect(doc.snapshot().activities[id]!.ui).toEqual({
+      viewport: { x: 5, y: 5, zoom: 1 },
+      comments: [{ id: 'c', text: 'Checked', color: 'green', x: 1, y: 2, node }],
+    })
+    doc.transact((tx) => tx.removeNode(id, node))
+    expect(doc.snapshot().activities[id]!.ui?.comments?.[0]).not.toHaveProperty('node')
+    doc.transact((tx) => tx.removeComment(id, 'c'))
+    expect(doc.snapshot().activities[id]!.ui).toEqual({ viewport: { x: 5, y: 5, zoom: 1 } })
+  })
+})
+
+describe('groups', () => {
+  it('puts a node in a group, and ungrouping keeps it where it is on screen', () => {
+    const doc = docOf()
+    const id = 'triage-danger-signs'
+    const node = doc.snapshot().activities[id]!.nodeOrder[1]!
+    doc.transact((tx) => tx.setGroup(id, { id: 'outer', name: 'triage', color: 'grey', x: 100, y: 100, width: 600, height: 400 }))
+    doc.transact((tx) =>
+      tx.setGroup(id, { id: 'danger', name: 'danger_signs', color: 'pink', x: 20, y: 30, width: 300, height: 200, parent: 'outer' }),
+    )
+    doc.transact((tx) => tx.setNodeGroup(id, node, 'danger', 10, 15))
+    const inGroup = doc.snapshot().activities[id]!.nodes[node]!
+    expect(inGroup.group).toBe('danger')
+    expect(inGroup.ui).toMatchObject({ x: 10, y: 15 })
+
+    doc.transact((tx) => tx.removeGroup(id, 'danger'))
+    // Now in 'outer', at the same place on screen: 20+10, 30+15 relative to 'outer'.
+    const lifted = doc.snapshot().activities[id]!.nodes[node]!
+    expect(lifted.group).toBe('outer')
+    expect(lifted.ui).toMatchObject({ x: 30, y: 45 })
+    doc.transact((tx) => tx.removeGroup(id, 'outer'))
+    const top = doc.snapshot().activities[id]!.nodes[node]!
+    expect(top.group).toBeUndefined()
+    expect(top.ui).toMatchObject({ x: 130, y: 145 })
+    expect(doc.snapshot().activities[id]!.groups).toBeUndefined()
+  })
+})
+

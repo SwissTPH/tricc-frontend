@@ -6,6 +6,8 @@ import type {
   Project,
   TriccEdge,
   TriccNode,
+  Designation,
+  CanvasGroup,
 } from '../model/types.js'
 import {
   activitySchema,
@@ -21,7 +23,9 @@ import {
 } from './schema/project.js'
 import { codeSystemSchema, readProperty, type CodeSystemInput } from './schema/codesystem.js'
 import { toLocalized, fromLocalized, sortKeys, type LocalizedText } from './schema/localized.js'
-import { toExpression, fromExpression } from './schema/expression.js'
+import { toExpression, fromExpression, type Expression } from './schema/expression.js'
+import { liftRootAttributes, rootNode } from '../model/activity-kind.js'
+import { NODE_FIELDS, type CustomField, type FieldKind, type NodeField } from './node-fields.js'
 
 /**
  * Serialized form ⇄ normalized model.
@@ -43,78 +47,112 @@ function expr(v: unknown, lang: string) {
   return toExpression(v as never, lang)
 }
 
+/** The YAML side of the fields NODE_FIELDS marks `custom`. Typed by it, so none is forgotten. */
+const YAML_CUSTOM: {
+  [F in CustomField]: {
+    decode(raw: NodeInput, n: TriccNode, lang: string): void
+    encode(n: TriccNode, lang: string): unknown
+  }
+} = {
+  options: {
+    decode(raw, n, lang) {
+      if (!raw.options) return
+      n.options = raw.options.map((o) => {
+        const out: NonNullable<TriccNode['options']>[number] = { id: o.id }
+        if (o.name !== undefined) out.name = o.name
+        const ol = loc(o.label, lang)
+        if (ol) out.label = ol
+        if (o.concept) out.concept = { ...o.concept }
+        const orel = expr(o.relevance, lang)
+        if (orel) out.relevance = orel
+        return out
+      })
+    },
+    encode: (n, lang) =>
+      n.options?.map((op) => {
+        const oo: Record<string, unknown> = {}
+        put(oo, 'id', op.id)
+        put(oo, 'name', op.name)
+        put(oo, 'label', op.label && fromLocalized(op.label, lang))
+        put(oo, 'concept', op.concept && { system: op.concept.system, code: op.concept.code })
+        put(oo, 'relevance', op.relevance && fromExpression(op.relevance, lang))
+        return oo
+      }),
+  },
+  notAvailable: {
+    decode(raw, n, lang) {
+      if (!raw.notAvailable) return
+      const na: NonNullable<TriccNode['notAvailable']> = {}
+      if (raw.notAvailable.name !== undefined) na.name = raw.notAvailable.name
+      const nl = loc(raw.notAvailable.label, lang)
+      if (nl) na.label = nl
+      if (raw.notAvailable.concept) na.concept = { ...raw.notAvailable.concept }
+      n.notAvailable = na
+    },
+    encode(n, lang) {
+      if (!n.notAvailable) return undefined
+      const na: Record<string, unknown> = {}
+      put(na, 'name', n.notAvailable.name)
+      put(na, 'label', n.notAvailable.label && fromLocalized(n.notAvailable.label, lang))
+      put(na, 'concept', n.notAvailable.concept && { ...n.notAvailable.concept })
+      return na
+    },
+  },
+  ui: {
+    decode(raw, n) {
+      if (raw.ui) n.ui = { ...raw.ui }
+    },
+    encode(n) {
+      if (!n.ui) return undefined
+      const u: Record<string, unknown> = {}
+      put(u, 'x', n.ui.x)
+      put(u, 'y', n.ui.y)
+      put(u, 'width', n.ui.width)
+      put(u, 'height', n.ui.height)
+      put(u, 'color', n.ui.color)
+      put(u, 'collapsed', n.ui.collapsed)
+      return u
+    },
+  },
+  form_id: {
+    // Legacy, process start only; `formId` is the old spelling. Never written.
+    decode(raw, n) {
+      if (raw.type !== 'start') return
+      const formId = raw.form_id ?? raw.formId
+      if (formId !== undefined) n.form_id = formId
+    },
+    encode: () => undefined,
+  },
+}
+
 export function decodeNode(raw: NodeInput, lang: string): TriccNode {
   const n: TriccNode = { id: raw.id, type: raw.type }
-  if (raw.name !== undefined) n.name = raw.name
-  const label = loc(raw.label, lang)
-  if (label) n.label = label
-  const hint = loc(raw.hint, lang)
-  if (hint) n.hint = hint
-  const help = loc(raw.help, lang)
-  if (help) n.help = help
-  if (raw.concept) n.concept = { ...raw.concept }
-
-  const rel = expr(raw.relevance, lang)
-  if (rel) n.relevance = rel
-  const calc = expr(raw.calculate, lang)
-  if (calc) n.calculate = calc
-  const ex = expr(raw.expression, lang)
-  if (ex) n.expression = ex
-  const con = expr(raw.constraint, lang)
-  if (con) n.constraint = con
-  const cm = loc(raw.constraintMessage, lang)
-  if (cm) n.constraintMessage = cm
-
-  if (raw.required !== undefined) n.required = raw.required
-  if (raw.default !== undefined) n.default = raw.default
-  if (raw.min !== undefined) n.min = raw.min
-  if (raw.max !== undefined) n.max = raw.max
-  if (raw.unit !== undefined) n.unit = raw.unit
-  if (raw.unit_system !== undefined) n.unit_system = raw.unit_system
-  if (raw.unit_code !== undefined) n.unit_code = raw.unit_code
-  if (raw.repeat !== undefined) n.repeat = raw.repeat
-  if (raw.instance !== undefined) n.instance = raw.instance
-  if (raw.reference !== undefined) n.reference = raw.reference as TriccNode['reference']
-  if (raw.link !== undefined) n.link = raw.link
-  if (raw.listName !== undefined) n.listName = raw.listName
-  if (raw.filter !== undefined) n.filter = raw.filter
-
-  if (raw.options) {
-    n.options = raw.options.map((o) => {
-      const out: NonNullable<TriccNode['options']>[number] = { id: o.id }
-      if (o.name !== undefined) out.name = o.name
-      const ol = loc(o.label, lang)
-      if (ol) out.label = ol
-      if (o.concept) out.concept = { ...o.concept }
-      const orel = expr(o.relevance, lang)
-      if (orel) out.relevance = orel
-      return out
-    })
+  const from = raw as unknown as Record<string, unknown>
+  const to = n as unknown as Record<string, unknown>
+  for (const [field, kind] of Object.entries(NODE_FIELDS) as [NodeField, FieldKind][]) {
+    const value = from[field]
+    switch (kind) {
+      case 'scalar':
+        if (value !== undefined) to[field] = value
+        break
+      case 'localized': {
+        const text = loc(value, lang)
+        if (text) to[field] = text
+        break
+      }
+      case 'expression': {
+        const e = expr(value, lang)
+        if (e) to[field] = e
+        break
+      }
+      case 'json':
+        if (value) to[field] = structuredClone(value)
+        break
+      case 'custom':
+        YAML_CUSTOM[field as CustomField].decode(raw, n, lang)
+        break
+    }
   }
-
-  if (raw.severity !== undefined) n.severity = raw.severity
-  if (raw.priority !== undefined) n.priority = raw.priority
-  if (raw.context !== undefined) n.context = raw.context
-  if (raw.period !== undefined) n.period = raw.period
-  if (raw.type === 'start') {
-    const formId = raw.form_id ?? raw.formId
-    if (formId !== undefined) n.form_id = formId
-  }
-  if (raw.process !== undefined) n.process = raw.process
-  if (raw.intervention !== undefined) n.intervention = raw.intervention
-  if (raw.condition !== undefined) n.condition = raw.condition
-  if (raw.delay !== undefined) n.delay = raw.delay
-  if (raw.media) n.media = { ...raw.media }
-  if (raw.notAvailable) {
-    const na: NonNullable<TriccNode['notAvailable']> = {}
-    if (raw.notAvailable.name !== undefined) na.name = raw.notAvailable.name
-    const nl = loc(raw.notAvailable.label, lang)
-    if (nl) na.label = nl
-    if (raw.notAvailable.concept) na.concept = { ...raw.notAvailable.concept }
-    n.notAvailable = na
-  }
-  if (raw.save !== undefined) n.save = raw.save
-  if (raw.ui) n.ui = { ...raw.ui }
   return n
 }
 
@@ -140,12 +178,37 @@ export function decodeActivity(input: unknown, lang: string): Activity {
     edgeOrder.push(re.id)
   }
   const a: Activity = { id: raw.id, nodes, edges, nodeOrder, edgeOrder }
+  if (raw.name !== undefined) a.name = raw.name
   const title = loc(raw.title, lang)
   if (title) a.title = title
   if (raw.process !== undefined) a.process = raw.process
-  const app = expr(raw.applicability, lang)
-  if (app) a.applicability = app
+  const app = expr(raw.applicability, lang) ?? {}
+  const intent = loc(raw.intent, lang)
+  if (intent) app.intent = { ...app.intent, ...intent }
+  if (app.intent || app.expression) a.applicability = app
+  if (raw.form_id) {
+    const start = nodeOrder.map((id) => nodes[id]).find((n) => n?.type === 'start')
+    if (start && start.form_id === undefined) start.form_id = raw.form_id
+  }
+  liftRootAttributes(a)
   if (raw.ui) a.ui = structuredClone(raw.ui)
+  if (raw.groups?.length) {
+    a.groups = raw.groups.map((g) => {
+      const group: CanvasGroup = {
+        id: g.id,
+        color: g.ui?.color ?? 'grey',
+        x: g.ui?.x ?? 0,
+        y: g.ui?.y ?? 0,
+        width: g.ui?.width ?? 320,
+        height: g.ui?.height ?? 220,
+      }
+      if (g.name !== undefined) group.name = g.name
+      const label = loc(g.label, lang)
+      if (label) group.label = label
+      if (g.parent !== undefined) group.parent = g.parent
+      return group
+    })
+  }
   return a
 }
 
@@ -154,7 +217,8 @@ function decodeIntervention(raw: InterventionInput, lang: string): Intervention 
     id: raw.id,
     activities: raw.activities.map((r) => ({ ref: refOf(r) })),
   }
-  if (raw.code !== undefined) i.code = raw.code
+  const name = raw.name ?? raw.code
+  if (name !== undefined) i.name = name
   const t = loc(raw.title, lang)
   if (t) i.title = t
   const d = loc(raw.description, lang)
@@ -165,14 +229,30 @@ function decodeIntervention(raw: InterventionInput, lang: string): Intervention 
   return i
 }
 
+const CONCEPT_KEYS = new Set(['code', 'display', 'definition', 'designation', 'property'])
+/** TRICC properties written as `valueCode` unless the file had `valueString`. */
+const CODE_PROPERTIES = new Set(['dataType', 'conceptType', 'targetResource'])
+
 export function decodeCodeSystem(input: unknown): CodeSystem {
   const raw: CodeSystemInput = codeSystemSchema.parse(input)
   const concepts: Record<string, Concept> = {}
   const conceptOrder: string[] = []
   for (const c of raw.concept) {
-    const designations: Record<string, string> = {}
-    for (const d of c.designation ?? []) designations[d.language] = d.value
+    const designations: Designation[] = (c.designation ?? []).map((d) => {
+      const out: Designation = { language: d.language, value: d.value }
+      if (d.use) out.use = { ...d.use }
+      if (d.extension) out.extension = structuredClone(d.extension)
+      return out
+    })
     const concept: Concept = { system: raw.url, code: c.code, designations }
+    const extra = Object.fromEntries(
+      Object.entries(c).filter(([key]) => !CONCEPT_KEYS.has(key)),
+    )
+    if (Object.keys(extra).length > 0) concept.extra = structuredClone(extra)
+    const asString = (c.property ?? [])
+      .filter((p) => p.valueString !== undefined && CODE_PROPERTIES.has(p.code))
+      .map((p) => p.code)
+    if (asString.length > 0) concept.stringProperties = asString
     if (c.display !== undefined) concept.display = c.display
     if (c.definition !== undefined) concept.definition = c.definition
     const dt = readProperty(c, 'dataType')
@@ -250,71 +330,27 @@ function put(target: Record<string, unknown>, key: string, value: unknown): void
 
 export function encodeNode(n: TriccNode, lang: string): Record<string, unknown> {
   const o: Record<string, unknown> = {}
-  put(o, 'id', n.id)
-  put(o, 'type', n.type)
-  put(o, 'name', n.name)
-  put(o, 'label', n.label && fromLocalized(n.label, lang))
-  put(o, 'concept', n.concept && { system: n.concept.system, code: n.concept.code })
-  put(o, 'required', n.required)
-  put(o, 'min', n.min)
-  put(o, 'max', n.max)
-  put(o, 'unit', n.unit)
-  put(o, 'unit_system', n.unit_system)
-  put(o, 'unit_code', n.unit_code)
-  put(o, 'default', n.default)
-  put(o, 'listName', n.listName)
-  put(o, 'filter', n.filter)
-  put(
-    o,
-    'options',
-    n.options?.map((op) => {
-      const oo: Record<string, unknown> = {}
-      put(oo, 'id', op.id)
-      put(oo, 'name', op.name)
-      put(oo, 'label', op.label && fromLocalized(op.label, lang))
-      put(oo, 'concept', op.concept && { system: op.concept.system, code: op.concept.code })
-      put(oo, 'relevance', op.relevance && fromExpression(op.relevance, lang))
-      return oo
-    }),
-  )
-  put(o, 'relevance', n.relevance && fromExpression(n.relevance, lang))
-  put(o, 'calculate', n.calculate && fromExpression(n.calculate, lang))
-  put(o, 'expression', n.expression && fromExpression(n.expression, lang))
-  put(o, 'constraint', n.constraint && fromExpression(n.constraint, lang))
-  put(o, 'constraintMessage', n.constraintMessage && fromLocalized(n.constraintMessage, lang))
-  put(o, 'reference', n.reference)
-  put(o, 'link', n.link)
-  put(o, 'repeat', n.repeat)
-  put(o, 'instance', n.instance)
-  put(o, 'severity', n.severity)
-  put(o, 'priority', n.priority)
-  put(o, 'context', n.context)
-  put(o, 'period', n.period)
-  if (n.type === 'start') put(o, 'form_id', n.form_id)
-  put(o, 'process', n.process)
-  put(o, 'intervention', n.intervention)
-  put(o, 'condition', n.condition)
-  put(o, 'delay', n.delay)
-  put(o, 'hint', n.hint && fromLocalized(n.hint, lang))
-  put(o, 'help', n.help && fromLocalized(n.help, lang))
-  put(o, 'media', n.media && { ...n.media })
-  if (n.notAvailable) {
-    const na: Record<string, unknown> = {}
-    put(na, 'name', n.notAvailable.name)
-    put(na, 'label', n.notAvailable.label && fromLocalized(n.notAvailable.label, lang))
-    put(na, 'concept', n.notAvailable.concept && { ...n.notAvailable.concept })
-    put(o, 'notAvailable', na)
-  }
-  put(o, 'save', n.save)
-  if (n.ui) {
-    const u: Record<string, unknown> = {}
-    put(u, 'x', n.ui.x)
-    put(u, 'y', n.ui.y)
-    put(u, 'width', n.ui.width)
-    put(u, 'height', n.ui.height)
-    put(u, 'color', n.ui.color)
-    put(u, 'collapsed', n.ui.collapsed)
-    put(o, 'ui', u)
+  const from = n as unknown as Record<string, unknown>
+  for (const [field, kind] of Object.entries(NODE_FIELDS) as [NodeField, FieldKind][]) {
+    const value = from[field]
+    switch (kind) {
+      case 'key':
+      case 'scalar':
+        put(o, field, value)
+        break
+      case 'localized':
+        put(o, field, value ? fromLocalized(value as LocalizedText, lang) : undefined)
+        break
+      case 'expression':
+        put(o, field, value ? fromExpression(value as Expression, lang) : undefined)
+        break
+      case 'json':
+        put(o, field, value ? structuredClone(value) : undefined)
+        break
+      case 'custom':
+        put(o, field, YAML_CUSTOM[field as CustomField].encode(n, lang))
+        break
+    }
   }
   return o
 }
@@ -338,6 +374,8 @@ export function encodeEdge(e: TriccEdge): Record<string, unknown> {
   return o
 }
 
+const ROOT_KEYS = ['label', 'name', 'process', 'relevance'] as const
+
 export function encodeActivity(
   a: Activity,
   lang: string,
@@ -346,13 +384,38 @@ export function encodeActivity(
   const o: Record<string, unknown> = {}
   put(o, 'formatVersion', formatVersion)
   put(o, 'id', a.id)
+  put(o, 'name', a.name)
   put(o, 'title', a.title && fromLocalized(a.title, lang))
   put(o, 'process', a.process)
-  put(o, 'applicability', a.applicability && fromExpression(a.applicability, lang))
-  if (a.ui) put(o, 'ui', { viewport: { ...a.ui.viewport } })
+  // tricc_oo reads `applicability` as a CQL string, so the intent is its own key.
+  if (a.applicability?.expression) put(o, 'applicability', a.applicability.expression)
+  const intent = a.applicability?.intent
+  if (intent && Object.keys(intent).length > 0) put(o, 'intent', fromLocalized(intent, lang))
+  if (a.ui) {
+    const ui: Record<string, unknown> = {}
+    if (a.ui.viewport) ui['viewport'] = { ...a.ui.viewport }
+    if (a.ui.comments?.length) ui['comments'] = a.ui.comments.map((c) => ({ ...c }))
+    if (Object.keys(ui).length) put(o, 'ui', ui)
+  }
+  if (a.groups?.length) {
+    o['groups'] = a.groups.map((g) => {
+      const go: Record<string, unknown> = { id: g.id }
+      put(go, 'name', g.name)
+      put(go, 'label', g.label && fromLocalized(g.label, lang))
+      put(go, 'parent', g.parent)
+      go['ui'] = { x: g.x, y: g.y, width: g.width, height: g.height, color: g.color }
+      return go
+    })
+  }
+  // The start node is the activity: what it would carry is written above, at activity level.
+  const rootId = rootNode(a)?.id
   o['nodes'] = a.nodeOrder
     .filter((id) => a.nodes[id])
-    .map((id) => encodeNode(a.nodes[id] as TriccNode, lang))
+    .map((id) => {
+      const encoded = encodeNode(a.nodes[id] as TriccNode, lang)
+      if (id === rootId) for (const key of ROOT_KEYS) delete encoded[key]
+      return encoded
+    })
   const edges = a.edgeOrder
     .filter((id) => a.edges[id])
     .map((id) => encodeEdge(a.edges[id] as TriccEdge))
@@ -377,7 +440,7 @@ export function encodeProjectMeta(p: Project): Record<string, unknown> {
     p.interventions.map((i) => {
       const io: Record<string, unknown> = {}
       put(io, 'id', i.id)
-      put(io, 'code', i.code)
+      put(io, 'name', i.name)
       put(io, 'title', i.title && fromLocalized(i.title, lang))
       put(io, 'description', i.description && fromLocalized(i.description, lang))
       put(io, 'applicability', i.applicability && fromExpression(i.applicability, lang))
@@ -417,24 +480,30 @@ export function encodeCodeSystem(cs: CodeSystem): Record<string, unknown> {
   put(o, 'name', cs.name)
   put(o, 'title', cs.title)
   put(o, 'status', cs.status)
+  put(o, 'description', cs.description)
   put(o, 'content', cs.content)
   put(o, 'caseSensitive', cs.caseSensitive)
-  put(o, 'description', cs.description)
   o['concept'] = cs.conceptOrder
     .filter((code) => cs.concepts[code])
     .map((code) => {
       const c = cs.concepts[code] as Concept
-      const co: Record<string, unknown> = {}
+      // FHIR keys TRICC does not model come first, as tricc_oo writes `id` before `code`.
+      const co: Record<string, unknown> = { ...structuredClone(c.extra ?? {}) }
       put(co, 'code', c.code)
       put(co, 'display', c.display)
       put(co, 'definition', c.definition)
-      const desig = Object.keys(c.designations)
-        .sort()
-        .map((l) => ({ language: l, value: c.designations[l] as string }))
+      const desig = c.designations.map((d) => {
+        const out: Record<string, unknown> = { language: d.language }
+        if (d.use) out['use'] = { ...d.use }
+        out['value'] = d.value
+        if (d.extension) out['extension'] = structuredClone(d.extension)
+        return out
+      })
       put(co, 'designation', desig)
       const props: Record<string, unknown>[] = []
       const codeProp = (k: string, v: string | undefined) => {
-        if (v !== undefined) props.push({ code: k, valueCode: v })
+        if (v === undefined) return
+        props.push(c.stringProperties?.includes(k) ? { code: k, valueString: v } : { code: k, valueCode: v })
       }
       const strProp = (k: string, v: string | undefined) => {
         if (v !== undefined) props.push({ code: k, valueString: v })
