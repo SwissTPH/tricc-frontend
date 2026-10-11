@@ -1,5 +1,5 @@
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
-import { isSequenceNode, resolve, type NodeType, type TriccNode as Model } from '@tricc/core'
+import { hasInternalName, isSequenceNode, resolve, type NodeType, type TriccNode as Model } from '@tricc/core'
 import { NODE_OUT_HANDLE, answerHandleId, answerLabel, optionCode } from './answer.js'
 import { visualFor } from './node-visuals.js'
 
@@ -10,6 +10,13 @@ export type TriccFlowNode = Node<
     /** Highest severity attached to this node, or undefined when clean. */
     severity?: 'error' | 'warning'
     conceptDisplay?: string
+    /** The hint and help a health worker sees (from the concept, or still on the node). */
+    hint?: string
+    help?: string
+    /** Answer texts by option id, resolved from their concepts. */
+    answerTexts?: Record<string, string>
+    /** On the root node: the activity title. The start node is the activity. */
+    activityTitle?: string
     /** Goto whose target activity is not in this project. */
     missing?: boolean
   },
@@ -24,9 +31,9 @@ export type TriccFlowNode = Node<
  * (feature/20260825-activity-editor.md §3).
  */
 export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
-  const { model, lang, severity, conceptDisplay, missing } = data
+  const { model, lang, severity, conceptDisplay, activityTitle, missing } = data
   const visual = visualFor(model.type as NodeType)
-  const display = displayText(model, lang, conceptDisplay)
+  const display = activityTitle ?? displayText(model, lang, conceptDisplay)
   const answers =
     model.type === 'select_one' || model.type === 'select_multiple' ? (model.options ?? []) : []
 
@@ -36,16 +43,20 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
         {visual.glyph}
       </span>
       <span className="tricc-node__body">
-        <span className="tricc-node__label">{display}</span>
+        <span
+          className="tricc-node__label"
+          data-testid={`node-${model.id}-label`}
+          title={typeof display === 'string' ? display : undefined}
+        >
+          {display}
+        </span>
         {model.concept && <span className="tricc-node__code">{model.concept.code}</span>}
-        {!model.concept && model.name && display !== model.name && (
+        {!model.concept && model.name && display !== model.name && !hasInternalName(model.type as NodeType) && (
           <span className="tricc-node__code">{model.name}</span>
         )}
       </span>
       <span className="tricc-node__badges">
         {model.notAvailable && <span className="tricc-badge">Not available</span>}
-        {model.hint && <span className="tricc-badge">Hint</span>}
-        {model.help && <span className="tricc-badge">Help</span>}
         {model.repeat !== undefined && model.repeat !== 1 && (
           <span className="tricc-badge">Repeat {model.repeat}</span>
         )}
@@ -88,7 +99,7 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
       {answers.length > 0 && (
         <ul className="tricc-node__answers">
           {answers.map((option) => {
-            const text = answerLabel(option, lang)
+            const text = data.answerTexts?.[option.id] ?? answerLabel(option, lang)
             return (
               <li
                 key={option.id}
@@ -109,6 +120,21 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
             )
           })}
         </ul>
+      )}
+
+      {(data.hint || data.help) && (
+        <span className="tricc-node__marks">
+          {data.hint && (
+            <span className="tricc-node__mark tricc-node__mark--hint" data-testid={`node-${model.id}-hint`} title={`Hint: ${data.hint}`}>
+              !
+            </span>
+          )}
+          {data.help && (
+            <span className="tricc-node__mark tricc-node__mark--help" data-testid={`node-${model.id}-help`} title={`Help: ${data.help}`}>
+              ?
+            </span>
+          )}
+        </span>
       )}
 
       {visual.sources && (

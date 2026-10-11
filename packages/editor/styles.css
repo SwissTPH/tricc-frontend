@@ -45,7 +45,13 @@
 .tricc-editor__header h1 {
   font-size: 16px;
   margin: 0;
-  flex: 1;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* The gear and bin sit right after the title; the rest of the header goes to the right. */
+.tricc-editor__header .tricc-editor__kind {
+  margin-left: auto;
 }
 
 .tricc-history {
@@ -616,11 +622,16 @@
   flex: 1;
 }
 
+/* Node text wraps up to the viewer's line preference (--tricc-label-lines, default 3). */
 .tricc-node__label {
   font-weight: 500;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--tricc-label-lines, 3);
+  line-clamp: var(--tricc-label-lines, 3);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .tricc-node__code {
@@ -671,9 +682,13 @@
 }
 
 .tricc-node__answer-label {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--tricc-label-lines, 3);
+  line-clamp: var(--tricc-label-lines, 3);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .tricc-badge {
@@ -1073,4 +1088,390 @@
 }
 .tricc-ref-field__missing {
   color: #b91c1c;
+}
+
+/* Root node: the start node is the activity, so Details shows the activity and its gear. */
+.tricc-activity-summary {
+  border: 1px solid #d6dee6;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  background: #f6f9fb;
+}
+.tricc-activity-summary p {
+  margin: 0 0 6px;
+}
+.tricc-activity-summary dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 8px;
+  margin: 0 0 8px;
+}
+.tricc-activity-summary dt {
+  font-weight: 600;
+}
+.tricc-activity-summary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Data dictionary: the navigator tab, the concept page, and the card on a node. */
+.tricc-dictionary__bar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0;
+}
+.tricc-dictionary__bar input[type='search'] {
+  flex: 1 1 auto;
+}
+.tricc-dictionary__draft {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 8px;
+  margin: 6px 0;
+  align-items: center;
+}
+.tricc-dictionary__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(40vh, 280px);
+  overflow-y: auto;
+}
+.tricc-dictionary__row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 4px 2px;
+  cursor: pointer;
+}
+.tricc-dictionary__row[aria-current='true'] {
+  background: #eef4fa;
+}
+.tricc-dictionary__code {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  min-width: 8rem;
+  overflow-wrap: anywhere;
+}
+.tricc-concept {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.tricc-concept__body {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 12px;
+  padding: 12px 16px;
+  align-items: start;
+}
+.tricc-concept__body > p,
+.tricc-concept__body > h2,
+.tricc-concept__body > table,
+.tricc-concept__body > ul {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.tricc-concept__body > h2 {
+  font-size: 14px;
+  margin-top: 8px;
+}
+.tricc-concept__texts {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tricc-concept__texts td,
+.tricc-concept__texts th {
+  text-align: left;
+  padding: 2px 4px;
+}
+.tricc-concept__texts input:not([size]) {
+  width: 100%;
+}
+.tricc-concept-card {
+  border: 1px solid #d6dee6;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 8px 0;
+  background: #f6f9fb;
+  display: grid;
+  gap: 4px;
+}
+.tricc-concept-card__head {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  font-weight: 600;
+}
+.tricc-concept-card__head span:first-child {
+  font-family: ui-monospace, monospace;
+  font-weight: 400;
+}
+
+/* Formatted text: bold, lists, and ${name} chips for data from earlier answers. */
+.tricc-rich__plain {
+  display: flex;
+  gap: 4px;
+}
+.tricc-rich__plain input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.tricc-rich {
+  border: 1px solid #c9d3dd;
+  border-radius: 4px;
+  background: #fff;
+}
+.tricc-rich__bar {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+.tricc-rich__bar button {
+  min-width: 24px;
+  padding: 0 6px;
+}
+.tricc-rich__bar button[aria-pressed='true'] {
+  background: #dce8f4;
+}
+.tricc-rich__content .ProseMirror {
+  min-height: 2.5em;
+  padding: 4px 6px;
+  outline: none;
+}
+.tricc-rich__content .ProseMirror p {
+  margin: 0;
+}
+.tricc-rich__content .ProseMirror ul,
+.tricc-rich__content .ProseMirror ol {
+  margin: 0;
+  padding-left: 1.4em;
+}
+.tricc-interp {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9em;
+  background: #eef4fa;
+  border: 1px solid #c9d8e8;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+/* Data dictionary as a table in the main area. */
+.tricc-dictionary {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.tricc-dictionary .tricc-editor__header input[type='search'] {
+  flex: 1 1 auto;
+  max-width: 24rem;
+}
+.tricc-dictionary__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 16px 16px;
+}
+.tricc-dictionary__empty {
+  padding: 12px 16px;
+}
+.tricc-dictionary__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.tricc-dictionary__table th {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  text-align: left;
+  border-bottom: 1px solid #c9d3dd;
+  padding: 6px 8px;
+}
+.tricc-dictionary__table td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 6px 8px;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.tricc-dictionary__table tbody tr {
+  cursor: pointer;
+}
+.tricc-dictionary__table tbody tr:hover,
+.tricc-dictionary__table tbody tr:focus {
+  background: #eef4fa;
+  outline: none;
+}
+.tricc-nav__note {
+  margin: 6px 0;
+  color: #4a5868;
+}
+/* The concept dialog: one form, long enough to scroll inside the modal. */
+.tricc-concept-dialog {
+  max-height: min(90vh, 52rem);
+  overflow-y: auto;
+  width: min(48rem, calc(100vw - 32px));
+}
+.tricc-concept-dialog .tricc-concept__body {
+  padding: 0;
+}
+.tricc-concept-dialog .tricc-library-modal__actions {
+  grid-column: 1 / -1;
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  padding-top: 8px;
+}
+.tricc-concept-dialog h3 {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  margin: 8px 0 0;
+}
+
+/* Formatted text: a preview in the form, the editor in a roomy modal above any dialog. */
+.tricc-rich__preview {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 1.6em;
+  padding: 3px 6px;
+  border: 1px solid #c9d3dd;
+  border-radius: 4px;
+  background: #f8fafc;
+}
+.tricc-rich__preview ul,
+.tricc-rich__preview ol {
+  margin: 0;
+  padding-left: 1.4em;
+}
+.tricc-rich-modal {
+  z-index: 1100;
+}
+.tricc-rich-modal__card {
+  width: min(60rem, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tricc-rich-modal__card .tricc-rich {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.tricc-rich-modal__card .tricc-rich__content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+.tricc-rich-modal__card .tricc-rich__content .ProseMirror {
+  min-height: 16rem;
+  font-size: 14px;
+}
+.tricc-rich__bar input[type='color'] {
+  width: 28px;
+  padding: 0;
+}
+
+/* Project title with its gear and bin. */
+.tricc-overview__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tricc-overview__title h1 {
+  margin: 0;
+}
+
+/* Comments: sticky notes for authors, drawn but never converted. */
+.tricc-comment {
+  width: 180px;
+  min-height: 48px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.35;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.18);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-style: italic;
+  color: #2b2b2b;
+}
+.tricc-comment.is-selected {
+  outline: 2px solid #1565c0;
+  outline-offset: 1px;
+}
+.tricc-comment--yellow { background: #fff6b3; }
+.tricc-comment--blue { background: #d6e8fb; }
+.tricc-comment--green { background: #d8f0d4; }
+.tricc-comment--pink { background: #fbd9e3; }
+.tricc-comment--grey { background: #e6e9ed; }
+.tricc-comment__text:empty::before {
+  content: 'Comment';
+  opacity: 0.5;
+}
+.tricc-edge--about path {
+  stroke: #8a96a3;
+  stroke-dasharray: 4 4;
+}
+
+/* Page groups: a titled frame behind its nodes; a section of the form once converted. */
+.tricc-group {
+  width: 100%;
+  height: 100%;
+  border: 1.5px dashed #7d8b99;
+  border-radius: 6px;
+  background: rgb(230 233 237 / 0.35);
+}
+.tricc-group.is-selected {
+  border-style: solid;
+  border-color: #1565c0;
+}
+.tricc-group--yellow { background: rgb(255 246 179 / 0.35); border-color: #c9b33b; }
+.tricc-group--blue { background: rgb(214 232 251 / 0.4); border-color: #5b8cc4; }
+.tricc-group--green { background: rgb(216 240 212 / 0.4); border-color: #5f9a56; }
+.tricc-group--pink { background: rgb(251 217 227 / 0.4); border-color: #c46b86; }
+.tricc-group__title {
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #34495e;
+  cursor: grab;
+}
+
+/* Hint (!) and help (?) marks at the bottom right of a node; the text is on hover. */
+.tricc-node__marks {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  display: flex;
+  gap: 3px;
+  pointer-events: auto;
+}
+.tricc-node__mark {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  cursor: help;
+}
+.tricc-node__mark--hint {
+  background: #f9d94a;
+  color: #4a3b00;
+}
+.tricc-node__mark--help {
+  background: #1e6fd0;
+  color: #fff;
 }

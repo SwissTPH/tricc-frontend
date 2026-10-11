@@ -13,14 +13,34 @@ const NODE_H = 64
  * and rearranging that on their behalf destroys meaning they put there on purpose
  * (feature/20260825-activity-editor.md §7).
  */
-export function autoLayout(activity: Activity): Map<string, { x: number; y: number }> {
+export type NodeSize = { width: number; height: number }
+
+/** The rendered size of every node the canvas shows, read from the DOM, unscaled by zoom. */
+export function renderedNodeSize(id: string): NodeSize | undefined {
+  if (typeof document === 'undefined') return undefined
+  const el = document.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(id)}"]`)
+  if (!el || !el.offsetWidth || !el.offsetHeight) return undefined
+  return { width: el.offsetWidth, height: el.offsetHeight }
+}
+
+/**
+ * `sizeOf` gives a node's real size (wrapped text makes nodes taller). Nodes it does not
+ * know, such as ones not drawn yet, use the default box.
+ */
+export function autoLayout(
+  activity: Activity,
+  sizeOf: (id: string) => NodeSize | undefined = () => undefined,
+): Map<string, { x: number; y: number }> {
   const graph = new dagre.graphlib.Graph()
   graph.setGraph({ rankdir: 'TB', nodesep: 48, ranksep: 64, marginx: 24, marginy: 24 })
   graph.setDefaultEdgeLabel(() => ({}))
 
+  const sizes = new Map<string, NodeSize>()
   for (const id of activity.nodeOrder) {
     if (!activity.nodes[id]) continue
-    graph.setNode(id, { width: NODE_W, height: NODE_H })
+    const size = sizeOf(id) ?? { width: NODE_W, height: NODE_H }
+    sizes.set(id, size)
+    graph.setNode(id, { ...size })
   }
   for (const id of activity.edgeOrder) {
     const e = activity.edges[id]
@@ -35,7 +55,8 @@ export function autoLayout(activity: Activity): Map<string, { x: number; y: numb
     const n = graph.node(id)
     if (!n) continue
     // dagre centres nodes; the canvas positions by top-left.
-    out.set(id, { x: Math.round(n.x - NODE_W / 2), y: Math.round(n.y - NODE_H / 2) })
+    const size = sizes.get(id) ?? { width: NODE_W, height: NODE_H }
+    out.set(id, { x: Math.round(n.x - size.width / 2), y: Math.round(n.y - size.height / 2) })
   }
   return out
 }

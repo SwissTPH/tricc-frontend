@@ -36,7 +36,7 @@ describe('expressionNames', () => {
           code: 'CHE.B6.DE07',
           display: 'Body weight',
           definition: 'Measured weight.',
-          designations: { en: 'Body weight' },
+          designations: [{ language: 'en', value: 'Body weight' }],
         },
       },
       conceptOrder: ['CHE.B6.DE07'],
@@ -51,7 +51,7 @@ describe('expressionNames', () => {
     expect(bound.get('CHE.B6.DE07')?.nodeId).toBe('w')
   })
 
-  it('resolves a select by its filter code and prefers the open activity', () => {
+  it('resolves a select by its name and prefers the open activity', () => {
     const project = createProject({ id: 'p', title: 'P' })
     project.activities.other = {
       id: 'other',
@@ -62,8 +62,7 @@ describe('expressionNames', () => {
         a: {
           id: 'a',
           type: 'select_one',
-          name: 'select_',
-          filter: 'etat.coma.004',
+          name: 'etat.coma.004',
           label: { en: 'Other coma' },
           ui: { x: 0, y: 0 },
         },
@@ -79,8 +78,7 @@ describe('expressionNames', () => {
         b: {
           id: 'b',
           type: 'select_one',
-          name: 'select_',
-          filter: 'etat.coma.004',
+          name: 'etat.coma.004',
           label: { en: 'Coma scale' },
           ui: { x: 0, y: 0 },
         },
@@ -90,7 +88,6 @@ describe('expressionNames', () => {
     const names = expressionNames(project, 'en', 'etat')
     expect(names.get('etat.coma.004')?.label).toBe('Coma scale')
     expect(names.get('etat.coma.004')?.nodeId).toBe('b')
-    expect(names.get('select_')?.activityId).toBe('etat')
   })
 
   it('rewrites a fragment for display and leaves a long label cut at 50 characters', () => {

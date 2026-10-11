@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import {
   CPG_PROCESSES,
   activityKind,
+  moveTextsToConcepts,
   createActivity,
   createProcessActivity,
   processOf,
@@ -18,12 +19,12 @@ type LibraryTab = 'process' | 'activity'
 
 type LibraryDraft = { kind: 'activity'; name: string } | { kind: 'process'; process: string }
 
-type ImportRow = ParsedActivity & { filename: string }
+type ImportRow = ParsedActivity & { filename: string; kind: LibraryTab }
 
 interface ImportPreview {
+  /** The tab the import was started from. Every page is imported as what its start says. */
   kind: LibraryTab
   rows: ImportRow[]
-  skipped: { label: string; filename: string }[]
   errors: { filename: string; message: string }[]
 }
 
@@ -37,9 +38,15 @@ interface ImportPreview {
 export function ActivityNavigator({
   selected,
   onSelect,
+  dictionaryOpen,
+  onOpenDictionary,
 }: {
   selected: string | undefined
   onSelect: (id: string | undefined) => void
+  /** Whether the data dictionary fills the main area. */
+  dictionaryOpen?: boolean
+  /** Shows the Data dictionary tab; choosing it opens the dictionary in the main area. */
+  onOpenDictionary?: () => void
 }) {
   const project = useProjectSnapshot()
   const canWrite = useCanWrite()
@@ -48,7 +55,7 @@ export function ActivityNavigator({
   const [draft, setDraft] = useState<LibraryDraft | null>(null)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const [tab, setTab] = useState<LibraryTab>('activity')
+  const [tab, setTab] = useState<LibraryTab | 'dictionary'>('activity')
   const [expanded, setExpanded] = useState(false)
   const [activityQuery, setActivityQuery] = useState('')
   const [processQuery, setProcessQuery] = useState('')
@@ -58,6 +65,7 @@ export function ActivityNavigator({
   const processActivities = ids.filter((id) => activityKind(project.activities[id]!) === 'process')
   const normalActivities = ids.filter((id) => activityKind(project.activities[id]!) !== 'process')
   const usage = activityUsage(project)
+  const conceptCount = Object.values(project.codeSystems).reduce((n, cs) => n + cs.conceptOrder.length, 0)
   const selectedActivity = selected ? project.activities[selected] : undefined
   const selectedKind: LibraryTab | undefined = selectedActivity
     ? activityKind(selectedActivity) === 'process'
@@ -70,6 +78,12 @@ export function ActivityNavigator({
   useEffect(() => {
     if (selectedKind) setTab(selectedKind)
   }, [selected, selectedKind])
+
+  // The dictionary tab follows the main area: open there, selected here.
+  useEffect(() => {
+    if (dictionaryOpen) setTab('dictionary')
+    else setTab((current) => (current === 'dictionary' ? (selectedKind ?? 'activity') : current))
+  }, [dictionaryOpen, selectedKind])
 
   const label = (id: string) => resolve(project.activities[id]?.title, lang, lang) ?? id
   const usedBy = (id: string) => {
@@ -131,10 +145,9 @@ export function ActivityNavigator({
     const files = list ? [...list] : []
     if (fileRef.current) fileRef.current.value = ''
     if (files.length === 0) return
-    const kind = tab
+    const kind: LibraryTab = tab === 'process' ? 'process' : 'activity'
     const reserved = new Set(Object.keys(project.activities))
     const rows: ImportRow[] = []
-    const skipped: ImportPreview['skipped'] = []
     const errors: ImportPreview['errors'] = []
     for (const file of files) {
       let text: string
@@ -154,28 +167,44 @@ export function ActivityNavigator({
         errors.push({ filename: file.name, message: error instanceof Error ? error.message : String(error) })
         continue
       }
+      // A page with a main start is a process, any other page an activity. One import
+      // takes both, whichever tab it was started from.
       for (const item of parsed) {
         const itemKind: LibraryTab = activityKind(item.activity) === 'process' ? 'process' : 'activity'
-        const label = resolve(item.activity.title, lang, lang) ?? item.activity.id
-        if (itemKind !== kind) {
-          skipped.push({ label, filename: file.name })
-          continue
-        }
         reserved.add(item.activity.id)
-        rows.push({ ...item, filename: file.name })
+        rows.push({ ...item, filename: file.name, kind: itemKind })
       }
     }
-    setPreview({ kind, rows, skipped, errors })
+    setPreview({ kind, rows, errors })
   }
 
   const confirmImport = () => {
     if (!preview || preview.rows.length === 0) return
     const rows = preview.rows
+    // Imported texts move to the dictionary, as they do when a project is opened.
+    const staged = structuredClone(project)
+    for (const row of rows) staged.activities[row.activity.id] = structuredClone(row.activity)
+    const moved = moveTextsToConcepts(
+      staged,
+      rows.map((row) => row.activity.id),
+    )
     mutate((tx) => {
-      for (const row of rows) tx.addActivity(row.activity)
+      if (moved.createdCodeSystem) {
+        tx.addCodeSystem(staged.codeSystems[moved.createdCodeSystem.url]!)
+        tx.setMeta('defaultCodeSystem', moved.createdCodeSystem.url)
+      }
+      for (const key of moved.touched) {
+        if (key.system === moved.createdCodeSystem?.url) continue
+        const concept = staged.codeSystems[key.system]?.concepts[key.code]
+        if (concept) tx.upsertConcept(key.system, concept)
+      }
+      for (const row of rows) tx.addActivity(staged.activities[row.activity.id]!)
     })
     setPreview(null)
-    onSelect(rows[0]!.activity.id)
+    // Open the first entry of the first group shown: processes, then activities.
+    const first = rows.find((row) => row.kind === 'process') ?? rows[0]!
+    setTab(first.kind)
+    onSelect(first.activity.id)
   }
 
   const query = tab === 'activity' ? activityQuery : processQuery
@@ -212,7 +241,26 @@ export function ActivityNavigator({
             Activities
             <span className="tricc-nav__count">{normalActivities.length}</span>
           </button>
+          {onOpenDictionary && (
+            <button
+              type="button"
+              role="tab"
+              id="tab-dictionary"
+              aria-selected={tab === 'dictionary'}
+              aria-controls="dictionary-panel"
+              data-testid="tab-dictionary"
+              onClick={() => {
+                setTab('dictionary')
+                onOpenDictionary()
+              }}
+            >
+              Data dictionary
+              <span className="tricc-nav__count">{conceptCount}</span>
+            </button>
+          )}
         </div>
+        {tab !== 'dictionary' && (
+        <>
         <input
           type="search"
           data-testid={tab === 'activity' ? 'activity-search' : 'process-search'}
@@ -267,6 +315,8 @@ export function ActivityNavigator({
             />
           </span>
         )}
+        </>
+        )}
       </div>
       <datalist id="cpg-processes">
         {CPG_PROCESSES.map((p) => (
@@ -274,7 +324,11 @@ export function ActivityNavigator({
         ))}
       </datalist>
 
-      {tab === 'process' ? (
+      {tab === 'dictionary' ? (
+        <p id="dictionary-panel" role="tabpanel" aria-labelledby="tab-dictionary" className="tricc-nav__note">
+          Every concept of the project, with its texts. Choose one to edit it.
+        </p>
+      ) : tab === 'process' ? (
         <LibraryPanel
           tab="process"
           panelLabel="Process activities"
@@ -655,34 +709,30 @@ function ImportDialog({
           <p className="tricc-import-note">Nothing is added until you import.</p>
         )}
         {preview.rows.length > 0 && (
-          <ul className="tricc-import-list" data-testid="import-preview">
-            {preview.rows.map((row) => {
-              const label = resolve(row.activity.title, lang, lang) ?? row.activity.id
+          <div data-testid="import-preview">
+            {(['process', 'activity'] as const).map((group) => {
+              const rows = preview.rows.filter((row) => row.kind === group)
+              if (rows.length === 0) return null
               return (
-                <li key={row.activity.id} data-testid={`import-item-${row.activity.id}`}>
-                  {label}
-                  <span data-testid={`import-id-${row.activity.id}`}>{importDetail(row)}</span>
-                  <span>{row.filename}</span>
-                </li>
+                <section key={group} data-testid={`import-group-${group}`}>
+                  <h3>
+                    {group === 'process' ? 'Processes' : 'Activities'} ({rows.length})
+                  </h3>
+                  <ul className="tricc-import-list">
+                    {rows.map((row) => {
+                      const label = resolve(row.activity.title, lang, lang) ?? row.activity.id
+                      return (
+                        <li key={row.activity.id} data-testid={`import-item-${row.activity.id}`}>
+                          {label}
+                          <span data-testid={`import-id-${row.activity.id}`}>{importDetail(row)}</span>
+                          <span>{row.filename}</span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </section>
               )
             })}
-          </ul>
-        )}
-        {preview.skipped.length > 0 && (
-          <div data-testid="import-skipped">
-            <p className="tricc-import-note">
-              {preview.kind === 'activity'
-                ? 'These are processes. Import them from the Processes tab.'
-                : 'These are activities. Import them from the Activities tab.'}
-            </p>
-            <ul className="tricc-import-list">
-              {preview.skipped.map((item) => (
-                <li key={`${item.filename}-${item.label}`}>
-                  {item.label}
-                  <span>{item.filename}</span>
-                </li>
-              ))}
-            </ul>
           </div>
         )}
         {preview.errors.map((error) => (

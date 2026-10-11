@@ -1,4 +1,4 @@
-import { resolve, type SelectOption, type TriccNode } from '@tricc/core'
+import { resolve, type SelectOption, type TriccNode, conceptText, lookupConcept, optionConceptKey, type Project } from '@tricc/core'
 
 /** How much of an answer label an edge may show. The rest is on hover. */
 export const ANSWER_LABEL_LIMIT = 20
@@ -38,13 +38,23 @@ export function findAnswer(node: TriccNode | undefined, code: string): SelectOpt
   return node?.options?.find((option) => optionCode(option) === code)
 }
 
-export function answerLabel(option: SelectOption, lang: string): string {
-  return resolve(option.label, lang, lang) || optionCode(option)
+/**
+ * What an answer says. Its text lives on its concept (the option name in the default
+ * CodeSystem); an option not yet migrated may still carry its own label.
+ */
+export function answerLabel(option: SelectOption, lang: string, project?: Project): string {
+  const concept = project ? lookupConcept(project, optionConceptKey(project, option)) : undefined
+  return (
+    conceptText(concept, 'q-display', lang, project?.languages.default) ||
+    resolve(option.label, lang, lang) ||
+    optionCode(option)
+  )
 }
 
-export function shortenAnswer(label: string): string {
-  if (label.length <= ANSWER_LABEL_LIMIT) return label
-  return `${label.slice(0, ANSWER_LABEL_LIMIT)}…`
+/** A label cut to `limit` characters (the viewer's `labelChars` preference), with an ellipsis. */
+export function shortenAnswer(label: string, limit: number = ANSWER_LABEL_LIMIT): string {
+  if (label.length <= limit) return label
+  return `${label.slice(0, limit)}…`
 }
 
 /** What an answer edge shows, and the full label for its hover. */
@@ -52,10 +62,12 @@ export function answerEdgeCaption(
   node: TriccNode | undefined,
   value: string | undefined,
   lang: string,
+  project?: Project,
+  limit: number = ANSWER_LABEL_LIMIT,
 ): { code: string; short: string; title: string; optionId?: string } | undefined {
   const code = answerCode(value)
   if (code === undefined) return undefined
   const option = findAnswer(node, code)
-  const title = option ? answerLabel(option, lang) : code
-  return { code, short: shortenAnswer(title), title, ...(option ? { optionId: option.id } : {}) }
+  const title = option ? answerLabel(option, lang, project) : code
+  return { code, short: shortenAnswer(title, limit), title, ...(option ? { optionId: option.id } : {}) }
 }

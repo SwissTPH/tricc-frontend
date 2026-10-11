@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BranchChoiceDialog, type BranchChoiceValue } from './BranchChoice.js'
 import {
   Background,
@@ -6,15 +6,34 @@ import {
   MiniMap,
   ReactFlow,
   ReactFlowProvider,
+  useUpdateNodeInternals,
   type Connection,
   type EdgeChange,
   type NodeChange,
   type ReactFlowInstance,
 } from '@xyflow/react'
-import type { Activity, Issue, NodeType, Project } from '@tricc/core'
-import { useCanWrite, useMutate } from '../../runtime/context.js'
+import {
+  isExtensionTarget,
+  type Activity,
+  type Issue,
+  type NodeType,
+  type Project,
+} from '@tricc/core'
+import { useCanWrite, useEditorPreferences, useMutate } from '../../runtime/context.js'
 import { expressionNames, renderCqlLabels } from '../../cql/names.js'
-import { TriccNodeView, type TriccFlowNode } from './TriccNode.js'
+import { TriccNodeView } from './TriccNode.js'
+import { CommentNodeView, commentFlowId, commentIdOf } from './CommentNode.js'
+import { GroupNodeView, groupFlowId, groupIdOf } from './GroupNode.js'
+
+import {
+  CANVAS_KINDS,
+  KIND_ORDER,
+  descendantsOf,
+  kindOf,
+  sameFlowNode,
+  type FlowNode,
+  type ProjectContext,
+} from './elements.js'
 import { TriccEdgeView, branchKindOf, type TriccFlowEdge } from './BranchEdge.js'
 import {
   NODE_OUT_HANDLE,
@@ -26,7 +45,7 @@ import {
 } from './answer.js'
 import { autoLayout } from './layout.js'
 
-const nodeTypes = { tricc: TriccNodeView }
+const nodeTypes = { tricc: TriccNodeView, comment: CommentNodeView, 'group-frame': GroupNodeView }
 const edgeTypes = { branch: TriccEdgeView }
 /** React Flow's own default is Backspace. Delete is the key authors use. */
 const DELETE_KEYS = ['Backspace', 'Delete']
@@ -56,6 +75,8 @@ export interface CanvasProps {
   placementRef?: { current: CanvasPlacement | null }
   /** A palette drag is over the editor. The pane shows where a drop will land. */
   dropping?: boolean
+  /** Ctrl/Cmd+click on a goto opens the activity it goes to. */
+  onOpenActivity?: (activityId: string) => void
 }
 
 /**
@@ -90,10 +111,12 @@ function CanvasInner({
   onSelectEdge,
   placementRef,
   dropping,
+  onOpenActivity,
 }: CanvasProps) {
   const mutate = useMutate()
   const canWrite = useCanWrite()
-  const instance = useRef<ReactFlowInstance<TriccFlowNode, TriccFlowEdge> | null>(null)
+  const { labelChars } = useEditorPreferences()
+  const instance = useRef<ReactFlowInstance<FlowNode, TriccFlowEdge> | null>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   const lang = project.languages.default
   const names = useMemo(
@@ -102,10 +125,12 @@ function CanvasInner({
   )
   /** Positions for the gesture in progress. Empty once the pointer is released. */
   const dragPositions = useRef(new Map<string, { x: number; y: number }>())
+  /** Sizes of groups being resized, shown live and stored when the resize ends. */
+  const resizeDims = useRef(new Map<string, { width: number; height: number }>())
   const [dragTick, setDragTick] = useState(0)
   /** Last size React Flow measured, keyed by node id, so a new projection stays visible. */
   const measuredSizes = useRef(new Map<string, { width: number; height: number }>())
-  const nodeCache = useRef(new Map<string, TriccFlowNode>())
+  const nodeCache = useRef(new Map<string, FlowNode>())
   const seenActivity = useRef(activityId)
   const [pendingBranch, setPendingBranch] = useState<PendingBranch | null>(null)
   const placement = useMemo<CanvasPlacement>(
@@ -138,65 +163,64 @@ function CanvasInner({
     return map
   }, [issues])
 
-  const nodes = useMemo<TriccFlowNode[]>(() => {
-    // Nodes without a stored position are laid out on read, so a hand-written or
-    // machine-generated activity still opens (project-format §3.2).
-    // dragTick bumps on every pointer move. The positions themselves live in the ref above.
+  const nodes = useMemo<FlowNode[]>(() => {
+    // dragTick bumps on every pointer move. The positions themselves live in the refs above.
     void dragTick
-    const positions = autoLayout(activity)
+    const ctx: ProjectContext = {
+      activity,
+      project,
+      lang,
+      selectedId,
+      canWrite,
+      severityByNode,
+      // Nodes without a stored position are laid out on read, so a hand-written or
+      // machine-generated activity still opens (project-format §3.2).
+      layout: autoLayout(activity),
+      drag: (id) => dragPositions.current.get(id),
+      resize: (id) => resizeDims.current.get(id),
+      measured: (id) => measuredSize(instance.current, measuredSizes.current, id),
+    }
+    // Every kind is projected and cached the same way. Keeping the same object for an
+    // unchanged element keeps React Flow's measured internals; a fresh object is re-measured
+    // and hidden for a frame, which is what made comments and groups flicker.
     const previous = nodeCache.current
-    const next = new Map<string, TriccFlowNode>()
-    const projected = activity.nodeOrder
-      .map((id) => activity.nodes[id])
-      .filter((n): n is NonNullable<typeof n> => Boolean(n))
-      .map((model) => {
-        const concept = model.concept
-          ? project.codeSystems[model.concept.system]?.concepts[model.concept.code]
-          : undefined
-        const severity = severityByNode.get(model.id)
-        const missing =
-          model.type === 'goto' && Boolean(model.link) && project.activities[model.link!] === undefined
-        const drag = dragPositions.current.get(model.id)
-        const measured = measuredSize(instance.current, measuredSizes.current, model.id)
-        const node: TriccFlowNode = {
-          id: model.id,
-          type: 'tricc',
-          position: drag ??
-            (model.ui
-              ? { x: model.ui.x, y: model.ui.y }
-              : (positions.get(model.id) ?? { x: 0, y: 0 })),
-          selected: model.id === selectedId,
-          draggable: canWrite,
-          deletable: canWrite,
-          ...(measured ? { measured } : {}),
-          ...(drag ? { dragging: true } : {}),
-          data: {
-            model,
-            lang,
-            ...(severity ? { severity } : {}),
-            ...(concept?.display ? { conceptDisplay: concept.display } : {}),
-            ...(missing ? { missing: true } : {}),
-          },
-        }
-        // Same object means React Flow keeps the measured internals for every node
-        // the gesture did not move. A fresh object drops them and the node vanishes.
-        const cached = previous.get(model.id)
-        const stable = cached && sameFlowNode(cached, node) ? cached : node
-        next.set(model.id, stable)
-        return stable
-      })
+    const next = new Map<string, FlowNode>()
+    const projected = KIND_ORDER.flatMap((kind) => CANVAS_KINDS[kind].project(ctx)).map((node) => {
+      const cached = previous.get(node.id)
+      const stable = cached && sameFlowNode(cached, node) ? cached : node
+      next.set(node.id, stable)
+      return stable
+    })
     nodeCache.current = next
     return projected
   }, [activity, project, lang, selectedId, canWrite, severityByNode, dragTick])
 
+  // When an element's handles change (answers added, removed, reordered; a new type) and its
+  // size does not, React Flow keeps the old handle positions. Tell it to read them again.
+  const updateNodeInternals = useUpdateNodeInternals()
+  const handleSignatures = useRef(new Map<string, string>())
+  useEffect(() => {
+    const changed: string[] = []
+    const seen = new Map<string, string>()
+    for (const node of nodes) {
+      const signature = kindOf(node.id).handleSignature?.(node)
+      if (signature === undefined) continue
+      seen.set(node.id, signature)
+      const before = handleSignatures.current.get(node.id)
+      if (before !== undefined && before !== signature) changed.push(node.id)
+    }
+    handleSignatures.current = seen
+    if (changed.length) updateNodeInternals(changed)
+  }, [nodes, updateNodeInternals])
+
   const edges = useMemo<TriccFlowEdge[]>(
-    () =>
-      activity.edgeOrder
+    () => [
+      ...activity.edgeOrder
         .map((id) => activity.edges[id])
         .filter((e): e is NonNullable<typeof e> => Boolean(e))
         .map((e) => {
           const kind = branchKindOf(e.value)
-          const answer = answerEdgeCaption(activity.nodes[e.source], e.value, lang)
+          const answer = answerEdgeCaption(activity.nodes[e.source], e.value, lang, project, labelChars)
           const display =
             answer?.short ??
             (kind === 'condition' && e.value ? renderCqlLabels(e.value, names) : undefined)
@@ -218,7 +242,25 @@ function CanvasInner({
             },
           }
         }),
-    [activity, canWrite, selectedEdgeId, names, lang],
+      // What a comment is about: a dashed line, not an edge of the guideline.
+      ...(activity.ui?.comments ?? [])
+        .filter((c) => c.node && activity.nodes[c.node])
+        .map(
+          (c) =>
+            ({
+              id: `about:${c.id}`,
+              source: commentFlowId(c.id),
+              sourceHandle: 'about',
+              target: c.node!,
+              selectable: false,
+              deletable: false,
+              focusable: false,
+              className: 'tricc-edge--about',
+              style: { strokeDasharray: '4 4' },
+            }) as TriccFlowEdge,
+        ),
+    ],
+    [activity, canWrite, selectedEdgeId, names, lang, project, labelChars],
   )
 
   /**
@@ -227,7 +269,7 @@ function CanvasInner({
    * `selected` down without applying the change leaves two selections that disagree.
    */
   const onNodesChange = useCallback(
-    (changes: NodeChange<TriccFlowNode>[]) => {
+    (changes: NodeChange<FlowNode>[]) => {
       // Selection is resolved across the whole batch, not change by change. Clicking a new
       // node emits a deselect for the old one alongside the select for the new one, and
       // applying them in sequence against stale state lets the deselect win.
@@ -246,6 +288,19 @@ function CanvasInner({
       const commits: { id: string; x: number; y: number }[] = []
       let dragChanged = false
       for (const change of changes) {
+        // A resize from a corner (groups): shown live, stored once the resize ends.
+        if (change.type === 'dimensions' && change.dimensions && kindOf(change.id).commitResize) {
+          if (change.resizing) {
+            resizeDims.current.set(change.id, { ...change.dimensions })
+            dragChanged = true
+          } else if (change.resizing === false) {
+            resizeDims.current.delete(change.id)
+            dragChanged = true
+            const size = { ...change.dimensions }
+            mutate((tx) => kindOf(change.id).commitResize?.(tx, activityId, activity, change.id, size))
+          }
+          continue
+        }
         if (change.type === 'position' && change.position) {
           const { x, y } = change.position
           if (change.dragging) {
@@ -258,19 +313,67 @@ function CanvasInner({
             commits.push({ id: change.id, x, y })
           }
         } else if (change.type === 'remove') {
+          const remove = kindOf(change.id).remove
+          if (!remove) continue
           dragPositions.current.delete(change.id)
-          mutate((tx) => tx.removeNode(activityId, change.id))
+          mutate((tx) => remove(tx, activityId, change.id))
           if (change.id === selectedId) onSelect(undefined)
         }
       }
       if (dragChanged) setDragTick((n) => n + 1)
       if (commits.length > 0) {
         mutate((tx) => {
-          for (const commit of commits) tx.moveNode(activityId, commit.id, commit.x, commit.y)
+          for (const commit of commits) kindOf(commit.id).commitMove(tx, activityId, activity, commit.id, commit)
         })
       }
     },
-    [activityId, canWrite, mutate, onSelect, onSelectEdge, selectedId],
+    [activity, activityId, canWrite, mutate, onSelect, onSelectEdge, selectedId],
+  )
+
+  /**
+   * Dropping a node (or a group) inside a group puts it in that group; dropping it outside
+   * its group takes it out. Its position is made relative to its new group, so it stays
+   * where it was dropped.
+   */
+  const onNodeDragStop = useCallback(
+    (_event: unknown, dragged: FlowNode) => {
+      const flow = instance.current
+      if (!canWrite || !flow || commentIdOf(dragged.id)) return
+      const internal = flow.getInternalNode(dragged.id)
+      if (!internal) return
+      const abs = internal.internals.positionAbsolute
+      const w = internal.measured?.width ?? 0
+      const h = internal.measured?.height ?? 0
+      const centre = { x: abs.x + w / 2, y: abs.y + h / 2 }
+      const draggedGroup = groupIdOf(dragged.id)
+      const excluded = draggedGroup ? descendantsOf(activity.groups ?? [], draggedGroup) : new Set<string>()
+      let best: { id: string; area: number; x: number; y: number } | undefined
+      for (const g of activity.groups ?? []) {
+        if (excluded.has(g.id)) continue
+        const gi = flow.getInternalNode(groupFlowId(g.id))
+        if (!gi) continue
+        const gp = gi.internals.positionAbsolute
+        const gw = gi.measured?.width ?? g.width
+        const gh = gi.measured?.height ?? g.height
+        const inside = centre.x >= gp.x && centre.x <= gp.x + gw && centre.y >= gp.y && centre.y <= gp.y + gh
+        if (inside && (!best || gw * gh < best.area)) best = { id: g.id, area: gw * gh, x: gp.x, y: gp.y }
+      }
+      const x = Math.round(abs.x - (best?.x ?? 0))
+      const y = Math.round(abs.y - (best?.y ?? 0))
+      if (draggedGroup) {
+        const group = activity.groups?.find((g) => g.id === draggedGroup)
+        if (!group || group.parent === best?.id) return
+        const next = { ...group, x, y }
+        if (best) next.parent = best.id
+        else delete next.parent
+        mutate((tx) => tx.setGroup(activityId, next))
+        return
+      }
+      const model = activity.nodes[dragged.id]
+      if (!model || model.group === best?.id) return
+      mutate((tx) => tx.setNodeGroup(activityId, dragged.id, best?.id, x, y))
+    },
+    [activity, activityId, canWrite, mutate],
   )
 
   const onEdgesChange = useCallback(
@@ -317,6 +420,18 @@ function CanvasInner({
   const onConnect = useCallback(
     (connection: Connection) => {
       if (!canWrite || !connection.source || !connection.target) return
+      // A kind whose connections are not guideline edges (a comment's "about") stores its own.
+      const connectFrom = kindOf(connection.source).connectFrom
+      if (connectFrom) {
+        mutate((tx) => connectFrom(tx, activityId, activity, connection.source!, connection.target!))
+        return
+      }
+      // Not available attaches to its question: the link takes no answer and no branch.
+      const targetType = activity.nodes[connection.target]?.type
+      if (targetType && isExtensionTarget(targetType)) {
+        commitEdge(connection.source, connection.target)
+        return
+      }
       const optionId = optionIdFromHandle(connection.sourceHandle)
       if (optionId) {
         const option = activity.nodes[connection.source]?.options?.find((item) => item.id === optionId)
@@ -335,7 +450,7 @@ function CanvasInner({
       }
       commitEdge(connection.source, connection.target)
     },
-    [activity, canWrite, commitEdge],
+    [activity, activityId, canWrite, commitEdge, mutate],
   )
 
   const chooseBranch = useCallback(
@@ -358,7 +473,7 @@ function CanvasInner({
       data-dropping={dropping ? 'true' : undefined}
       ref={frameRef}
     >
-      <ReactFlow<TriccFlowNode, TriccFlowEdge>
+      <ReactFlow<FlowNode, TriccFlowEdge>
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
@@ -367,6 +482,12 @@ function CanvasInner({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onNodeDragStop={onNodeDragStop}
+        onNodeClick={(event, flowNode) => {
+          if (!(event.ctrlKey || event.metaKey) || !onOpenActivity) return
+          const link = activity.nodes[flowNode.id]?.type === 'goto' ? activity.nodes[flowNode.id]?.link : undefined
+          if (link && project.activities[link]) onOpenActivity(link)
+        }}
         nodesDraggable={canWrite}
         nodesConnectable={canWrite}
         elementsSelectable
@@ -395,7 +516,7 @@ function CanvasInner({
 }
 
 function measuredSize(
-  flow: ReactFlowInstance<TriccFlowNode, TriccFlowEdge> | null,
+  flow: ReactFlowInstance<FlowNode, TriccFlowEdge> | null,
   cache: Map<string, { width: number; height: number }>,
   id: string,
 ): { width: number; height: number } | undefined {
@@ -406,24 +527,6 @@ function measuredSize(
     return size
   }
   return cache.get(id)
-}
-
-function sameFlowNode(a: TriccFlowNode, b: TriccFlowNode): boolean {
-  return (
-    a.position.x === b.position.x &&
-    a.position.y === b.position.y &&
-    a.selected === b.selected &&
-    a.draggable === b.draggable &&
-    a.deletable === b.deletable &&
-    a.dragging === b.dragging &&
-    a.measured?.width === b.measured?.width &&
-    a.measured?.height === b.measured?.height &&
-    a.data.model === b.data.model &&
-    a.data.lang === b.data.lang &&
-    a.data.severity === b.data.severity &&
-    a.data.conceptDisplay === b.data.conceptDisplay &&
-    a.data.missing === b.data.missing
-  )
 }
 
 function uniqueEdgeId(activity: Activity, source: string, target: string): string {

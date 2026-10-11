@@ -1,5 +1,12 @@
 import { createContext, useContext, useCallback, useEffect, useState, type ReactNode } from 'react'
-import type { Capability, OpenProject, TriccRuntime } from '@tricc/core'
+import {
+  DEFAULT_PREFERENCES,
+  type Capability,
+  type EditorPreferences,
+  type OpenProject,
+  type PreferencesPort,
+  type TriccRuntime,
+} from '@tricc/core'
 
 /**
  * The runtime provider.
@@ -11,15 +18,35 @@ import type { Capability, OpenProject, TriccRuntime } from '@tricc/core'
 
 const RuntimeContext = createContext<TriccRuntime | undefined>(undefined)
 const OpenProjectContext = createContext<OpenProject | undefined>(undefined)
+const PreferencesContext = createContext<PreferencesPort | undefined>(undefined)
 
 export function TriccRuntimeProvider({
   runtime,
+  preferences,
   children,
 }: {
   runtime: TriccRuntime
+  /** Per-viewer editor preferences. Without it the editor uses the defaults. */
+  preferences?: PreferencesPort
   children: ReactNode
 }) {
-  return <RuntimeContext.Provider value={runtime}>{children}</RuntimeContext.Provider>
+  return (
+    <RuntimeContext.Provider value={runtime}>
+      <PreferencesContext.Provider value={preferences}>{children}</PreferencesContext.Provider>
+    </RuntimeContext.Provider>
+  )
+}
+
+/** The viewer's editor preferences, kept current when they change. */
+export function useEditorPreferences(): EditorPreferences {
+  const port = useContext(PreferencesContext)
+  const [value, setValue] = useState(() => port?.current() ?? DEFAULT_PREFERENCES)
+  useEffect(() => {
+    if (!port) return
+    setValue(port.current())
+    return port.onChange(() => setValue(port.current()))
+  }, [port])
+  return value
 }
 
 export function OpenProjectProvider({

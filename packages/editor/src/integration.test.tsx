@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest'
-import { fireEvent, render, screen, waitFor, cleanup } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import {
   activityKind,
@@ -25,6 +25,7 @@ import { ProjectOverview } from './project/Overview.js'
 import { ActivityEditor } from './activity/ActivityEditor.js'
 import { HistoryButtons } from './project/HistoryButtons.js'
 import { ActivityNavigator } from './project/ActivityNavigator.js'
+import { DictionaryView } from './terminology/DictionaryView.js'
 
 /**
  * Integration: store, editor and serializer together, driven through the real runtime
@@ -227,16 +228,25 @@ describe('validation surfaces in the UI', () => {
     const h = await harness()
     renderWith(h, <ActivityEditor activityId="triage" />)
 
+    // A new answer is a concept: created in the dialog, named by its code.
     await user.click(screen.getByTestId('add-select_one'))
-    await user.click(screen.getByTestId('add-option'))
-    await user.clear(screen.getByTestId('option-label-option'))
-    await user.type(screen.getByTestId('option-label-option'), 'Fever')
+    await user.click(screen.getByTestId('add-option-new'))
+    expect(screen.getByTestId('concept-type')).toHaveValue('Value')
+    await user.type(screen.getByTestId('concept-code'), 'fever')
+    await user.type(screen.getByTestId('concept-display'), 'Fever')
+    await user.click(screen.getByTestId('concept-dialog-save'))
     expect(screen.getByTestId('node-n-select_one-answer-option')).toHaveTextContent('Fever')
+    const one = h.open.document.snapshot().activities['triage']!.nodes['n-select_one']!
+    expect(one.options).toEqual([{ id: 'option', name: 'fever' }])
 
+    // The same concept is found again for another question; several-choice answers are Observations.
     await user.click(screen.getByTestId('tab-nodes'))
     await user.click(screen.getByTestId('add-select_multiple'))
-    await user.click(screen.getByTestId('add-option'))
-    expect(screen.getByTestId('node-n-select_multiple-answer-option')).toHaveTextContent('New answer')
+    await user.type(screen.getByTestId('add-option-search'), 'Fev')
+    await user.click(screen.getByRole('option', { name: /Fever/ }))
+    expect(screen.getByTestId('node-n-select_multiple-answer-option')).toHaveTextContent('Fever')
+    await user.click(screen.getByTestId('add-option-new'))
+    expect(screen.getByTestId('concept-type')).toHaveValue('Observation')
   })
 
   it('shows an open handoff as an error', async () => {
@@ -367,7 +377,7 @@ describe('project overview', () => {
     project.interventions = [
       {
         id: 'sick-child',
-        code: 'sick-child',
+        name: 'sick-child',
         title: { en: 'Sick child' },
         trigger: { mode: 'on-demand' },
         activities: [{ ref: 'triage' }, { ref: 'triage-process' }],
@@ -398,8 +408,8 @@ describe('project overview', () => {
       title: 'Triage',
     })
     project.interventions = [
-      { id: 'a', code: 'a', activities: [{ ref: 'triage-process' }] },
-      { id: 'b', code: 'b', activities: [{ ref: 'triage-process' }] },
+      { id: 'a', name: 'a', activities: [{ ref: 'triage-process' }] },
+      { id: 'b', name: 'b', activities: [{ ref: 'triage-process' }] },
     ]
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
@@ -411,7 +421,7 @@ describe('project overview', () => {
     project.interventions = [
       {
         id: 'a',
-        code: 'a',
+        name: 'a',
         trigger: { mode: 'planned' },
         activities: [{ ref: 'triage' }],
       },
@@ -609,7 +619,7 @@ describe('intervention editing', () => {
     project.interventions = [
       {
         id: 'sick-child',
-        code: 'sick-child',
+        name: 'sick-child',
         title: { en: 'Sick child' },
         trigger: { mode: 'on-demand' },
         activities: [],
@@ -820,7 +830,7 @@ describe('process activities versus activities', () => {
     )
   })
 
-  it('imports an activity after confirmation and keeps a process file on its own tab', async () => {
+  it('imports after confirmation, and takes a process file from either tab as a process', async () => {
     const user = userEvent.setup()
     const h = await harness()
     renderWith(h, <ActivityNavigator selected={undefined} onSelect={() => {}} />)
@@ -851,17 +861,12 @@ describe('process activities versus activities', () => {
     )
     await user.click(screen.getByTestId('import-cancel'))
 
+    // A process file imported from the Activities tab is listed, and imported, as a process.
     await user.upload(screen.getByTestId('import-activity-file', { hidden: true }), airway)
     await waitFor(() =>
-      expect(screen.getByTestId('import-skipped')).toHaveTextContent('Processes tab'),
+      expect(screen.getByTestId('import-group-process')).toHaveTextContent('Processes (1)'),
     )
-    expect(screen.queryByTestId('import-confirm')).not.toBeInTheDocument()
-    await user.click(screen.getByTestId('import-cancel'))
-    expect(h.open.document.snapshot().activities['airway-process']).toBeUndefined()
-
-    await user.click(screen.getByTestId('tab-processes'))
-    await user.upload(screen.getByTestId('import-process-file', { hidden: true }), airway)
-    await waitFor(() => expect(screen.getByTestId('import-confirm')).toBeEnabled())
+    expect(screen.queryByTestId('import-group-activity')).not.toBeInTheDocument()
     await user.click(screen.getByTestId('import-confirm'))
     expect(activityKind(h.open.document.snapshot().activities['airway-process']!)).toBe('process')
     expect(screen.getByTestId('nav-activity-airway-process')).toHaveAttribute('data-kind', 'process')
@@ -914,7 +919,7 @@ describe('process activities versus activities', () => {
     project.interventions = [
       {
         id: 'iv',
-        code: 'iv',
+        name: 'iv',
         trigger: { mode: 'on-demand' },
         activities: [{ ref: 'triage' }],
       },
@@ -930,7 +935,7 @@ describe('process activities versus activities', () => {
     const user = userEvent.setup()
     const project = seed()
     project.interventions = [
-      { id: 'iv', code: 'iv', trigger: { mode: 'on-demand' }, activities: [] },
+      { id: 'iv', name: 'iv', trigger: { mode: 'on-demand' }, activities: [] },
     ]
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
@@ -958,7 +963,7 @@ describe('process activities versus activities', () => {
     project.interventions = [
       {
         id: 'iv',
-        code: 'iv',
+        name: 'iv',
         trigger: { mode: 'on-demand' },
         activities: [],
       },
@@ -980,7 +985,7 @@ describe('process activities versus activities', () => {
     project.interventions = [
       {
         id: 'iv',
-        code: 'iv',
+        name: 'iv',
         trigger: { mode: 'on-demand' },
         activities: [{ ref: 'a-process' }, { ref: 'b-process' }],
       },
@@ -1002,7 +1007,7 @@ describe('process activities versus activities', () => {
     project.interventions = [
       {
         id: 'iv',
-        code: 'iv',
+        name: 'iv',
         trigger: { mode: 'on-demand' },
         activities: [{ ref: 'a-process' }, { ref: 'b-process' }],
       },
@@ -1123,3 +1128,555 @@ describe('goto targets', () => {
     expect(screen.queryByTestId('field-link-clear')).not.toBeInTheDocument()
   })
 })
+
+describe('activity settings and delete', () => {
+  it('sets the name, applicability and intent from the gear, and saves them on the activity', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+
+    await user.click(screen.getByTestId('configure-activity'))
+    expect(screen.getByTestId('activity-settings')).toBeInTheDocument()
+    expect(screen.getByTestId('act-name')).toHaveAttribute('placeholder', 'triage')
+    await user.type(screen.getByTestId('act-name'), 'triage_page')
+    await user.type(screen.getByTestId('act-intent'), 'Children under five')
+    fireEvent.change(screen.getByTestId('act-cql'), { target: { value: 'AgeInMonths() < 60' } })
+    await user.click(screen.getByTestId('activity-settings-save'))
+    expect(screen.queryByTestId('activity-settings')).not.toBeInTheDocument()
+
+    const activity = h.open.document.snapshot().activities['triage']
+    expect(activity?.name).toBe('triage_page')
+    expect(activity?.applicability).toEqual({
+      intent: { en: 'Children under five' },
+      expression: 'AgeInMonths() < 60',
+    })
+    await h.runtime.save(h.open)
+    const yaml = (await h.persistence.read(h.open.ref))['activities/triage.activity.yaml']
+    expect(yaml).toContain('name: triage_page')
+    expect(yaml).toContain('applicability: AgeInMonths() < 60')
+    expect(yaml).toContain('intent: Children under five')
+  })
+
+  it('shows the activity on its root node, with a way into the settings', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    selectNode('s')
+    expect(screen.getByTestId('activity-summary')).toHaveTextContent('Triage')
+    await user.click(screen.getByTestId('root-activity-settings'))
+    expect(screen.getByTestId('activity-settings')).toBeInTheDocument()
+  })
+
+  it('deletes an activity after confirmation, takes it off interventions, and undo restores it', async () => {
+    const user = userEvent.setup()
+    const project = seed()
+    project.activities['caller'] = {
+      id: 'caller',
+      title: { en: 'Caller' },
+      nodeOrder: ['s', 'g'],
+      edgeOrder: [],
+      nodes: {
+        s: { id: 's', type: 'activity_start', ui: { x: 0, y: 0 } },
+        g: { id: 'g', type: 'goto', link: 'triage', ui: { x: 0, y: 100 } },
+      },
+      edges: {},
+    }
+    project.interventions = [
+      { id: 'iv', title: { en: 'Sick child' }, trigger: { mode: 'on-demand' }, activities: [{ ref: 'triage' }, { ref: 'caller' }] },
+    ]
+    const h = await harness(project)
+    let deleted = false
+    renderWith(h, <ActivityEditor activityId="triage" onDeleted={() => (deleted = true)} />)
+
+    await user.click(screen.getByTestId('delete-activity'))
+    expect(screen.getByTestId('delete-activity-listed-by')).toHaveTextContent('Sick child')
+    expect(screen.getByTestId('delete-activity-linked-from')).toHaveTextContent('Caller')
+    await user.click(screen.getByTestId('delete-activity-cancel'))
+    expect(h.open.document.snapshot().activities['triage']).toBeDefined()
+
+    await user.click(screen.getByTestId('delete-activity'))
+    await user.click(screen.getByTestId('delete-activity-confirm'))
+    const after = h.open.document.snapshot()
+    expect(after.activities['triage']).toBeUndefined()
+    expect(after.interventions[0]?.activities).toEqual([{ ref: 'caller' }])
+    expect(after.activities['caller']?.nodes['g']?.link).toBe('triage')
+    expect(deleted).toBe(true)
+
+    h.open.document.undo.undo()
+    const restored = h.open.document.snapshot()
+    expect(restored.activities['triage']).toBeDefined()
+    expect(restored.interventions[0]?.activities).toEqual([{ ref: 'triage' }, { ref: 'caller' }])
+  })
+})
+
+describe('node text', () => {
+  it('wraps to the viewer preference and shows the full text on hover', async () => {
+    const project = seed()
+    project.activities['triage']!.nodes['s']!.label = { en: 'A long clinical question that wraps' }
+    const h = await harness(project)
+    const listeners = new Set<() => void>()
+    let lines = 3
+    const preferences = {
+      current: () => ({ labelLines: lines }),
+      update: () => undefined,
+      onChange: (cb: () => void) => {
+        listeners.add(cb)
+        return () => listeners.delete(cb)
+      },
+    }
+    render(
+      <TriccRuntimeProvider runtime={h.runtime} preferences={preferences}>
+        <OpenProjectProvider project={h.open}>
+          <ActivityEditor activityId="triage" />
+        </OpenProjectProvider>
+      </TriccRuntimeProvider>,
+    )
+    const editor = screen.getByTestId('activity-editor')
+    expect(editor.style.getPropertyValue('--tricc-label-lines')).toBe('3')
+    lines = 5
+    act(() => listeners.forEach((l) => l()))
+    expect(editor.style.getPropertyValue('--tricc-label-lines')).toBe('5')
+  })
+})
+
+describe('the start node is the activity', () => {
+  it('shows the activity title on the root, and no Name field on sequence nodes', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    expect(screen.getByTestId('node-s-label')).toHaveTextContent('Triage')
+
+    selectNode('s')
+    expect(screen.getByTestId('activity-summary')).toBeInTheDocument()
+    expect(screen.queryByTestId('field-name')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('field-label')).not.toBeInTheDocument()
+
+    await user.click(screen.getByTestId('tab-nodes'))
+    await user.click(screen.getByTestId('add-activity_end'))
+    expect(screen.getByTestId('node-properties')).toHaveTextContent('activity_end')
+    expect(screen.queryByTestId('field-name')).not.toBeInTheDocument()
+    expect(h.open.document.snapshot().activities['triage']?.nodes['n-activity_end']?.name).toBeUndefined()
+  })
+
+  it('a renamed activity shows its new title on the root node', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    await user.click(screen.getByTestId('configure-activity'))
+    await user.clear(screen.getByTestId('act-title'))
+    await user.type(screen.getByTestId('act-title'), 'Danger signs')
+    expect(screen.getByTestId('node-s-label')).toHaveTextContent('Danger signs')
+  })
+})
+
+describe('data dictionary', () => {
+  const URL = 'https://tricc.org/CodeSystem/test'
+  function withWeight(): Project {
+    const project = seed()
+    project.codeSystems[URL] = {
+      id: 'test',
+      url: URL,
+      name: 'test',
+      status: 'draft',
+      content: 'complete',
+      concepts: {
+        weight: { system: URL, code: 'weight', display: 'Weight (kg)', designations: [], dataType: 'decimal' },
+      },
+      conceptOrder: ['weight'],
+    }
+    project.defaultCodeSystem = URL
+    const triage = project.activities['triage']!
+    triage.nodes['w'] = { id: 'w', type: 'decimal', name: 'weight', ui: { x: 0, y: 100 } }
+    triage.nodeOrder.push('w')
+    return project
+  }
+
+  it('lists concepts in a table, and adds one through the dialog', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    let open: { system: string; code: string } | undefined
+    const view = () => <DictionaryView open={open} onOpen={(k) => (open = k)} />
+    const { rerender } = renderWith(h, view())
+    expect(screen.getByTestId('no-concepts')).toBeInTheDocument()
+    await user.click(screen.getByTestId('concept-add'))
+    expect(screen.getByTestId('concept-dialog-save')).toBeDisabled()
+    await user.type(screen.getByTestId('concept-code'), 'fever')
+    await user.type(screen.getByTestId('concept-display'), 'Fever')
+    await user.type(screen.getByTestId('concept-q-display'), 'Has the child had fever?')
+    // Nothing is stored until Save.
+    expect(Object.keys(h.open.document.snapshot().codeSystems)).toHaveLength(0)
+    await user.click(screen.getByTestId('concept-dialog-save'))
+    rerender(
+      <TriccRuntimeProvider runtime={h.runtime}>
+        <OpenProjectProvider project={h.open}>{view()}</OpenProjectProvider>
+      </TriccRuntimeProvider>,
+    )
+    const snapshot = h.open.document.snapshot()
+    const cs = Object.values(snapshot.codeSystems)[0]!
+    expect(snapshot.defaultCodeSystem).toBe(cs.url)
+    expect(cs.concepts['fever']?.display).toBe('Fever')
+    expect(screen.getByTestId('concept-row-fever')).toHaveTextContent('Has the child had fever?')
+    expect(screen.queryByTestId('concept-dialog')).not.toBeInTheDocument()
+  })
+
+  it('edits in a dialog: Cancel discards, Save stores, delete waits until unused', async () => {
+    const user = userEvent.setup()
+    const h = await harness(withWeight())
+    renderWith(h, <DictionaryView open={{ system: URL, code: 'weight' }} onOpen={() => {}} />)
+    await user.clear(screen.getByTestId('concept-display'))
+    await user.type(screen.getByTestId('concept-display'), 'Body weight')
+    await user.click(screen.getByTestId('concept-dialog-cancel'))
+    expect(h.open.document.snapshot().codeSystems[URL]!.concepts['weight']!.display).toBe('Weight (kg)')
+  })
+
+  it('saves texts and type from the dialog, and offers concept types from preferences', async () => {
+    const user = userEvent.setup()
+    const h = await harness(withWeight())
+    renderWith(h, <DictionaryView open={{ system: URL, code: 'weight' }} onOpen={() => {}} />)
+    expect(screen.getByTestId('concept-delete')).toBeDisabled()
+    await user.type(screen.getByTestId('concept-hint'), 'In kilograms')
+    await user.selectOptions(screen.getByTestId('concept-type'), 'Vital')
+    await user.click(screen.getByTestId('concept-dialog-save'))
+    const concept = h.open.document.snapshot().codeSystems[URL]!.concepts['weight']!
+    expect(concept.conceptType).toBe('Vital')
+    expect(concept.designations).toEqual([
+      { language: 'en', use: { system: 'https://tricc.org/CodeSystem/designation-use', code: 'hint' }, value: 'In kilograms' },
+    ])
+  })
+
+  it('adds a translation row in a one-language project, and saves it once it has a language', async () => {
+    const user = userEvent.setup()
+    const h = await harness(withWeight())
+    renderWith(h, <DictionaryView open={{ system: URL, code: 'weight' }} onOpen={() => {}} />)
+    await user.click(screen.getByTestId('concept-text-add'))
+    expect(screen.getByTestId('concept-texts')).toBeInTheDocument()
+    expect(screen.getByTestId('concept-dialog-save')).toBeDisabled()
+    await user.type(screen.getByTestId('concept-text-0-language'), 'fr')
+    await user.type(screen.getByTestId('concept-text-0-value'), 'Pesez l’enfant')
+    await user.click(screen.getByTestId('concept-dialog-save'))
+    expect(h.open.document.snapshot().codeSystems[URL]!.concepts['weight']!.designations).toEqual([
+      {
+        language: 'fr',
+        use: { system: 'https://tricc.org/CodeSystem/designation-use', code: 'q-display' },
+        value: 'Pesez l’enfant',
+      },
+    ])
+  })
+
+  it('shows a node concept in short and edits it in the same dialog', async () => {
+    const user = userEvent.setup()
+    const h = await harness(withWeight())
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    selectNode('w')
+    expect(screen.getByTestId('concept-card-code')).toHaveTextContent('weight')
+    await user.click(screen.getByTestId('concept-edit'))
+    await user.type(screen.getByTestId('concept-q-display'), 'Weigh the child')
+    await user.click(screen.getByTestId('concept-dialog-save'))
+    expect(screen.getByTestId('concept-card-q-display')).toHaveTextContent('Weigh the child')
+    expect(screen.getByTestId('node-w-label')).toHaveTextContent('Weigh the child')
+  })
+})
+
+describe('texts live in the dictionary', () => {
+  it('moves an imported question text into a concept named by the question', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityNavigator selected={undefined} onSelect={() => {}} />)
+    const yaml = [
+      'id: weight',
+      'title: Weight measurement',
+      'nodes:',
+      '  - id: s',
+      '    type: activity_start',
+      '  - id: w',
+      '    type: decimal',
+      '    name: weight_kg',
+      '    label: Weight (kg)',
+      '    hint: Use a calibrated scale',
+      '',
+    ].join('\n')
+    await user.upload(
+      screen.getByTestId('import-activity-file', { hidden: true }),
+      new File([yaml], 'weight.activity.yaml', { type: 'text/yaml' }),
+    )
+    await waitFor(() => expect(screen.getByTestId('import-confirm')).toBeEnabled())
+    await user.click(screen.getByTestId('import-confirm'))
+    const snapshot = h.open.document.snapshot()
+    const cs = Object.values(snapshot.codeSystems)[0]!
+    expect(cs.concepts['weight_kg']?.display).toBe('Weight (kg)')
+    expect(cs.concepts['weight_kg']?.designations[0]?.value).toBe('Use a calibrated scale')
+    expect(snapshot.activities['weight']?.nodes['w']).not.toHaveProperty('label')
+  })
+
+  it('creating a concept from a node moves its label into the concept, and hides the inline fields', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    await user.click(screen.getByTestId('add-integer'))
+    await user.clear(screen.getByTestId('field-name'))
+    await user.type(screen.getByTestId('field-name'), 'age_years')
+    await user.type(screen.getByTestId('field-label'), 'Age in years')
+    await user.click(screen.getByTestId('concept-create'))
+    expect(screen.getByTestId('concept-code')).toHaveValue('age_years')
+    expect(screen.getByTestId('concept-display')).toHaveValue('Age in years')
+    await user.click(screen.getByTestId('concept-dialog-save'))
+    const snapshot = h.open.document.snapshot()
+    const cs = Object.values(snapshot.codeSystems)[0]!
+    expect(cs.concepts['age_years']?.display).toBe('Age in years')
+    expect(snapshot.activities['triage']?.nodes['n-integer']).not.toHaveProperty('label')
+    expect(screen.queryByTestId('field-label')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('field-hint')).not.toBeInTheDocument()
+    expect(screen.getByTestId('node-n-integer-label')).toHaveTextContent('Age in years')
+  })
+})
+
+describe('questionnaire text per intervention', () => {
+  it('scopes a translation or intervention text from the concept dialog', async () => {
+    const user = userEvent.setup()
+    const project = seed()
+    const url = 'https://tricc.org/CodeSystem/test'
+    project.codeSystems[url] = {
+      id: 'test',
+      url,
+      status: 'draft',
+      content: 'complete',
+      concepts: { weight: { system: url, code: 'weight', display: 'Weight (kg)', designations: [] } },
+      conceptOrder: ['weight'],
+    }
+    project.interventions = [
+      { id: 'community', title: { en: 'Community' }, trigger: { mode: 'on-demand' }, activities: [] },
+    ]
+    const h = await harness(project)
+    renderWith(h, <DictionaryView open={{ system: url, code: 'weight' }} onOpen={() => {}} />)
+    await user.click(screen.getByTestId('concept-text-add'))
+    await user.clear(screen.getByTestId('concept-text-0-language'))
+    await user.type(screen.getByTestId('concept-text-0-language'), 'en')
+    await user.type(screen.getByTestId('concept-text-0-value'), 'Weigh the child')
+    await user.selectOptions(screen.getByTestId('concept-text-0-scope'), 'community')
+    await user.click(screen.getByTestId('concept-dialog-save'))
+    const d = h.open.document.snapshot().codeSystems[url]!.concepts['weight']!.designations[0]!
+    expect(d).toMatchObject({ language: 'en', value: 'Weigh the child' })
+    expect(d.extension).toEqual([
+      { url: 'https://tricc.org/StructureDefinition/designation-intervention', valueCode: 'community' },
+    ])
+  })
+})
+
+describe('project settings and delete', () => {
+  it('renames through the gear: Cancel keeps the name, Save stores it and tells the host', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    const renamed: string[] = []
+    renderWith(h, <ProjectOverview onRename={(name) => renamed.push(name)} />)
+    await user.click(screen.getByTestId('configure-project'))
+    await user.clear(screen.getByTestId('project-title'))
+    await user.type(screen.getByTestId('project-title'), 'Abandoned')
+    await user.click(screen.getByTestId('project-settings-cancel'))
+    expect(h.open.document.snapshot().title).toEqual({ en: 'Test guideline' })
+
+    await user.click(screen.getByTestId('configure-project'))
+    await user.clear(screen.getByTestId('project-title'))
+    await user.type(screen.getByTestId('project-title'), 'IMCI 2026')
+    await user.click(screen.getByTestId('project-settings-save'))
+    expect(h.open.document.snapshot().title).toEqual({ en: 'IMCI 2026' })
+    expect(renamed).toEqual(['IMCI 2026'])
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('IMCI 2026')
+  })
+
+  it('deletes only after confirmation, and says what happens to the files', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    let deleted = 0
+    renderWith(h, <ProjectOverview onDelete={() => deleted++} deleteNote="The folder stays on disk." />)
+    await user.click(screen.getByTestId('delete-project'))
+    expect(screen.getByTestId('delete-project-note')).toHaveTextContent('The folder stays on disk.')
+    await user.click(screen.getByTestId('delete-project-cancel'))
+    expect(deleted).toBe(0)
+    await user.click(screen.getByTestId('delete-project'))
+    await user.click(screen.getByTestId('delete-project-confirm'))
+    expect(deleted).toBe(1)
+  })
+
+  it('hides the bin without a host delete, and when read-only', async () => {
+    const h = await harness()
+    h.identity.setCapabilities(['project.read'])
+    renderWith(h, <ProjectOverview onDelete={() => {}} />)
+    expect(screen.queryByTestId('delete-project')).not.toBeInTheDocument()
+    expect(screen.getByTestId('configure-project')).toBeInTheDocument()
+  })
+})
+
+describe('node fields', () => {
+  function withGoto(): Project {
+    const project = seed()
+    project.activities['cough'] = {
+      id: 'cough',
+      title: { en: 'Cough' },
+      nodeOrder: ['s'],
+      edgeOrder: [],
+      nodes: { s: { id: 's', type: 'activity_start', ui: { x: 0, y: 0 } } },
+      edges: {},
+    }
+    const triage = project.activities['triage']!
+    triage.nodes['g'] = { id: 'g', type: 'goto', link: 'cough', ui: { x: 0, y: 100 } }
+    triage.nodes['r'] = { id: 'r', type: 'rhombus', name: 'old_decision', ui: { x: 200, y: 100 } }
+    triage.nodeOrder.push('g', 'r')
+    return project
+  }
+
+  it('sets a repeat on a question and on a goto', async () => {
+    const user = userEvent.setup()
+    const h = await harness(withGoto())
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    await user.click(screen.getByTestId('add-integer'))
+    await user.type(screen.getByTestId('field-repeat'), '3')
+    selectNode('g')
+    await user.type(screen.getByTestId('field-repeat'), '2')
+    const nodes = h.open.document.snapshot().activities['triage']!.nodes
+    expect(nodes['n-integer']?.repeat).toBe(3)
+    expect(nodes['g']?.repeat).toBe(2)
+  })
+
+  it('shows no name on a decision, and keeps the one a drawing gave it', async () => {
+    const h = await harness(withGoto())
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    selectNode('r')
+    expect(screen.queryByTestId('field-name')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Internal id')).not.toBeInTheDocument()
+    // The name stays in the document.
+    expect(h.open.document.snapshot().activities['triage']!.nodes['r']?.name).toBe('old_decision')
+  })
+
+  it('shows no name on a goto', async () => {
+    const h = await harness(withGoto())
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    selectNode('g')
+    expect(screen.queryByTestId('field-name')).not.toBeInTheDocument()
+  })
+
+  it('generates a hidden name for a new goto', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    await user.click(screen.getByTestId('add-goto'))
+    expect(h.open.document.snapshot().activities['triage']!.nodes['n-goto']?.name).toBe('goto')
+    expect(screen.queryByTestId('field-name')).not.toBeInTheDocument()
+  })
+
+  it('opens the activity a goto goes to, from its details and by Ctrl+click', async () => {
+    const user = userEvent.setup()
+    const h = await harness(withGoto())
+    const opened: string[] = []
+    renderWith(h, <ActivityEditor activityId="triage" onOpenActivity={(id) => opened.push(id)} />)
+    selectNode('g')
+    await user.click(screen.getByTestId('goto-open'))
+    fireEvent.click(screen.getByTestId('node-g'), { ctrlKey: true })
+    expect(opened).toEqual(['cough', 'cough'])
+  })
+})
+
+describe('comments on the diagram', () => {
+  it('adds a coloured comment about a node, keeps it out of the guideline, and deletes it', async () => {
+    const user = userEvent.setup()
+    const project = seed()
+    project.activities['triage']!.nodes['w'] = { id: 'w', type: 'decimal', name: 'weight', ui: { x: 0, y: 100 } }
+    project.activities['triage']!.nodeOrder.push('w')
+    const h = await harness(project)
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    await user.click(screen.getByTestId('add-comment'))
+    await user.type(screen.getByTestId('comment-text'), 'Check the 9 kg threshold')
+    await user.selectOptions(screen.getByTestId('comment-color'), 'pink')
+    await user.selectOptions(screen.getByTestId('comment-node'), 'w')
+    expect(screen.getByTestId('comment-comment')).toHaveTextContent('Check the 9 kg threshold')
+    expect(screen.getByTestId('comment-comment')).toHaveAttribute('data-color', 'pink')
+
+    const triage = h.open.document.snapshot().activities['triage']!
+    expect(triage.ui?.comments).toEqual([
+      expect.objectContaining({ id: 'comment', text: 'Check the 9 kg threshold', color: 'pink', node: 'w' }),
+    ])
+    // Not a node, not an edge: conversion never sees it.
+    expect(Object.keys(triage.nodes)).toEqual(['s', 'w'])
+    expect(Object.keys(triage.edges)).toEqual([])
+    await h.runtime.save(h.open)
+    const yaml = (await h.persistence.read(h.open.ref))['activities/triage.activity.yaml']!
+    expect(yaml).toMatch(/ui:\n(.|\n)*comments:/)
+
+    await user.click(screen.getByTestId('comment-delete'))
+    expect(h.open.document.snapshot().activities['triage']!.ui?.comments ?? []).toEqual([])
+  })
+})
+
+describe('page groups', () => {
+  it('adds a group, titles it through its concept, and ungroups keeping its nodes', async () => {
+    const user = userEvent.setup()
+    const project = seed()
+    project.activities['triage']!.nodes['q'] = { id: 'q', type: 'select_yesno', name: 'convulsions', ui: { x: 0, y: 100 } }
+    project.activities['triage']!.nodeOrder.push('q')
+    const h = await harness(project)
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    await user.click(screen.getByTestId('add-group'))
+    expect(screen.getByTestId('group-properties')).toBeInTheDocument()
+    await user.clear(screen.getByTestId('group-name'))
+    await user.type(screen.getByTestId('group-name'), 'danger_signs')
+    await user.type(screen.getByTestId('group-title'), 'Danger signs')
+    await user.selectOptions(screen.getByTestId('group-color'), 'pink')
+    expect(screen.getByTestId('group-group-title')).toHaveTextContent('Danger signs')
+
+    const snap = h.open.document.snapshot()
+    const group = snap.activities['triage']!.groups![0]!
+    expect(group).toMatchObject({ id: 'group', name: 'danger_signs', color: 'pink' })
+    expect(Object.values(snap.codeSystems)[0]!.concepts['danger_signs']?.display).toBe('Danger signs')
+
+    // Membership is what tricc_oo reads; dragging into the frame sets it (e2e). Here directly.
+    h.open.document.transact((tx) => tx.setNodeGroup('triage', 'q', 'group', 10, 40))
+    await h.runtime.save(h.open)
+    const yaml = (await h.persistence.read(h.open.ref))['activities/triage.activity.yaml']!
+    expect(yaml).toMatch(/groups:\n  - id: group\n    name: danger_signs/)
+    expect(yaml).toContain('group: group')
+
+    await user.click(screen.getByTestId('group-ungroup'))
+    const after = h.open.document.snapshot().activities['triage']!
+    expect(after.groups).toBeUndefined()
+    expect(after.nodes['q']?.group).toBeUndefined()
+    expect(after.nodes['q']?.ui).toMatchObject({ x: group.x + 10, y: group.y + 40 })
+  })
+})
+
+describe('hint and help marks', () => {
+  it('shows a yellow (!) for a hint and a blue (?) for help, from the concept', async () => {
+    const project = seed()
+    const url = 'https://tricc.org/CodeSystem/test'
+    const use = (code: string) => ({ system: 'https://tricc.org/CodeSystem/designation-use', code })
+    project.codeSystems[url] = {
+      id: 'test',
+      url,
+      status: 'draft',
+      content: 'complete',
+      concepts: {
+        weight: {
+          system: url,
+          code: 'weight',
+          display: 'Weight (kg)',
+          designations: [
+            { language: 'en', use: use('hint'), value: 'Use a calibrated scale' },
+            { language: 'en', use: use('help'), value: 'Undress the child first' },
+          ],
+        },
+        age: { system: url, code: 'age', display: 'Age', designations: [] },
+      },
+      conceptOrder: ['weight', 'age'],
+    }
+    project.defaultCodeSystem = url
+    const triage = project.activities['triage']!
+    triage.nodes['w'] = { id: 'w', type: 'decimal', name: 'weight', ui: { x: 0, y: 100 } }
+    triage.nodes['a'] = { id: 'a', type: 'integer', name: 'age', ui: { x: 0, y: 200 } }
+    triage.nodeOrder.push('w', 'a')
+    const h = await harness(project)
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    expect(screen.getByTestId('node-w-hint')).toHaveAttribute('title', 'Hint: Use a calibrated scale')
+    expect(screen.getByTestId('node-w-help')).toHaveAttribute('title', 'Help: Undress the child first')
+    expect(screen.queryByTestId('node-a-hint')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('node-a-help')).not.toBeInTheDocument()
+  })
+})
+

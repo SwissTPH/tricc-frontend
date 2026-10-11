@@ -1,4 +1,11 @@
-import { resolve, type Project, type TriccNode } from '@tricc/core'
+import {
+  conceptText,
+  lookupConcept,
+  nodeConceptKey,
+  resolve,
+  type Project,
+  type TriccNode,
+} from '@tricc/core'
 import { presentCql } from './present.js'
 
 /**
@@ -43,7 +50,7 @@ export function expressionNames(
 
   for (const system of Object.values(project.codeSystems)) {
     for (const concept of Object.values(system.concepts)) {
-      const label = concept.designations?.[lang] || concept.display
+      const label = conceptText(concept, 'display', lang, project.languages.default)
       if (!label) continue
       const existing = map.get(concept.code)
       map.set(concept.code, {
@@ -88,15 +95,14 @@ function nameForNode(
   activityTitle: string,
 ): Omit<ExpressionName, 'code'> | undefined {
   if (nameKeys(node).length === 0) return undefined
-  const concept = node.concept
-    ? project.codeSystems[node.concept.system]?.concepts[node.concept.code]
-    : undefined
-  const fromConcept = concept?.designations?.[lang] || concept?.display
+  const conceptKey = nodeConceptKey(project, node)
+  const concept = lookupConcept(project, conceptKey)
+  const fromConcept = conceptText(concept, 'display', lang, project.languages.default)
   const fromNode = resolve(node.label, lang, lang)
   return {
     label: fromConcept || fromNode || '',
     source: fromConcept ? 'concept' : 'question',
-    system: node.concept?.system,
+    system: conceptKey?.system ?? node.concept?.system,
     definition: concept?.definition,
     activityId,
     activityTitle,
@@ -105,7 +111,7 @@ function nameForNode(
 }
 
 function nameKeys(node: TriccNode): string[] {
-  const keys = [node.name, node.filter, node.concept?.code].filter((key): key is string => !!key)
+  const keys = [node.name, node.concept?.code].filter((key): key is string => !!key)
   return [...new Set(keys)]
 }
 

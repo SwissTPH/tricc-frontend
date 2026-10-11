@@ -1,44 +1,82 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  DRAWABLE_TYPES,
   NODE_TYPE_GROUPS,
   isCapture,
   isSelect,
+  NODE_TYPE_SPECS,
+  PALETTE_GROUP_LABELS,
+  hasInternalName,
+  type PaletteGroup,
+  isTextNode,
+  conceptText,
+  designationUse,
+  lookupConcept,
+  nodeConceptKey,
+  optionConceptKey,
+  withConceptText,
+  needsName,
   resolve,
   validateActivity,
   activityKind,
   processOf,
+  rootNode,
+  type ConceptKey,
   type NodeType,
   type TriccEdge,
   type TriccNode,
 } from '@tricc/core'
-import { useCanWrite, useMutate, useProjectSnapshot } from '../runtime/context.js'
+import { useCanWrite, useEditorPreferences, useMutate, useProjectSnapshot } from '../runtime/context.js'
 import { ValidationSummary, uniqueId } from '../project/Overview.js'
 import { CqlExpressionField } from '../cql/CqlExpressionField.js'
 import { expressionNames, renderCqlLabels } from '../cql/names.js'
 import { ActivityCanvas, type CanvasPlacement } from './canvas/Canvas.js'
-import { autoLayout } from './canvas/layout.js'
+import { autoLayout, renderedNodeSize } from './canvas/layout.js'
+import { commentIdOf } from './canvas/CommentNode.js'
+import { CANVAS_KINDS } from './canvas/elements.js'
+import { groupIdOf } from './canvas/GroupNode.js'
+import { GroupProperties } from './GroupProperties.js'
+import { CommentProperties } from './CommentProperties.js'
 import { branchKindOf, branchLabel, type BranchKind } from './canvas/BranchEdge.js'
 import { answerCode, answerEdgeCaption } from './canvas/answer.js'
 import { ActivityRefField } from '../components/ActivityRefField.js'
+import { BinIcon, GearIcon } from '../components/Dialog.js'
+import { CONCEPT_NODE_TYPES, ConceptCard } from '../terminology/ConceptCard.js'
+import { AnswerPicker } from '../terminology/AnswerPicker.js'
+import { ActivitySettings, ConfirmActivityDelete, titleSlug } from './ActivitySettings.js'
 
 export function ActivityEditor({
   activityId,
   focusNodeId,
   onOpen,
+  onDeleted,
+  onOpenActivity,
 }: {
   activityId: string
   focusNodeId?: string
   /** Open a question that lives in another activity. */
   onOpen?: (activityId: string, nodeId: string) => void
+  /** Open another activity: a goto's target. */
+  onOpenActivity?: (activityId: string) => void
+  /** The activity was deleted; the host returns to the project overview. */
+  onDeleted?: () => void
 }) {
   const project = useProjectSnapshot()
   const activity = project.activities[activityId]
   const canWrite = useCanWrite()
   const mutate = useMutate()
+  const { labelLines, labelChars } = useEditorPreferences()
   const [selectedId, setSelectedId] = useState<string | undefined>(focusNodeId)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | undefined>(undefined)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const closeSettings = useCallback(() => setSettingsOpen(false), [])
+  const cancelDelete = useCallback(() => setConfirmingDelete(false), [])
+  const deleted = useCallback(() => {
+    setSettingsOpen(false)
+    setConfirmingDelete(false)
+    onDeleted?.()
+  }, [onDeleted])
   const [panel, setPanel] = useState<'details' | 'nodes' | 'connection' | 'validation'>(
     focusNodeId ? 'details' : 'nodes',
   )
@@ -71,6 +109,10 @@ export function ActivityEditor({
     [activity, project],
   )
 
+  // Hooks stay above this return: the activity can disappear while open (delete, undo).
+  const placementRef = useRef<CanvasPlacement | null>(null)
+  const [dropping, setDropping] = useState(false)
+
   if (!activity) {
     return (
       <p data-testid="activity-missing">No activity called “{activityId}” is in this project.</p>
@@ -78,8 +120,10 @@ export function ActivityEditor({
   }
 
   const selected = selectedId ? activity.nodes[selectedId] : undefined
+  const selectedComment = activity.ui?.comments?.find((c) => c.id === commentIdOf(selectedId))
+  const selectedGroup = activity.groups?.find((g) => g.id === groupIdOf(selectedId))
   const selectedEdge = selectedEdgeId ? activity.edges[selectedEdgeId] : undefined
-  const hasSelection = Boolean(selected || selectedEdge)
+  const hasSelection = Boolean(selected || selectedEdge || selectedComment || selectedGroup)
   // Details is only a tab while something is selected. A stale "details" choice falls back to Nodes.
   const active: 'details' | 'nodes' | 'connection' | 'validation' =
     panel === 'details' && hasSelection
@@ -113,8 +157,14 @@ export function ActivityEditor({
     }
   }
 
-  const placementRef = useRef<CanvasPlacement | null>(null)
-  const [dropping, setDropping] = useState(false)
+  /** Add a comment or a group: at the drop point when dragged, in a free spot when clicked. */
+  const addKind = (kind: 'comment' | 'group', at?: { x: number; y: number }) => {
+    let flowId: string | undefined
+    mutate((tx) => {
+      flowId = CANVAS_KINDS[kind].create?.(tx, activityId, activity, at)
+    })
+    if (flowId) chooseNode(flowId)
+  }
 
   const addNode = (type: NodeType, at?: { x: number; y: number }) => {
     if (!canOffer(type, activity.nodes)) return
@@ -129,16 +179,43 @@ export function ActivityEditor({
     const lowest = Object.values(activity.nodes).reduce((max, n) => Math.max(max, n.ui?.y ?? 0), 0)
     const position = at ?? { x: 80, y: lowest + 96 }
     const node: TriccNode = { id, type, ui: { x: position.x, y: position.y } }
-    if (needsName(type)) node.name = uniqueId(type, names)
+    // A goto gets a generated name too: not shown, but stable in exports that want one.
+    if (needsName(type) || type === 'goto') node.name = uniqueId(type, names)
     if (isSelect(type) && type !== 'select_yesno') node.options = []
     mutate((tx) => tx.addNode(activityId, node))
     chooseNode(id)
   }
 
   return (
-    <div className="tricc-editor" data-testid="activity-editor">
+    <div
+      className="tricc-editor"
+      data-testid="activity-editor"
+      style={{ '--tricc-label-lines': labelLines } as CSSProperties}
+    >
       <header className="tricc-editor__header">
         <h1>{resolve(activity.title, lang, lang) ?? activity.id}</h1>
+        <button
+          type="button"
+          className="tricc-icon-button"
+          data-testid="configure-activity"
+          aria-label="Activity settings"
+          title="Activity settings"
+          onClick={() => setSettingsOpen(true)}
+        >
+          <GearIcon />
+        </button>
+        {canWrite && (
+          <button
+            type="button"
+            className="tricc-icon-button tricc-icon-button--danger"
+            data-testid="delete-activity"
+            aria-label="Delete activity"
+            title="Delete activity"
+            onClick={() => setConfirmingDelete(true)}
+          >
+            <BinIcon />
+          </button>
+        )}
         <span className="tricc-editor__kind" data-testid="activity-kind" data-kind={kind}>
           {kind === 'process' ? 'Process activity' : 'Activity'}
         </span>
@@ -152,11 +229,7 @@ export function ActivityEditor({
               disabled={!canWrite}
               onChange={(e) => {
                 const process = e.target.value || undefined
-                const root = Object.values(activity.nodes).find((n) => n.type === 'start')
-                mutate((tx) => {
-                  if (root) tx.updateNode(activityId, { ...root, process })
-                  tx.setActivityProcess(activityId, process)
-                })
+                mutate((tx) => tx.setActivityProcess(activityId, process))
               }}
             />
           </label>
@@ -166,9 +239,12 @@ export function ActivityEditor({
             type="button"
             data-testid="tidy-layout"
             onClick={() => {
-              const positions = autoLayout(activity)
+              const positions = autoLayout(activity, renderedNodeSize)
               mutate((tx) => {
-                for (const [id, pos] of positions) tx.moveNode(activityId, id, pos.x, pos.y)
+                // Nodes in a group keep their place inside it.
+                for (const [id, pos] of positions) {
+                  if (!activity.nodes[id]?.group) tx.moveNode(activityId, id, pos.x, pos.y)
+                }
               })
             }}
           >
@@ -176,6 +252,25 @@ export function ActivityEditor({
           </button>
         )}
       </header>
+
+      {settingsOpen && (
+        <ActivitySettings
+          activity={activity}
+          project={project}
+          readOnly={!canWrite}
+          onClose={closeSettings}
+          onDeleted={deleted}
+          onReveal={reveal}
+        />
+      )}
+      {confirmingDelete && canWrite && (
+        <ConfirmActivityDelete
+          activity={activity}
+          project={project}
+          onCancel={cancelDelete}
+          onDeleted={deleted}
+        />
+      )}
 
       <div className="tricc-editor__body">
         <ActivityCanvas
@@ -189,6 +284,7 @@ export function ActivityEditor({
           onSelectEdge={chooseEdge}
           placementRef={placementRef}
           dropping={dropping}
+          onOpenActivity={onOpenActivity}
         />
 
         <aside className="tricc-inspector">
@@ -248,6 +344,29 @@ export function ActivityEditor({
 
           {active === 'details' && (
             <div role="tabpanel" id="inspector-details" aria-labelledby="tab-details">
+              {selectedGroup && (
+                <GroupProperties
+                  key={selectedGroup.id}
+                  activityId={activityId}
+                  activity={activity}
+                  project={project}
+                  group={selectedGroup}
+                  lang={lang}
+                  readOnly={!canWrite}
+                  onUngrouped={() => setSelectedId(undefined)}
+                />
+              )}
+              {selectedComment && (
+                <CommentProperties
+                  key={selectedComment.id}
+                  activityId={activityId}
+                  activity={activity}
+                  comment={selectedComment}
+                  lang={lang}
+                  readOnly={!canWrite}
+                  onDeleted={() => setSelectedId(undefined)}
+                />
+              )}
               {selected && (
                 <NodeProperties
                   key={selected.id}
@@ -256,6 +375,10 @@ export function ActivityEditor({
                   lang={lang}
                   readOnly={!canWrite}
                   onReveal={reveal}
+                  onOpenSettings={
+                    rootNode(activity)?.id === selected.id ? () => setSettingsOpen(true) : undefined
+                  }
+                  onOpenActivity={onOpenActivity}
                   onDelete={() => {
                     mutate((tx) => tx.removeNode(activityId, selected.id))
                     setSelectedId(undefined)
@@ -280,6 +403,7 @@ export function ActivityEditor({
                 <NodePalette
                   nodes={activity.nodes}
                   onAdd={addNode}
+                  onAddKind={addKind}
                   clientToFlow={(clientX, clientY) => placementRef.current?.atClient(clientX, clientY)}
                   onDraggingChange={setDropping}
                 />
@@ -290,7 +414,7 @@ export function ActivityEditor({
                 {activity.nodeOrder.map((id) => {
                   const n = activity.nodes[id]
                   if (!n) return null
-                  const text = resolve(n.label, lang, lang) ?? n.name ?? TYPE_LABEL[n.type] ?? n.type
+                  const text = resolve(n.label, lang, lang) ?? n.name ?? NODE_TYPE_SPECS[n.type]?.label ?? n.type
                   return (
                     <li key={id}>
                       <button
@@ -321,7 +445,7 @@ export function ActivityEditor({
                 {activity.edgeOrder.map((id) => {
                   const e = activity.edges[id]
                   if (!e) return null
-                  const answer = answerEdgeCaption(activity.nodes[e.source], e.value, lang)
+                  const answer = answerEdgeCaption(activity.nodes[e.source], e.value, lang, project, labelChars)
                   const label = answer
                     ? answer.short
                     : branchKindOf(e.value) === 'condition'
@@ -376,6 +500,8 @@ export function NodeProperties({
   readOnly,
   onReveal,
   onDelete,
+  onOpenSettings,
+  onOpenActivity,
 }: {
   activityId: string
   node: TriccNode
@@ -383,6 +509,10 @@ export function NodeProperties({
   readOnly: boolean
   onReveal?: (activityId: string, nodeId: string) => void
   onDelete?: () => void
+  /** Open another activity (a goto's target). */
+  onOpenActivity?: (activityId: string) => void
+  /** Present on the root node: the start node is the activity, so it opens the activity settings. */
+  onOpenSettings?: () => void
 }) {
   const mutate = useMutate()
   const project = useProjectSnapshot()
@@ -394,30 +524,64 @@ export function NodeProperties({
   const concept = node.concept
     ? project.codeSystems[node.concept.system]?.concepts[node.concept.code]
     : undefined
+  const textConcept = isTextNode(node.type)
+    ? lookupConcept(project, nodeConceptKey(project, node))
+    : undefined
+
+  // The start node is the activity: it has no fields of its own, only the activity's.
+  if (onOpenSettings) {
+    return (
+      <section aria-labelledby="properties-heading" data-testid="node-properties">
+        <h2 id="properties-heading">{node.type}</h2>
+        <ActivitySummary activityId={activityId} lang={lang} onOpenSettings={onOpenSettings} />
+      </section>
+    )
+  }
 
   return (
     <section aria-labelledby="properties-heading" data-testid="node-properties">
       <h2 id="properties-heading">{node.type}</h2>
 
-      <label htmlFor="node-name">Name</label>
-      <input
-        id="node-name"
-        data-testid="field-name"
-        value={node.name ?? ''}
-        readOnly={readOnly}
-        disabled={readOnly}
-        onChange={(e) => update({ name: e.target.value || undefined })}
-      />
+      {/* Sequence nodes, decisions and gotos have no business name. A name they carry (from a
+          drawing, or generated for a goto) is kept in the file and never shown. */}
+      {hasInternalName(node.type) ? null : (
+        <>
+          <label htmlFor="node-name">Name</label>
+          <input
+            id="node-name"
+            data-testid="field-name"
+            value={node.name ?? ''}
+            readOnly={readOnly}
+            disabled={readOnly}
+            onChange={(e) => update({ name: e.target.value || undefined })}
+          />
+        </>
+      )}
 
-      <label htmlFor="node-label">Label</label>
-      <input
-        id="node-label"
-        data-testid="field-label"
-        value={resolve(node.label, lang, lang) ?? ''}
-        readOnly={readOnly}
-        disabled={readOnly}
-        onChange={(e) => update({ label: e.target.value ? { [lang]: e.target.value } : undefined })}
-      />
+      {CONCEPT_NODE_TYPES.includes(node.type) && (
+        <ConceptCard
+          activityId={activityId}
+          node={node}
+          lang={lang}
+          readOnly={readOnly}
+          onOpenNode={onReveal}
+        />
+      )}
+
+      {/* With a concept, the texts are the concept's and the card above edits them. */}
+      {!textConcept && (
+        <>
+          <label htmlFor="node-label">Label</label>
+          <input
+            id="node-label"
+            data-testid="field-label"
+            value={resolve(node.label, lang, lang) ?? ''}
+            readOnly={readOnly}
+            disabled={readOnly}
+            onChange={(e) => update({ label: e.target.value ? { [lang]: e.target.value } : undefined })}
+          />
+        </>
+      )}
 
       {(node.type === 'calculate' || node.type === 'count' || node.type === 'add') && (
         <CqlExpressionField
@@ -434,7 +598,7 @@ export function NodeProperties({
         />
       )}
 
-      {REF_TYPES.has(node.type) && typeof node.reference !== 'object' && (
+      {NODE_TYPE_SPECS[node.type]?.cqlReference && typeof node.reference !== 'object' && (
         <CqlExpressionField
           id="node-reference"
           testId="field-reference"
@@ -445,21 +609,6 @@ export function NodeProperties({
           onReveal={onReveal}
           onChange={(expression) => update({ reference: expression || undefined })}
         />
-      )}
-
-      {node.type === 'start' && (
-        <>
-          <label htmlFor="node-form-id">Form id</label>
-          <input
-            id="node-form-id"
-            data-testid="field-form-id"
-            value={node.form_id ?? ''}
-            readOnly={readOnly}
-            disabled={readOnly}
-            onChange={(e) => update({ form_id: e.target.value || undefined })}
-          />
-          <p>The form id of this process. Export names the form from it.</p>
-        </>
       )}
 
       {(node.type === 'integer' || node.type === 'decimal' || node.type === 'quantity') && (
@@ -571,7 +720,7 @@ export function NodeProperties({
         </>
       )}
 
-      {(isCapture(node.type) || node.type === 'note' || node.hint || node.help) && (
+      {!textConcept && (isCapture(node.type) || node.type === 'note' || node.hint || node.help) && (
         <>
           <label htmlFor="node-hint">Hint</label>
           <input
@@ -594,21 +743,6 @@ export function NodeProperties({
         </>
       )}
 
-      {isSelect(node.type) && node.filter && (
-        <>
-          <label htmlFor="node-code">Code</label>
-          <input
-            id="node-code"
-            data-testid="field-code"
-            value={node.filter}
-            readOnly={readOnly}
-            disabled={readOnly}
-            onChange={(e) => update({ filter: e.target.value.trim() ? e.target.value.trim() : undefined })}
-          />
-          <p>Conversion uses this code. The name on the drawing can stay a local placeholder.</p>
-        </>
-      )}
-
       {isSelect(node.type) && node.type !== 'select_yesno' && (
         <fieldset>
           <legend>Answers</legend>
@@ -616,16 +750,32 @@ export function NodeProperties({
           {(node.options ?? []).length === 0 && (
             <p>This question offers nothing to choose. Add the possible answers.</p>
           )}
-          {(node.options ?? []).map((op) => (
+          {(node.options ?? []).map((op) => {
+            // An answer with a concept edits the concept's text, shared by every question using it.
+            const opKey = optionConceptKey(project, op)
+            const opConcept = lookupConcept(project, opKey)
+            return (
             <div key={op.id}>
               <label htmlFor={`opt-label-${op.id}`}>Answer</label>
               <input
                 id={`opt-label-${op.id}`}
                 data-testid={`option-label-${op.id}`}
-                value={resolve(op.label, lang, lang) ?? ''}
+                value={
+                  opConcept
+                    ? (opConcept.designations.find(
+                        (d) => d.language === lang && !d.extension && designationUse(d) === 'q-display',
+                      )?.value ?? '')
+                    : (resolve(op.label, lang, lang) ?? '')
+                }
+                placeholder={opConcept ? (conceptText(opConcept, 'display', lang, project.languages.default) ?? '') : ''}
                 readOnly={readOnly}
                 disabled={readOnly}
                 onChange={(e) => {
+                  if (opKey && opConcept) {
+                    const next = withConceptText(opConcept, 'q-display', lang, e.target.value || undefined, project.languages.default)
+                    mutate((tx) => tx.upsertConcept(opKey.system, next))
+                    return
+                  }
                   const options = (node.options ?? []).map((o) =>
                     o.id === op.id
                       ? { ...o, label: e.target.value ? { [lang]: e.target.value } : undefined }
@@ -660,24 +810,13 @@ export function NodeProperties({
                 </button>
               )}
             </div>
-          ))}
+            )
+          })}
           {!readOnly && (
-            <button
-              type="button"
-              data-testid="add-option"
-              onClick={() => {
-                const taken = new Set((node.options ?? []).map((o) => o.id))
-                const id = uniqueId('option', taken)
-                update({
-                  options: [
-                    ...(node.options ?? []),
-                    { id, name: id.replace(/-/g, '_'), label: { [lang]: 'New answer' } },
-                  ],
-                })
-              }}
-            >
-              Add answer
-            </button>
+            <AnswerPicker
+              node={node}
+              onAdd={(option) => update({ options: [...(node.options ?? []), option] })}
+            />
           )}
         </fieldset>
       )}
@@ -803,6 +942,17 @@ export function NodeProperties({
           exclude={[activityId]}
           onChange={(link) => update({ link })}
         />
+        {onOpenActivity && (
+          <button
+            type="button"
+            data-testid="goto-open"
+            disabled={!node.link || !project.activities[node.link]}
+            title="Ctrl+click the node on the diagram does the same"
+            onClick={() => node.link && onOpenActivity(node.link)}
+          >
+            Open activity
+          </button>
+        )}
         <label htmlFor="node-instance">Instance</label>
         <input
           id="node-instance"
@@ -815,6 +965,22 @@ export function NodeProperties({
             update({ instance: e.target.value === '' ? undefined : Number(e.target.value) })
           }
         />
+        </>
+      )}
+
+      {(node.type === 'goto' || isCapture(node.type)) && (
+        <>
+          <label htmlFor="node-repeat">Repeat</label>
+          <input
+            id="node-repeat"
+            type="number"
+            min={1}
+            data-testid="field-repeat"
+            value={node.repeat ?? ''}
+            readOnly={readOnly}
+            disabled={readOnly}
+            onChange={(e) => update({ repeat: e.target.value === '' ? undefined : Number(e.target.value) })}
+          />
         </>
       )}
 
@@ -869,47 +1035,6 @@ export function NodeProperties({
   )
 }
 
-const GROUP_LABEL: Record<string, string> = {
-  flow: 'Flow',
-  questions: 'Questions',
-  logic: 'Logic',
-  data: 'Data',
-  clinical: 'Clinical',
-}
-
-const TYPE_LABEL: Partial<Record<NodeType, string>> = {
-  start: 'Start',
-  activity_start: 'Activity start',
-  activity_end: 'Activity end',
-  end: 'End',
-  goto: 'Go to activity',
-  link_in: 'Link in',
-  link_out: 'Link out',
-  bridge: 'Bridge',
-  wait: 'Wait',
-  continue_with: 'Continue with',
-  select_one: 'Single choice',
-  select_multiple: 'Multiple choice',
-  select_yesno: 'Yes or no',
-  select_option: 'Choice',
-  integer: 'Whole number',
-  decimal: 'Decimal number',
-  quantity: 'Quantity',
-  text: 'Text',
-  date: 'Date',
-  note: 'Note',
-  calculate: 'Calculation',
-  rhombus: 'Decision',
-  count: 'Count',
-  add: 'Add',
-  not: 'Not',
-  populate: 'Prefilled value',
-  diagnosis: 'Diagnosis',
-  proposed_diagnosis: 'Proposed diagnosis',
-}
-
-const REF_TYPES = new Set<NodeType>(['rhombus', 'diagnosis', 'proposed_diagnosis'])
-
 const BRANCH_CHOICES: { kind: BranchKind; label: string; value: string | undefined }[] = [
   { kind: 'unconditional', label: 'Unconditional', value: undefined },
   { kind: 'yes', label: 'Yes', value: 'yes' },
@@ -934,9 +1059,10 @@ export function EdgeProperties({
 }) {
   const mutate = useMutate()
   const project = useProjectSnapshot()
+  const { labelChars } = useEditorPreferences()
   const lang = project.languages.default
   const source = project.activities[activityId]?.nodes[edge.source]
-  const followed = answerEdgeCaption(source, edge.value, lang)
+  const followed = answerEdgeCaption(source, edge.value, lang, project, labelChars)
   const kind = branchKindOf(edge.value)
 
   const set = (value: string | undefined) => {
@@ -1024,43 +1150,17 @@ function mergeExpression(
   return hasIntent || hasExpr ? next : undefined
 }
 
-function needsName(type: NodeType): boolean {
-  return (
-    [
-      'select_one',
-      'select_multiple',
-      'select_yesno',
-      'integer',
-      'decimal',
-      'quantity',
-      'text',
-      'date',
-      'calculate',
-      'count',
-      'add',
-      'populate',
-      'diagnosis',
-      'proposed_diagnosis',
-      'activity_start',
-      'continue_with',
-    ] as string[]
-  ).includes(type)
-}
-
 /**
  * Context-aware palette: offering a node that will immediately fail validation is a worse
  * experience than not offering it (feature/20260825-activity-editor.md §2).
  */
 function canOffer(type: NodeType, nodes: Record<string, TriccNode>): boolean {
-  if (!(DRAWABLE_TYPES as readonly string[]).includes(type)) return false
-  const existing = Object.values(nodes)
+  const spec = NODE_TYPE_SPECS[type]
+  if (!spec.drawable || spec.offered === false) return false
   // An activity has exactly one root, and which root it has decides its kind. Neither is
   // offered once one exists, and both are offered only to repair an activity that has none.
   // An activity may finish in several places, so Activity end stays on the palette.
-  if (type === 'start' || type === 'activity_start') {
-    return !existing.some((n) => n.type === 'start' || n.type === 'activity_start')
-  }
-  if (type === 'select_option') return false // reached through its parent select
+  if (spec.root) return !Object.values(nodes).some((n) => NODE_TYPE_SPECS[n.type]?.root)
   return true
 }
 
@@ -1073,22 +1173,32 @@ const DRAG_THRESHOLD_PX = 4
 function NodePalette({
   nodes,
   onAdd,
+  onAddKind,
   clientToFlow,
   onDraggingChange,
 }: {
   nodes: Record<string, TriccNode>
   onAdd: (type: NodeType, at?: { x: number; y: number }) => void
+  /** Add a group (a section of the form) or a comment (drawing only), dragged or clicked. */
+  onAddKind?: (kind: 'comment' | 'group', at?: { x: number; y: number }) => void
   clientToFlow: (clientX: number, clientY: number) => { x: number; y: number } | undefined
   onDraggingChange: (dragging: boolean) => void
 }) {
-  const onAddRef = useRef(onAdd)
+  // A palette item is a node type, or a kind of element that is not a node.
+  type Item = NodeType | 'comment' | 'group'
+  const isKind = (item: Item): item is 'comment' | 'group' => item === 'comment' || item === 'group'
+  const add = (item: Item, at?: { x: number; y: number }) =>
+    isKind(item) ? onAddKind?.(item, at) : onAdd(item, at)
+  const onAddRef = useRef(add)
   const clientToFlowRef = useRef(clientToFlow)
-  onAddRef.current = onAdd
+  onAddRef.current = add
   clientToFlowRef.current = clientToFlow
-  const gesture = useRef<{ type: NodeType; x: number; y: number; moved: boolean } | null>(null)
+  const gesture = useRef<{ type: Item; x: number; y: number; moved: boolean } | null>(null)
   const suppressClick = useRef(false)
   const stopDrag = useRef<(() => void) | null>(null)
-  const [ghost, setGhost] = useState<{ type: NodeType; x: number; y: number } | null>(null)
+  const [ghost, setGhost] = useState<{ type: Item; x: number; y: number } | null>(null)
+  const itemLabel = (item: Item) =>
+    item === 'comment' ? 'Comment' : item === 'group' ? 'Group' : (NODE_TYPE_SPECS[item]?.label ?? item)
 
   useEffect(() => {
     onDraggingChange(ghost !== null)
@@ -1110,7 +1220,7 @@ function NodePalette({
     return () => window.removeEventListener('keydown', onKey)
   }, [ghost])
 
-  const pointerDown = (type: NodeType) => (event: ReactPointerEvent<HTMLButtonElement>) => {
+  const pointerDown = (type: Item) => (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0) return
     stopDrag.current?.()
     suppressClick.current = false
@@ -1162,7 +1272,7 @@ function NodePalette({
       <p className="tricc-palette__hint">Drag onto the diagram to choose where it lands.</p>
       {Object.entries(NODE_TYPE_GROUPS).map(([group, types]) => (
         <fieldset key={group} data-testid={`palette-${group}`} className="tricc-palette__group">
-          <legend>{GROUP_LABEL[group] ?? group}</legend>
+          <legend>{PALETTE_GROUP_LABELS[group as PaletteGroup] ?? group}</legend>
           {types
             .filter((t) => canOffer(t, nodes))
             .map((type) => (
@@ -1180,11 +1290,39 @@ function NodePalette({
                   onAdd(type)
                 }}
               >
-                {TYPE_LABEL[type] ?? type}
+                {NODE_TYPE_SPECS[type]?.label ?? type}
               </button>
             ))}
         </fieldset>
       ))}
+      {onAddKind && (
+        <fieldset data-testid="palette-annotations" className="tricc-palette__group">
+          <legend>Organise</legend>
+          {(
+            [
+              ['group', 'A frame for a section of the form. Drag it onto the diagram, then drag nodes into it.'],
+              ['comment', 'A note for authors, only on the drawing. It is not part of the guideline.'],
+            ] as const
+          ).map(([kind, title]) => (
+            <button
+              key={kind}
+              type="button"
+              data-testid={`add-${kind}`}
+              title={title}
+              onPointerDown={pointerDown(kind)}
+              onClick={() => {
+                if (suppressClick.current) {
+                  suppressClick.current = false
+                  return
+                }
+                onAddKind(kind)
+              }}
+            >
+              {itemLabel(kind)}
+            </button>
+          ))}
+        </fieldset>
+      )}
       {ghost &&
         createPortal(
           <div
@@ -1192,10 +1330,52 @@ function NodePalette({
             data-testid="palette-drag-ghost"
             style={{ left: ghost.x, top: ghost.y }}
           >
-            {TYPE_LABEL[ghost.type] ?? ghost.type}
+            {itemLabel(ghost.type)}
           </div>,
           document.body,
         )}
+    </div>
+  )
+}
+
+/** Read-only view of the activity on its root node, with the way into its settings. */
+function ActivitySummary({
+  activityId,
+  lang,
+  onOpenSettings,
+}: {
+  activityId: string
+  lang: string
+  onOpenSettings: () => void
+}) {
+  const project = useProjectSnapshot()
+  const activity = project.activities[activityId]
+  if (!activity) return null
+  const process = processOf(activity)
+  return (
+    <div className="tricc-activity-summary" data-testid="activity-summary">
+      <p>This node is the activity.</p>
+      <dl>
+        <dt>Title</dt>
+        <dd>{resolve(activity.title, lang, lang) ?? activity.id}</dd>
+        <dt>Name</dt>
+        <dd>{activity.name ?? `${titleSlug(activity, lang)} (from the title)`}</dd>
+        {process && (
+          <>
+            <dt>Process</dt>
+            <dd>{process}</dd>
+          </>
+        )}
+        {activity.applicability?.expression && (
+          <>
+            <dt>Applies when</dt>
+            <dd>{activity.applicability.expression}</dd>
+          </>
+        )}
+      </dl>
+      <button type="button" data-testid="root-activity-settings" onClick={onOpenSettings}>
+        Activity settings
+      </button>
     </div>
   )
 }
