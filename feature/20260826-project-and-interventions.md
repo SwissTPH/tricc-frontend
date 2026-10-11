@@ -9,6 +9,8 @@
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
+> **Continuation, 2026-10-08.** Each intervention card shows process chips only. Page activities stay in the saved activity list. There is no per-reference applicability. The intervention `start` is the condition. §2.1 and the five-level tree in §5 are the earlier proposal. Read [20261008-authoring-continuation.md](./20261008-authoring-continuation.md) before implementing this file. Status stays `Draft`.
+
 ---
 
 ## Part I — Business description

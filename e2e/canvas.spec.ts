@@ -48,6 +48,15 @@ async function placeNode(page: Page, type: string): Promise<void> {
   await button.click()
 }
 
+/** Add an answer to the selected question as a new concept. */
+async function newAnswer(page: Page, code: string, display: string): Promise<void> {
+  await page.getByTestId('add-option-new').click()
+  await page.getByTestId('concept-code').fill(code)
+  await page.getByTestId('concept-display').fill(display)
+  await page.getByTestId('concept-dialog-save').click()
+  await expect(page.getByTestId('concept-dialog')).toHaveCount(0)
+}
+
 /** Palette, canvas, and node panel, as the author sees them. */
 function editorPanes(): {
   body: { right: number }
@@ -306,12 +315,8 @@ test('a node with a validation error is marked on the canvas', async ({ page }) 
 test('a select shows each answer, and a link from an answer follows it', async ({ page }) => {
   await newActivity(page, 'Answers')
   await placeNode(page, 'select_one')
-  await page.getByTestId('add-option').click()
-  await page.getByTestId('option-name-option').fill('fever')
-  await page.getByTestId('option-label-option').fill('Fever')
-  await page.getByTestId('add-option').click()
-  await page.getByTestId('option-name-option-2').fill('rash')
-  await page.getByTestId('option-label-option-2').fill('Fever and a rash today')
+  await newAnswer(page, 'fever', 'Fever')
+  await newAnswer(page, 'rash', 'Fever and a rash today')
 
   await expect(page.getByTestId('node-n-select_one-answer-option')).toHaveText('Fever')
   await expect(page.getByTestId('node-n-select_one-answer-option-2')).toHaveText(
@@ -362,12 +367,8 @@ test('a select shows each answer, and a link from an answer follows it', async (
 test('the node output is not the first answer output', async ({ page }) => {
   await newActivity(page, 'Node out')
   await placeNode(page, 'select_one')
-  await page.getByTestId('add-option').click()
-  await page.getByTestId('option-name-option').fill('fever')
-  await page.getByTestId('option-label-option').fill('Fever')
-  await page.getByTestId('add-option').click()
-  await page.getByTestId('option-name-option-2').fill('rash')
-  await page.getByTestId('option-label-option-2').fill('Rash')
+  await newAnswer(page, 'fever', 'Fever')
+  await newAnswer(page, 'rash', 'Rash')
   // A click would stack the note on the select and cover its bottom output.
   const canvasBox = await page.getByTestId('activity-canvas').boundingBox()
   if (!canvasBox) throw new Error('canvas missing')
@@ -809,4 +810,279 @@ test('a goto with no destination is reported until one is chosen', async ({ page
   const issue = page.getByTestId('issue-goto.no-link')
   await expect(issue).toBeVisible()
   await expect(issue).toContainText('Choose the activity it goes to')
+})
+
+const LONG_LABEL =
+  'Has the child had convulsions, been unusually sleepy or unconscious, or been unable to drink or breastfeed since the illness began'
+
+/** Lines a label actually shows: its height over its line height. */
+async function visibleLines(page: Page, testId: string): Promise<number> {
+  return page.getByTestId(testId).evaluate((el) => {
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight)
+    return Math.round(el.clientHeight / lineHeight)
+  })
+}
+
+test('node text wraps to three lines by default, and the full text is on hover', async ({ page }) => {
+  await newActivity(page, 'Wrap guideline')
+  await placeNode(page, 'integer')
+  await page.getByTestId('field-label').fill(LONG_LABEL)
+  const label = page.getByTestId('node-n-integer-label')
+  await expect(label).toHaveAttribute('title', LONG_LABEL)
+  expect(await visibleLines(page, 'node-n-integer-label')).toBe(3)
+  // Cut, not hidden: there is more text than fits.
+  expect(await label.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true)
+})
+
+test('the lines-per-node preference changes how much text a node shows', async ({ page }) => {
+  await page.getByTestId('nav-preferences').click()
+  await page.getByTestId('pref-label-lines').fill('5')
+  await page.goto('/')
+  await newActivity(page, 'Five lines guideline')
+  await placeNode(page, 'integer')
+  await page.getByTestId('field-label').fill(LONG_LABEL)
+  await expect(page.getByTestId('node-n-integer-label')).toHaveAttribute('title', LONG_LABEL)
+  expect(await visibleLines(page, 'node-n-integer-label')).toBe(5)
+})
+
+test('tidy layout spaces tall nodes without overlap', async ({ page }) => {
+  await page.getByTestId('nav-preferences').click()
+  await page.getByTestId('pref-label-lines').fill('6')
+  await page.goto('/')
+  await newActivity(page, 'Tidy tall guideline')
+  await placeNode(page, 'integer')
+  await page.getByTestId('field-label').fill(LONG_LABEL)
+  await placeNode(page, 'decimal')
+  await page.getByTestId('field-label').fill(LONG_LABEL)
+  await page.getByTestId('tidy-layout').click()
+  const ids = ['node-n-integer', 'node-n-decimal']
+  const boxes = await Promise.all(ids.map((id) => page.getByTestId(id).boundingBox()))
+  const [a, b] = boxes
+  expect(a && b).toBeTruthy()
+  const overlap =
+    a!.x < b!.x + b!.width && b!.x < a!.x + a!.width && a!.y < b!.y + b!.height && b!.y < a!.y + a!.height
+  expect(overlap).toBe(false)
+})
+
+test('a goto opens its activity from the details, and by Ctrl+click on the diagram', async ({ page }) => {
+  await newActivity(page, 'Jump guideline')
+  await page.getByTestId('nav-overview').click()
+  await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId(`nav-activity-${FIRST_ACTIVITY}`).click()
+  await placeNode(page, 'goto')
+  await page.getByTestId('field-link').click()
+  await page.getByTestId('field-link-option-activity-2').click()
+  await page.getByTestId('field-repeat').fill('2')
+
+  await page.getByTestId('goto-open').click()
+  await expect(page.getByTestId('nav-activity-activity-2')).toHaveAttribute('aria-current', /true|page/)
+  await page.getByTestId(`nav-activity-${FIRST_ACTIVITY}`).click()
+  await page.getByTestId('node-n-goto').click({ modifiers: ['ControlOrMeta'] })
+  await expect(page.getByTestId('nav-activity-activity-2')).toHaveAttribute('aria-current', /true|page/)
+})
+
+test('a comment says what it is about with a dashed line, never an edge', async ({ page }) => {
+  await newActivity(page, 'Comment guideline')
+  await placeNode(page, 'decimal')
+  await page.getByTestId('tab-nodes').click()
+  await page.getByTestId('add-comment').click()
+  await page.getByTestId('comment-text').fill('Check the 9 kg threshold with the clinician')
+  await page.getByTestId('comment-color').selectOption('blue')
+  await page.locator('.react-flow__controls-fitview').click()
+  const comment = page.getByTestId('comment-comment')
+  await expect(comment).toHaveText('Check the 9 kg threshold with the clinician')
+  await expect(comment).toHaveAttribute('data-color', 'blue')
+
+  await connectFromHandle(page, comment.locator('.react-flow__handle'), 'node-n-decimal')
+  await expect(page.locator('.tricc-edge--about')).toHaveCount(1)
+  await expect(page.getByTestId('comment-node')).toHaveValue('n-decimal')
+  // The guideline has no connection: the line is not an edge.
+  await page.getByTestId('tab-connection').click()
+  await expect(page.getByText('This activity has no connections.')).toBeVisible()
+
+  // Moving the comment keeps it, and its line, after a reload.
+  const before = await comment.boundingBox()
+  await comment.hover()
+  await page.mouse.down()
+  await page.mouse.move(before!.x + 120, before!.y + 60, { steps: 8 })
+  await page.mouse.up()
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 })
+  await page.reload()
+  await page.getByTestId(`nav-activity-${FIRST_ACTIVITY}`).click()
+  await expect(page.getByTestId('comment-comment')).toBeVisible()
+  await expect(page.locator('.tricc-edge--about')).toHaveCount(1)
+})
+
+/** Drag a canvas element by its centre to a point. */
+async function dragTo(page: Page, locator: ReturnType<Page['getByTestId']>, x: number, y: number): Promise<void> {
+  const box = await locator.boundingBox()
+  if (!box) throw new Error('nothing to drag')
+  await page.mouse.move(box.x + box.width / 2, box.y + Math.min(12, box.height / 2))
+  await page.mouse.down()
+  await page.mouse.move(x, y, { steps: 12 })
+  await page.mouse.up()
+}
+
+test('a node dropped into a group joins it, moves with it, and leaves when dragged out', async ({ page }) => {
+  await newActivity(page, 'Group guideline')
+  await placeNode(page, 'select_yesno')
+  await page.getByTestId('tab-nodes').click()
+  await page.getByTestId('add-group').click()
+  await page.getByTestId('group-name').fill('danger_signs')
+  await page.getByTestId('group-title').fill('Danger signs')
+  await page.locator('.react-flow__controls-fitview').click()
+  const frame = page.getByTestId('group-group')
+  await expect(page.getByTestId('group-group-title')).toHaveText('Danger signs')
+
+  // Drop the question in the middle of the frame.
+  const f = (await frame.boundingBox())!
+  await dragTo(page, page.getByTestId('node-n-select_yesno'), f.x + f.width / 2, f.y + f.height / 2)
+  await page.getByTestId('group-group-title').click()
+  await expect(page.getByTestId('group-members')).toContainText('1 node')
+
+  // Moving the frame by its title moves the question with it.
+  const before = (await page.getByTestId('node-n-select_yesno').boundingBox())!
+  const title = (await page.getByTestId('group-group-title').boundingBox())!
+  await dragTo(page, page.getByTestId('group-group-title'), title.x + title.width / 2 + 80, title.y + 6 + 40)
+  const after = (await page.getByTestId('node-n-select_yesno').boundingBox())!
+  expect(after.x - before.x).toBeGreaterThan(40)
+
+  // Dragged out, it leaves the group.
+  const g = (await frame.boundingBox())!
+  const canvas = (await page.getByTestId('activity-canvas').boundingBox())!
+  await dragTo(
+    page,
+    page.getByTestId('node-n-select_yesno'),
+    Math.max(canvas.x + 80, g.x - 140),
+    Math.min(canvas.y + canvas.height - 60, g.y + g.height + 60),
+  )
+  await page.locator('.react-flow__controls-fitview').click()
+  await page.getByTestId('group-group-title').click()
+  await expect(page.getByTestId('group-members')).toContainText('0 nodes')
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 })
+})
+
+// --- Refresh and palette drag (2026-10-11): reproductions first --------------------------
+
+/** Drag a palette button onto the canvas at a fraction of its size; returns the drop point. */
+async function dropFromPalette(page: Page, testId: string, across: number, down: number) {
+  const canvas = (await page.getByTestId('activity-canvas').boundingBox())!
+  const button = page.getByTestId(testId)
+  await button.scrollIntoViewIfNeeded()
+  const from = (await button.boundingBox())!
+  const to = { x: canvas.x + canvas.width * across, y: canvas.y + canvas.height * down }
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(to.x, to.y, { steps: 12 })
+  await expect(page.getByTestId('palette-drag-ghost')).toBeVisible()
+  await page.mouse.up()
+  return to
+}
+
+test('editing a concept updates the node text and its marks at once', async ({ page }) => {
+  await newActivity(page, 'Refresh texts')
+  await placeNode(page, 'decimal')
+  await page.getByTestId('field-name').fill('weight_kg')
+  await page.getByTestId('concept-create').click()
+  await page.getByTestId('concept-display').fill('Weight')
+  await page.getByTestId('concept-dialog-save').click()
+  await expect(page.getByTestId('node-n-decimal-label')).toHaveText('Weight')
+  await expect(page.getByTestId('node-n-decimal-hint')).toHaveCount(0)
+
+  await page.getByTestId('concept-edit').click()
+  await page.getByTestId('concept-q-display').fill('Weigh the child')
+  await page.getByTestId('concept-hint').fill('Use a calibrated scale')
+  await page.getByTestId('concept-help').fill('Undress the child first')
+  await page.getByTestId('concept-dialog-save').click()
+  await expect(page.getByTestId('node-n-decimal-label')).toHaveText('Weigh the child')
+  await expect(page.getByTestId('node-n-decimal-hint')).toBeVisible()
+  await expect(page.getByTestId('node-n-decimal-help')).toBeVisible()
+})
+
+test('comments, their line, and groups stay on screen while another node is dragged', async ({ page }) => {
+  await newActivity(page, 'Refresh drag')
+  await placeNode(page, 'decimal')
+  await placeNode(page, 'note')
+  await page.getByTestId('tab-nodes').click()
+  await page.getByTestId('add-comment').click()
+  await page.getByTestId('comment-text').fill('About the weight')
+  await page.getByTestId('comment-node').selectOption('n-decimal')
+  await page.getByTestId('tab-nodes').click()
+  await page.getByTestId('add-group').click()
+  await page.locator('.react-flow__controls-fitview').click()
+  await expect(page.locator('.tricc-edge--about')).toHaveCount(1)
+
+  // React Flow hides a node it has to measure again (visibility: hidden). Record any frame in
+  // which the comment or group wrapper is hidden, or the about-line is gone, during the drag.
+  await page.evaluate(() => {
+    const w = window as unknown as { __hidden: string[] }
+    w.__hidden = []
+    const check = () => {
+      for (const id of ['comment:comment', 'group:group']) {
+        const el = document.querySelector<HTMLElement>(`.react-flow__node[data-id="${id}"]`)
+        if (!el || getComputedStyle(el).visibility === 'hidden') w.__hidden.push(id)
+      }
+      if (!document.querySelector('.tricc-edge--about path')) w.__hidden.push('about')
+    }
+    new MutationObserver(check).observe(document.querySelector('.react-flow')!, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['style', 'class'],
+    })
+  })
+  const note = (await page.getByTestId('node-n-note').boundingBox())!
+  await page.mouse.move(note.x + note.width / 2, note.y + 10)
+  await page.mouse.down()
+  for (let step = 1; step <= 6; step++) {
+    await page.mouse.move(note.x + note.width / 2 + step * 15, note.y + 10 + step * 8)
+  }
+  await page.mouse.up()
+  const hidden = await page.evaluate(() => (window as unknown as { __hidden: string[] }).__hidden)
+  expect([...new Set(hidden)]).toEqual([])
+  await expect(page.locator('.tricc-edge--about')).toHaveCount(1)
+})
+
+test('a link on an answer follows its row when an answer above it is removed', async ({ page }) => {
+  await newActivity(page, 'Refresh answers')
+  await placeNode(page, 'select_one')
+  await newAnswer(page, 'fever', 'Fever')
+  await newAnswer(page, 'rash', 'Rash')
+  await placeNode(page, 'note')
+  await page.locator('.react-flow__controls-fitview').click()
+  await connectFromHandle(
+    page,
+    page.getByTestId('node-n-select_one-answer-option-2').locator('.react-flow__handle'),
+    'node-n-note',
+  )
+  const edge = page.locator('[data-testid^="rf__edge-e-n-select_one-n-note"] path.react-flow__edge-path')
+  await expect(edge).toHaveCount(1)
+
+  await page.getByTestId('node-n-select_one').click()
+  await page.getByTestId('remove-option-option').click()
+  const row = (await page.getByTestId('node-n-select_one-answer-option-2').locator('.react-flow__handle').boundingBox())!
+  // The edge must start at the handle of its (now first) answer row, not where it used to be.
+  const start = await edge.evaluate((path) => {
+    const p = (path as SVGPathElement).getPointAtLength(0)
+    const m = (path as SVGPathElement).getScreenCTM()!
+    return { x: p.x * m.a + m.e, y: p.y * m.d + m.f }
+  })
+  expect(Math.abs(start.y - (row.y + row.height / 2))).toBeLessThan(6)
+})
+
+test('comment and group can be dragged from the palette onto the diagram', async ({ page }) => {
+  await newActivity(page, 'Palette drag')
+  await page.getByTestId('tab-nodes').click()
+  const commentAt = await dropFromPalette(page, 'add-comment', 0.7, 0.3)
+  const comment = (await page.getByTestId('comment-comment').boundingBox())!
+  expect(Math.abs(comment.x - commentAt.x)).toBeLessThan(40)
+  expect(Math.abs(comment.y - commentAt.y)).toBeLessThan(40)
+
+  await page.getByTestId('tab-nodes').click()
+  const groupAt = await dropFromPalette(page, 'add-group', 0.4, 0.6)
+  const group = (await page.getByTestId('group-group').boundingBox())!
+  expect(Math.abs(group.x - groupAt.x)).toBeLessThan(40)
+  expect(Math.abs(group.y - groupAt.y)).toBeLessThan(40)
 })

@@ -2,6 +2,10 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import {
   ARCHIVE_EXTENSION,
+  LABEL_CHARS_MAX,
+  LABEL_CHARS_MIN,
+  LABEL_LINES_MAX,
+  LABEL_LINES_MIN,
   createProject,
   fromArchive,
   normalizeImport,
@@ -10,11 +14,13 @@ import {
   writeProject,
   type OpenProject,
   type ProjectFiles,
+  type ConceptKey,
   type ProjectSummary,
 } from '@tricc/core'
 import {
   ActivityEditor,
   ActivityNavigator,
+  DictionaryView,
   HistoryButtons,
   OpenProjectProvider,
   ProjectOverview,
@@ -26,7 +32,7 @@ import type { LocalRuntime } from './adapters.js'
 export function App({ local }: { local: LocalRuntime }) {
   const [storageLabel, setStorageLabel] = useState(defaultStorageLabel(local))
   return (
-    <TriccRuntimeProvider runtime={local.runtime}>
+    <TriccRuntimeProvider runtime={local.runtime} preferences={local.preferences}>
       <Routes>
         <Route
           path="/"
@@ -302,9 +308,20 @@ function ProjectWorkspace({
   const [error, setError] = useState<string | undefined>(undefined)
   const [activityId, setActivityId] = useState<string | undefined>(undefined)
   const [focus, setFocus] = useState<{ activityId: string; nodeId: string } | null>(null)
+  const navigate = useNavigate()
+  const [dictionary, setDictionary] = useState(false)
+  const [concept, setConcept] = useState<ConceptKey | undefined>(undefined)
   const openNode = useCallback((nextActivity: string, nodeId: string) => {
+    setDictionary(false)
+    setConcept(undefined)
     setFocus({ activityId: nextActivity, nodeId })
     setActivityId(nextActivity)
+  }, [])
+  const openActivity = useCallback((id: string | undefined) => {
+    setDictionary(false)
+    setConcept(undefined)
+    setFocus(null)
+    setActivityId(id)
   }, [])
 
   useEffect(() => {
@@ -366,24 +383,41 @@ function ProjectWorkspace({
         }
       >
         <ActivityNavigator
-          onSelect={(id) => {
-            setFocus(null)
-            setActivityId(id)
-          }}
-          selected={activityId}
+          onSelect={openActivity}
+          selected={dictionary ? undefined : activityId}
+          dictionaryOpen={dictionary}
+          onOpenDictionary={() => setDictionary(true)}
         />
-        {activityId ? (
+        {dictionary ? (
+          <DictionaryView open={concept} onOpen={setConcept} onOpenNode={openNode} />
+        ) : activityId ? (
           <ActivityEditor
             activityId={activityId}
             focusNodeId={focus?.activityId === activityId ? focus.nodeId : undefined}
             onOpen={openNode}
+            onOpenActivity={openActivity}
+            onDeleted={() => openActivity(undefined)}
           />
         ) : (
           <ProjectOverview
             onOpen={openNode}
-            onSelect={(id) => {
-              setFocus(null)
-              setActivityId(id)
+            onSelect={openActivity}
+            onRename={(name) => void local.catalog.rename(open.ref, name)}
+            deleteNote={
+              local.storeFor(open.ref) === 'folder'
+                ? 'The folder and its files stay on your disk; only this list forgets the project.'
+                : 'Its files are kept only in this browser and are deleted. Export a copy first to keep it.'
+            }
+            onDelete={() => {
+              const ref = open.ref
+              void (async () => {
+                // Off the list first, so the list shown next no longer has it; then leave the
+                // project, so no autosave writes it back; then delete what the browser kept.
+                await local.catalog.remove(ref)
+                navigate('/')
+                await local.persistence.forget(ref)
+                await local.collaboration.forget(ref)
+              })()
             }}
           />
         )}
@@ -410,6 +444,9 @@ function saveLabel(state: string, error?: string): string {
 
 function Preferences({ local }: { local: LocalRuntime }) {
   const [name, setName] = useState(local.identity.current().displayName)
+  const [lines, setLines] = useState(String(local.preferences.current().labelLines))
+  const [chars, setChars] = useState(String(local.preferences.current().labelChars))
+  const [types, setTypes] = useState(local.preferences.current().conceptTypes.join('\n'))
   return (
     <div data-testid="preferences">
       <h1>Preferences</h1>
@@ -424,6 +461,46 @@ function Preferences({ local }: { local: LocalRuntime }) {
           local.identity.update({ displayName: e.target.value })
         }}
       />
+      <label htmlFor="pref-label-lines">Lines of text on a node</label>
+      <input
+        id="pref-label-lines"
+        data-testid="pref-label-lines"
+        type="number"
+        min={LABEL_LINES_MIN}
+        max={LABEL_LINES_MAX}
+        value={lines}
+        onChange={(e) => {
+          setLines(e.target.value)
+          if (e.target.value !== '') local.preferences.update({ labelLines: Number(e.target.value) })
+        }}
+      />
+      <p>Longer text is cut after this many lines. The full text shows when you hover the node. This is your setting; it is not saved in the project.</p>
+      <label htmlFor="pref-label-chars">Characters of a label in short lists</label>
+      <input
+        id="pref-label-chars"
+        data-testid="pref-label-chars"
+        type="number"
+        min={LABEL_CHARS_MIN}
+        max={LABEL_CHARS_MAX}
+        value={chars}
+        onChange={(e) => {
+          setChars(e.target.value)
+          if (e.target.value !== '') local.preferences.update({ labelChars: Number(e.target.value) })
+        }}
+      />
+      <p>How much of a label shows on an answer link and in the Insert data list. The full text is on hover.</p>
+      <label htmlFor="pref-concept-types">Concept types</label>
+      <textarea
+        id="pref-concept-types"
+        data-testid="pref-concept-types"
+        rows={8}
+        value={types}
+        onChange={(e) => {
+          setTypes(e.target.value)
+          local.preferences.update({ conceptTypes: e.target.value.split('\n') })
+        }}
+      />
+      <p>One per line. The data dictionary offers these as a concept's type; tricc_oo maps them to a FHIR resource.</p>
       <p data-testid="storage-explanation">
         {local.canUseFolders
           ? 'A project can be bound to a folder on disk; until then it is kept in this browser.'

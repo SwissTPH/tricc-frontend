@@ -48,7 +48,7 @@ test('builds an intervention from scratch and it survives a reload', async ({ pa
   await page.getByTestId('configure-intervention-intervention').click()
 
   await page.getByTestId('iv-title-intervention').fill('Sick child consultation')
-  await page.getByTestId('iv-code-intervention').fill('sick-child')
+  await page.getByTestId('iv-name-intervention').fill('sick-child')
   await page.getByTestId('iv-intent-intervention').fill('Children under five')
   await page.getByTestId('iv-cql-intervention').fill('AgeInMonths() < 60')
   await expect(page.getByTestId('intervention-settings-intervention-save')).toBeVisible()
@@ -267,15 +267,14 @@ test('creates a process activity straight from the intervention', async ({ page 
   )
 })
 
-test('overview, processes, and activities share one readable column', async ({ page }) => {
+test('overview, processes, and activities use the full browser width', async ({ page }) => {
   await page.setViewportSize({ width: 1680, height: 900 })
   await projectWithProcessActivity(page, 'Column width')
 
   const root = await page.locator('#root').boundingBox()
   if (!root) throw new Error('app column missing')
-  expect(root.width).toBeLessThanOrEqual(72 * 16 + 1)
-  expect(root.x).toBeGreaterThan(40)
-  expect(root.x + root.width).toBeLessThan(1640)
+  expect(root.x).toBeLessThanOrEqual(1)
+  expect(root.width).toBeGreaterThanOrEqual(1680 - 1)
 
   await page.getByTestId('tab-processes').click()
   const processes = await page.getByTestId('activity-navigator').boundingBox()
@@ -288,6 +287,7 @@ test('overview, processes, and activities share one readable column', async ({ p
   expect(activities!.width).toBeLessThanOrEqual(root.width + 1)
   const editor = await page.getByTestId('activity-editor').boundingBox()
   expect(editor!.width).toBeLessThanOrEqual(root.width + 1)
+  expect(editor!.width).toBeGreaterThanOrEqual(1680 - 32)
 })
 
 test('intervention cards sit side by side, and a process chip opens it', async ({ page }) => {

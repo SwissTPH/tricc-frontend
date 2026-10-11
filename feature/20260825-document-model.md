@@ -9,6 +9,8 @@
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
+> **Continuation, 2026-10-08.** The local app uses a Yjs document and local undo (Ctrl/Cmd+Z, 500ms capture). Presence and live collaboration remain this draft. The file projection is `tricc.yaml`, recorded in [20261008-authoring-continuation.md](./20261008-authoring-continuation.md). Status stays `Draft`.
+
 ---
 
 ## Part I — Business description

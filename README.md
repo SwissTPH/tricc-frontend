@@ -8,18 +8,11 @@ OpenMRS, DHIS2, FHIR SDC and OpenSRP/FHIR-Core. Today those flowcharts are autho
 converted by [`tricc_oo`](../tricc_oo). This repository replaces the authoring half: a purpose-built
 editor that understands TRICC's semantics, and a native project format `tricc_oo` reads directly.
 
-> ## Status: specification
+> ## Status: local app in progress
 >
-> **The v1 described below is specified, not built.** The twelve specs in [`feature/`](./feature)
-> are at status `Draft` and await review.
+> A thin local app lives in `apps/local`, with libraries under `packages/`. That work is uncommitted on `develop`. The August specs in [`feature/`](./feature) stay `Draft`. What is already built, and which draft sections it overrides, is in [`feature/20261008-authoring-continuation.md`](./feature/20261008-authoring-continuation.md).
 >
-> What exists in `src/` today is an **earlier prototype** (Create React App, ~5,900 lines): a
-> working React Flow canvas and five pages over `localStorage`, with placeholder export
-> generators. It is being kept as a visual reference and will be preserved on a `prototype`
-> branch. Its data model and export path are not carried forward — see
-> [`feature/20260825-local-app.md`](./feature/20260825-local-app.md) §10.
->
-> Do not treat `src/` as an implementation of these specs.
+> CQL parsing, terminology, guided authoring, preview, and assisted authoring remain those drafts.
 
 ## Why replace draw.io
 

@@ -9,6 +9,8 @@
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
+> **Continuation, 2026-10-08.** Add a node sits at the top of the Nodes tab. The editor body is a canvas plus a 320px inspector. Several `activity_end` nodes are allowed. Select answers are rows with their own outputs. The left-hand palette and "activity_end only once" in §2 are the earlier proposal. Read [20261008-authoring-continuation.md](./20261008-authoring-continuation.md) before implementing this file. Status stays `Draft`.
+
 ---
 
 ## Part I — Business description

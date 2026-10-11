@@ -9,6 +9,8 @@
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
+> **Continuation, 2026-10-08.** The frontend saves `tricc.yaml`. `form_id` stays on the process `start` only. `proposed_diagnosis` is a used type. `YamlStrategy` still skips `continue_with` and `bridge` on load. Read [20261008-authoring-continuation.md](./20261008-authoring-continuation.md) before implementing this file. Status stays `Draft`.
+
 > **This spec describes work in a different repository.** `tricc_frontend` cannot deliver a
 > working authoring tool without it: everything the frontend saves is unreadable by `tricc_oo`
 > until these changes land. It is written here because the contract originates here, and it

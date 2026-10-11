@@ -9,6 +9,8 @@
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
+> **Continuation, 2026-10-08.** The working tree saves `tricc.yaml` plus one YAML file per activity. `project.json` is ignored when `tricc.yaml` is present and is never written. §1's directory tree and §2 are the earlier proposal. Read [20261008-authoring-continuation.md](./20261008-authoring-continuation.md) before implementing this file. Status stays `Draft`.
+
 ---
 
 ## Part I — Business description

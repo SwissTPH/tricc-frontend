@@ -5,6 +5,7 @@ import {
   LocalIdentity,
   LocalPersistence,
   LocalProjectCatalog,
+  LocalPreferences,
 } from '@tricc/adapters-local'
 import { createTriccRuntime, type ProjectRef, type TriccRuntime } from '@tricc/core'
 
@@ -18,8 +19,12 @@ export type StorageMode = 'folder' | 'browser'
 export interface LocalRuntime {
   runtime: TriccRuntime
   identity: LocalIdentity
+  /** Per-viewer editor preferences, kept in this browser and never in the project. */
+  preferences: LocalPreferences
   catalog: LocalProjectCatalog
   persistence: LocalPersistence
+  /** The local editing log, kept per project in IndexedDB. */
+  collaboration: IndexedDbCollaboration
   /** Whether this browser can bind a project to a folder at all. */
   canUseFolders: boolean
   storeFor(ref: ProjectRef): StorageMode
@@ -38,20 +43,19 @@ export function createLocalRuntime(): LocalRuntime {
     new BrowserStoragePersistence(),
   )
   const identity = new LocalIdentity()
+  const preferences = new LocalPreferences()
   const catalog = new LocalProjectCatalog()
 
-  const runtime = createTriccRuntime({
-    persistence,
-    catalog,
-    identity,
-    collaboration: new IndexedDbCollaboration(),
-  })
+  const collaboration = new IndexedDbCollaboration()
+  const runtime = createTriccRuntime({ persistence, catalog, identity, collaboration })
 
   return {
     runtime,
     identity,
+    preferences,
     catalog,
     persistence,
+    collaboration,
     canUseFolders: supportsDirectoryAccess(),
     storeFor: (ref) => (persistence.storeFor(ref) === 'folder' ? 'folder' : 'browser'),
   }

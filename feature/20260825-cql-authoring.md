@@ -10,6 +10,8 @@
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
+> **Continuation, 2026-10-08.** The editor keeps the stored expression string and shows a concept or question label on each quoted code. `@tricc/cql`, ANTLR, and CodeMirror are still this draft. Read [20261008-authoring-continuation.md](./20261008-authoring-continuation.md) before implementing this file. Status stays `Draft`.
+
 ---
 
 ## Part I — Business description

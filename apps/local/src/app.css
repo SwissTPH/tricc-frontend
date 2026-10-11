@@ -25,12 +25,9 @@ body {
 #root {
   display: flex;
   flex-direction: column;
+  /* The whole browser width: the canvas, the dictionary table and the cards use it all. */
   width: 100%;
-  /* One column for the overview, the process and activity tabs, and the open editor. */
-  max-width: 72rem;
-  margin-inline: auto;
   background: #fff;
-  box-shadow: 0 0 0 1px #e2e8f0;
 }
 
 header {

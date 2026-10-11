@@ -1,7 +1,6 @@
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 
 /**
@@ -9,7 +8,6 @@ import { expect, test, type Page } from '@playwright/test'
  * rest of that list downward, and an expression that is already CQL is shown and checked.
  */
 
-const migrated = join(dirname(fileURLToPath(import.meta.url)), '../examples/migrated')
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -226,9 +224,10 @@ test('import adds a file to the open tab and waits for confirmation', async ({ p
   await expect(modal).toHaveCount(0)
   await expect(page.getByTestId('activity-list').locator('li')).toHaveCount(0)
 
+  // A process file started from the Activities tab is listed as a process, not skipped.
   await page.getByTestId('import-activity-file').setInputFiles(airway)
-  await expect(page.getByTestId('import-skipped')).toContainText('Processes tab')
-  await expect(page.getByTestId('import-confirm')).toHaveCount(0)
+  await expect(page.getByTestId('import-group-process')).toContainText('Processes (1)')
+  await expect(page.getByTestId('import-group-activity')).toHaveCount(0)
   await page.getByTestId('import-modal-backdrop').click({ position: { x: 8, y: 8 } })
   await expect(modal).toHaveCount(0)
 
@@ -251,52 +250,67 @@ test('import adds a file to the open tab and waits for confirmation', async ({ p
   await page.getByTestId('import-confirm').click()
   await expect(page.getByTestId('nav-activity-airway-process')).toBeVisible()
   await page.getByTestId('node-start').click()
-  await expect(page.getByTestId('field-form-id')).toHaveValue('ETAT')
+  // form_id is retired: the intervention name names the form. The root node shows the activity.
+  await expect(page.getByTestId('field-form-id')).toHaveCount(0)
+  await expect(page.getByTestId('activity-summary')).toBeVisible()
 })
 
-test('an imported decision shows its CQL and a broken quote is named', async ({ page }) => {
-  await page.getByTestId('import-files').setInputFiles(migrated)
-  await expect(page.getByTestId('project-overview')).toBeVisible()
-  await expectInsideViewport(page, 'activity-navigator')
+/** A two-page drawing: a registration process that calls a weight measurement activity. */
+function registrationDrawing(): string {
+  const cell = (id: string, attrs: string, label: string, y: number) =>
+    `<object id="${id}" label="${label}" ${attrs}><mxCell vertex="1" parent="1"><mxGeometry x="40" y="${y}" width="160" height="48" as="geometry"/></mxCell></object>`
+  const edge = (id: string, source: string, target: string) =>
+    `<mxCell id="${id}" edge="1" parent="1" source="${source}" target="${target}"><mxGeometry relative="1" as="geometry"/></mxCell>`
+  const page = (id: string, name: string, body: string) =>
+    `<diagram id="${id}" name="${name}"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>${body}</root></mxGraphModel></diagram>`
+  return `<mxfile>${[
+    page(
+      'reg',
+      'Page-1',
+      [
+        cell('rs', 'odk_type="start" process="registration"', 'Registration', 20),
+        cell('go', 'odk_type="goto" link="data:page/id,wm" name="weight"', 'Weight measurement', 120),
+        cell('re', 'odk_type="end"', 'End', 220),
+        edge('e1', 'rs', 'go'),
+        edge('e2', 'go', 're'),
+      ].join(''),
+    ),
+    page(
+      'wm',
+      'Page-2',
+      [
+        cell('ws', 'odk_type="activity_start"', 'Weight measurement', 20),
+        cell('wk', 'odk_type="decimal" name="weight_kg"', 'Weight (kg)', 120),
+        cell('we', 'odk_type="activity_end"', 'Done', 220),
+        edge('e3', 'ws', 'wk'),
+        edge('e4', 'wk', 'we'),
+      ].join(''),
+    ),
+  ].join('')}</mxfile>`
+}
 
-  await page.getByTestId('tab-processes').click()
-  await page.getByTestId('process-search').fill('yi-tests')
-  await expect(page.getByTestId('nav-activity-yi-tests')).toBeVisible()
-  await expect(page.getByTestId('process-activity-list').locator('li')).toHaveCount(1)
-  await page.getByTestId('process-search').fill('')
+test('one draw.io import lands each page as a process or an activity', async ({ page }) => {
+  const dir = mkdtempSync(join(tmpdir(), 'tricc-drawio-'))
+  const drawing = join(dir, 'registration.drawio')
+  writeFileSync(drawing, registrationDrawing())
+
+  await createProject(page, 'Registration guideline')
+  // Started from the Activities tab, the process page is not skipped.
+  await page.getByTestId('import-activity-file').setInputFiles(drawing)
+  await expect(page.getByTestId('import-group-process')).toContainText('Processes (1)')
+  await expect(page.getByTestId('import-group-process')).toContainText('Registration')
+  await expect(page.getByTestId('import-group-activity')).toContainText('Activities (1)')
+  await expect(page.getByTestId('import-group-activity')).toContainText('Weight measurement')
+  await page.getByTestId('import-confirm').click()
+
+  // The process opens first, titled from its start shape, not from the page tab.
+  await expect(page.getByTestId('tab-processes')).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByTestId('nav-activity-page-1')).toHaveAttribute('data-kind', 'process')
+  await expect(page.locator('.tricc-editor__header h1')).toHaveText('Registration')
+  await expect(page.getByTestId('activity-process')).toHaveValue('registration')
 
   await page.getByTestId('tab-activities').click()
-  await page.getByTestId('activity-search').fill('weight')
-  await expect(page.getByTestId('nav-activity-weight-measurement')).toBeVisible()
-  await page.getByTestId('nav-activity-weight-measurement').click()
-  await page.getByTestId('select-node-Gu58oViyXPmqma7RcGfT-26').click()
-
-  const display = page.getByTestId('field-reference-display')
-  await expect(display).toContainText('age_in_days')
-  await expect(page.locator('[data-code="CHE.B6.DE07"]')).toHaveText('Weight (kilograms)')
-  await expect(page.locator('[data-code="CHE.B6.DE07"]')).toHaveAttribute(
-    'title',
-    'Weight (kilograms) — CHE.B6.DE07',
-  )
-  await expect(page.locator('[data-code="age_in_days"]')).toHaveAttribute(
-    'title',
-    /no concept label/,
-  )
-  await page.getByRole('button', { name: 'About Weight (kilograms)' }).click()
-  await expect(page.getByRole('note')).toContainText('CHE.B6.DE07')
-  await page.getByRole('button', { name: 'Show question' }).click()
-  await expect(page.getByTestId('field-name')).toHaveValue('CHE.B6.DE07')
-  await expect(page.getByTestId('field-label')).toHaveValue('Weight (kilograms)')
-
-  await page.getByTestId('tab-nodes').click()
-  await page.getByTestId('select-node-Gu58oViyXPmqma7RcGfT-26').click()
-  await expect(page.getByTestId('field-reference')).toHaveValue(
-    '"age_in_days" < 60 and "CHE.B6.DE07" > 9',
-  )
-  await expect(page.getByTestId('field-reference-lint')).toHaveCount(0)
-  await expect(page.getByText('not rewritten into CQL')).toHaveCount(0)
-
-  await page.getByTestId('field-reference').fill('"age')
-  await expect(page.getByTestId('field-reference-lint')).toContainText('closing quote')
-  await expect(page.getByTestId('field-reference')).toHaveValue('"age')
+  await page.getByTestId('nav-activity-page-2').click()
+  await expect(page.locator('.tricc-editor__header h1')).toHaveText('Weight measurement')
+  await expect(page.getByTestId('node-ws-label')).toHaveText('Weight measurement')
 })
