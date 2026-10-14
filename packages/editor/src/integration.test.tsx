@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest'
-import { act, fireEvent, render, screen, waitFor, cleanup } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import {
   activityKind,
@@ -26,6 +26,8 @@ import { ActivityEditor } from './activity/ActivityEditor.js'
 import { HistoryButtons } from './project/HistoryButtons.js'
 import { ActivityNavigator } from './project/ActivityNavigator.js'
 import { DictionaryView } from './terminology/DictionaryView.js'
+import { goToCallers } from './activity/ActivitySettings.js'
+import { nextTrail } from './project/Breadcrumbs.js'
 
 /**
  * Integration: store, editor and serializer together, driven through the real runtime
@@ -1573,6 +1575,56 @@ describe('node fields', () => {
     fireEvent.click(screen.getByTestId('node-g'), { ctrlKey: true })
     expect(opened).toEqual(['cough', 'cough'])
   })
+
+  it('opens the activity a goto goes to from the follow button on the node', async () => {
+    const user = userEvent.setup()
+    const h = await harness(withGoto())
+    const opened: string[] = []
+    renderWith(h, <ActivityEditor activityId="triage" onOpenActivity={(id) => opened.push(id)} />)
+    await user.click(screen.getByTestId('goto-follow-g'))
+    expect(opened).toEqual(['cough'])
+  })
+
+  it('shows no follow button when the target is missing or nothing can open it', async () => {
+    const project = withGoto()
+    project.activities['triage']!.nodes['g']!.link = 'gone'
+    const h = await harness(project)
+    renderWith(h, <ActivityEditor activityId="triage" onOpenActivity={() => undefined} />)
+    expect(screen.queryByTestId('goto-follow-g')).not.toBeInTheDocument()
+    cleanup()
+    const h2 = await harness(withGoto())
+    renderWith(h2, <ActivityEditor activityId="triage" />)
+    expect(screen.queryByTestId('goto-follow-g')).not.toBeInTheDocument()
+  })
+
+  it('lists the gotos that call an activity, on its start node and in its settings', async () => {
+    const user = userEvent.setup()
+    const project = withGoto()
+    const triage = project.activities['triage']!
+    triage.nodes['g2'] = { id: 'g2', type: 'goto', link: 'cough', ui: { x: 0, y: 200 } }
+    triage.nodeOrder.push('g2')
+    expect(goToCallers(project, 'cough')).toEqual([
+      { activityId: 'triage', nodeId: 'g', label: 'Triage (1)' },
+      { activityId: 'triage', nodeId: 'g2', label: 'Triage (2)' },
+    ])
+    expect(goToCallers(project, 'triage')).toEqual([])
+
+    const h = await harness(project)
+    const callers: string[] = []
+    renderWith(
+      h,
+      <ActivityEditor activityId="cough" onOpenCaller={(a, n) => callers.push(`${a}/${n}`)} />,
+    )
+    selectNode('s')
+    await user.click(screen.getByTestId('called-by-triage-g2'))
+    await user.click(screen.getByTestId('root-activity-settings'))
+    await user.click(
+      within(screen.getByTestId('activity-settings')).getByTestId('called-by-triage-g'),
+    )
+    expect(callers).toEqual(['triage/g2', 'triage/g'])
+    // Following a caller closes the settings.
+    expect(screen.queryByTestId('activity-settings')).not.toBeInTheDocument()
+  })
 })
 
 describe('comments on the diagram', () => {
@@ -1680,3 +1732,14 @@ describe('hint and help marks', () => {
   })
 })
 
+
+describe('breadcrumb trail', () => {
+  it('resets from a list, grows through gotos and cuts back on a loop', () => {
+    expect(nextTrail(['a', 'b'], 'c', 'reset')).toEqual(['c'])
+    expect(nextTrail(['a'], 'b', 'follow')).toEqual(['a', 'b'])
+    expect(nextTrail(['a', 'b', 'c'], 'a', 'follow')).toEqual(['a'])
+    // Back to a caller: kept if it is on the trail, else a fresh trail.
+    expect(nextTrail(['a', 'b'], 'a', 'return')).toEqual(['a'])
+    expect(nextTrail(['b'], 'x', 'return')).toEqual(['x'])
+  })
+})

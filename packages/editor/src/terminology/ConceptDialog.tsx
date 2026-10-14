@@ -5,12 +5,12 @@ import {
   DESIGNATION_USES,
   INTERVENTION_SCOPE_URL,
   conceptUsage,
-  defaultCodeSystem,
   designationInterventions,
   designationText,
   designationUse,
   findCodeSystem,
   isUnscoped,
+  projectDictionaries,
   resolve,
   scopeExtension,
   withConceptText,
@@ -23,7 +23,9 @@ import {
 } from '@tricc/core'
 import { useCanWrite, useEditorPreferences, useMutate, useProjectSnapshot } from '../runtime/context.js'
 import { RichTextField } from '../text/RichTextField.js'
-import { ensureDefaultCodeSystem } from './codeSystems.js'
+import { ensureDictionary } from './codeSystems.js'
+import { draggingFiles, imageFiles, useAddImages } from '../media/images.js'
+import { withPictureFirst } from '../media/attach.js'
 
 const CODE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 const USE_LABELS: Record<DesignationUse, string> = {
@@ -59,19 +61,28 @@ export function ConceptDialog({
   const { conceptTypes } = useEditorPreferences()
   const lang = project.languages.default
   const isNew = 'draft' in target
-  const existingCs = isNew ? defaultCodeSystem(project) : findCodeSystem(project, target.key.system)
+  const dictionaries = projectDictionaries(project)
+  // A new concept goes to the dictionary it was opened for (the node's, the one on screen).
+  const [system, setSystem] = useState(() =>
+    isNew && target.draft.system && dictionaries.some((d) => d.url === target.draft.system)
+      ? target.draft.system
+      : dictionaries[0]!.url,
+  )
+  const existingCs = findCodeSystem(project, isNew ? system : target.key.system)
   const existing = isNew ? undefined : existingCs?.concepts[target.key.code]
   const [draft, setDraft] = useState<Concept>(() =>
     existing
       ? structuredClone(existing)
       : {
-          system: existingCs?.url ?? '',
           code: '',
           designations: [],
           ...(isNew ? structuredClone(target.draft) : {}),
+          system,
         } as Concept,
   )
   const cardRef = useRef<HTMLDivElement>(null)
+  const addImages = useAddImages()
+  const [pictureOver, setPictureOver] = useState(false)
   // Rows added in this dialog stay in the table, whatever language they get.
   const opened = useRef(draft.designations.length)
   const readOnly = !canWrite
@@ -80,6 +91,9 @@ export function ConceptDialog({
     cardRef.current?.querySelector<HTMLElement>('input:not([disabled]), textarea, select')?.focus()
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      // A dialog opened on top of this one (the text editor, the picture picker) closes first.
+      const dialogs = document.querySelectorAll('[role="dialog"]')
+      if (dialogs[dialogs.length - 1] !== cardRef.current) return
       event.preventDefault()
       event.stopImmediatePropagation()
       onClose()
@@ -141,7 +155,7 @@ export function ConceptDialog({
   const save = () => {
     if (error || readOnly) return
     mutate((tx) => {
-      const cs = existingCs ?? ensureDefaultCodeSystem(project, tx)
+      const cs = existingCs ?? ensureDictionary(project, tx, system)
       const concept: Concept = { ...draft, system: cs.url, code }
       tx.upsertConcept(cs.url, concept)
       onSaved?.({ system: cs.url, code })
@@ -163,7 +177,25 @@ export function ConceptDialog({
         aria-modal="true"
         aria-labelledby="concept-dialog-title"
         data-testid="concept-dialog"
+        data-over={pictureOver ? 'true' : undefined}
         onMouseDown={(event) => event.stopPropagation()}
+        onDragOver={(event) => {
+          if (!canWrite || !draggingFiles(event)) return
+          event.preventDefault()
+          setPictureOver(true)
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPictureOver(false)
+        }}
+        onDrop={(event) => {
+          if (!canWrite || !draggingFiles(event)) return
+          event.preventDefault()
+          setPictureOver(false)
+          // A picture dropped here goes first in the questionnaire text, in the draft.
+          void addImages(imageFiles(event.dataTransfer.files).slice(0, 1)).then(([id]) => {
+            if (id) setDraft((d) => withPictureFirst(d, id, lang))
+          })
+        }}
       >
         <h2 id="concept-dialog-title">
           {isNew ? 'New concept' : (existing?.display ?? existing?.code)}
@@ -175,6 +207,25 @@ export function ConceptDialog({
             save()
           }}
         >
+          {isNew && (
+            <>
+              <label htmlFor="concept-dictionary">Dictionary</label>
+              <select
+                id="concept-dictionary"
+                data-testid="concept-dictionary"
+                value={system}
+                disabled={readOnly}
+                onChange={(e) => setSystem(e.target.value)}
+              >
+                {dictionaries.map((d) => (
+                  <option key={d.url} value={d.url}>
+                    {dictionaryLabel(d)}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+
           <label htmlFor="concept-code">Code</label>
           <input
             id="concept-code"
@@ -504,4 +555,11 @@ export function ConceptDialog({
 
 function withCurrent(list: readonly string[], current: string | undefined): string[] {
   return current && !list.some((t) => t.toLowerCase() === current.toLowerCase()) ? [...list, current] : [...list]
+}
+
+/** A dictionary as the author sees it: its id, with what it is for. */
+export function dictionaryLabel(d: { id: string; kind: 'default' | 'calculate' | 'other' }): string {
+  if (d.kind === 'default') return `${d.id} (default)`
+  if (d.kind === 'calculate') return `${d.id} (calculations and diagnoses)`
+  return d.id
 }

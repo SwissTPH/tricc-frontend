@@ -1,7 +1,16 @@
+import { createContext, useContext } from 'react'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import { hasInternalName, isSequenceNode, resolve, type NodeType, type TriccNode as Model } from '@tricc/core'
 import { NODE_OUT_HANDLE, answerHandleId, answerLabel, optionCode } from './answer.js'
 import { visualFor } from './node-visuals.js'
+import { useImageUrl } from '../../media/images.js'
+import { FollowIcon } from '../../components/Dialog.js'
+
+/**
+ * Opens the activity a goto goes to. Provided by the canvas, so the node data stays plain
+ * and the follow button is absent where nothing can open another activity.
+ */
+export const FollowContext = createContext<((activityId: string) => void) | undefined>(undefined)
 
 export type TriccFlowNode = Node<
   {
@@ -15,6 +24,10 @@ export type TriccFlowNode = Node<
     help?: string
     /** Answer texts by option id, resolved from their concepts. */
     answerTexts?: Record<string, string>
+    /** The first picture of the questionnaire text, by image id. */
+    picture?: string
+    /** The same for each answer, by option id. */
+    answerPictures?: Record<string, string>
     /** On the root node: the activity title. The start node is the activity. */
     activityTitle?: string
     /** Goto whose target activity is not in this project. */
@@ -33,6 +46,7 @@ export type TriccFlowNode = Node<
 export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
   const { model, lang, severity, conceptDisplay, activityTitle, missing } = data
   const visual = visualFor(model.type as NodeType)
+  const follow = useContext(FollowContext)
   const display = activityTitle ?? displayText(model, lang, conceptDisplay)
   const answers =
     model.type === 'select_one' || model.type === 'select_multiple' ? (model.options ?? []) : []
@@ -59,6 +73,22 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
         {model.notAvailable && <span className="tricc-badge">Not available</span>}
         {model.repeat !== undefined && model.repeat !== 1 && (
           <span className="tricc-badge">Repeat {model.repeat}</span>
+        )}
+        {follow && model.type === 'goto' && model.link && !missing && (
+          <button
+            type="button"
+            // Not a drag or pan handle: a click here opens the activity, nothing else.
+            className="tricc-node__follow nodrag nopan"
+            data-testid={`goto-follow-${model.id}`}
+            aria-label="Open the activity this goes to"
+            title="Open the activity this goes to"
+            onClick={(event) => {
+              event.stopPropagation()
+              follow(model.link!)
+            }}
+          >
+            <FollowIcon />
+          </button>
         )}
         {missing && (
           <span className="tricc-badge" data-testid="goto-missing">
@@ -94,6 +124,8 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
     >
       {visual.targets && <Handle type="target" position={Position.Top} />}
 
+      {data.picture && <NodePicture id={data.picture} nodeId={model.id} />}
+
       {answers.length > 0 ? <div className="tricc-node__head">{head}</div> : head}
 
       {answers.length > 0 && (
@@ -106,10 +138,21 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
                 className="tricc-node__answer"
                 data-testid={`node-${model.id}-answer-${option.id}`}
                 data-answer={optionCode(option)}
+                data-option-id={option.id}
               >
                 <span className="tricc-node__answer-label" title={text}>
                   {text}
                 </span>
+                {data.answerPictures?.[option.id] && (
+                  <span
+                    className="tricc-node__answer-picture"
+                    data-testid={`node-${model.id}-answer-${option.id}-picture`}
+                    title={`Picture: ${data.answerPictures[option.id]}`}
+                    aria-label="Has a picture"
+                  >
+                    ▣
+                  </span>
+                )}
                 <Handle
                   type="source"
                   id={answerHandleId(option.id)}
@@ -149,4 +192,14 @@ function displayText(model: Model, lang: string, conceptDisplay: string | undefi
   // Sequence anchors keep their own label; everything else inherits its concept's display.
   if (isSequenceNode(model.type as NodeType)) return label ?? model.name ?? model.type
   return conceptDisplay ?? label ?? model.name ?? model.type
+}
+
+/** The first picture of the node's text, small, on top. It never makes the node wider. */
+function NodePicture({ id, nodeId }: { id: string; nodeId: string }) {
+  const url = useImageUrl(id)
+  return (
+    <div className="tricc-node__picture" data-testid={`node-${nodeId}-picture`} data-image={id}>
+      {url ? <img src={url} alt="" draggable={false} /> : <span title="Not in the image library">[{id}]</span>}
+    </div>
+  )
 }

@@ -540,6 +540,27 @@
   flex: none;
 }
 
+/* The dot is small; an invisible zone around it starts the link (and shows the crosshair).
+   Only on outputs: a link already snaps to a nearby input, and the zone would take over the
+   node's own drag. Below the node it reaches in only 6px, for the same reason. */
+.tricc-node .react-flow__handle.source::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 48px;
+  height: 20px;
+  transform: translate(-50%, -6px);
+}
+
+/* On an answer row: the full height of a one-line row plus the gap (22px + 2px), so the
+   zones of neighbouring answers meet without overlapping; mostly outside the node. */
+.tricc-node__answer > .react-flow__handle.source::before {
+  width: 32px;
+  height: 24px;
+  transform: translate(-12px, -50%);
+}
+
 .tricc-node--flow {
   --group-colour: var(--tricc-flow);
   --group-bg: var(--tricc-flow-bg);
@@ -698,6 +719,21 @@
   border-radius: 3px;
   background: #e2e8f0;
   color: #475569;
+}
+
+.tricc-node__follow {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background: #fff;
+  color: #1d4ed8;
+  cursor: pointer;
+}
+.tricc-node__follow:hover,
+.tricc-node__follow:focus-visible {
+  background: #eff6ff;
 }
 
 .tricc-badge--error {
@@ -1115,6 +1151,30 @@
   overflow-wrap: anywhere;
 }
 
+/* The gotos that lead to an activity: in its settings and on its root node. */
+.tricc-called-by h3 {
+  margin: 12px 0 4px;
+  font-size: 13px;
+}
+.tricc-called-by ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.tricc-called-by p {
+  margin: 0;
+  color: #64748b;
+}
+.tricc-link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tricc-question);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* Data dictionary: the navigator tab, the concept page, and the card on a node. */
 .tricc-dictionary__bar {
   display: flex;
@@ -1474,4 +1534,265 @@
 .tricc-node__mark--help {
   background: #1e6fd0;
   color: #fff;
+}
+
+/* A validation issue links to the element it is about. */
+.tricc-issue__link {
+  display: inline;
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tricc-question);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.tricc-issue__link::before {
+  content: '→ ';
+  text-decoration: none;
+}
+
+.tricc-flash {
+  animation: tricc-flash 1.2s ease-out;
+}
+
+@keyframes tricc-flash {
+  0% {
+    box-shadow: 0 0 0 3px var(--tricc-question);
+  }
+  100% {
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+
+/* ------------------------------------------------------------------ pictures */
+
+.tricc-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* The first picture of a node's text, on top, inside the node's own width. */
+.tricc-node:has(> .tricc-node__picture) {
+  flex-wrap: wrap;
+}
+.tricc-node__picture {
+  flex: 0 0 100%;
+  order: -1;
+  display: flex;
+  justify-content: center;
+  max-width: 100%;
+  height: 48px;
+  overflow: hidden;
+}
+.tricc-node__picture img {
+  max-width: 100%;
+  max-height: 48px;
+  object-fit: contain;
+  pointer-events: none;
+}
+.tricc-node__picture span {
+  align-self: center;
+  color: var(--tricc-error);
+  font-size: 11px;
+}
+.tricc-node__answer-picture {
+  margin-left: 4px;
+  color: #475569;
+  font-size: 11px;
+}
+.react-flow__node[data-picture-drop='true'] .tricc-node {
+  outline: 2px dashed var(--tricc-question);
+  outline-offset: 3px;
+}
+
+/* A picture inside a text: in previews, in the editor, in the dictionary. */
+.tricc-text-image {
+  display: inline-block;
+  max-width: 100%;
+  max-height: 120px;
+  vertical-align: middle;
+}
+.tricc-rich__preview .tricc-text-image {
+  max-height: 64px;
+}
+.tricc-rich__content .tricc-text-picture.ProseMirror-selectednode img {
+  outline: 2px solid var(--tricc-question);
+}
+.tricc-text-image--missing {
+  color: var(--tricc-error);
+  font-size: 12px;
+}
+.tricc-dictionary__picture {
+  width: 52px;
+}
+.tricc-dictionary__thumb {
+  display: block;
+  max-width: 48px;
+  max-height: 32px;
+  object-fit: contain;
+}
+.tricc-dictionary__table tr[data-over='true'] td {
+  background: var(--tricc-question-bg);
+}
+.tricc-concept-dialog[data-over='true'],
+.tricc-image-picker[data-over='true'],
+.tricc-media[data-over='true'] {
+  outline: 2px dashed var(--tricc-question);
+  outline-offset: -4px;
+}
+
+/* The library: a grid of tiles, in the Media view and the picker. */
+.tricc-image-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.tricc-image-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+.tricc-image-tile:hover,
+.tricc-image-tile:focus-visible {
+  border-color: var(--tricc-question);
+}
+.tricc-image-tile img,
+.tricc-media__tile img {
+  width: 100%;
+  height: 100px;
+  object-fit: contain;
+  background: #f8fafc;
+}
+.tricc-image-tile span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tricc-image-picker__bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.tricc-image-picker__bar input[type='search'] {
+  flex: 1;
+}
+.tricc-image-picker__empty {
+  color: #64748b;
+}
+.tricc-image-picker__error {
+  color: var(--tricc-error);
+  font-size: 12px;
+}
+.tricc-image-picker .tricc-image-grid {
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.tricc-media {
+  padding: 0 16px 16px;
+  min-height: 100%;
+  overflow: auto;
+}
+.tricc-media__grid {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+.tricc-media__tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12px;
+}
+.tricc-media__name {
+  overflow-wrap: anywhere;
+}
+.tricc-media__meta {
+  color: #64748b;
+}
+.tricc-media__users {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  color: #64748b;
+}
+.tricc-media__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.tricc-editor__notice {
+  margin: 0;
+  font-size: 12px;
+  color: var(--tricc-warning);
+}
+
+/* Project search results: one section per source, one line per hit. */
+.tricc-search section + section {
+  margin-top: 12px;
+}
+.tricc-search h3 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+.tricc-search__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 30vh;
+  overflow-y: auto;
+}
+.tricc-search__list button {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.tricc-search__list button:hover:not(:disabled),
+.tricc-search__list button:focus-visible {
+  background: #f1f5f9;
+}
+.tricc-search__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tricc-search__detail {
+  flex: 0 1 auto;
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
 }

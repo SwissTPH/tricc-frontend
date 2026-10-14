@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import {
   conceptText,
   fromPlain,
+  imageIdOf,
   isStructured,
   lookupConcept,
   nodeConceptKey,
@@ -13,6 +14,7 @@ import {
   type Project,
 } from '@tricc/core'
 import { useEditorPreferences, useProjectSnapshot } from '../runtime/context.js'
+import { useImageUrl } from '../media/images.js'
 
 const RichTextEditor = lazy(() => import('./RichTextEditor.js'))
 
@@ -63,7 +65,7 @@ export function RichTextField({
           <button
             type="button"
             data-testid={`${testId}-format`}
-            title="Bold, colour, lists, and data from earlier answers"
+            title="Bold, colour, lists, pictures, and data from earlier answers"
             onClick={() => setEditing(true)}
           >
             {structured ? 'Edit…' : 'Format…'}
@@ -106,9 +108,12 @@ function RichTextModal({
   const cardRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Escape closes this modal only, not a dialog underneath.
+    // Escape closes this modal only, not a dialog underneath, and not while one is open on top
+    // of it (the picture picker).
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      const dialogs = document.querySelectorAll('[role="dialog"]')
+      if (dialogs[dialogs.length - 1] !== cardRef.current) return
       event.preventDefault()
       event.stopImmediatePropagation()
       onCancel()
@@ -184,7 +189,23 @@ function renderNode(node: MessageNode, key: number): ReactNode {
       const items = node.items.map((item, i) => <li key={i}>{item.children.map((c, j) => renderNode(c, j))}</li>)
       return node.ordered ? <ol key={key}>{items}</ol> : <ul key={key}>{items}</ul>
     }
+    case 'image':
+      return <TextImage key={key} src={node.src} alt={node.alt} />
   }
+}
+
+/** A picture of a text, from the image library. A missing one says so instead of breaking. */
+export function TextImage({ src, alt, className }: { src: string; alt?: string; className?: string }) {
+  const id = imageIdOf(src)
+  const url = useImageUrl(id)
+  if (!url) {
+    return (
+      <span className="tricc-text-image tricc-text-image--missing" data-image={id ?? src} title="Not in the image library">
+        {`[${id ?? src}]`}
+      </span>
+    )
+  }
+  return <img className={className ?? 'tricc-text-image'} src={url} alt={alt ?? ''} data-image={id} />
 }
 
 /**

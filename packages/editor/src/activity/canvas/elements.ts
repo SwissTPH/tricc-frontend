@@ -1,12 +1,16 @@
 import {
+  conceptRichText,
   conceptText,
   defaultCodeSystem,
+  imageRefs,
   lookupConcept,
   nodeConceptKey,
+  optionConceptKey,
   resolve,
   rootNode,
   type Activity,
   type CanvasGroup,
+  type DisplayText,
   type Mutations,
   type Project,
 } from '@tricc/core'
@@ -133,6 +137,11 @@ const group: CanvasKind = {
   },
 }
 
+/** The first picture a text shows, by image id. */
+function firstPicture(text: DisplayText | undefined): string | undefined {
+  return text === undefined ? undefined : imageRefs(text)[0]
+}
+
 const tricc: CanvasKind = {
   owns: (id) => !id.startsWith(GROUP_PREFIX) && !id.startsWith(COMMENT_PREFIX),
   project(ctx) {
@@ -147,12 +156,22 @@ const tricc: CanvasKind = {
       .map((model): TriccFlowNode => {
         // The text is the concept's questionnaire text (its display when it has none).
         const concept = lookupConcept(project, nodeConceptKey(project, model))
-        const text = conceptText(concept, 'q-display', lang, defaultLang)
+        // A text that is only a picture has no words: the node falls back to its own label.
+        const text = conceptText(concept, 'q-display', lang, defaultLang)?.trim() || undefined
+        const picture = firstPicture(conceptRichText(concept, 'q-display', lang, defaultLang))
         const hint = conceptText(concept, 'hint', lang, defaultLang) ?? resolve(model.hint, lang, lang)
         const help = conceptText(concept, 'help', lang, defaultLang) ?? resolve(model.help, lang, lang)
         const answerTexts = model.options?.length
           ? Object.fromEntries(model.options.map((o) => [o.id, answerLabel(o, lang, project)]))
           : undefined
+        const answerPictures = Object.fromEntries(
+          (model.options ?? []).flatMap((o) => {
+            const id = firstPicture(
+              conceptRichText(lookupConcept(project, optionConceptKey(project, o)), 'q-display', lang, defaultLang),
+            )
+            return id ? [[o.id, id]] : []
+          }),
+        )
         const severity = ctx.severityByNode.get(model.id)
         const missing = model.type === 'goto' && Boolean(model.link) && project.activities[model.link!] === undefined
         const drag = ctx.drag(model.id)
@@ -175,6 +194,8 @@ const tricc: CanvasKind = {
             ...(hint ? { hint } : {}),
             ...(help ? { help } : {}),
             ...(answerTexts ? { answerTexts } : {}),
+            ...(picture ? { picture } : {}),
+            ...(Object.keys(answerPictures).length > 0 ? { answerPictures } : {}),
             ...(model.id === rootId ? { activityTitle } : {}),
             ...(missing ? { missing: true } : {}),
           },
@@ -191,7 +212,9 @@ const tricc: CanvasKind = {
     const model = (node as TriccFlowNode).data.model
     const visual = visualFor(model.type)
     const answers = model.type === 'select_one' || model.type === 'select_multiple'
-    return `${model.type}|${visual.targets}|${visual.sources}|${answers ? (model.options ?? []).map((o) => o.id).join(',') : ''}`
+    // A picture on top changes where the handles are, without changing the node's box always.
+    const picture = (node as TriccFlowNode).data.picture ?? ''
+    return `${model.type}|${visual.targets}|${visual.sources}|${answers ? (model.options ?? []).map((o) => o.id).join(',') : ''}|${picture}`
   },
 }
 

@@ -1,18 +1,18 @@
 import { useCallback, useMemo, useState } from 'react'
 import {
+  CALCULATED_TYPES,
   TEXT_NODE_TYPES,
   conceptText,
   conceptUsage,
   designationText,
   designationUse,
   isUnscoped,
-  defaultCodeSystem,
   defaultConceptType,
+  dictionaryForType,
   lookupConcept,
   nodeConceptKey,
   resolve,
   withConceptText,
-  type CodeSystem,
   type Concept,
   type ConceptKey,
   type DesignationUse,
@@ -25,8 +25,11 @@ import { useMutate, useProjectSnapshot } from '../runtime/context.js'
 import { Typeahead, type TypeaheadOption } from '../components/Typeahead.js'
 import { ConceptDialog, type ConceptTarget } from './ConceptDialog.js'
 
-/** Nodes whose text the health worker reads, so they stand for a concept. */
-export const CONCEPT_NODE_TYPES: readonly string[] = TEXT_NODE_TYPES
+/**
+ * Nodes that stand for a concept: those whose text the health worker reads, and the values
+ * logic computes (their concepts are in the calculate dictionary).
+ */
+export const CONCEPT_NODE_TYPES: readonly string[] = [...TEXT_NODE_TYPES, ...CALCULATED_TYPES]
 
 /**
  * The concept behind a node, in short: code, display and questionnaire text. Its texts belong
@@ -53,6 +56,8 @@ export function ConceptCard({
   const defaultLang = project.languages.default
   const options = useMemo(() => conceptOptions(project), [project])
   const close = useCallback(() => setDialog(null), [])
+  // Where a new concept for this node goes, and where its name alone finds it.
+  const home = dictionaryForType(project, node.type).url
 
   const dialogs = dialog && (
     <ConceptDialog
@@ -63,8 +68,7 @@ export function ConceptCard({
         if (!('draft' in dialog)) return
         // A concept created from the node takes its texts; the node keeps only the code.
         const { label: _label, hint: _hint, help: _help, ...rest } = node
-        const target = defaultCodeSystem(project)
-        mutate((tx) => tx.updateNode(activityId, linkTo(rest, target ?? { url: saved.system } as CodeSystem, saved)))
+        mutate((tx) => tx.updateNode(activityId, linkTo(rest, home, saved)))
       }}
     />
   )
@@ -82,13 +86,13 @@ export function ConceptCard({
           emptyMessage="No concept matches."
           onSelect={(id) => {
             const [system, code] = splitOption(id)
-            mutate((tx) => tx.updateNode(activityId, linkTo(node, defaultCodeSystem(project), { system, code })))
+            mutate((tx) => tx.updateNode(activityId, linkTo(node, home, { system, code })))
           }}
         />
         <button
           type="button"
           data-testid="concept-create"
-          onClick={() => setDialog({ draft: conceptFromNode(node, '', defaultLang) })}
+          onClick={() => setDialog({ draft: conceptFromNode(node, home, defaultLang) })}
         >
           Create concept{node.name ? ` “${node.name}”` : ''}
         </button>
@@ -159,12 +163,13 @@ function splitOption(id: string): [string, string] {
 }
 
 /**
- * Point a node at a concept. In the default CodeSystem the node's name is the code; a
- * concept elsewhere is an explicit reference beside the name.
+ * Point a node at a concept. In the node's own dictionary (the default one, or the calculate
+ * one for a calculation or a diagnosis) the node's name is the code; a concept elsewhere is
+ * an explicit reference beside the name.
  */
-function linkTo(node: TriccNode, defaultCs: CodeSystem | undefined, key: ConceptKey): TriccNode {
+function linkTo(node: TriccNode, home: string, key: ConceptKey): TriccNode {
   const next: TriccNode = { ...node }
-  if (defaultCs && key.system === defaultCs.url) {
+  if (key.system === home) {
     next.name = key.code
     delete next.concept
   } else {

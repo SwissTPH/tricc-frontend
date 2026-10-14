@@ -46,6 +46,75 @@ export function activityReferences(
   return { interventions, linkedFrom }
 }
 
+/** One goto that leads to an activity. */
+export interface GotoCaller {
+  activityId: string
+  nodeId: string
+  /** The calling activity's title, numbered when it has more than one goto here. */
+  label: string
+}
+
+/** Every goto, in any activity, whose target is `activityId`. Sorted by calling activity. */
+export function goToCallers(project: Project, activityId: string): GotoCaller[] {
+  const lang = project.languages.default
+  const callers: GotoCaller[] = []
+  for (const activity of Object.values(project.activities)) {
+    const gotos = Object.values(activity.nodes).filter(
+      (n) => n.type === 'goto' && n.link === activityId,
+    )
+    const title = resolve(activity.title, lang, lang) ?? activity.id
+    gotos.forEach((n, i) =>
+      callers.push({
+        activityId: activity.id,
+        nodeId: n.id,
+        label: gotos.length > 1 ? `${title} (${i + 1})` : title,
+      }),
+    )
+  }
+  return callers.sort((a, b) => a.label.localeCompare(b.label))
+}
+
+/** The gotos that lead to an activity; each opens its activity on that goto. */
+export function CalledBy({
+  project,
+  activityId,
+  onOpenCaller,
+}: {
+  project: Project
+  activityId: string
+  onOpenCaller?: (activityId: string, nodeId: string) => void
+}) {
+  const callers = goToCallers(project, activityId)
+  return (
+    <div className="tricc-called-by" data-testid="called-by">
+      <h3>Called by</h3>
+      {callers.length === 0 ? (
+        <p data-testid="called-by-none">No goto leads here.</p>
+      ) : (
+        <ul>
+          {callers.map((c) => (
+            <li key={`${c.activityId}/${c.nodeId}`}>
+              {onOpenCaller ? (
+                <button
+                  type="button"
+                  className="tricc-link-button"
+                  data-testid={`called-by-${c.activityId}-${c.nodeId}`}
+                  title="Open that activity on its goto"
+                  onClick={() => onOpenCaller(c.activityId, c.nodeId)}
+                >
+                  {c.label}
+                </button>
+              ) : (
+                <span data-testid={`called-by-${c.activityId}-${c.nodeId}`}>{c.label}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 /**
  * Activity settings: title, name, process (process pages), and applicability.
  * Fields apply as they are edited, like the intervention gear. Nothing is kept as a draft.
@@ -57,6 +126,7 @@ export function ActivitySettings({
   onClose,
   onDeleted,
   onReveal,
+  onOpenCaller,
 }: {
   activity: Activity
   project: Project
@@ -64,6 +134,8 @@ export function ActivitySettings({
   onClose: () => void
   onDeleted: () => void
   onReveal?: (activityId: string, nodeId: string) => void
+  /** Open a goto that leads to this activity. */
+  onOpenCaller?: (activityId: string, nodeId: string) => void
 }) {
   const mutate = useMutate()
   const lang = project.languages.default
@@ -148,6 +220,18 @@ export function ActivitySettings({
             onChange={(expression) => setApplicability({ expression: expression || undefined })}
           />
           <p>Applies on top of the start condition of every intervention that lists this activity.</p>
+
+          <CalledBy
+            project={project}
+            activityId={activity.id}
+            onOpenCaller={
+              onOpenCaller &&
+              ((activityId, nodeId) => {
+                onClose()
+                onOpenCaller(activityId, nodeId)
+              })
+            }
+          />
         </div>
       </Dialog>
 

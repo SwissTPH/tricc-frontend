@@ -8,7 +8,6 @@ import {
   PALETTE_GROUP_LABELS,
   hasInternalName,
   type PaletteGroup,
-  isTextNode,
   conceptText,
   designationUse,
   lookupConcept,
@@ -43,21 +42,32 @@ import { ActivityRefField } from '../components/ActivityRefField.js'
 import { BinIcon, GearIcon } from '../components/Dialog.js'
 import { CONCEPT_NODE_TYPES, ConceptCard } from '../terminology/ConceptCard.js'
 import { AnswerPicker } from '../terminology/AnswerPicker.js'
-import { ActivitySettings, ConfirmActivityDelete, titleSlug } from './ActivitySettings.js'
+import { ActivitySettings, CalledBy, ConfirmActivityDelete, titleSlug } from './ActivitySettings.js'
+import { useAddImages } from '../media/images.js'
+import { showPictureOn } from '../media/attach.js'
 
 export function ActivityEditor({
   activityId,
   focusNodeId,
+  focusEdgeId,
   onOpen,
+  onOpenEdge,
   onDeleted,
   onOpenActivity,
+  onOpenCaller,
 }: {
   activityId: string
   focusNodeId?: string
+  /** A connection to select and show when the activity opens. */
+  focusEdgeId?: string
   /** Open a question that lives in another activity. */
   onOpen?: (activityId: string, nodeId: string) => void
+  /** Open a connection that lives in another activity. */
+  onOpenEdge?: (activityId: string, edgeId: string) => void
   /** Open another activity: a goto's target. */
   onOpenActivity?: (activityId: string) => void
+  /** Open a goto, in another activity, that leads to this one. */
+  onOpenCaller?: (activityId: string, nodeId: string) => void
   /** The activity was deleted; the host returns to the project overview. */
   onDeleted?: () => void
 }) {
@@ -67,7 +77,8 @@ export function ActivityEditor({
   const mutate = useMutate()
   const { labelLines, labelChars } = useEditorPreferences()
   const [selectedId, setSelectedId] = useState<string | undefined>(focusNodeId)
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | undefined>(undefined)
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | undefined>(focusEdgeId)
+  const [reveal, setReveal] = useState<{ ids: string[]; seq: number } | undefined>(undefined)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const closeSettings = useCallback(() => setSettingsOpen(false), [])
@@ -78,7 +89,7 @@ export function ActivityEditor({
     onDeleted?.()
   }, [onDeleted])
   const [panel, setPanel] = useState<'details' | 'nodes' | 'connection' | 'validation'>(
-    focusNodeId ? 'details' : 'nodes',
+    focusNodeId || focusEdgeId ? 'details' : 'nodes',
   )
   const lang = project.languages.default
   const kind = activity ? activityKind(activity) : 'activity'
@@ -92,16 +103,40 @@ export function ActivityEditor({
     setSelectedId(focusNodeId)
     setSelectedEdgeId(undefined)
     setPanel('details')
+    setReveal({ ids: [focusNodeId], seq: Date.now() })
   }, [activityId, focusNodeId])
 
-  const reveal = (nextActivity: string, nodeId: string) => {
+  useEffect(() => {
+    if (!focusEdgeId) return
+    const edge = project.activities[activityId]?.edges[focusEdgeId]
+    setSelectedEdgeId(focusEdgeId)
+    setSelectedId(undefined)
+    setPanel('details')
+    if (edge) setReveal({ ids: [edge.source, edge.target], seq: Date.now() })
+    // Only when asked to focus: later edits to the project must not pan the canvas.
+  }, [activityId, focusEdgeId])
+
+  const revealNode = (nextActivity: string, nodeId: string) => {
     if (nextActivity === activityId) {
       setSelectedId(nodeId)
       setSelectedEdgeId(undefined)
       setPanel('details')
+      setReveal({ ids: [nodeId], seq: Date.now() })
       return
     }
     onOpen?.(nextActivity, nodeId)
+  }
+
+  const revealEdge = (nextActivity: string, edgeId: string) => {
+    const edge = project.activities[nextActivity]?.edges[edgeId]
+    if (nextActivity === activityId && edge) {
+      setSelectedEdgeId(edgeId)
+      setSelectedId(undefined)
+      setPanel('details')
+      setReveal({ ids: [edge.source, edge.target], seq: Date.now() })
+      return
+    }
+    onOpenEdge?.(nextActivity, edgeId)
   }
 
   const issues = useMemo(
@@ -112,6 +147,28 @@ export function ActivityEditor({
   // Hooks stay above this return: the activity can disappear while open (delete, undo).
   const placementRef = useRef<CanvasPlacement | null>(null)
   const [dropping, setDropping] = useState(false)
+  const addImages = useAddImages()
+  const [notice, setNotice] = useState<string | undefined>(undefined)
+
+  /** Picture files dropped on a node or an answer: into the library, then first in its text. */
+  const dropPictures = (files: File[], at: { nodeId: string; optionId?: string }) => {
+    setNotice(undefined)
+    void addImages(files.slice(0, 1), { onError: setNotice }).then(([id]) => {
+      if (!id) return
+      let shown: unknown
+      mutate((tx) => {
+        const node = project.activities[activityId]?.nodes[at.nodeId]
+        if (!node) return
+        const option = at.optionId ? node.options?.find((o) => o.id === at.optionId) : undefined
+        shown = showPictureOn(tx, project, option ? { node, option } : { node }, id)
+      })
+      if (!shown) {
+        setNotice(
+          `The picture “${id}” is in the library, but this ${at.optionId ? 'answer' : 'node'} has no name yet. Name it, then insert the picture with Format….`,
+        )
+      }
+    })
+  }
 
   if (!activity) {
     return (
@@ -251,6 +308,11 @@ export function ActivityEditor({
             Tidy layout
           </button>
         )}
+        {notice && (
+          <p role="status" className="tricc-editor__notice" data-testid="editor-notice">
+            {notice}
+          </p>
+        )}
       </header>
 
       {settingsOpen && (
@@ -260,7 +322,8 @@ export function ActivityEditor({
           readOnly={!canWrite}
           onClose={closeSettings}
           onDeleted={deleted}
-          onReveal={reveal}
+          onReveal={revealNode}
+          onOpenCaller={onOpenCaller}
         />
       )}
       {confirmingDelete && canWrite && (
@@ -285,6 +348,8 @@ export function ActivityEditor({
           placementRef={placementRef}
           dropping={dropping}
           onOpenActivity={onOpenActivity}
+          reveal={reveal}
+          onDropPictures={dropPictures}
         />
 
         <aside className="tricc-inspector">
@@ -374,11 +439,12 @@ export function ActivityEditor({
                   node={selected}
                   lang={lang}
                   readOnly={!canWrite}
-                  onReveal={reveal}
+                  onReveal={revealNode}
                   onOpenSettings={
                     rootNode(activity)?.id === selected.id ? () => setSettingsOpen(true) : undefined
                   }
                   onOpenActivity={onOpenActivity}
+                  onOpenCaller={onOpenCaller}
                   onDelete={() => {
                     mutate((tx) => tx.removeNode(activityId, selected.id))
                     setSelectedId(undefined)
@@ -391,7 +457,7 @@ export function ActivityEditor({
                   activityId={activityId}
                   edge={selectedEdge}
                   readOnly={!canWrite}
-                  onReveal={reveal}
+                  onReveal={revealNode}
                 />
               )}
             </div>
@@ -477,7 +543,15 @@ export function ActivityEditor({
               className="tricc-validation"
             >
               <p data-testid="validation-scope">{validationScope}</p>
-              <ValidationSummary issues={validationIssues} heading={false} />
+              <ValidationSummary
+                issues={validationIssues}
+                heading={false}
+                links={{
+                  node: revealNode,
+                  edge: revealEdge,
+                  settings: () => setSettingsOpen(true),
+                }}
+              />
             </section>
           )}
         </aside>
@@ -502,6 +576,7 @@ export function NodeProperties({
   onDelete,
   onOpenSettings,
   onOpenActivity,
+  onOpenCaller,
 }: {
   activityId: string
   node: TriccNode
@@ -513,6 +588,8 @@ export function NodeProperties({
   onOpenActivity?: (activityId: string) => void
   /** Present on the root node: the start node is the activity, so it opens the activity settings. */
   onOpenSettings?: () => void
+  /** On the root node: open a goto that leads to this activity. */
+  onOpenCaller?: (activityId: string, nodeId: string) => void
 }) {
   const mutate = useMutate()
   const project = useProjectSnapshot()
@@ -524,7 +601,7 @@ export function NodeProperties({
   const concept = node.concept
     ? project.codeSystems[node.concept.system]?.concepts[node.concept.code]
     : undefined
-  const textConcept = isTextNode(node.type)
+  const textConcept = CONCEPT_NODE_TYPES.includes(node.type)
     ? lookupConcept(project, nodeConceptKey(project, node))
     : undefined
 
@@ -534,6 +611,7 @@ export function NodeProperties({
       <section aria-labelledby="properties-heading" data-testid="node-properties">
         <h2 id="properties-heading">{node.type}</h2>
         <ActivitySummary activityId={activityId} lang={lang} onOpenSettings={onOpenSettings} />
+        <CalledBy project={project} activityId={activityId} onOpenCaller={onOpenCaller} />
       </section>
     )
   }

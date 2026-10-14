@@ -93,6 +93,8 @@ function inlineOf(nodes: MessageNode[], marks: Tag[]): PmNode[] {
     if (node.type === 'text' && node.value) out.push({ type: 'text', text: node.value, ...pmMarks })
     else if (node.type === 'interp') out.push({ type: 'interp', attrs: { name: node.name }, ...pmMarks })
     else if (node.type === 'break') out.push({ type: 'hardBreak' })
+    // A picture carries no marks: the tree never puts one inside bold or a colour.
+    else if (node.type === 'image') out.push({ type: 'image', attrs: { src: node.src, alt: node.alt ?? null } })
     else if (node.type === 'mark') out.push(...inlineOf(node.children, [...marks, tagOf(node)]))
     else if (node.type === 'list') {
       // A list nested inside a phrase cannot be one in ProseMirror: keep its text in lines.
@@ -159,6 +161,13 @@ function group(content: PmNode[]): MessageNode[] {
     else if (pm.type === 'interp' && typeof pm.attrs?.['name'] === 'string')
       leaves.push({ node: { type: 'interp', name: pm.attrs['name'] }, marks })
     else if (pm.type === 'hardBreak') leaves.push({ node: { type: 'break' }, marks: [] })
+    else if (pm.type === 'image' && typeof pm.attrs?.['src'] === 'string' && pm.attrs['src']) {
+      const alt = pm.attrs['alt']
+      leaves.push({
+        node: typeof alt === 'string' && alt ? { type: 'image', src: pm.attrs['src'], alt } : { type: 'image', src: pm.attrs['src'] },
+        marks: [],
+      })
+    }
   }
   return wrap(leaves)
 }

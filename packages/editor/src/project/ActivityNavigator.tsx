@@ -6,14 +6,19 @@ import {
   moveTextsToConcepts,
   createActivity,
   createProcessActivity,
+  mergeImages,
   processOf,
+  projectDictionaries,
   readActivityFile,
   resolve,
+  type ConceptKey,
   type ParsedActivity,
   type Project,
 } from '@tricc/core'
 import { useCanWrite, useMutate, useProjectSnapshot } from '../runtime/context.js'
 import { uniqueId } from './Overview.js'
+import { ProjectSearchDialog } from './ProjectSearch.js'
+import { dictionaryLabel } from '../terminology/ConceptDialog.js'
 
 type LibraryTab = 'process' | 'activity'
 
@@ -39,14 +44,32 @@ export function ActivityNavigator({
   selected,
   onSelect,
   dictionaryOpen,
+  dictionarySystem,
   onOpenDictionary,
+  mediaOpen,
+  onOpenMedia,
+  onOpenConcept,
+  onOpenNode,
 }: {
   selected: string | undefined
   onSelect: (id: string | undefined) => void
   /** Whether the data dictionary fills the main area. */
   dictionaryOpen?: boolean
-  /** Shows the Data dictionary tab; choosing it opens the dictionary in the main area. */
-  onOpenDictionary?: () => void
+  /** The dictionary open in the main area (canonical url). */
+  dictionarySystem?: string
+  /**
+   * Shows the Data dictionary tab, which lists the dictionaries; choosing one opens it in the
+   * main area. The tab itself opens the default dictionary.
+   */
+  onOpenDictionary?: (system: string) => void
+  /** Whether the image library fills the main area. */
+  mediaOpen?: boolean
+  /** Shows the Media tab; choosing it opens the image library in the main area. */
+  onOpenMedia?: () => void
+  /** A concept found by the project search. */
+  onOpenConcept?: (key: ConceptKey) => void
+  /** A node found by the project search. */
+  onOpenNode?: (activityId: string, nodeId: string) => void
 }) {
   const project = useProjectSnapshot()
   const canWrite = useCanWrite()
@@ -55,11 +78,15 @@ export function ActivityNavigator({
   const [draft, setDraft] = useState<LibraryDraft | null>(null)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const [tab, setTab] = useState<LibraryTab | 'dictionary'>('activity')
+  const [tab, setTab] = useState<LibraryTab | 'dictionary' | 'media'>('activity')
   const [expanded, setExpanded] = useState(false)
   const [activityQuery, setActivityQuery] = useState('')
   const [processQuery, setProcessQuery] = useState('')
   const [overflows, setOverflows] = useState(false)
+  const [projectQuery, setProjectQuery] = useState('')
+  const [searching, setSearching] = useState<string | null>(null)
+  const closeSearch = useCallback(() => setSearching(null), [])
+  const dictionaries = projectDictionaries(project)
 
   const ids = Object.keys(project.activities).sort()
   const processActivities = ids.filter((id) => activityKind(project.activities[id]!) === 'process')
@@ -79,11 +106,15 @@ export function ActivityNavigator({
     if (selectedKind) setTab(selectedKind)
   }, [selected, selectedKind])
 
-  // The dictionary tab follows the main area: open there, selected here.
+  // The dictionary and media tabs follow the main area: open there, selected here.
   useEffect(() => {
     if (dictionaryOpen) setTab('dictionary')
-    else setTab((current) => (current === 'dictionary' ? (selectedKind ?? 'activity') : current))
-  }, [dictionaryOpen, selectedKind])
+    else if (mediaOpen) setTab('media')
+    else
+      setTab((current) =>
+        current === 'dictionary' || current === 'media' ? (selectedKind ?? 'activity') : current,
+      )
+  }, [dictionaryOpen, mediaOpen, selectedKind])
 
   const label = (id: string) => resolve(project.activities[id]?.title, lang, lang) ?? id
   const usedBy = (id: string) => {
@@ -184,11 +215,17 @@ export function ActivityNavigator({
     // Imported texts move to the dictionary, as they do when a project is opened.
     const staged = structuredClone(project)
     for (const row of rows) staged.activities[row.activity.id] = structuredClone(row.activity)
+    // Pictures drawn on draw.io pages join the library first: a clash renames the page's refs,
+    // and the text move then puts each picture in its concept's questionnaire text.
+    const images = rows.flatMap((row) =>
+      row.images ? mergeImages(staged, row.images, [staged.activities[row.activity.id]!]) : [],
+    )
     const moved = moveTextsToConcepts(
       staged,
       rows.map((row) => row.activity.id),
     )
     mutate((tx) => {
+      for (const image of images) tx.addImage(image)
       if (moved.createdCodeSystem) {
         tx.addCodeSystem(staged.codeSystems[moved.createdCodeSystem.url]!)
         tx.setMeta('defaultCodeSystem', moved.createdCodeSystem.url)
@@ -213,9 +250,6 @@ export function ActivityNavigator({
   return (
     <nav data-testid="activity-navigator" data-expanded={expanded ? 'true' : 'false'}>
       <div className="tricc-nav__bar">
-        <button type="button" data-testid="nav-overview" onClick={() => onSelect(undefined)}>
-          Project overview
-        </button>
         <div className="tricc-nav__tabs" role="tablist" aria-label="Processes and activities">
           <button
             type="button"
@@ -251,24 +285,48 @@ export function ActivityNavigator({
               data-testid="tab-dictionary"
               onClick={() => {
                 setTab('dictionary')
-                onOpenDictionary()
+                onOpenDictionary(dictionarySystem ?? dictionaries[0]!.url)
               }}
             >
               Data dictionary
               <span className="tricc-nav__count">{conceptCount}</span>
             </button>
           )}
+          {onOpenMedia && (
+            <button
+              type="button"
+              role="tab"
+              id="tab-media"
+              aria-selected={tab === 'media'}
+              aria-controls="media-panel"
+              data-testid="tab-media"
+              onClick={() => {
+                setTab('media')
+                onOpenMedia()
+              }}
+            >
+              Media
+              <span className="tricc-nav__count">{Object.keys(project.images ?? {}).length}</span>
+            </button>
+          )}
         </div>
-        {tab !== 'dictionary' && (
-        <>
         <input
           type="search"
-          data-testid={tab === 'activity' ? 'activity-search' : 'process-search'}
-          aria-label={tab === 'activity' ? 'Find an activity' : 'Find a process'}
-          placeholder="Search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          className="tricc-nav__project-search"
+          data-testid="project-search"
+          aria-label="Search the project"
+          title="Concepts, processes, activities and nodes. Press Enter to see what matches."
+          placeholder="Search the project"
+          value={projectQuery}
+          onChange={(e) => setProjectQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' || !projectQuery.trim()) return
+            e.preventDefault()
+            setSearching(projectQuery)
+          }}
         />
+        {tab !== 'dictionary' && tab !== 'media' && (
+        <>
         <button
           type="button"
           data-testid="nav-expand"
@@ -324,10 +382,32 @@ export function ActivityNavigator({
         ))}
       </datalist>
 
-      {tab === 'dictionary' ? (
-        <p id="dictionary-panel" role="tabpanel" aria-labelledby="tab-dictionary" className="tricc-nav__note">
-          Every concept of the project, with its texts. Choose one to edit it.
+      {tab === 'media' ? (
+        <p id="media-panel" role="tabpanel" aria-labelledby="tab-media" className="tricc-nav__note">
+          The pictures of the project. Texts show them; add, rename or replace them here.
         </p>
+      ) : tab === 'dictionary' ? (
+        <section id="dictionary-panel" role="tabpanel" aria-labelledby="tab-dictionary">
+          <ul data-testid="dictionary-list">
+            {dictionaries.map((d) => (
+              <li key={d.url}>
+                <button
+                  type="button"
+                  className="tricc-chip"
+                  data-testid={`nav-dictionary-${d.id}`}
+                  data-kind="dictionary"
+                  data-dictionary={d.kind}
+                  aria-current={dictionarySystem === d.url}
+                  title={dictionaryLabel(d)}
+                  onClick={() => onOpenDictionary?.(d.url)}
+                >
+                  {d.id}
+                  <span className="tricc-nav__process">{d.codeSystem?.conceptOrder.length ?? 0}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : tab === 'process' ? (
         <LibraryPanel
           tab="process"
@@ -336,6 +416,16 @@ export function ActivityNavigator({
           ids={processActivities}
           selected={selected}
           query={processQuery}
+          filter={
+            <input
+              type="search"
+              data-testid="process-search"
+              aria-label="Find a process"
+              placeholder="Filter"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          }
           expanded={expanded}
           itemLabel={(id) => `${label(id)} ${processOf(project.activities[id]!) ?? ''}`}
           onOverflow={setOverflows}
@@ -373,6 +463,16 @@ export function ActivityNavigator({
           ids={normalActivities}
           selected={selected}
           query={activityQuery}
+          filter={
+            <input
+              type="search"
+              data-testid="activity-search"
+              aria-label="Find an activity"
+              placeholder="Filter"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          }
           expanded={expanded}
           itemLabel={label}
           onOverflow={setOverflows}
@@ -406,6 +506,15 @@ export function ActivityNavigator({
           onConfirm={confirmDraft}
         />
       )}
+      {searching !== null && (
+        <ProjectSearchDialog
+          query={searching}
+          onClose={closeSearch}
+          onOpenActivity={(id) => onSelect(id)}
+          {...(onOpenConcept ? { onOpenConcept } : {})}
+          {...(onOpenNode ? { onOpenNode } : {})}
+        />
+      )}
       {preview && canWrite && (
         <ImportDialog
           preview={preview}
@@ -429,6 +538,7 @@ function LibraryPanel({
   itemLabel,
   onOverflow,
   empty,
+  filter,
   renderItem,
 }: {
   tab: LibraryTab
@@ -441,6 +551,8 @@ function LibraryPanel({
   itemLabel: (id: string) => string
   onOverflow: (overflows: boolean) => void
   empty?: ReactNode
+  /** The search over this list, at the start of its row. */
+  filter?: ReactNode
   renderItem: (id: string) => ReactNode
 }) {
   const listRef = useRef<HTMLUListElement>(null)
@@ -487,11 +599,14 @@ function LibraryPanel({
       aria-label={panelLabel}
       aria-labelledby={`tab-${tab === 'process' ? 'processes' : 'activities'}`}
     >
-      <ul ref={listRef} data-testid={listTestId}>
-        {shown.map((id) => (
-          <li key={id}>{renderItem(id)}</li>
-        ))}
-      </ul>
+      <div className="tricc-nav__row">
+        {filter}
+        <ul ref={listRef} data-testid={listTestId}>
+          {shown.map((id) => (
+            <li key={id}>{renderItem(id)}</li>
+          ))}
+        </ul>
+      </div>
       {shown.length === 0 && needle !== '' && (
         <p className="tricc-nav__empty" data-testid={`${tab}-no-match`}>
           No {tab === 'process' ? 'processes' : 'activities'} match.

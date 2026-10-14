@@ -14,6 +14,7 @@ import {
 } from '@xyflow/react'
 import {
   isExtensionTarget,
+  isTextNode,
   type Activity,
   type Issue,
   type NodeType,
@@ -21,7 +22,7 @@ import {
 } from '@tricc/core'
 import { useCanWrite, useEditorPreferences, useMutate } from '../../runtime/context.js'
 import { expressionNames, renderCqlLabels } from '../../cql/names.js'
-import { TriccNodeView } from './TriccNode.js'
+import { FollowContext, TriccNodeView } from './TriccNode.js'
 import { CommentNodeView, commentFlowId, commentIdOf } from './CommentNode.js'
 import { GroupNodeView, groupFlowId, groupIdOf } from './GroupNode.js'
 
@@ -44,6 +45,7 @@ import {
   optionIdFromHandle,
 } from './answer.js'
 import { autoLayout } from './layout.js'
+import { draggingFiles, imageFiles } from '../../media/images.js'
 
 const nodeTypes = { tricc: TriccNodeView, comment: CommentNodeView, 'group-frame': GroupNodeView }
 const edgeTypes = { branch: TriccEdgeView }
@@ -77,6 +79,10 @@ export interface CanvasProps {
   dropping?: boolean
   /** Ctrl/Cmd+click on a goto opens the activity it goes to. */
   onOpenActivity?: (activityId: string) => void
+  /** Bring these nodes into view. A new object (`seq`) asks again for the same ids. */
+  reveal?: { ids: string[]; seq: number }
+  /** Picture files dropped on a node, or on one of its answers. */
+  onDropPictures?: (files: File[], at: { nodeId: string; optionId?: string }) => void
 }
 
 /**
@@ -112,6 +118,8 @@ function CanvasInner({
   placementRef,
   dropping,
   onOpenActivity,
+  reveal,
+  onDropPictures,
 }: CanvasProps) {
   const mutate = useMutate()
   const canWrite = useCanWrite()
@@ -122,6 +130,13 @@ function CanvasInner({
   const names = useMemo(
     () => expressionNames(project, lang, activityId),
     [project, lang, activityId],
+  )
+  // The follow button on a goto opens its target, like Ctrl+click does.
+  const follow = useCallback(
+    (link: string) => {
+      if (onOpenActivity && project.activities[link]) onOpenActivity(link)
+    },
+    [onOpenActivity, project.activities],
   )
   /** Positions for the gesture in progress. Empty once the pointer is released. */
   const dragPositions = useRef(new Map<string, { x: number; y: number }>())
@@ -144,6 +159,21 @@ function CanvasInner({
     [],
   )
   if (placementRef) placementRef.current = placement
+  /** A reveal asked for before React Flow was ready; done once it is. */
+  const pendingReveal = useRef<string[] | null>(null)
+  const fitTo = useCallback((ids: string[]) => {
+    const flow = instance.current
+    if (!flow || ids.length === 0) return
+    // After the frame that selects them, so the nodes are measured where they now are.
+    requestAnimationFrame(() =>
+      void flow.fitView({ nodes: ids.map((id) => ({ id })), duration: 300, maxZoom: 1, padding: 0.5 }),
+    )
+  }, [])
+  useEffect(() => {
+    if (!reveal) return
+    if (instance.current) fitTo(reveal.ids)
+    else pendingReveal.current = reveal.ids
+  }, [reveal, fitTo])
   if (seenActivity.current !== activityId) {
     seenActivity.current = activityId
     dragPositions.current.clear()
@@ -466,19 +496,62 @@ function CanvasInner({
 
   const cancelBranch = useCallback(() => setPendingBranch(null), [])
 
+  /** The node (and answer) a picture file is over, if it can take one. */
+  const pictureTarget = (target: EventTarget | null) => {
+    const el = target instanceof Element ? target : null
+    const wrapper = el?.closest<HTMLElement>('.react-flow__node')
+    const nodeId = wrapper?.dataset['id']
+    const node = nodeId ? activity.nodes[nodeId] : undefined
+    if (!wrapper || !node || !isTextNode(node.type)) return undefined
+    const optionId = el?.closest<HTMLElement>('[data-option-id]')?.dataset['optionId']
+    return { wrapper, nodeId: node.id, ...(optionId ? { optionId } : {}) }
+  }
+  const marked = useRef<HTMLElement | null>(null)
+  const markDrop = (el: HTMLElement | null) => {
+    if (marked.current === el) return
+    marked.current?.removeAttribute('data-picture-drop')
+    el?.setAttribute('data-picture-drop', 'true')
+    marked.current = el
+  }
+
   return (
     <div
       className="tricc-canvas"
       data-testid="activity-canvas"
       data-dropping={dropping ? 'true' : undefined}
       ref={frameRef}
+      onDragOver={(event) => {
+        if (!canWrite || !onDropPictures || !draggingFiles(event)) return
+        const at = pictureTarget(event.target)
+        markDrop(at?.wrapper ?? null)
+        if (!at) return
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'copy'
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) markDrop(null)
+      }}
+      onDrop={(event) => {
+        markDrop(null)
+        if (!canWrite || !onDropPictures || !draggingFiles(event)) return
+        const at = pictureTarget(event.target)
+        if (!at) return
+        event.preventDefault()
+        const files = imageFiles(event.dataTransfer.files)
+        if (files.length > 0) onDropPictures(files, at.optionId ? { nodeId: at.nodeId, optionId: at.optionId } : { nodeId: at.nodeId })
+      }}
     >
+      <FollowContext.Provider value={onOpenActivity ? follow : undefined}>
       <ReactFlow<FlowNode, TriccFlowEdge>
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        onInit={(i) => (instance.current = i)}
+        onInit={(i) => {
+          instance.current = i
+          if (pendingReveal.current) fitTo(pendingReveal.current)
+          pendingReveal.current = null
+        }}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -504,6 +577,7 @@ function CanvasInner({
         <Controls showInteractive={false} />
         <MiniMap pannable zoomable />
       </ReactFlow>
+      </FollowContext.Provider>
       {pendingBranch && canWrite && (
         <BranchChoiceDialog
           sourceType={pendingBranch.sourceType}

@@ -1,10 +1,19 @@
-import { useEffect, useRef } from 'react'
-import { EditorContent, useEditor } from '@tiptap/react'
+import { useEffect, useRef, useState } from 'react'
+import {
+  EditorContent,
+  NodeViewWrapper,
+  ReactNodeViewRenderer,
+  useEditor,
+  type ReactNodeViewProps,
+} from '@tiptap/react'
 import { Node, mergeAttributes } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { Color, TextStyle } from '@tiptap/extension-text-style'
-import { toMarkdown, type DisplayText } from '@tricc/core'
+import { imageIdOf, imageSrc, toMarkdown, type DisplayText } from '@tricc/core'
 import { fromDoc, toDoc, type PmNode } from './prosemirror.js'
+import { imageFiles, useAddImages } from '../media/images.js'
+import { ImagePicker } from '../media/ImagePicker.js'
+import { TextImage } from './RichTextField.js'
 
 /**
  * The formatted-text editor. Loaded on demand (it is the only TipTap import), so the
@@ -37,6 +46,60 @@ const Interp = Node.create({
   },
 })
 
+/**
+ * A picture from the image library, inline in the text. It stores `Binary/<id>`. It is drawn by
+ * a React view reading the library, so a picture added a moment ago shows as soon as it is there.
+ */
+function PictureView({ node }: ReactNodeViewProps) {
+  return (
+    <NodeViewWrapper as="span" className="tricc-text-picture">
+      <TextImage src={String(node.attrs['src'] ?? '')} alt={(node.attrs['alt'] as string | null) ?? undefined} />
+    </NodeViewWrapper>
+  )
+}
+
+const TextPicture = Node.create({
+  name: 'image',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  selectable: true,
+  draggable: true,
+  addNodeView() {
+    return ReactNodeViewRenderer(PictureView, { as: 'span' })
+  },
+  addAttributes() {
+    return { src: { default: null }, alt: { default: null } }
+  },
+  parseHTML() {
+    // Only our own pictures: a pasted web image is not in the library.
+    return [
+      {
+        tag: 'img[data-src]',
+        getAttrs: (el) => {
+          const src = (el as HTMLElement).dataset['src'] ?? ''
+          return imageIdOf(src) ? { src, alt: (el as HTMLElement).getAttribute('alt') } : false
+        },
+      },
+    ]
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    const src = String(node.attrs['src'] ?? '')
+    return [
+      'img',
+      mergeAttributes(HTMLAttributes, {
+        'data-src': src,
+        'data-image': imageIdOf(src) ?? '',
+        alt: node.attrs['alt'] ?? '',
+        class: 'tricc-text-image',
+      }),
+    ]
+  },
+  renderText({ node }) {
+    return `![${String(node.attrs['alt'] ?? '')}](${String(node.attrs['src'] ?? '')})`
+  },
+})
+
 /** Colours that read well on a form; any other comes from the colour picker. */
 const COLORS: [string, string][] = [
   ['Red', '#d32f2f'],
@@ -63,6 +126,11 @@ export default function RichTextEditor({
   label: string
 }) {
   const last = useRef(toMarkdown(value))
+  const addImages = useAddImages()
+  const [picking, setPicking] = useState(false)
+  const [imageError, setImageError] = useState<string | undefined>(undefined)
+  /** Add dropped or pasted files to the library and put them in the text at `pos`. */
+  const insertFiles = useRef<(files: File[], pos?: number) => void>(() => undefined)
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -78,10 +146,30 @@ export default function RichTextEditor({
       TextStyle,
       Color,
       Interp,
+      TextPicture,
     ],
     content: toDoc(value) as never,
     editable: !disabled,
-    editorProps: { attributes: { 'aria-label': label, 'data-testid': `${testId}-rich` } },
+    editorProps: {
+      attributes: { 'aria-label': label, 'data-testid': `${testId}-rich` },
+      handleDrop: (view, event, _slice, moved) => {
+        if (moved || disabled) return false
+        const files = imageFiles(event.dataTransfer?.files)
+        if (files.length === 0) return false
+        event.preventDefault()
+        const at = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos
+        insertFiles.current(files, at)
+        return true
+      },
+      handlePaste: (_view, event) => {
+        if (disabled) return false
+        const files = imageFiles(event.clipboardData?.files)
+        if (files.length === 0) return false
+        event.preventDefault()
+        insertFiles.current(files)
+        return true
+      },
+    },
     onUpdate: ({ editor }) => {
       const text = fromDoc(editor.getJSON() as PmNode)
       last.current = toMarkdown(text)
@@ -101,6 +189,16 @@ export default function RichTextEditor({
   useEffect(() => {
     editor?.setEditable(!disabled)
   }, [editor, disabled])
+
+  insertFiles.current = (files, pos) => {
+    setImageError(undefined)
+    void addImages(files, { onError: setImageError }).then((ids) => {
+      if (!editor || ids.length === 0) return
+      const content = ids.map((id) => ({ type: 'image', attrs: { src: imageSrc(id) } }))
+      if (pos === undefined) editor.chain().focus().insertContent(content).run()
+      else editor.chain().focus().insertContentAt(pos, content).run()
+    })
+  }
 
   if (!editor) return null
   const button = (name: string, title: string, active: boolean, run: () => void) => (
@@ -161,6 +259,17 @@ export default function RichTextEditor({
           value={(editor.getAttributes('textStyle')['color'] as string | undefined) ?? '#000000'}
           onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
         />
+        <button
+          type="button"
+          data-testid={`${testId}-image`}
+          aria-label="Insert a picture"
+          title="Insert a picture (or drop or paste one)"
+          disabled={disabled}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setPicking(true)}
+        >
+          Picture…
+        </button>
         <select
           data-testid={`${testId}-insert`}
           aria-label="Insert data"
@@ -179,7 +288,21 @@ export default function RichTextEditor({
           ))}
         </select>
       </div>
+      {imageError && (
+        <p role="alert" className="tricc-image-picker__error">
+          {imageError}
+        </p>
+      )}
       <EditorContent editor={editor} className="tricc-rich__content" />
+      {picking && (
+        <ImagePicker
+          onClose={() => setPicking(false)}
+          onPick={(id) => {
+            setPicking(false)
+            editor.chain().focus().insertContent({ type: 'image', attrs: { src: imageSrc(id) } }).run()
+          }}
+        />
+      )}
     </div>
   )
 }

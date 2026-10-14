@@ -205,6 +205,26 @@ export function BinIcon() {
   )
 }
 
+export function HomeIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+      <path fill="currentColor" d="M8 1.5 1 7.6l.7.8L3 7.3V14.5h4v-4h2v4h4V7.3l1.3 1.1.7-.8L8 1.5zM12 13.5h-2v-4H6v4H4V6.4l4-3.5 4 3.5v7.1z" />
+    </svg>
+  )
+}
+
+/** Follow a link: a square with an arrow leaving it. */
+export function FollowIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M9 2h5v5h-1V3.7L7.4 9.3l-.7-.7L12.3 3H9V2zM2 4h5v1H3v8h8V9h1v5H2V4z"
+      />
+    </svg>
+  )
+}
+
 export function mergeExpression(
   current: Expression | undefined,
   patch: { intent?: Record<string, string> | undefined; expression?: string | undefined },

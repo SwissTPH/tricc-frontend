@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { validateProject, resolve, type Issue, type Project } from '@tricc/core'
+import {
+  hasInternalName,
+  NODE_TYPE_SPECS,
+  resolve,
+  validateProject,
+  type ConceptKey,
+  type Issue,
+  type IssueLocation,
+  type Project,
+} from '@tricc/core'
 import { useCanWrite, useMutate, useProjectSnapshot } from '../runtime/context.js'
 import { InterventionEditor } from './InterventionEditor.js'
 import { BinIcon, ConfirmDelete, GearIcon } from '../components/Dialog.js'
@@ -15,13 +24,20 @@ import { BinIcon, ConfirmDelete, GearIcon } from '../components/Dialog.js'
  */
 export function ProjectOverview({
   onOpen,
+  onOpenEdge,
+  onOpenConcept,
   onSelect,
   onRename,
   onDelete,
   deleteNote,
+  initialSettingsOpen = false,
 }: {
   /** Open the question named by an expression. */
   onOpen?: (activityId: string, nodeId: string) => void
+  /** Open an activity with one connection selected. */
+  onOpenEdge?: (activityId: string, edgeId: string) => void
+  /** Open a concept in the dictionary. */
+  onOpenConcept?: (key: ConceptKey) => void
   /** Open a process activity. */
   onSelect?: (activityId: string) => void
   /** The project was renamed: the host updates its project list. */
@@ -30,10 +46,12 @@ export function ProjectOverview({
   onDelete?: () => void
   /** What deleting does to the files, said in the confirmation (host-specific). */
   deleteNote?: string
+  /** Show the project settings as the overview opens (the gear on the project list). */
+  initialSettingsOpen?: boolean
 } = {}) {
   const project = useProjectSnapshot()
   const canWrite = useCanWrite()
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(initialSettingsOpen)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const closeSettings = useCallback(() => setSettingsOpen(false), [])
   const cancelDelete = useCallback(() => setConfirmingDelete(false), [])
@@ -42,6 +60,16 @@ export function ProjectOverview({
   const lang = project.languages.default
 
   const usage = useMemo(() => activityUsage(project), [project])
+  const links = useMemo<IssueLinks>(
+    () => ({
+      node: onOpen,
+      edge: onOpenEdge,
+      activity: onSelect,
+      concept: onOpenConcept,
+      intervention: revealIntervention,
+    }),
+    [onOpen, onOpenEdge, onSelect, onOpenConcept],
+  )
 
   return (
     <div data-testid="project-overview">
@@ -152,19 +180,33 @@ export function ProjectOverview({
         </ul>
       </section>
 
-      <ValidationSummary issues={issues} />
+      <ValidationSummary issues={issues} links={links} />
     </div>
   )
+}
+
+/** Where a validation issue can take the author. Only the kinds a host passes become links. */
+export interface IssueLinks {
+  node?: (activityId: string, nodeId: string) => void
+  edge?: (activityId: string, edgeId: string) => void
+  activity?: (activityId: string) => void
+  /** An activity's own field (name, applicability, process): its settings. */
+  settings?: (activityId: string) => void
+  intervention?: (interventionId: string) => void
+  concept?: (key: ConceptKey) => void
 }
 
 export function ValidationSummary({
   issues,
   heading = true,
+  links,
 }: {
   issues: Issue[]
   /** The inspector tab already names this panel. The project overview keeps the heading. */
   heading?: boolean
+  links?: IssueLinks
 }) {
+  const project = useProjectSnapshot()
   const errors = issues.filter((i) => i.severity === 'error')
   const warnings = issues.filter((i) => i.severity === 'warning')
   return (
@@ -178,17 +220,120 @@ export function ValidationSummary({
         {errors.length} error{errors.length === 1 ? '' : 's'}, {warnings.length} warning
         {warnings.length === 1 ? '' : 's'}
       </p>
-      <ul>
+      <ul className="tricc-issues">
         {issues
           .filter((i) => i.severity !== 'info')
-          .map((i, idx) => (
-            <li key={`${i.rule}-${idx}`} data-testid={`issue-${i.rule}`} data-severity={i.severity}>
-              {i.message}
-            </li>
-          ))}
+          .map((i, idx) => {
+            const target = links ? issueTarget(project, i.location, links) : undefined
+            return (
+              <li key={`${i.rule}-${idx}`} data-testid={`issue-${i.rule}`} data-severity={i.severity}>
+                {i.message}
+                {target && (
+                  <button
+                    type="button"
+                    className="tricc-issue__link"
+                    data-testid="issue-link"
+                    data-target={target.kind}
+                    title={target.title}
+                    onClick={target.go}
+                  >
+                    {target.label}
+                  </button>
+                )}
+              </li>
+            )
+          })}
       </ul>
     </section>
   )
+}
+
+interface IssueTarget {
+  kind: 'edge' | 'node' | 'concept' | 'intervention' | 'settings' | 'activity'
+  label: string
+  title: string
+  go: () => void
+}
+
+/** The most specific element an issue is about that the host can show, named for the author. */
+function issueTarget(project: Project, at: IssueLocation, links: IssueLinks): IssueTarget | undefined {
+  const lang = project.languages.default
+  const activity = at.activityId ? project.activities[at.activityId] : undefined
+  const nodeName = (id: string): string => {
+    const node = activity?.nodes[id]
+    if (!node) return id
+    return node.name && !hasInternalName(node.type)
+      ? node.name
+      : (resolve(node.label, lang, lang) ?? NODE_TYPE_SPECS[node.type].label)
+  }
+  if (activity && at.edgeId && links.edge) {
+    const edge = activity.edges[at.edgeId]
+    const edgeId = at.edgeId
+    const activityId = activity.id
+    return {
+      kind: 'edge',
+      label: edge ? `${nodeName(edge.source)} → ${nodeName(edge.target)}` : 'Connection',
+      title: 'Show this connection',
+      go: () => links.edge?.(activityId, edgeId),
+    }
+  }
+  if (activity && at.nodeId && links.node && activity.nodes[at.nodeId]) {
+    const nodeId = at.nodeId
+    const activityId = activity.id
+    return {
+      kind: 'node',
+      label: nodeName(nodeId),
+      title: 'Show this node',
+      go: () => links.node?.(activityId, nodeId),
+    }
+  }
+  if (at.conceptCode && at.codeSystem && links.concept) {
+    const key = { system: at.codeSystem, code: at.conceptCode }
+    return {
+      kind: 'concept',
+      label: at.conceptCode,
+      title: 'Open this concept in the dictionary',
+      go: () => links.concept?.(key),
+    }
+  }
+  const iv = at.interventionId ? project.interventions.find((i) => i.id === at.interventionId) : undefined
+  if (iv && links.intervention) {
+    return {
+      kind: 'intervention',
+      label: resolve(iv.title, lang, lang) ?? iv.id,
+      title: 'Show this intervention',
+      go: () => links.intervention?.(iv.id),
+    }
+  }
+  if (activity && at.field && !at.nodeId && !at.edgeId && links.settings) {
+    const activityId = activity.id
+    return {
+      kind: 'settings',
+      label: 'Activity settings',
+      title: 'Open the settings of this activity',
+      go: () => links.settings?.(activityId),
+    }
+  }
+  if (activity && links.activity) {
+    const activityId = activity.id
+    return {
+      kind: 'activity',
+      label: resolve(activity.title, lang, lang) ?? activity.id,
+      title: 'Open this activity',
+      go: () => links.activity?.(activityId),
+    }
+  }
+  return undefined
+}
+
+/** Scroll an intervention card into view and flash it: it is already on this page. */
+function revealIntervention(id: string) {
+  const card = document.querySelector<HTMLElement>(`[data-testid="intervention-${CSS.escape(id)}"]`)
+  if (!card) return
+  card.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  card.classList.remove('tricc-flash')
+  void card.offsetWidth
+  card.classList.add('tricc-flash')
 }
 
 /** activity id -> intervention ids that reference it. */
