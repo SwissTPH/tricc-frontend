@@ -72,7 +72,14 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
       <span className="tricc-node__badges">
         {model.notAvailable && <span className="tricc-badge">Not available</span>}
         {model.repeat !== undefined && model.repeat !== 1 && (
-          <span className="tricc-badge">Repeat {model.repeat}</span>
+          <span className="tricc-badge" data-testid={`node-${model.id}-repeat`}>
+            Repeat {model.repeat}
+          </span>
+        )}
+        {model.instance !== undefined && model.instance !== 1 && (
+          <span className="tricc-badge" data-testid={`node-${model.id}-instance`}>
+            Instance {model.instance}
+          </span>
         )}
         {follow && model.type === 'goto' && model.link && !missing && (
           <button
@@ -143,6 +150,15 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
                 <span className="tricc-node__answer-label" title={text}>
                   {text}
                 </span>
+                {option.is_none && (
+                  <span
+                    className="tricc-badge tricc-node__answer-none"
+                    data-testid={`node-${model.id}-answer-${option.id}-none`}
+                    title="None of these: choosing it means none of the other answers applies"
+                  >
+                    none
+                  </span>
+                )}
                 {data.answerPictures?.[option.id] && (
                   <span
                     className="tricc-node__answer-picture"

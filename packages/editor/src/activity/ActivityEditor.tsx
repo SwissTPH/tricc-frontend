@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import {
   NODE_TYPE_GROUPS,
   isCapture,
+  isRepeatable,
   isSelect,
   NODE_TYPE_SPECS,
   PALETTE_GROUP_LABELS,
@@ -23,6 +24,7 @@ import {
   type ConceptKey,
   type NodeType,
   type TriccEdge,
+  type SelectOption,
   type TriccNode,
 } from '@tricc/core'
 import { useCanWrite, useEditorPreferences, useMutate, useProjectSnapshot } from '../runtime/context.js'
@@ -42,6 +44,7 @@ import { ActivityRefField } from '../components/ActivityRefField.js'
 import { BinIcon, GearIcon } from '../components/Dialog.js'
 import { CONCEPT_NODE_TYPES, ConceptCard } from '../terminology/ConceptCard.js'
 import { AnswerPicker } from '../terminology/AnswerPicker.js'
+import { RepeatFields } from './RepeatFields.js'
 import { ActivitySettings, CalledBy, ConfirmActivityDelete, titleSlug } from './ActivitySettings.js'
 import { useAddImages } from '../media/images.js'
 import { showPictureOn } from '../media/attach.js'
@@ -828,6 +831,29 @@ export function NodeProperties({
           {(node.options ?? []).length === 0 && (
             <p>This question offers nothing to choose. Add the possible answers.</p>
           )}
+          {(node.options ?? []).length > 0 && (
+            <>
+              <label htmlFor="node-none-option">None of these</label>
+              <select
+                id="node-none-option"
+                data-testid="field-none-option"
+                value={(node.options ?? []).find((o) => o.is_none)?.id ?? ''}
+                disabled={readOnly}
+                onChange={(e) => update({ options: withNone(node.options ?? [], e.target.value || undefined) })}
+              >
+                <option value="">No such answer</option>
+                {(node.options ?? []).map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {conceptText(lookupConcept(project, optionConceptKey(project, o)), 'display', lang, project.languages.default) ??
+                      resolve(o.label, lang, lang) ??
+                      o.name ??
+                      o.id}
+                  </option>
+                ))}
+              </select>
+              <p>The answer that means none of the others applies, if the question has one.</p>
+            </>
+          )}
           {(node.options ?? []).map((op) => {
             // An answer with a concept edits the concept's text, shared by every question using it.
             const opKey = optionConceptKey(project, op)
@@ -876,6 +902,18 @@ export function NodeProperties({
                   update({ options })
                 }}
               />
+              <label className="tricc-check">
+                <input
+                  type="checkbox"
+                  data-testid={`option-none-${op.id}`}
+                  checked={op.is_none === true}
+                  disabled={readOnly}
+                  onChange={(e) =>
+                    update({ options: withNone(node.options ?? [], e.target.checked ? op.id : undefined) })
+                  }
+                />
+                None of these
+              </label>
               {!readOnly && (
                 <button
                   type="button"
@@ -1031,35 +1069,11 @@ export function NodeProperties({
             Open activity
           </button>
         )}
-        <label htmlFor="node-instance">Instance</label>
-        <input
-          id="node-instance"
-          type="number"
-          data-testid="field-instance"
-          value={node.instance ?? ''}
-          readOnly={readOnly}
-          disabled={readOnly}
-          onChange={(e) =>
-            update({ instance: e.target.value === '' ? undefined : Number(e.target.value) })
-          }
-        />
         </>
       )}
 
-      {(node.type === 'goto' || isCapture(node.type)) && (
-        <>
-          <label htmlFor="node-repeat">Repeat</label>
-          <input
-            id="node-repeat"
-            type="number"
-            min={1}
-            data-testid="field-repeat"
-            value={node.repeat ?? ''}
-            readOnly={readOnly}
-            disabled={readOnly}
-            onChange={(e) => update({ repeat: e.target.value === '' ? undefined : Number(e.target.value) })}
-          />
-        </>
+      {isRepeatable(node.type) && (
+        <RepeatFields node={node} readOnly={readOnly} idPrefix="node" onChange={update} />
       )}
 
       <label htmlFor="node-intent">Relevance — what it should do</label>
@@ -1456,4 +1470,12 @@ function ActivitySummary({
       </button>
     </div>
   )
+}
+
+/** Mark one answer as "none of these" (or none of them): at most one per question. */
+function withNone(options: SelectOption[], noneId: string | undefined): SelectOption[] {
+  return options.map((o) => {
+    const { is_none: _was, ...rest } = o
+    return o.id === noneId ? { ...rest, is_none: true } : rest
+  })
 }

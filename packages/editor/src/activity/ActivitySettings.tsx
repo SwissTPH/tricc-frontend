@@ -3,11 +3,13 @@ import {
   activityKind,
   processOf,
   resolve,
+  rootNode,
   type Activity,
   type Project,
 } from '@tricc/core'
 import { useMutate } from '../runtime/context.js'
 import { CqlExpressionField } from '../cql/CqlExpressionField.js'
+import { RepeatFields } from './RepeatFields.js'
 import { ConfirmDelete, Dialog, mergeExpression } from '../components/Dialog.js'
 
 /** The fallback `tricc_oo` uses when an activity has no name. */
@@ -141,6 +143,7 @@ export function ActivitySettings({
   const lang = project.languages.default
   const title = resolve(activity.title, lang, lang) ?? activity.id
   const kind = activityKind(activity)
+  const root = rootNode(activity)
   const [confirming, setConfirming] = useState(false)
   const cancelDelete = useCallback(() => setConfirming(false), [])
 
@@ -220,6 +223,15 @@ export function ActivitySettings({
             onChange={(expression) => setApplicability({ expression: expression || undefined })}
           />
           <p>Applies on top of the start condition of every intervention that lists this activity.</p>
+
+          {root?.type === 'activity_start' && (
+            <RepeatFields
+              node={root}
+              readOnly={readOnly}
+              idPrefix="act"
+              onChange={(patch) => mutate((tx) => tx.updateNode(activity.id, { ...root, ...patch }))}
+            />
+          )}
 
           <CalledBy
             project={project}

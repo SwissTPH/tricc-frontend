@@ -1796,3 +1796,14 @@
   color: #64748b;
   white-space: nowrap;
 }
+
+/* A checkbox with its text on one line, in the node panel. */
+.tricc-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tricc-node__answer-none {
+  flex: none;
+  margin-left: 4px;
+}
