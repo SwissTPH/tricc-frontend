@@ -15,6 +15,7 @@ my-guideline/
 - **Concepts** are stored as FHIR R4 CodeSystems, so they can be reused by other FHIR tools.
 - **Expressions** are CQL strings.
 
-`tricc_oo` reads this folder through its YAML input strategy, next to its existing draw.io path.
+`tricc_oo` reads this folder through its YAML input strategy, next to its existing draw.io path
+(see [Converting with tricc_oo](./tricc-oo)).
 The full specification is in the repository under
 [`feature/`](https://github.com/SwissTPH/tricc-frontend/tree/main/feature).

@@ -1,0 +1,34 @@
+/* Swiss TPH indigo, from the official screen logo. */
+:root {
+  --vp-c-brand-1: #432ca1;
+  --vp-c-brand-2: #5a45b5;
+  --vp-c-brand-3: #432ca1;
+  --vp-c-brand-soft: rgba(67, 44, 161, 0.14);
+}
+.dark {
+  --vp-c-brand-1: #a99bf0;
+  --vp-c-brand-2: #8f7ee6;
+  --vp-c-brand-3: #5a45b5;
+  --vp-c-brand-soft: rgba(169, 155, 240, 0.16);
+}
+
+/* The logo is a wordmark: size it by height and keep the site name beside it. */
+.VPNavBarTitle .logo {
+  height: 22px;
+  width: auto;
+  margin-right: 12px;
+}
+
+.footer-logo {
+  height: 28px;
+  width: auto;
+  display: inline-block;
+}
+.dark .footer-logo {
+  filter: brightness(0) invert(1);
+}
+
+/* Same rule as the nav: the indigo mark goes white on the dark theme. */
+.dark .VPHero .image-src {
+  filter: brightness(0) invert(1);
+}

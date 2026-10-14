@@ -4,6 +4,9 @@ layout: home
 hero:
   name: TRICC Authoring
   text: Clinical guidelines, drawn and checked in the browser
+  image:
+    src: /swisstph-mark.png
+    alt: Swiss TPH
   tagline: Author TRICC decision-support flowcharts with an editor that understands them, and save a folder that tricc_oo converts to ODK, CHT, OpenMRS, DHIS2 and FHIR.
   actions:
     - theme: brand

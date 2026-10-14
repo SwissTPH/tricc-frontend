@@ -32,4 +32,5 @@ a single drawing, use the import button on the **Activities** tab.
 ## Converting to forms
 
 The saved folder is the input to [`tricc_oo`](https://github.com/SwissTPH/tricc), which converts it
-to XLSForm/ODK, CHT, OpenMRS, DHIS2, FHIR SDC and OpenSRP.
+to XLSForm/ODK, CHT, OpenMRS, DHIS2, FHIR SDC and OpenSRP. See
+[Converting with tricc_oo](./tricc-oo).
