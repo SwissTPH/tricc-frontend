@@ -3,7 +3,8 @@ import { expect, test, type Page } from '@playwright/test'
 /**
  * Project search and data dictionaries (feature/20261014-project-search-and-dictionaries.md):
  * the bar searches concepts, processes, activities and nodes at once; the Data dictionary tab
- * lists the dictionaries, a calculation's concept goes to the calculate one.
+ * lists the dictionaries, a calculation's concept goes to the calculate one. Also the
+ * "none of these" answer of a select.
  */
 
 test.beforeEach(async ({ page }) => {
@@ -98,4 +99,69 @@ test('the project search shows hits by source and opens a node', async ({ page }
   await expect(page.getByTestId('project-search-none')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('project-search-results')).toHaveCount(0)
+})
+
+test('one answer of a select can be "none of these", from the question or the answer', async ({ page }) => {
+  await page.getByTestId('new-project-name').fill('None answer')
+  await page.getByTestId('create-project').click()
+  await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
+  await placeNode(page, 'select_multiple')
+  await page.getByTestId('field-name').fill('danger_signs')
+  for (const [code, display] of [
+    ['convulsions', 'Convulsions'],
+    ['no_sign', 'None of these signs'],
+  ]) {
+    await page.getByTestId('add-option-new').click()
+    await page.getByTestId('concept-code').fill(code!)
+    await page.getByTestId('concept-display').fill(display!)
+    await page.getByTestId('concept-dialog-save').click()
+    await expect(page.getByTestId('concept-dialog')).toHaveCount(0)
+  }
+  const none = page.getByTestId('field-none-option')
+  await expect(none).toHaveValue('')
+  const boxes = page.locator('[data-testid^="option-none-"]')
+  await expect(boxes).toHaveCount(2)
+
+  // From the question: the answer is marked, on the panel and on the node.
+  await none.selectOption({ label: 'None of these signs' })
+  await expect(boxes.nth(1)).toBeChecked()
+  await expect(boxes.nth(0)).not.toBeChecked()
+  await expect(page.locator('.tricc-node__answer-none')).toHaveCount(1)
+
+  // From the answer: only one at a time.
+  await boxes.nth(0).check()
+  await expect(boxes.nth(1)).not.toBeChecked()
+  await expect(none.locator('option:checked')).toHaveText('Convulsions')
+  await boxes.nth(0).uncheck()
+  await expect(none).toHaveValue('')
+  await expect(page.locator('.tricc-node__answer-none')).toHaveCount(0)
+})
+
+test('repeat and instance are offered on every node holding a value, and on the activity', async ({ page }) => {
+  await page.getByTestId('new-project-name').fill('Repeats')
+  await page.getByTestId('create-project').click()
+  await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
+
+  // A calculation: both fields, and badges on the node.
+  await placeNode(page, 'calculate')
+  await page.getByTestId('field-repeat').fill('2')
+  await page.getByTestId('field-instance').fill('3')
+  await expect(page.getByTestId('node-n-calculate-repeat')).toHaveText('Repeat 2')
+  await expect(page.getByTestId('node-n-calculate-instance')).toHaveText('Instance 3')
+  await page.getByTestId('field-instance').fill('')
+  await expect(page.getByTestId('node-n-calculate-instance')).toHaveCount(0)
+
+  // A decision is only a node: neither.
+  await placeNode(page, 'rhombus')
+  await expect(page.getByTestId('field-repeat')).toHaveCount(0)
+  await expect(page.getByTestId('field-instance')).toHaveCount(0)
+
+  // The activity start: in the activity settings.
+  await page.getByTestId('configure-activity').click()
+  await page.getByTestId('activity-settings').getByTestId('field-repeat').fill('-1')
+  await page.getByTestId('activity-settings-save').click()
+  await page.getByTestId('configure-activity').click()
+  await expect(page.getByTestId('activity-settings').getByTestId('field-repeat')).toHaveValue('-1')
 })
