@@ -1,5 +1,5 @@
 import { ZodError } from 'zod'
-import type { Activity } from '../model/types.js'
+import type { Activity, ProjectImage } from '../model/types.js'
 import { decodeActivity } from './codec.js'
 import { activitiesFromDrawio } from './drawio.js'
 import { fromYaml } from './serialize/yaml.js'
@@ -15,6 +15,8 @@ export interface ParsedActivity {
   activity: Activity
   renamedFrom?: string
   alreadyInProject: boolean
+  /** Pictures drawn on this page (draw.io), referenced by its nodes' `media.image`. */
+  images?: Record<string, ProjectImage>
 }
 
 /**
@@ -51,8 +53,9 @@ function isDrawio(filename: string, body: string): boolean {
 function drawioActivities(body: string, taken: Set<string>, lang: string): ParsedActivity[] {
   const prior = new Set(taken)
   let activities: Activity[]
+  const images: Record<string, ProjectImage> = {}
   try {
-    activities = activitiesFromDrawio(body, taken, lang)
+    activities = activitiesFromDrawio(body, taken, lang, images)
   } catch (error) {
     throw new Error(error instanceof Error && error.message ? error.message : 'This file is not a draw.io diagram.')
   }
@@ -63,11 +66,20 @@ function drawioActivities(body: string, taken: Set<string>, lang: string): Parse
     const base = /^(.*)-\d+$/.exec(activity.id)?.[1]
     const renamedFrom = base && (prior.has(base) || seen.has(base)) ? base : undefined
     seen.add(activity.id)
-    return {
+    const parsed: ParsedActivity = {
       activity,
       renamedFrom,
       alreadyInProject: renamedFrom ? prior.has(renamedFrom) : false,
     }
+    const own: Record<string, ProjectImage> = {}
+    for (const node of Object.values(activity.nodes)) {
+      for (const item of [node, ...(node.options ?? [])]) {
+        const image = item.media && images[item.media.image]
+        if (image) own[image.id] = image
+      }
+    }
+    if (Object.keys(own).length > 0) parsed.images = own
+    return parsed
   })
 }
 

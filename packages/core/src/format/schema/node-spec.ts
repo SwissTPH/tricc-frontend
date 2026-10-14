@@ -51,6 +51,12 @@ export interface NodeTypeSpec {
   extensionTarget?: boolean
   /** Not reached by an edge on purpose, so "nothing leads here" does not apply. */
   unreachableOk?: boolean
+  /**
+   * A value logic computes (a calculation, a count, a sum, a diagnosis). Its concept belongs
+   * in the calculate dictionary, which a CQL library can be generated from. A decision is not:
+   * it is only a node.
+   */
+  calculated?: boolean
   /** It takes a CQL `reference` (a decision, a diagnosis rule). */
   cqlReference?: boolean
   /** The data type a concept created for it gets. */
@@ -120,10 +126,10 @@ export const NODE_TYPE_SPECS: Record<NodeType, NodeTypeSpec> = {
   date: { label: 'Date', group: 'questions', drawable: true, named: true, capture: true, text: true, dataType: 'date' },
   note: { label: 'Note', group: 'questions', drawable: true, text: true, conceptType: 'InteractSet' },
   // Logic
-  calculate: { label: 'Calculation', group: 'logic', drawable: true, named: true, branching: true, unreachableOk: true },
+  calculate: { label: 'Calculation', group: 'logic', drawable: true, named: true, branching: true, unreachableOk: true, calculated: true },
   rhombus: { label: 'Decision', group: 'logic', drawable: true, internalName: true, branching: true, cqlReference: true },
-  count: { label: 'Count', group: 'logic', drawable: true, named: true, branching: true },
-  add: { label: 'Add', group: 'logic', drawable: true, named: true, branching: true },
+  count: { label: 'Count', group: 'logic', drawable: true, named: true, branching: true, calculated: true },
+  add: { label: 'Add', group: 'logic', drawable: true, named: true, branching: true, calculated: true },
   not: { label: 'Not', group: 'logic', drawable: true, branching: true },
   // Data
   populate: { label: 'Prefilled value', group: 'data', drawable: true, named: true },
@@ -135,6 +141,7 @@ export const NODE_TYPE_SPECS: Record<NodeType, NodeTypeSpec> = {
     named: true,
     text: true,
     cqlReference: true,
+    calculated: true,
     conceptType: 'Condition',
   },
   proposed_diagnosis: {
@@ -144,6 +151,7 @@ export const NODE_TYPE_SPECS: Record<NodeType, NodeTypeSpec> = {
     named: true,
     text: true,
     cqlReference: true,
+    calculated: true,
     conceptType: 'Condition',
   },
   // Reached from its question, not the palette.

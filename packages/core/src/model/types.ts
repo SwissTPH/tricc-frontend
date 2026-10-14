@@ -33,6 +33,8 @@ export interface SelectOption {
   label?: LocalizedText
   concept?: ConceptRef
   relevance?: Expression
+  /** Legacy picture (draw.io, `media.image`): moved into the questionnaire text on load. */
+  media?: { image: string }
 }
 
 export interface NotAvailable {
@@ -284,11 +286,79 @@ export interface Project {
   /** Keyed by canonical url. */
   codeSystems: Record<string, CodeSystem>
   defaultCodeSystem?: string
+  /**
+   * The calculate dictionary (canonical url): concepts of calculations, counts, sums and
+   * diagnoses, the values a CQL library can define. See feature/20261014-project-search-and-dictionaries.md.
+   */
+  calculateCodeSystem?: string
   /** Keyed by library name; value is the CQL source. */
   libraries: Record<string, string>
   /** Keyed by activity id. */
   activities: Record<string, Activity>
   mediaPath?: string
+  /** The image library, keyed by id. Texts show them as `image` nodes (`Binary/<id>`). */
+  images?: Record<string, ProjectImage>
+}
+
+/** A picture of the image library. The bytes never change; a replace is a new value. */
+export interface ProjectImage {
+  id: string
+  contentType: ImageContentType
+  data: Uint8Array
+}
+
+export const IMAGE_TYPES = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/svg+xml': 'svg',
+} as const
+export type ImageContentType = keyof typeof IMAGE_TYPES
+
+const IMAGE_EXTENSIONS: Record<string, ImageContentType> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+}
+
+/** The content type of an image file name, by its extension. */
+export function imageTypeOf(path: string): ImageContentType | undefined {
+  const ext = /\.([a-z0-9]+)$/i.exec(path)?.[1]?.toLowerCase()
+  return ext ? IMAGE_EXTENSIONS[ext] : undefined
+}
+
+/** An image id from a file name: lower case, `-` for anything else. */
+export function imageIdFrom(name: string): string {
+  const id = name
+    .replace(/\.[a-z0-9]+$/i, '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^[-_]+|[-_]+$/g, '')
+  return id || 'image'
+}
+
+/** `id`, or `id-2`, `id-3`… when taken. */
+export function uniqueImageId(id: string, taken: Record<string, unknown> | Set<string>): string {
+  const has = (k: string) => (taken instanceof Set ? taken.has(k) : k in taken)
+  if (!has(id)) return id
+  let n = 2
+  while (has(`${id}-${n}`)) n++
+  return `${id}-${n}`
+}
+
+/** The folder holding the image files (`<media_path>/images`). */
+export function imagesDir(project: Pick<Project, 'mediaPath'>): string {
+  return `${(project.mediaPath ?? PATHS.media).replace(/\/+$/, '')}/images`
+}
+
+export function imagePath(project: Pick<Project, 'mediaPath'>, image: Pick<ProjectImage, 'id' | 'contentType'>): string {
+  return `${imagesDir(project)}/${image.id}.${IMAGE_TYPES[image.contentType]}`
 }
 
 /** Where a project's files live, relative to the project root. */

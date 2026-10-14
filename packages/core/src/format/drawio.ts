@@ -1,5 +1,17 @@
 import { inflateSync, strFromU8, unzlibSync } from 'fflate'
-import type { Activity, CanvasComment, CanvasGroup, TriccEdge, TriccNode } from '../model/types.js'
+import {
+  IMAGE_TYPES,
+  imageIdFrom,
+  uniqueImageId,
+  type Activity,
+  type CanvasComment,
+  type CanvasGroup,
+  type ImageContentType,
+  type ProjectImage,
+  type SelectOption,
+  type TriccEdge,
+  type TriccNode,
+} from '../model/types.js'
 import { NODE_TYPES, isExtensionTarget, isSelect, type NodeType } from './schema/node-types.js'
 import { liftRootAttributes } from '../model/activity-kind.js'
 import { fromHtml, isStructured } from '../text/message.js'
@@ -28,16 +40,24 @@ interface Shape {
   source?: string
   target?: string
   value?: string
+  style?: string
   x?: number
   y?: number
   width?: number
   height?: number
 }
 
+/**
+ * @param images Collects the pictures drawn on the pages (an image shape linked by an edge to a
+ *   question or an answer). Each one is keyed by a fresh id; the node or answer it is linked to gets
+ *   a legacy `media.image` with that id, which the text migration turns into a picture at the start
+ *   of the questionnaire text (feature/20261012-images.md §7).
+ */
 export function activitiesFromDrawio(
   fileXml: string,
   taken: Set<string>,
   lang = 'en',
+  images: Record<string, ProjectImage> = {},
 ): Activity[] {
   const root = parseXml(fileXml.trim())
   const pages = diagramsOf(root)
@@ -50,7 +70,7 @@ export function activitiesFromDrawio(
     if (page.name) pageActivity.set(page.name, id)
   }
 
-  return pages.map((page) => pageToActivity(page, pageActivity, lang))
+  return pages.map((page) => pageToActivity(page, pageActivity, lang, images))
 }
 
 interface Page {
@@ -141,6 +161,7 @@ function pageToActivity(
   page: Page,
   pageActivity: Map<string, string>,
   lang: string,
+  images: Record<string, ProjectImage>,
 ): Activity {
   const shapes = collectShapes(page.graph)
   const nodes: Record<string, TriccNode> = {}
@@ -156,6 +177,8 @@ function pageToActivity(
   // A container_page is a TRICC page group: a section of the form, a frame on the canvas.
   const typeOf = (sh: Shape) => (sh.attrs['odk_type'] ?? sh.attrs['tricc_type'] ?? '').trim()
   const groups = new Map<string, CanvasGroup>()
+  // Embedded pictures, waiting for the edge that names their question or answer.
+  const pictures = new Map<string, { contentType: ImageContentType; data: Uint8Array }>()
 
   for (const shape of shapes) {
     if (shape.edge || !shape.id || shape.id === '0' || shape.id === '1') continue
@@ -179,6 +202,12 @@ function pageToActivity(
     const rawType = (shape.attrs['odk_type'] ?? shape.attrs['tricc_type'] ?? '').trim()
     const kind = classify(rawType)
     if (kind === 'skip') {
+      const picture = embeddedImage(shape.style)
+      if (picture) {
+        pictures.set(shape.id, picture)
+        folded.add(shape.id)
+        continue
+      }
       // Text with no TRICC type is an author's note on the drawing: tricc_oo ignores it, so it
       // becomes a comment, not a node that conversion would turn into a form note.
       const label = plain(shape.attrs['label'] ?? shape.value)
@@ -233,6 +262,23 @@ function pageToActivity(
     attached.add(shape.id)
   }
   for (const [id, m] of messages) comments.set(id, commentOf(m.shape, m.text, 'grey'))
+
+  // A picture linked to a question or an answer goes to the library and to that item's text.
+  for (const shape of shapes) {
+    if (!shape.edge || !shape.source || !shape.target) continue
+    const picture = pictures.get(shape.source)
+    if (!picture) continue
+    const answer = optionOf.get(shape.target)
+    const node = nodes[answer ? answer.nodeId : shape.target]
+    const option: SelectOption | undefined = answer ? node?.options?.find((o) => o.id === shape.target) : undefined
+    const item: TriccNode | SelectOption | undefined = option ?? node
+    if (!item) continue
+    const base = option ? `${node?.name ?? 'answer'}-${option.name ?? option.id}` : (node?.name ?? 'image')
+    const id = uniqueImageId(imageIdFrom(base), images)
+    images[id] = { id, ...picture }
+    item.media = { image: id }
+    attached.add(shape.id)
+  }
 
   const edges: Record<string, TriccEdge> = {}
   const edgeOrder: string[] = []
@@ -434,10 +480,33 @@ function shapeFrom(
     source: cell?.attrs['source'],
     target: cell?.attrs['target'],
     value: cell?.attrs['value'],
+    style: cell?.attrs['style'] ?? attrs['style'],
     x: num(geom?.attrs['x']),
     y: num(geom?.attrs['y']),
     width: num(geom?.attrs['width']),
     height: num(geom?.attrs['height']),
+  }
+}
+
+/** The picture of an image shape: `image=data:image/<type>[;base64],<payload>` in its style. */
+function embeddedImage(style: string | undefined): { contentType: ImageContentType; data: Uint8Array } | undefined {
+  const match = /(?:^|;)image=data:(image\/[a-z+.-]+)(;base64)?,([^;]*)/i.exec(style ?? '')
+  if (!match) return undefined
+  const contentType = match[1]!.toLowerCase() as ImageContentType
+  if (!(contentType in IMAGE_TYPES)) return undefined
+  const payload = match[3] ?? ''
+  try {
+    // draw.io writes `data:image/png,<base64>` (its style cannot hold `;base64`). An SVG may be
+    // URL-encoded instead.
+    if (contentType === 'image/svg+xml' && /^(%3C|<)/i.test(payload)) {
+      return { contentType, data: new TextEncoder().encode(decodeURIComponent(payload)) }
+    }
+    const bin = atob(decodeURIComponent(payload))
+    const data = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) data[i] = bin.charCodeAt(i)
+    return data.length > 0 ? { contentType, data } : undefined
+  } catch {
+    return undefined
   }
 }
 

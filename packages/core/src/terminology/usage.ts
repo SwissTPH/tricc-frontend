@@ -1,4 +1,7 @@
 import type { CodeSystem, Concept, Project, SelectOption, TriccNode } from '../model/types.js'
+import { designationText, imageRefs } from '../text/message.js'
+import { isCalculated } from '../format/schema/node-types.js'
+import { calculateCodeSystem } from './dictionaries.js'
 
 /**
  * Where concepts are used.
@@ -51,8 +54,15 @@ function refOf(project: Project, item: { concept?: { system: string; code: strin
   return undefined
 }
 
-/** The concept a node stands for, if the dictionary has it. */
+/**
+ * The concept a node stands for, if the dictionary has it. A calculation or a diagnosis is
+ * looked up by name in the calculate dictionary first, then in the default one.
+ */
 export function nodeConceptKey(project: Project, node: TriccNode): ConceptKey | undefined {
+  if (!node.concept && node.name && isCalculated(node.type)) {
+    const cs = calculateCodeSystem(project)
+    if (cs?.concepts[node.name]) return { system: cs.url, code: node.name }
+  }
   return refOf(project, node)
 }
 
@@ -76,4 +86,18 @@ export function conceptUsage(project: Project, key: ConceptKey): ConceptUse[] {
     }
   }
   return out
+}
+
+/** Image id → the concepts whose texts show it, in dictionary order. */
+export function imageUsage(project: Project): Map<string, ConceptKey[]> {
+  const usage = new Map<string, ConceptKey[]>()
+  for (const cs of Object.values(project.codeSystems)) {
+    for (const code of cs.conceptOrder) {
+      const concept = cs.concepts[code]
+      if (!concept) continue
+      const ids = new Set(concept.designations.flatMap((d) => imageRefs(designationText(d))))
+      for (const id of ids) usage.set(id, [...(usage.get(id) ?? []), { system: cs.url, code }])
+    }
+  }
+  return usage
 }

@@ -57,6 +57,15 @@ export function testPersistencePort(harness: PersistenceHarness): void {
       expect(await port.read(ref)).toEqual(SAMPLE)
     })
 
+    it('keeps image bytes as bytes', async () => {
+      const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 255, 128, 7])
+      const files: ProjectFiles = { ...SAMPLE, 'media/images/chest.png': png }
+      await port.write(ref, { files, changed: Object.keys(files), removed: [] })
+      const read = await port.read(ref)
+      expect(read['media/images/chest.png']).toBeInstanceOf(Uint8Array)
+      expect([...(read['media/images/chest.png'] as Uint8Array)]).toEqual([...png])
+    })
+
     it('reads an empty project as an empty file set, not an error', async () => {
       expect(await port.read(ref)).toEqual({})
     })

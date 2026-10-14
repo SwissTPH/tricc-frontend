@@ -94,6 +94,7 @@ export const projectSchema = z
       .object({
         codeSystems: z.array(z.string()).default([]),
         default: z.string().optional(),
+        calculate: z.string().optional(),
       })
       .strict()
       .default({ codeSystems: [] }),

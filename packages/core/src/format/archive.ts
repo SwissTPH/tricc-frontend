@@ -1,5 +1,5 @@
 import { unzipSync, zipSync, strFromU8, strToU8 } from 'fflate'
-import type { ProjectFiles } from './serialize/index.js'
+import { isBinaryPath, type FileContent, type ProjectFiles } from './serialize/index.js'
 
 /**
  * `.tricc` — a ZIP of the project directory.
@@ -23,7 +23,8 @@ export function toArchive(files: ProjectFiles): Uint8Array {
   // Sorted so the archive bytes are deterministic for identical content — the same
   // guarantee the file writer makes, extended to the packaged form.
   for (const path of Object.keys(files).sort()) {
-    entries[path] = strToU8(files[path] as string)
+    const content = files[path] as FileContent
+    entries[path] = typeof content === 'string' ? strToU8(content) : content
   }
   return zipSync(entries, { level: 6, mtime: ZIP_EPOCH })
 }
@@ -36,7 +37,8 @@ export function fromArchive(data: Uint8Array): ProjectFiles {
     if (rawPath.endsWith('/')) continue
     const path = stripRoot(rawPath)
     if (path === '') continue
-    files[path] = strFromU8(bytes)
+    // Images stay bytes; everything else in a project is text.
+    files[path] = isBinaryPath(path) ? bytes : strFromU8(bytes)
   }
   return files
 }

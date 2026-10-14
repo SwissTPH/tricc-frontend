@@ -329,6 +329,7 @@ describe('no derived state in the document', () => {
       'codeSystems',
       'contexts',
       'description',
+      'images',
       'interventionOrder',
       'interventions',
       'languages',

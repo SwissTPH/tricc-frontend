@@ -1,5 +1,17 @@
 import type { Activity, Project } from '../../model/types.js'
-import { activityPath, codeSystemPath, libraryPath, PATHS } from '../../model/types.js'
+import {
+  activityPath,
+  codeSystemPath,
+  imagePath,
+  imagesDir,
+  imageIdFrom,
+  imageTypeOf,
+  libraryPath,
+  uniqueImageId,
+  PATHS,
+  type ProjectImage,
+} from '../../model/types.js'
+import { IMAGE_ID } from '../../text/message.js'
 import { decodeActivity, decodeCodeSystem, encodeActivity, encodeCodeSystem } from '../codec.js'
 import { moveTextsToConcepts } from '../../terminology/texts-to-concepts.js'
 import { fromJson, fromYaml, toJson, toYaml } from './yaml.js'
@@ -13,8 +25,38 @@ import {
 import { FORMAT_VERSION } from '../schema/project.js'
 import { FormatVersionError } from '../migrations/index.js'
 
+/** One file: text, or bytes for the images under `<media_path>/images/`. */
+export type FileContent = string | Uint8Array
+
 /** The file set that makes up a project on disk. Keys are project-relative paths. */
-export type ProjectFiles = Record<string, string>
+export type ProjectFiles = Record<string, FileContent>
+
+/** Whether a path holds bytes rather than text: an image file. */
+export function isBinaryPath(path: string): boolean {
+  return imageTypeOf(path) !== undefined && !path.endsWith('.svg')
+}
+
+/** A file's text. Bytes are decoded as UTF-8 (an SVG, or an adapter that read everything raw). */
+export function fileText(content: FileContent | undefined): string | undefined {
+  if (content === undefined || typeof content === 'string') return content
+  return new TextDecoder().decode(content)
+}
+
+/** A file's bytes. Text is encoded as UTF-8. */
+export function fileBytes(content: FileContent): Uint8Array {
+  return typeof content === 'string' ? new TextEncoder().encode(content) : content
+}
+
+export function sameContent(a: FileContent | undefined, b: FileContent | undefined): boolean {
+  if (a === b) return true
+  if (a === undefined || b === undefined) return false
+  if (typeof a === 'string' && typeof b === 'string') return false
+  const x = fileBytes(a)
+  const y = fileBytes(b)
+  if (x.length !== y.length) return false
+  for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false
+  return true
+}
 
 export interface ReadResult {
   project: Project
@@ -43,6 +85,10 @@ export function writeProject(project: Project): ProjectFiles {
   for (const name of Object.keys(project.libraries).sort()) {
     files[libraryPath(name)] = project.libraries[name] as string
   }
+  for (const id of Object.keys(project.images ?? {}).sort()) {
+    const image = project.images?.[id]
+    if (image) files[imagePath(project, image)] = image.data
+  }
   return files
 }
 
@@ -56,13 +102,16 @@ export function writeChanged(
   removed: string[]
 } {
   const files = writeProject(project)
-  const changed = Object.keys(files).filter((p) => previous[p] !== files[p])
+  const changed = Object.keys(files).filter((p) => !sameContent(previous[p], files[p]))
   // A `.drawio` stays in the folder. Saving writes activity YAML and points
   // tricc.yaml at those paths; it does not delete or rewrite the drawing.
   // Anything else that is not part of the project file set (a README, media
   // that was never in the baseline) is left alone. `project.json` is removed
   // when it was part of the baseline, because it is no longer the document.
-  const removed = Object.keys(previous).filter((p) => !(p in files) && isManaged(p))
+  const images = `${imagesDir(project)}/`
+  const removed = Object.keys(previous).filter(
+    (p) => !(p in files) && (isManaged(p) || (p.startsWith(images) && imageTypeOf(p) !== undefined)),
+  )
   return { files, changed, removed }
 }
 
@@ -123,7 +172,10 @@ function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
   if (meta.code) loaded.code = meta.code
   if (meta.version) loaded.version = meta.version
   if (meta.defaultCodeSystem) loaded.defaultCodeSystem = meta.defaultCodeSystem
+  if (meta.calculateCodeSystem) loaded.calculateCodeSystem = meta.calculateCodeSystem
   if (meta.mediaPath) loaded.mediaPath = meta.mediaPath
+  const renamedImages = readImages(loaded, files)
+  mergeImages(loaded, meta.drawioImages, Object.values(meta.drawioActivities))
   for (const [id, activity] of Object.entries(meta.drawioActivities)) {
     if (loaded.activities[id]) {
       throw new Error(
@@ -147,8 +199,68 @@ function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
   }
   // Labels, hints and help moved into the CodeSystem: the first save writes both.
   else if (texts.touched.length > 0) result.migratedFrom = 'concept-texts'
+  // An image file whose name is not a valid id is saved under its id, once.
+  else if (renamedImages) result.migratedFrom = 'image-names'
   return result
 }
+
+/**
+ * Add pictures that came with imported activities (draw.io) to the project library. Ids follow
+ * the activities' `media.image`: an id taken by other bytes is given a free one and the
+ * references in `activities` are rewritten. Returns the images that are new to the library.
+ */
+export function mergeImages(
+  project: Project,
+  incoming: Record<string, ProjectImage>,
+  activities: Activity[],
+): ProjectImage[] {
+  const added: ProjectImage[] = []
+  const rename = new Map<string, string>()
+  const library = (project.images ??= {})
+  for (const image of Object.values(incoming)) {
+    const existing = library[image.id]
+    if (existing && sameContent(existing.data, image.data)) continue
+    const id = existing ? uniqueImageId(image.id, { ...library, ...incoming }) : image.id
+    if (id !== image.id) rename.set(image.id, id)
+    library[id] = { ...image, id }
+    added.push(library[id]!)
+  }
+  if (Object.keys(library).length === 0) delete project.images
+  if (rename.size === 0) return added
+  for (const activity of activities) {
+    for (const node of Object.values(activity.nodes)) {
+      for (const item of [node, ...(node.options ?? [])]) {
+        const to = item.media && rename.get(item.media.image)
+        if (to) item.media = { image: to }
+      }
+    }
+  }
+  return added
+}
+
+/**
+ * The image library: every image file under `<media_path>/images/`. The file name is the id;
+ * a name that is not a valid id (capitals, spaces) is turned into one. Returns whether any was.
+ */
+function readImages(project: Project, files: ProjectFiles): boolean {
+  const dir = `${imagesDir(project)}/`
+  const images: Record<string, ProjectImage> = {}
+  let renamed = false
+  for (const path of Object.keys(files).sort()) {
+    if (!path.startsWith(dir) || path.slice(dir.length).includes('/')) continue
+    const contentType = imageTypeOf(path)
+    const content = files[path]
+    if (!contentType || content === undefined) continue
+    const stem = path.slice(dir.length).replace(/\.[^.]+$/, '')
+    let id = IMAGE_ID.test(stem) ? stem : imageIdFrom(stem)
+    if (images[id]) id = uniqueImageId(id, images)
+    if (id !== stem || imagePath(project, { id, contentType }) !== path) renamed = true
+    images[id] = { id, contentType, data: fileBytes(content) }
+  }
+  if (Object.keys(images).length > 0) project.images = images
+  return renamed
+}
+
 
 /**
  * `form_id` is a remnant of the time one drawing was one form. The intervention names
@@ -184,7 +296,7 @@ function readListedTerminology(project: Project, files: ProjectFiles, globs: str
     if (!patterns.some((re) => re.test(path))) continue
     let raw: unknown
     try {
-      raw = fromJson(files[path] as string)
+      raw = fromJson(fileText(files[path]) as string)
     } catch {
       continue
     }
@@ -218,7 +330,8 @@ function attachFiles(
   const project: Project = { ...meta, activities: {}, codeSystems: {}, libraries: {} }
   const idByPath = new Map<string, string>()
   for (const path of Object.keys(files).sort()) {
-    const content = files[path] as string
+    if (isBinaryPath(path)) continue
+    const content = fileText(files[path]) as string
     if (ACTIVITY_RE.test(path)) {
       let activity
       try {

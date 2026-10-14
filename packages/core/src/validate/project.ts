@@ -5,7 +5,7 @@ import { isOpenHandoff } from '../format/schema/expression.js'
 import { validateActivity, MACHINE_NAME } from './activity.js'
 import { issue, type Issue } from './types.js'
 import { designationInterventions, designationUse } from '../terminology/designation.js'
-import { designationText, references } from '../text/message.js'
+import { designationText, imageRefs, references } from '../text/message.js'
 
 /**
  * Project-scoped rules: everything that cannot be decided from one activity alone.
@@ -331,11 +331,23 @@ function validateTerminology(project: Project): Issue[] {
             'concept.path-without-resource',
             'error',
             `"${code}" declares where it is stored but not on which resource. Set the target resource, or remove the path.`,
-            { conceptCode: code, field: 'targetPath' },
+            { conceptCode: code, codeSystem: cs.id, field: 'targetPath' },
           ),
         )
       }
       for (const d of c.designations) {
+        for (const id of imageRefs(designationText(d))) {
+          if (!project.images?.[id]) {
+            issues.push(
+              issue(
+                'image.missing',
+                'error',
+                `A text of "${code}" shows the image "${id}", which is not in the image library. Add it on the Media tab, or remove the picture from the text.`,
+                { conceptCode: code, codeSystem: cs.id, field: 'designation' },
+              ),
+            )
+          }
+        }
         for (const name of references(designationText(d))) {
           if (!known.has(name)) {
             issues.push(
@@ -343,7 +355,7 @@ function validateTerminology(project: Project): Issue[] {
                 'text.unknown-reference',
                 'error',
                 `A text of "${code}" shows \${${name}}, but no question or calculation is called "${name}". Rename it to an existing name, or remove it.`,
-                { conceptCode: code, field: 'designation' },
+                { conceptCode: code, codeSystem: cs.id, field: 'designation' },
               ),
             )
           }
@@ -360,7 +372,7 @@ function validateTerminology(project: Project): Issue[] {
                 'concept.unknown-intervention',
                 'warning',
                 `A text of "${code}" is meant for the intervention "${id}", which this project does not have. Pick an existing intervention, or make the text apply to all.`,
-                { conceptCode: code, field: 'designation' },
+                { conceptCode: code, codeSystem: cs.id, field: 'designation' },
               ),
             )
           }
@@ -372,7 +384,7 @@ function validateTerminology(project: Project): Issue[] {
               'concept.duplicate-designation',
               'error',
               `"${code}" has two ${designationUse(d) ?? 'other'} texts in "${d.language}" for the same interventions. Keep one.`,
-              { conceptCode: code, field: 'designation' },
+              { conceptCode: code, codeSystem: cs.id, field: 'designation' },
             ),
           )
         }
@@ -384,10 +396,24 @@ function validateTerminology(project: Project): Issue[] {
             'concept.no-datatype',
             'warning',
             `"${code}" has no data type, so nothing can check that the questions bound to it capture the right kind of answer.`,
-            { conceptCode: code, field: 'dataType' },
+            { conceptCode: code, codeSystem: cs.id, field: 'dataType' },
           ),
         )
       }
+    }
+  }
+
+  const shown = new Set<string>()
+  for (const cs of Object.values(project.codeSystems)) {
+    for (const c of Object.values(cs.concepts)) {
+      for (const d of c.designations) for (const id of imageRefs(designationText(d))) shown.add(id)
+    }
+  }
+  for (const id of Object.keys(project.images ?? {}).sort()) {
+    if (!shown.has(id)) {
+      issues.push(
+        issue('image.unused', 'info', `The image "${id}" is not shown by any text.`, { imageId: id }),
+      )
     }
   }
 

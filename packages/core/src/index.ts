@@ -25,7 +25,13 @@ export {
   toJson,
   fromJson,
   type ProjectFiles,
+  type FileContent,
   type ReadResult,
+  isBinaryPath,
+  fileText,
+  fileBytes,
+  sameContent,
+  mergeImages,
 } from './format/serialize/index.js'
 export {
   toArchive,

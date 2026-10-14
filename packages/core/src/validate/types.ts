@@ -11,6 +11,9 @@ export interface IssueLocation {
   edgeId?: string
   interventionId?: string
   conceptCode?: string
+  /** The code system of `conceptCode`. */
+  codeSystem?: string
+  imageId?: string
   field?: string
 }
 

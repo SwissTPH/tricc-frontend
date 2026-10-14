@@ -1,9 +1,9 @@
-import type { Activity, Intervention, Project } from '../../model/types.js'
+import type { Activity, Intervention, Project, ProjectImage } from '../../model/types.js'
 import { activityPath, codeSystemPath, libraryPath, PATHS } from '../../model/types.js'
 import { resolve, type LocalizedText } from '../schema/localized.js'
 import { activitiesFromDrawio } from '../drawio.js'
 import { fromYaml } from './yaml.js'
-import type { ProjectFiles } from './index.js'
+import { fileText, type ProjectFiles } from './index.js'
 
 /**
  * `tricc.yaml` is the project file. Activity bodies are `activities/<id>.activity.yaml`.
@@ -53,6 +53,7 @@ export function encodeTriccYaml(project: Project): Record<string, unknown> {
   if (libs.length > 0) o['libraries'] = libs
   if (project.contexts.length > 0) o['contexts'] = project.contexts.map((c) => ({ ...c }))
   put(o, 'default_code_system', project.defaultCodeSystem)
+  put(o, 'calculate_code_system', project.calculateCodeSystem)
   put(o, 'media_path', project.mediaPath)
 
   const interventions: Record<string, unknown>[] = []
@@ -118,9 +119,12 @@ export interface TriccYamlRead {
   interventions: Intervention[]
   contexts: Project['contexts']
   defaultCodeSystem?: string
+  calculateCodeSystem?: string
   mediaPath?: string
   /** Activities expanded from `.drawio` pages. The source file is left as it was. */
   drawioActivities: Record<string, Activity>
+  /** Pictures drawn on those pages, referenced by their nodes' `media.image`. */
+  drawioImages: Record<string, ProjectImage>
   expandedDrawio: boolean
 }
 
@@ -153,6 +157,7 @@ export function readTriccYamlMeta(
 
   const drawioActivities: Record<string, Activity> = {}
   const drawioIdsByPath = new Map<string, string[]>()
+  const drawioImages: Record<string, ProjectImage> = {}
   let expandedDrawio = false
 
   const interventions: Intervention[] = []
@@ -169,6 +174,7 @@ export function readTriccYamlMeta(
       takenActivityIds,
       drawioActivities,
       drawioIdsByPath,
+      drawioImages,
       languages.default,
       () => {
         expandedDrawio = true
@@ -189,6 +195,7 @@ export function readTriccYamlMeta(
     interventions,
     contexts: readContexts(doc['contexts']),
     drawioActivities,
+    drawioImages,
     expandedDrawio,
   }
   if (title) result.title = title
@@ -197,6 +204,7 @@ export function readTriccYamlMeta(
   if (typeof doc['code'] === 'string') result.code = doc['code']
   if (typeof doc['version'] === 'string') result.version = doc['version']
   if (typeof doc['default_code_system'] === 'string') result.defaultCodeSystem = doc['default_code_system']
+  if (typeof doc['calculate_code_system'] === 'string') result.calculateCodeSystem = doc['calculate_code_system']
   if (typeof doc['media_path'] === 'string') result.mediaPath = doc['media_path']
   return result
 }
@@ -208,6 +216,7 @@ function readIntervention(
   takenActivityIds: Set<string>,
   drawioActivities: Record<string, Activity>,
   drawioIdsByPath: Map<string, string[]>,
+  drawioImages: Record<string, ProjectImage>,
   lang: string,
   onDrawio: () => void,
 ): Intervention {
@@ -226,7 +235,7 @@ function readIntervention(
     const paths = resolveGlobs(group, Object.keys(files))
     for (const path of paths) {
       const activityIds = DRAWIO_EXT.test(path)
-        ? drawioPages(path, files, takenActivityIds, drawioActivities, drawioIdsByPath, lang, onDrawio)
+        ? drawioPages(path, files, takenActivityIds, drawioActivities, drawioIdsByPath, drawioImages, lang, onDrawio)
         : activityIdByPath.get(path)
           ? [activityIdByPath.get(path) as string]
           : []
@@ -256,16 +265,17 @@ function drawioPages(
   taken: Set<string>,
   into: Record<string, Activity>,
   cache: Map<string, string[]>,
+  images: Record<string, ProjectImage>,
   lang: string,
   onDrawio: () => void,
 ): string[] {
   const cached = cache.get(path)
   if (cached) return cached
-  const text = files[path]
+  const text = fileText(files[path])
   if (text === undefined) return []
   let pages: Activity[]
   try {
-    pages = activitiesFromDrawio(text, taken, lang)
+    pages = activitiesFromDrawio(text, taken, lang, images)
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
     throw new Error(`Could not open the draw.io file "${path}" (${message}).`)
@@ -501,7 +511,7 @@ function slug(name: string): string {
 }
 
 export function triccConfigText(files: ProjectFiles): string | undefined {
-  return files[PATHS.tricc] ?? files['tricc.yml']
+  return fileText(files[PATHS.tricc] ?? files['tricc.yml'])
 }
 
 /** Language block only, so activity files can be decoded before interventions are. */

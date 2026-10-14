@@ -309,6 +309,7 @@ export function decodeProjectMeta(
   const d = loc(raw.description, lang)
   if (d) p.description = d
   if (raw.terminology.default !== undefined) p.defaultCodeSystem = raw.terminology.default
+  if (raw.terminology.calculate !== undefined) p.calculateCodeSystem = raw.terminology.calculate
   if (raw.mediaPath !== undefined) p.mediaPath = raw.mediaPath
   return p
 }
@@ -460,6 +461,7 @@ export function encodeProjectMeta(p: Project): Record<string, unknown> {
     .sort()
   put(term, 'codeSystems', csPaths)
   put(term, 'default', p.defaultCodeSystem)
+  put(term, 'calculate', p.calculateCodeSystem)
   put(o, 'terminology', term)
   put(
     o,

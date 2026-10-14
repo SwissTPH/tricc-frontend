@@ -9,6 +9,7 @@ import type {
   TriccEdge,
   TriccNode,
   Designation,
+  ProjectImage,
 } from '../model/types.js'
 import type { LocalizedText } from '../format/schema/localized.js'
 import { fieldsOf, type CustomField } from '../format/node-fields.js'
@@ -400,7 +401,7 @@ export function conceptToY(c: Concept): Y.Map<unknown> {
   return m
 }
 
-function conceptFromY(m: Y.Map<unknown>): Concept {
+export function conceptFromY(m: Y.Map<unknown>): Concept {
   const c: Concept = {
     system: m.get('system') as string,
     code: m.get('code') as string,
@@ -443,6 +444,25 @@ export function codeSystemFromY(m: Y.Map<unknown>): CodeSystem {
   return cs
 }
 
+// ---------------------------------------------------------------- images
+
+/** An image is a plain value: Yjs keeps `data` as one binary item. */
+export function imageToY(image: ProjectImage): Y.Map<unknown> {
+  const m = new Y.Map<unknown>()
+  m.set('id', image.id)
+  m.set('contentType', image.contentType)
+  m.set('data', image.data)
+  return m
+}
+
+export function imageFromY(m: Y.Map<unknown>): ProjectImage {
+  return {
+    id: m.get('id') as string,
+    contentType: m.get('contentType') as ProjectImage['contentType'],
+    data: m.get('data') as Uint8Array,
+  }
+}
+
 // ---------------------------------------------------------------- whole project
 
 export function projectToDoc(project: Project, doc: Y.Doc): void {
@@ -456,6 +476,7 @@ export function projectToDoc(project: Project, doc: Y.Doc): void {
       'version',
       'mediaPath',
       'defaultCodeSystem',
+      'calculateCodeSystem',
     ] as const) {
       setScalar(meta, k, project[k])
     }
@@ -491,6 +512,12 @@ export function projectToDoc(project: Project, doc: Y.Doc): void {
     const libraries = doc.getMap<Y.Text>('libraries')
     for (const name of Object.keys(project.libraries).sort()) {
       libraries.set(name, newText(project.libraries[name] as string))
+    }
+
+    const images = doc.getMap<Y.Map<unknown>>('images')
+    for (const id of Object.keys(project.images ?? {}).sort()) {
+      const image = project.images?.[id]
+      if (image) images.set(id, imageToY(image))
     }
 
     const contexts = doc.getArray<unknown>('contexts')
@@ -543,9 +570,15 @@ export function projectFromDoc(doc: Y.Doc): Project {
     libraries,
     activities,
   }
-  for (const k of ['system', 'code', 'version', 'mediaPath', 'defaultCodeSystem'] as const) {
+  for (const k of ['system', 'code', 'version', 'mediaPath', 'defaultCodeSystem', 'calculateCodeSystem'] as const) {
     const v = meta.get(k)
     if (v !== undefined) assign(project, k, v)
+  }
+  const imagesY = doc.getMap<Y.Map<unknown>>('images')
+  if (imagesY.size > 0) {
+    const images: Record<string, ProjectImage> = {}
+    for (const id of [...imagesY.keys()].sort()) images[id] = imageFromY(imagesY.get(id) as Y.Map<unknown>)
+    project.images = images
   }
   const title = localizedFromY(doc.getMap<Y.Text>('title'))
   if (title) project.title = title

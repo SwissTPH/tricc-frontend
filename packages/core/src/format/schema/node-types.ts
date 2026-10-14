@@ -88,7 +88,14 @@ export const CAPTURE_TYPES = where((s) => s.capture)
  */
 export const TEXT_NODE_TYPES = where((s) => s.text)
 
+/**
+ * Nodes whose value logic computes (calculations, counts, sums, diagnoses). Their concepts
+ * belong in the calculate dictionary; decisions are only nodes.
+ */
+export const CALCULATED_TYPES = where((s) => s.calculated)
+
 export const isTextNode = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.text)
+export const isCalculated = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.calculated)
 export const isSelect = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.select)
 /** Sequence anchors keep their own label; everything else inherits its concept's display. */
 export const isSequenceNode = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.sequence)

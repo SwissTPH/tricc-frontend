@@ -15,6 +15,23 @@ export type MessageNode =
   | { type: 'break' }
   | { type: 'mark'; kind: MarkKind; children: MessageNode[]; color?: string }
   | { type: 'list'; ordered: boolean; items: MessageItem[] }
+  | { type: 'image'; src: string; alt?: string }
+
+/**
+ * A picture points at a project image the FHIR way, a `Binary` by id (`Binary/<id>`); the bytes
+ * are `<media_path>/images/<id>.<ext>` (feature/20261012-images.md §3).
+ */
+export const IMAGE_ID = /^[a-z0-9][a-z0-9_-]*$/
+const IMAGE_SRC = /^Binary\/([a-z0-9][a-z0-9_-]*)$/
+
+export function imageSrc(id: string): string {
+  return `Binary/${id}`
+}
+
+/** The image id a picture points at, or undefined for any other source. */
+export function imageIdOf(src: string): string | undefined {
+  return IMAGE_SRC.exec(src)?.[1]
+}
 
 /** `color` carries a CSS colour in `color` (`#rrggbb` or a colour name). */
 export type MarkKind = 'strong' | 'em' | 'u' | 'color'
@@ -211,6 +228,8 @@ function markdownNode(node: MessageNode): string {
       return node.items
         .map((item, i) => `${node.ordered ? `${i + 1}. ` : '- '}${markdownNodes(item.children)}`)
         .join('\n')
+    case 'image':
+      return `![${(node.alt ?? '').replace(/[[\]]/g, '')}](${node.src})`
   }
 }
 
@@ -228,7 +247,9 @@ export function toPlain(text: DisplayText): string {
               ? `\${${n.name}}`
               : n.type === 'mark'
                 ? walk(n.children)
-                : n.items.map((i) => walk(i.children)).join('; '),
+                : n.type === 'image'
+                  ? ''
+                  : n.items.map((i) => walk(i.children)).join('; '),
       )
       .join('')
   return walk(text.children)
@@ -247,6 +268,46 @@ export function references(text: DisplayText): string[] {
   }
   walk(text.children)
   return out
+}
+
+/** Image ids shown by the text, in reading order (a repeat is listed once). */
+export function imageRefs(text: DisplayText): string[] {
+  if (typeof text === 'string') return []
+  const out: string[] = []
+  const walk = (nodes: MessageNode[]) => {
+    for (const n of nodes) {
+      if (n.type === 'image') {
+        const id = imageIdOf(n.src)
+        if (id && !out.includes(id)) out.push(id)
+      } else if (n.type === 'mark') walk(n.children)
+      else if (n.type === 'list') for (const item of n.items) walk(item.children)
+    }
+  }
+  walk(text.children)
+  return out
+}
+
+/**
+ * The text with every picture of image `from` pointing at `to`, or removed when `to` is
+ * undefined. Unchanged texts are returned as is (same object).
+ */
+export function retargetImage(text: DisplayText, from: string, to: string | undefined): DisplayText {
+  if (typeof text === 'string' || !imageRefs(text).includes(from)) return text
+  const walk = (nodes: MessageNode[]): MessageNode[] =>
+    nodes.flatMap((n): MessageNode[] => {
+      if (n.type === 'image' && imageIdOf(n.src) === from) return to ? [{ ...n, src: imageSrc(to) }] : []
+      if (n.type === 'mark') return [{ ...n, children: walk(n.children) }]
+      if (n.type === 'list') return [{ ...n, items: n.items.map((i) => ({ ...i, children: walk(i.children) })) }]
+      return [n]
+    })
+  return simplify({ type: 'message', children: walk(text.children) })
+}
+
+/** The text with a picture first, on its own line. */
+export function prependImage(text: DisplayText, id: string): DisplayText {
+  const image: MessageNode = { type: 'image', src: imageSrc(id) }
+  const rest: MessageNode[] = typeof text === 'string' ? splitTokens(text) : text.children
+  return { type: 'message', children: rest.length ? [image, { type: 'break' }, ...rest] : [image] }
 }
 
 // ------------------------------------------------------------------ JSON
@@ -271,6 +332,11 @@ export function messageFromJson(raw: unknown): Message {
         }
         if (o['kind'] !== 'strong' && o['kind'] !== 'em' && o['kind'] !== 'u') break
         return { type: 'mark', kind: o['kind'], children: list(o['children']) }
+      case 'image':
+        if (typeof o['src'] !== 'string' || !o['src']) break
+        return typeof o['alt'] === 'string' && o['alt']
+          ? { type: 'image', src: o['src'], alt: o['alt'] }
+          : { type: 'image', src: o['src'] }
       case 'list':
         return {
           type: 'list',

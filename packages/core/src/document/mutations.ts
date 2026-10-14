@@ -10,11 +10,15 @@ import type {
   TriccNode,
   Concept,
   CodeSystem,
+  ProjectImage,
 } from '../model/types.js'
+import { uniqueImageId } from '../model/types.js'
 import {
   activityToY,
   codeSystemToY,
+  conceptFromY,
   conceptToY,
+  imageToY,
   edgeToY,
   interventionToY,
   nodeToY,
@@ -22,6 +26,7 @@ import {
 } from './codec.js'
 import { expressionToY, localizedToY, newText, setPlain, setScalar, updateLocalized } from './ytypes.js'
 import type { Expression } from '../format/schema/expression.js'
+import { designationText, retargetImage, withDesignationText } from '../text/message.js'
 import type { LocalizedText } from '../format/schema/localized.js'
 
 /**
@@ -295,6 +300,66 @@ export class Mutations {
     removeFromOrder(cs.get('conceptOrder') as Y.Array<string>, code)
   }
 
+  // ------------------------------------------------------------- images
+
+  private images(): Y.Map<Y.Map<unknown>> {
+    return this.doc.getMap<Y.Map<unknown>>('images')
+  }
+
+  /**
+   * Add an image. With `unique`, a taken id gets a free suffix instead of failing.
+   * Returns the id it was stored under.
+   */
+  addImage(image: ProjectImage, opts: { unique?: boolean } = {}): string {
+    const taken = new Set(this.images().keys())
+    if (taken.has(image.id) && !opts.unique) throw new Error(`image already exists: ${image.id}`)
+    const id = uniqueImageId(image.id, taken)
+    this.images().set(id, imageToY({ ...image, id }))
+    return id
+  }
+
+  /** New bytes under the same id: every text showing it shows the new picture. */
+  replaceImage(image: ProjectImage): void {
+    if (!this.images().has(image.id)) throw new Error(`no such image: ${image.id}`)
+    this.images().set(image.id, imageToY(image))
+  }
+
+  /** Rename an image and every picture that shows it, in one step. */
+  renameImage(from: string, to: string): void {
+    if (from === to) return
+    const m = this.images().get(from)
+    if (!m) throw new Error(`no such image: ${from}`)
+    if (this.images().has(to)) throw new Error(`image already exists: ${to}`)
+    const image = { id: to, contentType: m.get('contentType'), data: m.get('data') } as ProjectImage
+    this.images().delete(from)
+    this.images().set(to, imageToY(image))
+    this.retargetImages(from, to)
+  }
+
+  /** Delete an image and take its pictures out of every text. */
+  removeImage(id: string): void {
+    this.images().delete(id)
+    this.retargetImages(id, undefined)
+  }
+
+  private retargetImages(from: string, to: string | undefined): void {
+    for (const cs of this.doc.getMap<Y.Map<unknown>>('codeSystems').values()) {
+      const concepts = cs.get('concepts') as Y.Map<Y.Map<unknown>>
+      for (const [code, cm] of [...concepts.entries()]) {
+        const concept = conceptFromY(cm)
+        let changed = false
+        const designations = concept.designations.map((d) => {
+          const text = designationText(d)
+          const next = retargetImage(text, from, to)
+          if (next === text) return d
+          changed = true
+          return withDesignationText(d, next)
+        })
+        if (changed) concepts.set(code, conceptToY({ ...concept, designations }))
+      }
+    }
+  }
+
   // ------------------------------------------------------------- libraries & meta
 
   setLibrary(name: string, source: string): void {
@@ -320,7 +385,7 @@ export class Mutations {
   }
 
   setMeta(
-    key: 'system' | 'code' | 'version' | 'mediaPath' | 'defaultCodeSystem',
+    key: 'system' | 'code' | 'version' | 'mediaPath' | 'defaultCodeSystem' | 'calculateCodeSystem',
     value: string | undefined,
   ): void {
     setScalar(this.doc.getMap<unknown>('meta'), key, value)

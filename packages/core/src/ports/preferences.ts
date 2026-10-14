@@ -11,6 +11,8 @@ export interface EditorPreferences {
   labelChars: number
   /** The concept types the data dictionary offers. */
   conceptTypes: string[]
+  /** An image wider than this, in pixels, is made smaller when it is added to the library. */
+  imageMaxWidth: number
 }
 
 /**
@@ -51,11 +53,14 @@ export const LABEL_LINES_MIN = 1
 export const LABEL_LINES_MAX = 6
 export const LABEL_CHARS_MIN = 5
 export const LABEL_CHARS_MAX = 80
+export const IMAGE_WIDTH_MIN = 100
+export const IMAGE_WIDTH_MAX = 4000
 
 export const DEFAULT_PREFERENCES: EditorPreferences = {
   labelLines: 3,
   labelChars: 20,
   conceptTypes: [...DEFAULT_CONCEPT_TYPES],
+  imageMaxWidth: 800,
 }
 
 export interface PreferencesPort {
@@ -68,6 +73,7 @@ export interface PreferencesPort {
 export function normalizePreferences(raw: Partial<EditorPreferences> | undefined): EditorPreferences {
   const lines = Math.round(Number(raw?.labelLines))
   const chars = Math.round(Number(raw?.labelChars))
+  const width = Math.round(Number(raw?.imageMaxWidth))
   const types = Array.isArray(raw?.conceptTypes)
     ? raw.conceptTypes.map((t) => String(t).trim()).filter((t) => t !== '')
     : []
@@ -82,5 +88,8 @@ export function normalizePreferences(raw: Partial<EditorPreferences> | undefined
       ? Math.min(LABEL_CHARS_MAX, Math.max(LABEL_CHARS_MIN, chars))
       : DEFAULT_PREFERENCES.labelChars,
     conceptTypes: unique.length > 0 ? unique : [...DEFAULT_CONCEPT_TYPES],
+    imageMaxWidth: Number.isFinite(width)
+      ? Math.min(IMAGE_WIDTH_MAX, Math.max(IMAGE_WIDTH_MIN, width))
+      : DEFAULT_PREFERENCES.imageMaxWidth,
   }
 }

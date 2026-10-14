@@ -1,6 +1,6 @@
-import type { CodeSystem, Concept, Designation, Project, SelectOption, TriccNode } from '../model/types.js'
+import { imageIdFrom, type CodeSystem, type Concept, type Designation, type Project, type SelectOption, type TriccNode } from '../model/types.js'
 import type { LocalizedText } from '../format/schema/localized.js'
-import { toMarkdown, withDesignationText, type Message } from '../text/message.js'
+import { designationText, imageRefs, prependImage, toMarkdown, withDesignationText, type Message } from '../text/message.js'
 import { isTextNode, type NodeType } from '../format/schema/node-types.js'
 import { NODE_TYPE_SPECS } from '../format/schema/node-spec.js'
 import { DESIGNATION_USES, designationUse, isUnscoped, type DesignationUse } from './designation.js'
@@ -55,7 +55,9 @@ export function moveTextsToConcepts(
     where: { activityId: string; nodeId: string; optionId?: string; parentType?: string },
   ) => {
     const texts = item as { label?: LocalizedText; hint?: LocalizedText; help?: LocalizedText }
-    if (!texts.label && !texts.hint && !texts.help) return
+    // Legacy `media.image` (a file name): the picture moves to the start of the questionnaire text.
+    const image = 'media' in item ? item.media?.image : undefined
+    if (!texts.label && !texts.hint && !texts.help && !image) return
     const code = item.concept?.code ?? item.name
     if (!code) return
     const cs = codeSystemFor(item)
@@ -88,6 +90,17 @@ export function moveTextsToConcepts(
         if (!current) concept.designations.push(designation(language, use, text))
         else if (current.value !== text) drop(text)
       }
+    }
+    if (image) {
+      const id = imageIdFrom(image.split('/').pop() ?? image)
+      const q = own(concept, 'q-display', lang)
+      const base = q ? designationText(q) : (concept.display ?? '')
+      if (!imageRefs(base).includes(id)) {
+        const next = withDesignationText(q ?? designation(lang, 'q-display', ''), prependImage(base, id))
+        if (q) concept.designations[concept.designations.indexOf(q)] = next
+        else concept.designations.push(next)
+      }
+      delete (item as TriccNode).media
     }
     delete texts.label
     delete texts.hint
