@@ -1,3 +1,5 @@
+import { isBinaryPath, type ProjectFiles } from '@tricc/core'
+
 /**
  * The slice of the File System Access API these adapters use.
  *
@@ -19,8 +21,8 @@ export interface DirHandle {
 export interface FileHandle {
   readonly name: string
   readonly kind: 'file'
-  getFile(): Promise<{ text(): Promise<string>; lastModified: number }>
-  createWritable(): Promise<{ write(data: string): Promise<void>; close(): Promise<void> }>
+  getFile(): Promise<{ text(): Promise<string>; arrayBuffer(): Promise<ArrayBuffer>; lastModified: number }>
+  createWritable(): Promise<{ write(data: string | Uint8Array): Promise<void>; close(): Promise<void> }>
 }
 
 export function isDir(h: DirHandle | FileHandle): h is DirHandle {
@@ -51,15 +53,16 @@ export async function resolveFile(
   }
 }
 
-/** Every file under `root`, keyed by project-relative path. */
-export async function readAll(root: DirHandle, prefix = ''): Promise<Record<string, string>> {
-  const out: Record<string, string> = {}
+/** Every file under `root`, keyed by project-relative path. Images are read as bytes. */
+export async function readAll(root: DirHandle, prefix = ''): Promise<ProjectFiles> {
+  const out: ProjectFiles = {}
   for await (const [name, handle] of root.entries()) {
     const path = prefix ? `${prefix}/${name}` : name
     if (isDir(handle)) {
       Object.assign(out, await readAll(handle, path))
     } else {
-      out[path] = await (await handle.getFile()).text()
+      const file = await handle.getFile()
+      out[path] = isBinaryPath(path) ? new Uint8Array(await file.arrayBuffer()) : await file.text()
     }
   }
   return out

@@ -48,7 +48,7 @@ export class BrowserStoragePersistence implements PersistencePort {
   async write(ref: ProjectRef, req: WriteRequest): Promise<void> {
     const db = await this.connect()
     const current = ((await db.get(STORE, ref.id)) as ProjectFiles | undefined) ?? {}
-    for (const path of req.changed) current[path] = req.files[path] as string
+    for (const path of req.changed) if (req.files[path] !== undefined) current[path] = req.files[path]
     for (const path of req.removed) delete current[path]
     await db.put(STORE, current, ref.id)
   }

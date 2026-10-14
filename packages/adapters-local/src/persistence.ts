@@ -50,7 +50,7 @@ export class FileSystemPersistence implements PersistencePort {
       const handle = await resolveFile(root, path, true)
       if (!handle) throw new Error(`could not create ${path}`)
       const writable = await handle.createWritable()
-      await writable.write(req.files[path] as string)
+      await writable.write(req.files[path] ?? '')
       await writable.close()
     }
     for (const path of req.removed) {

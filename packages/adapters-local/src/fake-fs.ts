@@ -7,7 +7,7 @@ import type { DirHandle, FileHandle } from './fs.js'
  */
 
 interface FakeFile {
-  content: string
+  content: string | Uint8Array
   lastModified: number
 }
 
@@ -61,13 +61,18 @@ export class FakeDir implements DirHandle {
       name,
       async getFile() {
         const f = store.get(name) as FakeFile
-        return { text: async () => f.content, lastModified: f.lastModified }
+        const bytes = () => (typeof f.content === 'string' ? new TextEncoder().encode(f.content) : f.content)
+        return {
+          text: async () => (typeof f.content === 'string' ? f.content : new TextDecoder().decode(f.content)),
+          arrayBuffer: async () => bytes().slice().buffer as ArrayBuffer,
+          lastModified: f.lastModified,
+        }
       },
       async createWritable() {
-        let buffer = ''
+        let buffer: string | Uint8Array = ''
         return {
-          async write(data: string) {
-            buffer += data
+          async write(data: string | Uint8Array) {
+            buffer = typeof data === 'string' && typeof buffer === 'string' ? buffer + data : data
           },
           async close() {
             store.set(name, { content: buffer, lastModified: tick() })
