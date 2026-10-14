@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import { Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import {
+  Link,
+  Navigate,
+  Route,
+  Routes,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom'
 import {
   ARCHIVE_EXTENSION,
   isBinaryPath,
@@ -96,10 +104,10 @@ function Shell({
     <>
       <header>
         {crumbs ?? (
-          <a href="/" className="tricc-home-link" data-testid="nav-home">
+          <Link to="/" className="tricc-home-link" data-testid="nav-home">
             <HomeIcon />
             TRICC Authoring
-          </a>
+          </Link>
         )}
         {/* Which store backs the open project. A user must know before they close the
             tab, not after. */}
@@ -117,9 +125,9 @@ function Shell({
           />
           Read-only
         </label>
-        <a href="/preferences" data-testid="nav-preferences">
+        <Link to="/preferences" data-testid="nav-preferences">
           Preferences
-        </a>
+        </Link>
       </header>
       <main>{children}</main>
     </>

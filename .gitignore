@@ -10,3 +10,5 @@ coverage/
 playwright-report/
 test-results/
 legacy/prototype/node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/

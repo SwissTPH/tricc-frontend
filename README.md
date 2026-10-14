@@ -3,6 +3,9 @@
 A browser-based authoring tool for TRICC clinical decision support guidelines — and the libraries
 it is built from.
 
+**[Documentation, downloads and the hosted app](https://swisstph.github.io/tricc-frontend/)** ·
+run it locally with `npx @tricc/app-local`
+
 TRICC converts clinical decision-support flowcharts into runnable digital forms: XLSForm/ODK, CHT,
 OpenMRS, DHIS2, FHIR SDC and OpenSRP/FHIR-Core. Today those flowcharts are authored in draw.io and
 converted by [`tricc_oo`](../tricc_oo). This repository replaces the authoring half: a purpose-built

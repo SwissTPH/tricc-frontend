@@ -1,28 +1,57 @@
 {
   "name": "@tricc/app-local",
   "version": "0.1.0",
-  "private": true,
+  "description": "TRICC authoring app: draw clinical decision-support guidelines in the browser and save them as files tricc_oo converts. Runs locally with `npx @tricc/app-local`.",
+  "license": "Apache-2.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SwissTPH/tricc-frontend.git",
+    "directory": "apps/local"
+  },
+  "homepage": "https://swisstph.github.io/tricc-frontend/",
+  "bugs": "https://github.com/SwissTPH/tricc-frontend/issues",
+  "keywords": [
+    "tricc",
+    "clinical-decision-support",
+    "guidelines",
+    "xlsform",
+    "cql",
+    "authoring"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "tricc-local": "./bin/tricc-local.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "!dist/**/*.map"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview --port 4173 --strictPort",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "start": "node bin/tricc-local.js"
   },
-  "dependencies": {
+  "devDependencies": {
     "@tricc/adapters-local": "workspace:*",
     "@tricc/core": "workspace:*",
     "@tricc/editor": "workspace:*",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0",
-    "@xyflow/react": "^12.3.6"
-  },
-  "devDependencies": {
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "@xyflow/react": "^12.3.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
     "vitest": "^2.1.8"

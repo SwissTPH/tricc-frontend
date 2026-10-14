@@ -1,0 +1,52 @@
+name: Pages
+
+on:
+  push:
+    # develop while main is still the bare initial commit; drop it once main carries releases.
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 } # lastUpdated reads git history
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.15.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # The hosted copy of the app lives under /app/. Pages has no fallback route, so the
+      # hash router keeps reloads of /project/… working.
+      - run: pnpm --filter @tricc/app-local exec vite build
+        env:
+          TRICC_BASE: /${{ github.event.repository.name }}/app/
+          VITE_HASH_ROUTER: 'true'
+      - run: pnpm --filter @tricc/docs docs:build
+        env:
+          DOCS_BASE: /${{ github.event.repository.name }}/
+      - run: cp -r apps/local/dist docs/.vitepress/dist/app
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: docs/.vitepress/dist }
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

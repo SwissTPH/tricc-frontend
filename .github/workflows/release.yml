@@ -1,0 +1,50 @@
+name: Release
+
+# Push a tag `v<version>` matching apps/local/package.json to publish.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  id-token: write # npm provenance
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.15.0 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - name: Tag matches the app version
+        run: |
+          version=$(node -p "require('./apps/local/package.json').version")
+          test "v$version" = "$GITHUB_REF_NAME" || {
+            echo "Tag $GITHUB_REF_NAME does not match apps/local version $version"; exit 1; }
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: Pack
+        run: |
+          mkdir -p out
+          cd apps/local
+          pnpm pack --pack-destination ../../out
+          cd ../../out
+          tar -xzf tricc-app-local-*.tgz
+          mv package tricc-local
+          zip -qr tricc-local.zip tricc-local
+          rm -r tricc-local
+      - name: Publish to npm
+        run: cd apps/local && pnpm publish --access public --no-git-checks --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: GitHub release
+        run: gh release create "$GITHUB_REF_NAME" out/* --title "$GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
