@@ -271,7 +271,7 @@ test('a project reopens from the project list', async ({ page }) => {
 
   await page.goto('/')
   await expect(page.getByTestId('project-list')).toBeVisible()
-  await page.getByRole('button', { name: 'Reopen guideline' }).click()
+  await page.getByRole('button', { name: 'Reopen guideline', exact: true }).click()
   await expect(page.getByTestId('nav-activity-activity')).toBeVisible()
 })
 

@@ -1086,3 +1086,41 @@ test('comment and group can be dragged from the palette onto the diagram', async
   expect(Math.abs(group.x - groupAt.x)).toBeLessThan(40)
   expect(Math.abs(group.y - groupAt.y)).toBeLessThan(40)
 })
+
+test('a validation issue links to its node, in the activity and from the overview', async ({ page }) => {
+  await newActivity(page, 'Issue link guideline')
+  await placeNode(page, 'select_one')
+  const node = page.locator('.react-flow__node[data-id="n-select_one"]')
+  // Nothing selected: the tab lists the whole activity. Pan the node out of sight.
+  await page.locator('.react-flow__pane').click({ position: { x: 10, y: 10 } })
+  await expect(node).not.toHaveClass(/selected/)
+  const pane = page.locator('.react-flow__pane')
+  const box = (await pane.boundingBox())!
+  await page.mouse.move(box.x + 20, box.y + 20)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width - 20, box.y + box.height - 20, { steps: 8 })
+  await page.mouse.up()
+  await expect(node).not.toBeInViewport()
+  await page.getByTestId('tab-validation').click()
+
+  const link = page.getByTestId('issue-select.no-options').getByTestId('issue-link')
+  await expect(link).toHaveAttribute('data-target', 'node')
+  await link.click()
+  await expect(node).toHaveClass(/selected/)
+  await expect(page.getByTestId('tab-details')).toHaveAttribute('aria-selected', 'true')
+  // Brought back into view.
+  await expect
+    .poll(async () => {
+      const n = (await node.boundingBox())!
+      const c = (await page.getByTestId('activity-canvas').boundingBox())!
+      return n.x >= c.x && n.y >= c.y && n.x + n.width <= c.x + c.width && n.y + n.height <= c.y + c.height
+    })
+    .toBe(true)
+
+  // From the project overview, the same issue opens the activity on that node.
+  await page.getByTestId('nav-overview').click()
+  await page.getByTestId('issue-select.no-options').getByTestId('issue-link').click()
+  await expect(page.getByTestId('activity-editor')).toBeVisible()
+  await expect(node).toHaveClass(/selected/)
+  await expect(page.getByTestId('tab-details')).toHaveAttribute('aria-selected', 'true')
+})

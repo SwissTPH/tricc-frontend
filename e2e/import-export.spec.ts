@@ -93,7 +93,7 @@ test('an imported project takes its name from the file, not the filename alone',
 
   await page.goto('/')
   // Two entries now: the original and the import, both carrying the project's own title.
-  await expect(page.getByRole('button', { name: 'Named guideline' })).toHaveCount(2)
+  await expect(page.getByRole('button', { name: 'Named guideline', exact: true })).toHaveCount(2)
 })
 
 test('a file that is not a project is refused with an explanation', async ({ page }) => {

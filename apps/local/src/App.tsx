@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import { Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ARCHIVE_EXTENSION,
+  isBinaryPath,
   LABEL_CHARS_MAX,
   LABEL_CHARS_MIN,
+  IMAGE_WIDTH_MAX,
+  IMAGE_WIDTH_MIN,
   LABEL_LINES_MAX,
   LABEL_LINES_MIN,
   createProject,
@@ -14,17 +17,25 @@ import {
   writeProject,
   type OpenProject,
   type ProjectFiles,
+  type ProjectRef,
   type ConceptKey,
   type ProjectSummary,
 } from '@tricc/core'
 import {
   ActivityEditor,
   ActivityNavigator,
+  BinIcon,
+  Breadcrumbs,
+  ConfirmDelete,
   DictionaryView,
+  GearIcon,
+  HomeIcon,
+  MediaView,
   HistoryButtons,
   OpenProjectProvider,
   ProjectOverview,
   TriccRuntimeProvider,
+  nextTrail,
   useSave,
 } from '@tricc/editor'
 import type { LocalRuntime } from './adapters.js'
@@ -70,18 +81,26 @@ function Shell({
   local,
   storageLabel,
   tools,
+  crumbs,
   children,
 }: {
   local: LocalRuntime
   storageLabel: string
   tools?: ReactNode
+  /** Where the author is, in place of the app name: inside a project. */
+  crumbs?: ReactNode
   children: ReactNode
 }) {
   const [readOnly, setReadOnly] = useState(local.identity.isReadOnly())
   return (
     <>
       <header>
-        <a href="/">TRICC Authoring</a>
+        {crumbs ?? (
+          <a href="/" className="tricc-home-link" data-testid="nav-home">
+            <HomeIcon />
+            TRICC Authoring
+          </a>
+        )}
         {/* Which store backs the open project. A user must know before they close the
             tab, not after. */}
         <span data-testid="storage-mode">{storageLabel}</span>
@@ -111,6 +130,8 @@ function ProjectList({ local }: { local: LocalRuntime }) {
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [name, setName] = useState('')
   const [error, setError] = useState<string | undefined>(undefined)
+  const [deleting, setDeleting] = useState<ProjectRef | undefined>(undefined)
+  const cancelDelete = useCallback(() => setDeleting(undefined), [])
   const navigate = useNavigate()
 
   const refresh = useCallback(async () => setProjects(await local.catalog.list()), [local])
@@ -148,7 +169,7 @@ function ProjectList({ local }: { local: LocalRuntime }) {
 
       <ul>
         {projects.map((p) => (
-          <li key={p.id}>
+          <li key={p.id} className="tricc-project-row">
             <button
               type="button"
               data-testid={`open-${p.id}`}
@@ -156,9 +177,46 @@ function ProjectList({ local }: { local: LocalRuntime }) {
             >
               {p.name}
             </button>
+            <button
+              type="button"
+              className="tricc-icon-button"
+              data-testid={`configure-${p.id}`}
+              aria-label={`Settings of ${p.name}`}
+              title="Project settings"
+              onClick={() => navigate(`/project/${p.id}?settings=1`)}
+            >
+              <GearIcon />
+            </button>
+            {!local.identity.isReadOnly() && (
+              <button
+                type="button"
+                className="tricc-icon-button tricc-icon-button--danger"
+                data-testid={`delete-${p.id}`}
+                aria-label={`Delete ${p.name}`}
+                title="Delete project"
+                onClick={async () => setDeleting(await refFor(local, p))}
+              >
+                <BinIcon />
+              </button>
+            )}
           </li>
         ))}
       </ul>
+      {deleting && (
+        <ConfirmDelete
+          testId="delete-project"
+          heading="Delete this project?"
+          onCancel={cancelDelete}
+          onConfirm={() => {
+            const ref = deleting
+            setDeleting(undefined)
+            void deleteProject(local, ref).then(refresh)
+          }}
+        >
+          <p>This removes {deleting.name} from your projects.</p>
+          <p data-testid="delete-project-note">{deleteNote(local, deleting)}</p>
+        </ConfirmDelete>
+      )}
       {projects.length === 0 && (
         <p data-testid="no-projects">
           No projects yet. Create one below, or import a project folder.
@@ -220,7 +278,8 @@ function ProjectList({ local }: { local: LocalRuntime }) {
             for (const f of list) {
               const path =
                 (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name
-              files[path] = await f.text()
+              // Pictures stay bytes; everything else in a project is text.
+              files[path] = isBinaryPath(path) ? new Uint8Array(await f.arrayBuffer()) : await f.text()
             }
             await importFiles(files, 'Imported project')
             e.target.value = ''
@@ -253,6 +312,29 @@ function ProjectList({ local }: { local: LocalRuntime }) {
       </section>
     </div>
   )
+}
+
+/** The catalog entry with its folder handle, if it has one: that decides what a delete does. */
+async function refFor(local: LocalRuntime, summary: ProjectRef): Promise<ProjectRef> {
+  const handle = await local.catalog.handleFor(summary)
+  return handle ? { ...summary, handle } : summary
+}
+
+function deleteNote(local: LocalRuntime, ref: ProjectRef): string {
+  return local.storeFor(ref) === 'folder'
+    ? 'The folder and its files stay on your disk; only this list forgets the project.'
+    : 'Its files are kept only in this browser and are deleted. Export a copy first to keep it.'
+}
+
+/**
+ * Off the list first, so a list shown next no longer has it; then `removed` (leave the
+ * project, so no autosave writes it back); then delete what the browser kept.
+ */
+async function deleteProject(local: LocalRuntime, ref: ProjectRef, removed?: () => void): Promise<void> {
+  await local.catalog.remove(ref)
+  removed?.()
+  await local.persistence.forget(ref)
+  await local.collaboration.forget(ref)
 }
 
 function resolveName(title: Record<string, string> | undefined, lang: string): string | undefined {
@@ -304,25 +386,67 @@ function ProjectWorkspace({
   onStorageLabel: (label: string) => void
 }) {
   const { id } = useParams()
+  const [search, setSearch] = useSearchParams()
+  // Read once: the gear on the project list asks for the settings as the project opens.
+  const [settingsOnOpen] = useState(() => search.get('settings') === '1')
   const [open, setOpen] = useState<OpenProject | undefined>(undefined)
   const [error, setError] = useState<string | undefined>(undefined)
-  const [activityId, setActivityId] = useState<string | undefined>(undefined)
-  const [focus, setFocus] = useState<{ activityId: string; nodeId: string } | null>(null)
+  /** Activities reached, outermost first; the last one is open. Empty: the overview. */
+  const [trail, setTrail] = useState<string[]>([])
+  const activityId = trail[trail.length - 1]
+  const [focus, setFocus] = useState<{ activityId: string; nodeId?: string; edgeId?: string } | null>(null)
   const navigate = useNavigate()
   const [dictionary, setDictionary] = useState(false)
+  const [media, setMedia] = useState(false)
   const [concept, setConcept] = useState<ConceptKey | undefined>(undefined)
+  /** The dictionary on screen (canonical url); undefined until one is chosen. */
+  const [dictionarySystem, setDictionarySystem] = useState<string | undefined>(undefined)
   const openNode = useCallback((nextActivity: string, nodeId: string) => {
     setDictionary(false)
+    setMedia(false)
     setConcept(undefined)
     setFocus({ activityId: nextActivity, nodeId })
-    setActivityId(nextActivity)
+    setTrail((t) => nextTrail(t, nextActivity, 'reset'))
+  }, [])
+  const openEdge = useCallback((nextActivity: string, edgeId: string) => {
+    setDictionary(false)
+    setMedia(false)
+    setConcept(undefined)
+    setFocus({ activityId: nextActivity, edgeId })
+    setTrail((t) => nextTrail(t, nextActivity, 'reset'))
+  }, [])
+  const openConcept = useCallback((key: ConceptKey) => {
+    setConcept(key)
+    setDictionarySystem(key.system)
+    setMedia(false)
+    setDictionary(true)
   }, [])
   const openActivity = useCallback((id: string | undefined) => {
     setDictionary(false)
+    setMedia(false)
     setConcept(undefined)
     setFocus(null)
-    setActivityId(id)
+    setTrail(id ? [id] : [])
   }, [])
+  /** Through a goto: the activity is added to the breadcrumb. */
+  const followActivity = useCallback((next: string) => {
+    setFocus(null)
+    setTrail((t) => nextTrail(t, next, 'follow'))
+  }, [])
+  /** Back to a goto that leads here: on the breadcrumb if it came from there. */
+  const openCaller = useCallback((caller: string, nodeId: string) => {
+    setFocus({ activityId: caller, nodeId })
+    setTrail((t) => nextTrail(t, caller, 'return'))
+  }, [])
+  const showView = useCallback((view: 'dictionary' | 'media' | null) => {
+    setDictionary(view === 'dictionary')
+    setMedia(view === 'media')
+    setConcept(undefined)
+  }, [])
+
+  useEffect(() => {
+    if (settingsOnOpen) setSearch({}, { replace: true })
+  }, [settingsOnOpen, setSearch])
 
   useEffect(() => {
     let cancelled = false
@@ -374,6 +498,23 @@ function ProjectWorkspace({
       <Shell
         local={local}
         storageLabel={storageLabel}
+        crumbs={
+          <Breadcrumbs
+            trail={dictionary || media ? [] : trail}
+            extra={dictionary ? 'Data dictionary' : media ? 'Media' : undefined}
+            onHome={() => navigate('/')}
+            onProject={() => {
+              showView(null)
+              setFocus(null)
+              setTrail([])
+            }}
+            onCrumb={(index) => {
+              showView(null)
+              setFocus(null)
+              setTrail((t) => t.slice(0, index + 1))
+            }}
+          />
+        }
         tools={
           <>
             <SaveIndicator />
@@ -384,41 +525,52 @@ function ProjectWorkspace({
       >
         <ActivityNavigator
           onSelect={openActivity}
-          selected={dictionary ? undefined : activityId}
+          selected={dictionary || media ? undefined : activityId}
           dictionaryOpen={dictionary}
-          onOpenDictionary={() => setDictionary(true)}
+          dictionarySystem={dictionary ? dictionarySystem : undefined}
+          onOpenDictionary={(system) => {
+            setMedia(false)
+            setConcept(undefined)
+            setDictionarySystem(system)
+            setDictionary(true)
+          }}
+          onOpenConcept={openConcept}
+          onOpenNode={openNode}
+          mediaOpen={media}
+          onOpenMedia={() => {
+            setDictionary(false)
+            setMedia(true)
+          }}
         />
-        {dictionary ? (
-          <DictionaryView open={concept} onOpen={setConcept} onOpenNode={openNode} />
+        {media ? (
+          <MediaView onOpenConcept={openConcept} />
+        ) : dictionary ? (
+          <DictionaryView system={dictionarySystem} open={concept} onOpen={setConcept} onOpenNode={openNode} />
         ) : activityId ? (
           <ActivityEditor
             activityId={activityId}
             focusNodeId={focus?.activityId === activityId ? focus.nodeId : undefined}
+            focusEdgeId={focus?.activityId === activityId ? focus.edgeId : undefined}
             onOpen={openNode}
-            onOpenActivity={openActivity}
-            onDeleted={() => openActivity(undefined)}
+            onOpenEdge={openEdge}
+            onOpenActivity={followActivity}
+            onOpenCaller={openCaller}
+            onDeleted={() => {
+              const gone = activityId
+              setFocus(null)
+              setTrail((t) => t.filter((a) => a !== gone))
+            }}
           />
         ) : (
           <ProjectOverview
             onOpen={openNode}
+            onOpenEdge={openEdge}
+            onOpenConcept={openConcept}
             onSelect={openActivity}
             onRename={(name) => void local.catalog.rename(open.ref, name)}
-            deleteNote={
-              local.storeFor(open.ref) === 'folder'
-                ? 'The folder and its files stay on your disk; only this list forgets the project.'
-                : 'Its files are kept only in this browser and are deleted. Export a copy first to keep it.'
-            }
-            onDelete={() => {
-              const ref = open.ref
-              void (async () => {
-                // Off the list first, so the list shown next no longer has it; then leave the
-                // project, so no autosave writes it back; then delete what the browser kept.
-                await local.catalog.remove(ref)
-                navigate('/')
-                await local.persistence.forget(ref)
-                await local.collaboration.forget(ref)
-              })()
-            }}
+            initialSettingsOpen={settingsOnOpen}
+            deleteNote={deleteNote(local, open.ref)}
+            onDelete={() => void deleteProject(local, open.ref, () => navigate('/'))}
           />
         )}
       </Shell>
@@ -446,6 +598,7 @@ function Preferences({ local }: { local: LocalRuntime }) {
   const [name, setName] = useState(local.identity.current().displayName)
   const [lines, setLines] = useState(String(local.preferences.current().labelLines))
   const [chars, setChars] = useState(String(local.preferences.current().labelChars))
+  const [imageWidth, setImageWidth] = useState(String(local.preferences.current().imageMaxWidth))
   const [types, setTypes] = useState(local.preferences.current().conceptTypes.join('\n'))
   return (
     <div data-testid="preferences">
@@ -501,6 +654,21 @@ function Preferences({ local }: { local: LocalRuntime }) {
         }}
       />
       <p>One per line. The data dictionary offers these as a concept's type; tricc_oo maps them to a FHIR resource.</p>
+      <label htmlFor="pref-image-width">Maximum image width (pixels)</label>
+      <input
+        id="pref-image-width"
+        data-testid="pref-image-width"
+        type="number"
+        min={IMAGE_WIDTH_MIN}
+        max={IMAGE_WIDTH_MAX}
+        step={50}
+        value={imageWidth}
+        onChange={(e) => {
+          setImageWidth(e.target.value)
+          if (e.target.value !== '') local.preferences.update({ imageMaxWidth: Number(e.target.value) })
+        }}
+      />
+      <p>A wider picture is made smaller when it is added, so forms stay light on a health worker's device. Drawings (SVG) are kept as they are.</p>
       <p data-testid="storage-explanation">
         {local.canUseFolders
           ? 'A project can be bound to a folder on disk; until then it is kept in this browser.'

@@ -150,6 +150,25 @@ main > [data-testid='activity-editor'] {
 .tricc-nav__tabs button[aria-selected='true'] .tricc-nav__count {
   color: #cbd5e1;
 }
+/* The list's own filter sits at the start of its row; the project search stays on the bar. */
+.tricc-nav__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+.tricc-nav__row input[type='search'] {
+  flex: 0 0 9em;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+}
+.tricc-nav__bar input.tricc-nav__project-search {
+  max-width: 20em;
+}
 .tricc-nav__bar input[type='search'] {
   flex: 1 1 8em;
   min-width: 0;
@@ -322,4 +341,62 @@ details > summary {
   flex: 1 1 16em;
   min-width: min(100%, 12em);
   max-width: 36em;
+}
+
+/* Home and the breadcrumb: where the author is, at the start of the top bar. */
+.tricc-home-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tricc-crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tricc-crumbs li {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.tricc-crumbs li + li::before {
+  content: '›';
+  margin: 0 4px;
+  color: #94a3b8;
+}
+.tricc-crumbs button,
+.tricc-crumbs span {
+  max-width: 24ch;
+  overflow: hidden;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: #1d4ed8;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tricc-crumbs button:hover {
+  background: #eff6ff;
+}
+.tricc-crumbs [aria-current='page'] {
+  color: #0f172a;
+  font-weight: 600;
+  cursor: default;
+}
+.tricc-crumbs__home {
+  display: inline-flex;
+  align-items: center;
+}
+
+.tricc-project-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
