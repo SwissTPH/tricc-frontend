@@ -36,6 +36,7 @@ export const optionSchema = z
     label: localizedTextSchema.optional(),
     concept: conceptRefSchema.optional(),
     relevance: expressionSchema.optional(),
+    is_none: z.boolean().optional(),
   })
   .strict()
 

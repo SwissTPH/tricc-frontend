@@ -96,6 +96,13 @@ export const CALCULATED_TYPES = where((s) => s.calculated)
 
 export const isTextNode = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.text)
 export const isCalculated = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.calculated)
+/**
+ * It can carry `repeat` (collect again, in a new slot) and `instance` (the same collection
+ * reached at several points). tricc_oo reads them on every node that holds a value, on a goto
+ * (the called activity), and on an activity start (every value of the activity).
+ */
+export const isRepeatable = (t: NodeType): boolean =>
+  Boolean(NODE_TYPE_SPECS[t]?.named) || t === 'goto' || t === 'activity_start'
 export const isSelect = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.select)
 /** Sequence anchors keep their own label; everything else inherits its concept's display. */
 export const isSequenceNode = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.sequence)

@@ -232,6 +232,8 @@ function pageToActivity(
         id: shape.id,
         ...(optionName ? { name: optionName } : {}),
         ...(optionLabel ? { label: { [lang]: optionLabel } } : {}),
+        // As tricc_oo reads it (xml_to_tricc.py): the "none of these" answer.
+        ...(shape.attrs['is_none'] === 'true' ? { is_none: true } : {}),
       }
       parent.options = [...(parent.options ?? []), option]
       optionOf.set(shape.id, { nodeId: shape.parent, code: optionName ?? shape.id })

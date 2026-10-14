@@ -65,6 +65,7 @@ const YAML_CUSTOM: {
         if (o.concept) out.concept = { ...o.concept }
         const orel = expr(o.relevance, lang)
         if (orel) out.relevance = orel
+        if (o.is_none) out.is_none = true
         return out
       })
     },
@@ -76,6 +77,7 @@ const YAML_CUSTOM: {
         put(oo, 'label', op.label && fromLocalized(op.label, lang))
         put(oo, 'concept', op.concept && { system: op.concept.system, code: op.concept.code })
         put(oo, 'relevance', op.relevance && fromExpression(op.relevance, lang))
+        put(oo, 'is_none', op.is_none || undefined)
         return oo
       }),
   },

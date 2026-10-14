@@ -173,6 +173,18 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
       )
     }
 
+    // tricc_oo takes the first "none" answer it finds (get_none_option); a second one is ignored.
+    if ((n.options ?? []).filter((o) => o.is_none).length > 1) {
+      issues.push(
+        issue(
+          'select.several-none',
+          'warning',
+          'More than one answer is marked "none of these". Keep one.',
+          { ...at(n), field: 'options' },
+        ),
+      )
+    }
+
     if (n.type === 'calculate' && !n.calculate?.expression) {
       issues.push(
         issue(

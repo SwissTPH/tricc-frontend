@@ -142,6 +142,7 @@ function optionToY(o: SelectOption): Y.Map<unknown> {
   if (o.label) m.set('label', localizedToY(o.label))
   setPlain(m, 'concept', o.concept)
   if (o.relevance) m.set('relevance', expressionToY(o.relevance))
+  if (o.is_none) m.set('is_none', true)
   return m
 }
 
@@ -155,6 +156,7 @@ function optionFromY(m: Y.Map<unknown>): SelectOption {
   if (concept) o.concept = structuredClone(concept)
   const rel = expressionFromY(m.get('relevance') as Y.Map<unknown> | undefined)
   if (rel) o.relevance = rel
+  if (m.get('is_none') === true) o.is_none = true
   return o
 }
 

@@ -33,6 +33,11 @@ export interface SelectOption {
   label?: LocalizedText
   concept?: ConceptRef
   relevance?: Expression
+  /**
+   * The "none of these" answer: choosing it means none of the others applies (tricc_oo
+   * `is_none`). At most one per select; a select may have none.
+   */
+  is_none?: boolean
   /** Legacy picture (draw.io, `media.image`): moved into the questionnaire text on load. */
   media?: { image: string }
 }
