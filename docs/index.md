@@ -7,7 +7,7 @@ hero:
   image:
     src: /swisstph-mark.png
     alt: Swiss TPH
-  tagline: Author TRICC decision-support flowcharts with an editor that understands them, and save a folder that tricc_oo converts to ODK, CHT, OpenMRS, DHIS2 and FHIR.
+  tagline: Draw TRICC decision-support flowcharts in an editor that understands them. Projects stay on your computer as reviewable YAML, and tricc_oo converts them to ODK, CHT, OpenMRS, DHIS2 and FHIR.
   actions:
     - theme: brand
       text: Open the app
@@ -27,5 +27,10 @@ features:
   - title: Nothing leaves your computer
     details: There is no server and no account. Projects stay in your browser or in a folder you choose, ready for git.
   - title: Reviewable files
-    details: One small YAML file per activity, so guideline changes can be reviewed as a diff.
+    details: One small YAML file per activity, so guideline changes can be reviewed as a diff in git.
 ---
+
+<p class="home-note">
+TRICC Authoring is the authoring editor. A companion platform for sharing, review and use is in
+development.
+</p>

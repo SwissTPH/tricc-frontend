@@ -32,3 +32,10 @@
 .dark .VPHero .image-src {
   filter: brightness(0) invert(1);
 }
+
+/* Sits in the home page's content area, which already carries the page padding. */
+.vp-doc .home-note {
+  margin: 32px 0 0;
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+}
