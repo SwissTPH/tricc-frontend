@@ -23,6 +23,26 @@ content, prefer a folder, or run the app locally with `npx @tricc/app-local`.
 - On **Projects**, _Import a .tricc file_ opens that archive as a new project in the browser.
 - _Import a project folder_ reads a project folder in any browser, including Firefox and Safari.
 
+## GitHub and GitLab
+
+A project kept in a git repository can be opened from it directly:
+
+1. On **Projects**, choose **Import from GitHub or GitLab…** and paste the link to the project
+   folder, such as `https://github.com/org/repo/tree/main/projects/guideline`.
+2. Edit as usual. The top bar shows the repository and branch.
+3. **Propose changes…** sends your changes as a pull request (GitLab: merge request). Proposing
+   again updates the same request while it is open. Nothing is written to the branch itself:
+   someone reviews and merges the request.
+
+A file that someone else changed on the branch in the meantime is shown as a conflict and is not
+overwritten. When you open the project again, the app asks whether to continue with your changes
+or load a branch.
+
+Private repositories, and proposing changes, need a personal access token. On GitHub, it needs
+_Contents_ and _Pull requests_ set to read and write; on GitLab, the `api` scope. The hosted app
+keeps the token only until the tab closes. When run on your computer (`npx @tricc/app-local`), it
+can remember it.
+
 ## draw.io drawings
 
 A project whose `tricc.yaml` lists `.drawio` files opens directly. The drawings are read, and saving

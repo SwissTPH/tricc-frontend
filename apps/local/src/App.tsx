@@ -47,6 +47,19 @@ import {
   useSave,
 } from '@tricc/editor'
 import type { LocalRuntime } from './adapters.js'
+import {
+  ChooseCopyDialog,
+  ImportFromRepoButton,
+  RepoTools,
+  checkCopy,
+  fetchBranch,
+  forgetRepoState,
+  needsChoice,
+  repositoryOfFiles,
+  writeBranch,
+  type CopyCheck,
+  type FetchedBranch,
+} from './git/ui.js'
 
 export function App({ local }: { local: LocalRuntime }) {
   const [storageLabel, setStorageLabel] = useState(defaultStorageLabel(local))
@@ -146,7 +159,7 @@ function ProjectList({ local }: { local: LocalRuntime }) {
   useEffect(() => void refresh(), [refresh])
 
   /** Adopt an imported file set as a new browser-backed project. */
-  const importFiles = async (files: ProjectFiles, fallbackName: string) => {
+  const importFiles = async (files: ProjectFiles, fallbackName: string): Promise<ProjectRef | undefined> => {
     setError(undefined)
     const normalized = normalizeImport(files)
     try {
@@ -162,10 +175,12 @@ function ProjectList({ local }: { local: LocalRuntime }) {
       })
       await refresh()
       navigate(`/project/${ref.id}`)
+      return ref
     } catch (e) {
       setError(
         e instanceof Error ? `That does not look like a TRICC project: ${e.message}` : String(e),
       )
+      return undefined
     }
   }
 
@@ -251,6 +266,14 @@ function ProjectList({ local }: { local: LocalRuntime }) {
           </button>
         )}
 
+        <ImportFromRepoButton
+          onImport={async (files, fallbackName) => {
+            // A repository import names its own errors in its dialog, not on the page.
+            const ref = await importFiles(files, fallbackName)
+            if (!ref) setError(undefined)
+            return ref
+          }}
+        />
         <label htmlFor="import-archive">Import a {ARCHIVE_EXTENSION} file</label>
         <input
           id="import-archive"
@@ -343,6 +366,7 @@ async function deleteProject(local: LocalRuntime, ref: ProjectRef, removed?: () 
   removed?.()
   await local.persistence.forget(ref)
   await local.collaboration.forget(ref)
+  forgetRepoState(ref.id)
 }
 
 function resolveName(title: Record<string, string> | undefined, lang: string): string | undefined {
@@ -399,6 +423,12 @@ function ProjectWorkspace({
   const [settingsOnOpen] = useState(() => search.get('settings') === '1')
   const [open, setOpen] = useState<OpenProject | undefined>(undefined)
   const [error, setError] = useState<string | undefined>(undefined)
+  /** A copy from a repository whose branch has something to decide before it opens. */
+  const [choice, setChoice] = useState<{ ref: ProjectRef; check: CopyCheck } | undefined>(undefined)
+  /** Bumped to open the project again, after its files were replaced by a branch. */
+  const [generation, setGeneration] = useState(0)
+  /** The project whose copy-or-branch choice is made: open it without asking again. */
+  const [chosenFor, setChosenFor] = useState<string | undefined>(undefined)
   /** Activities reached, outermost first; the last one is open. Empty: the overview. */
   const [trail, setTrail] = useState<string[]>([])
   const activityId = trail[trail.length - 1]
@@ -468,6 +498,15 @@ function ProjectWorkspace({
         }
         const handle = await local.catalog.handleFor(summary)
         const ref = handle ? { ...summary, handle } : summary
+        if (chosenFor !== id && local.storeFor(ref) === 'browser') {
+          const files = await local.persistence.read(ref)
+          const repository = repositoryOfFiles(files)
+          const check = repository ? await checkCopy(ref.id, files, repository) : undefined
+          if (check && needsChoice(check)) {
+            if (!cancelled) setChoice({ ref, check })
+            return
+          }
+        }
         const result = await local.runtime.open(ref)
         if (!cancelled) {
           setOpen(result)
@@ -484,7 +523,31 @@ function ProjectWorkspace({
     return () => {
       cancelled = true
     }
-  }, [id, local, onStorageLabel])
+  }, [id, local, onStorageLabel, generation, chosenFor])
+
+  const reopen = useCallback(() => {
+    setOpen(undefined)
+    setChoice(undefined)
+    setChosenFor(id)
+    setGeneration((g) => g + 1)
+  }, [id])
+
+  /** Close the project, so its autosave stops, then write the branch over it and open it again. */
+  const replaceWith = useCallback(
+    async (ref: ProjectRef, fetched: FetchedBranch) => {
+      setOpen(undefined)
+      // A save already under way when the editor closed finishes first.
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      try {
+        await writeBranch(local, ref, fetched)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
+        return
+      }
+      reopen()
+    },
+    [local, reopen],
+  )
 
   if (error) {
     return (
@@ -497,6 +560,17 @@ function ProjectWorkspace({
     return (
       <Shell local={local} storageLabel={storageLabel}>
         <p data-testid="project-loading">Opening…</p>
+        {choice && (
+          <ChooseCopyDialog
+            check={choice.check}
+            onContinue={reopen}
+            onClose={() => (choice.check.state ? reopen() : navigate('/'))}
+            onLoad={async (branch) => {
+              const fetched = await fetchBranch(choice.check.repository, branch)
+              await replaceWith(choice.ref, fetched)
+            }}
+          />
+        )}
       </Shell>
     )
   }
@@ -528,6 +602,7 @@ function ProjectWorkspace({
             <SaveIndicator />
             <HistoryButtons />
             <ExportButton open={open} />
+            <RepoTools local={local} open={open} onReplace={(fetched) => void replaceWith(open.ref, fetched)} />
           </>
         }
       >

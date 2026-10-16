@@ -1,7 +1,8 @@
-import type { Activity, Intervention, Project, ProjectImage } from '../../model/types.js'
+import type { Activity, Intervention, Project, ProjectImage, ProjectRepository } from '../../model/types.js'
 import { activityPath, codeSystemPath, libraryPath, PATHS } from '../../model/types.js'
 import { resolve, type LocalizedText } from '../schema/localized.js'
 import { activitiesFromDrawio } from '../drawio.js'
+import { parseDocument } from 'yaml'
 import { fromYaml } from './yaml.js'
 import { fileText, type ProjectFiles } from './index.js'
 
@@ -55,6 +56,7 @@ export function encodeTriccYaml(project: Project): Record<string, unknown> {
   put(o, 'default_code_system', project.defaultCodeSystem)
   put(o, 'calculate_code_system', project.calculateCodeSystem)
   put(o, 'media_path', project.mediaPath)
+  if (project.repository) o['repository'] = encodeRepository(project.repository)
 
   const interventions: Record<string, unknown>[] = []
   const drafts: Record<string, unknown>[] = []
@@ -121,6 +123,7 @@ export interface TriccYamlRead {
   defaultCodeSystem?: string
   calculateCodeSystem?: string
   mediaPath?: string
+  repository?: ProjectRepository
   /** Activities expanded from `.drawio` pages. The source file is left as it was. */
   drawioActivities: Record<string, Activity>
   /** Pictures drawn on those pages, referenced by their nodes' `media.image`. */
@@ -206,7 +209,48 @@ export function readTriccYamlMeta(
   if (typeof doc['default_code_system'] === 'string') result.defaultCodeSystem = doc['default_code_system']
   if (typeof doc['calculate_code_system'] === 'string') result.calculateCodeSystem = doc['calculate_code_system']
   if (typeof doc['media_path'] === 'string') result.mediaPath = doc['media_path']
+  const repository = readRepository(doc['repository'])
+  if (repository) result.repository = repository
   return result
+}
+
+function encodeRepository(repo: ProjectRepository): Record<string, unknown> {
+  const o: Record<string, unknown> = { host: repo.host, url: repo.url, branch: repo.branch }
+  if (repo.path) o['path'] = repo.path
+  return o
+}
+
+/** `tricc.yaml` `repository`, or undefined when it is missing or incomplete. */
+export function readRepository(raw: unknown): ProjectRepository | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const r = raw as Record<string, unknown>
+  const host = r['host']
+  if (host !== 'github' && host !== 'gitlab') return undefined
+  if (typeof r['url'] !== 'string' || typeof r['branch'] !== 'string') return undefined
+  const url = r['url'].trim().replace(/\/+$/, '')
+  const branch = r['branch'].trim()
+  if (!url || !branch) return undefined
+  const repo: ProjectRepository = { host, url, branch }
+  const path = typeof r['path'] === 'string' ? r['path'].trim().replace(/^\/+|\/+$/g, '') : ''
+  if (path) repo.path = path
+  return repo
+}
+
+/** `text` with `repository` set. The rest of the file, comments included, stays as it was. */
+export function setTriccYamlRepository(text: string, repository: ProjectRepository): string {
+  const doc = parseDocument(text)
+  doc.set('repository', encodeRepository(repository))
+  return doc.toString({ indent: 2, lineWidth: 100 })
+}
+
+/** The `repository` of a `tricc.yaml` text, without reading the rest of the project. */
+export function repositoryOfTriccYaml(text: string): ProjectRepository | undefined {
+  try {
+    const raw = fromYaml(text)
+    return raw && typeof raw === 'object' ? readRepository((raw as Record<string, unknown>)['repository']) : undefined
+  } catch {
+    return undefined
+  }
 }
 
 function readIntervention(

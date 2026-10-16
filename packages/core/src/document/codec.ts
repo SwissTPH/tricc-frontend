@@ -482,6 +482,7 @@ export function projectToDoc(project: Project, doc: Y.Doc): void {
     ] as const) {
       setScalar(meta, k, project[k])
     }
+    setPlain(meta, 'repository', project.repository)
     const languages = doc.getMap<unknown>('languages')
     languages.set('default', project.languages.default)
     const avail = new Y.Array<string>()
@@ -575,6 +576,10 @@ export function projectFromDoc(doc: Y.Doc): Project {
   for (const k of ['system', 'code', 'version', 'mediaPath', 'defaultCodeSystem', 'calculateCodeSystem'] as const) {
     const v = meta.get(k)
     if (v !== undefined) assign(project, k, v)
+  }
+  const repository = meta.get('repository')
+  if (repository && typeof repository === 'object') {
+    project.repository = structuredClone(repository) as Project['repository']
   }
   const imagesY = doc.getMap<Y.Map<unknown>>('images')
   if (imagesY.size > 0) {

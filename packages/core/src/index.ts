@@ -34,6 +34,11 @@ export {
   mergeImages,
 } from './format/serialize/index.js'
 export {
+  readRepository,
+  repositoryOfTriccYaml,
+  setTriccYamlRepository,
+} from './format/serialize/tricc-yaml.js'
+export {
   toArchive,
   fromArchive,
   normalizeImport,

@@ -400,3 +400,107 @@ details > summary {
   align-items: center;
   gap: 4px;
 }
+
+/* ------------------------------------------------- repositories (GitHub, GitLab) */
+
+.tricc-repo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+}
+.tricc-repo p {
+  margin: 0;
+}
+.tricc-repo select,
+.tricc-repo textarea {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  color: #0f172a;
+  background: #fff;
+}
+.tricc-repo textarea {
+  resize: vertical;
+}
+.tricc-repo__where {
+  color: #475569;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.tricc-repo__hint {
+  color: #64748b;
+  font-size: 12px;
+}
+.tricc-repo__token {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tricc-repo .tricc-repo__check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #334155;
+  font-size: 13px;
+}
+.tricc-repo .tricc-repo__check input {
+  display: inline;
+  width: auto;
+  margin: 0;
+}
+.tricc-repo__found {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f1f5f9;
+}
+.tricc-repo__error {
+  color: #b91c1c;
+}
+.tricc-repo__conflicts {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fef3c7;
+  font-size: 13px;
+}
+.tricc-repo__conflicts ul {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+.tricc-import-list li[data-kind='add'] span {
+  color: #15803d;
+}
+.tricc-import-list li[data-kind='delete'] span {
+  color: #b91c1c;
+}
+
+.tricc-repo-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.tricc-repo-badge {
+  overflow: hidden;
+  max-width: 22em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 12px;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-testid='project-list'] [data-testid='import-repo'] {
+  display: block;
+  margin-bottom: 8px;
+}

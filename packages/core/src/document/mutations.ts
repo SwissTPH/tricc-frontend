@@ -11,6 +11,7 @@ import type {
   Concept,
   CodeSystem,
   ProjectImage,
+  ProjectRepository,
 } from '../model/types.js'
 import { uniqueImageId } from '../model/types.js'
 import {
@@ -389,6 +390,10 @@ export class Mutations {
     value: string | undefined,
   ): void {
     setScalar(this.doc.getMap<unknown>('meta'), key, value)
+  }
+
+  setRepository(repository: ProjectRepository | undefined): void {
+    setPlain(this.doc.getMap<unknown>('meta'), 'repository', repository)
   }
 }
 

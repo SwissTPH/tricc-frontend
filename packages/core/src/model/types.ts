@@ -303,6 +303,22 @@ export interface Project {
   mediaPath?: string
   /** The image library, keyed by id. Texts show them as `image` nodes (`Binary/<id>`). */
   images?: Record<string, ProjectImage>
+  /** The git repository the project lives in, when it has one. */
+  repository?: ProjectRepository
+}
+
+/**
+ * Where the project lives on a git host: `tricc.yaml` `repository`. It travels with the
+ * project; which commit a copy started from is the app's business, not the project's.
+ */
+export interface ProjectRepository {
+  host: 'github' | 'gitlab'
+  /** The repository's web address, e.g. `https://github.com/SwissTPH/almanach`. */
+  url: string
+  /** The branch changes are proposed to. */
+  branch: string
+  /** The project folder inside the repository; absent for the root. */
+  path?: string
 }
 
 /** A picture of the image library. The bytes never change; a replace is a new value. */
