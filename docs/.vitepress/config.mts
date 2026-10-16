@@ -24,6 +24,7 @@ export default defineConfig({
     },
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
+      { text: 'Concepts', link: '/concepts/why' },
       { text: 'Download', link: '/download' },
       { text: 'Developers', link: '/developers' },
       { text: 'Open the app', link: 'https://swisstph.github.io/tricc-frontend/app/' },
@@ -37,6 +38,15 @@ export default defineConfig({
           { text: 'Saving and sharing', link: '/guide/saving' },
           { text: 'Project format', link: '/guide/project-format' },
           { text: 'Converting with tricc_oo', link: '/guide/tricc-oo' },
+        ],
+      },
+      {
+        text: 'Concepts',
+        items: [
+          { text: 'Why visual authoring', link: '/concepts/why' },
+          { text: 'Segments, activities and nodes', link: '/concepts/layers' },
+          { text: 'Node reference', link: '/concepts/nodes' },
+          { text: 'Good practice', link: '/concepts/practice' },
         ],
       },
       {

@@ -18,6 +18,9 @@ hero:
     - theme: alt
       text: Download
       link: /download
+    - theme: alt
+      text: Why visual authoring
+      link: /concepts/why
 
 features:
   - title: Knows what a node is

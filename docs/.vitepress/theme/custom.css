@@ -39,3 +39,18 @@
   color: var(--vp-c-text-2);
   font-size: 14px;
 }
+
+/* Diagrams from the authoring material: drawn on white, kept white in both themes. */
+.vp-doc img.diagram {
+  display: block;
+  margin: 16px auto;
+  padding: 8px;
+  border-radius: 8px;
+  background: #fff;
+}
+.dark .vp-doc img.diagram {
+  border: 1px solid var(--vp-c-divider);
+}
+.vp-doc img.diagram--narrow {
+  max-width: min(100%, 480px);
+}

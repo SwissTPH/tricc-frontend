@@ -10,6 +10,10 @@ A guideline has five layers. The app uses the same five words everywhere.
 | **Activity**          | How one step is carried out                                        |
 | **Node**              | One question, calculation, decision or message                     |
 
+How these fit the WHO SMART layers and the care segments is explained in
+[Segments, activities and nodes](../concepts/layers). Every node type is described in the
+[node reference](../concepts/nodes).
+
 ## The overview
 
 Opening a project shows one card per intervention. A card lists its processes as chips. Click a chip
