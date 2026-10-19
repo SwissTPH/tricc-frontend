@@ -670,11 +670,30 @@
   flex: 0 0 auto;
 }
 
-.tricc-node--answers {
+.tricc-node--answers,
+.tricc-node--acknowledge {
   flex-direction: column;
   align-items: stretch;
   width: 220px;
   gap: 6px;
+}
+
+.tricc-node__confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--group-colour) 35%, white);
+  font-size: 11px;
+  color: #334155;
+}
+
+.tricc-node__radio {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  flex: 0 0 auto;
 }
 
 .tricc-node__head {

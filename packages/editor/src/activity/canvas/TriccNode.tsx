@@ -50,6 +50,8 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
   const display = activityTitle ?? displayText(model, lang, conceptDisplay)
   const answers =
     model.type === 'select_one' || model.type === 'select_multiple' ? (model.options ?? []) : []
+  const confirm = model.type === 'acknowledge'
+  const stacked = answers.length > 0 || confirm
 
   const head = (
     <>
@@ -119,6 +121,7 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
         `tricc-node--${visual.shape}`,
         `tricc-node--${visual.group}`,
         answers.length > 0 ? 'tricc-node--answers' : '',
+        confirm ? 'tricc-node--acknowledge' : '',
         selected ? 'is-selected' : '',
         severity ? `has-${severity}` : '',
       ]
@@ -133,7 +136,7 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
 
       {data.picture && <NodePicture id={data.picture} nodeId={model.id} />}
 
-      {answers.length > 0 ? <div className="tricc-node__head">{head}</div> : head}
+      {stacked ? <div className="tricc-node__head">{head}</div> : head}
 
       {answers.length > 0 && (
         <ul className="tricc-node__answers">
@@ -179,6 +182,13 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
             )
           })}
         </ul>
+      )}
+
+      {confirm && (
+        <div className="tricc-node__confirm" data-testid={`node-${model.id}-acknowledge`}>
+          <span className="tricc-node__radio" aria-hidden="true" />
+          <span>OK. Please continue.</span>
+        </div>
       )}
 
       {(data.hint || data.help) && (

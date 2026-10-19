@@ -242,6 +242,7 @@ export function ActivityEditor({
     // A goto gets a generated name too: not shown, but stable in exports that want one.
     if (needsName(type) || type === 'goto') node.name = uniqueId(type, names)
     if (isSelect(type) && type !== 'select_yesno') node.options = []
+    if (type === 'acknowledge') node.required = true
     mutate((tx) => tx.addNode(activityId, node))
     chooseNode(id)
   }
@@ -939,6 +940,12 @@ export function NodeProperties({
 
       {node.type === 'select_yesno' && (
         <p>Yes and no are the answers. You do not list them separately.</p>
+      )}
+
+      {node.type === 'acknowledge' && (
+        <p>
+          The health worker sees this message and must select “OK. Please continue.” before continuing.
+        </p>
       )}
 
       {(node.type === 'diagnosis' || node.type === 'proposed_diagnosis') && (

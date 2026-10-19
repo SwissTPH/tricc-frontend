@@ -202,6 +202,36 @@ describe('draw.io pages', () => {
     expect(edges.find((e) => e.target === 't')?.value).toBe('Yes')
   })
 
+  it('imports an acknowledge prompt as a node, including the misspelt odk type', () => {
+    const xml = mxfile([
+      {
+        id: 'p',
+        name: 'Consent',
+        body: graph(
+          [
+            cell('s', 'odk_type="activity_start"', 'Consent'),
+            cell('a', 'odk_type="acknowledge" name="read_warning"', 'This medicine can cause drowsiness'),
+            cell('b', 'odk_type="aknowledge" name="read_risk"', 'Confirm you understand the risk'),
+          ].join(''),
+        ),
+      },
+    ])
+    const [activity] = activitiesFromDrawio(xml, new Set())
+    expect(activity?.nodes['a']).toMatchObject({
+      type: 'acknowledge',
+      name: 'read_warning',
+      label: { en: 'This medicine can cause drowsiness' },
+      required: true,
+    })
+    expect(activity?.nodes['b']).toMatchObject({
+      type: 'acknowledge',
+      name: 'read_risk',
+      label: { en: 'Confirm you understand the risk' },
+      required: true,
+    })
+    expect(activity?.ui?.comments ?? []).toEqual([])
+  })
+
   it('reads an uncompressed diagram, including an unmapped shape', () => {
     const xml = mxfile([
       {

@@ -151,7 +151,7 @@ export function moveTextsToConcepts(
 /**
  * The concept type a new concept gets from the node that first uses it: a question is an
  * Observation; an answer is a Value, or an Observation when several can be chosen; a
- * diagnosis is a Condition; a note is an InteractSet.
+ * diagnosis is a Condition; a note or an acknowledgement is an InteractSet.
  */
 export function defaultConceptType(nodeType: string, parentType?: string): string {
   if (parentType !== undefined) return parentType === 'select_multiple' ? 'Observation' : 'Value'

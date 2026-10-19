@@ -53,6 +53,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   text: V('box', 'question', 'A'),
   date: V('box', 'question', '▤'),
   note: V('box', 'question', '✎'),
+  acknowledge: V('box', 'question', '✓'),
 
   // Logic
   calculate: V('rounded', 'logic', 'ƒ'),

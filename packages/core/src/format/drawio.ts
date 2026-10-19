@@ -389,6 +389,14 @@ function shapeToNode(
   if (min !== undefined) node.min = min
   if (max !== undefined) node.max = max
   if (shape.attrs['required'] === 'true' || shape.attrs['required'] === '1') node.required = true
+  // The confirmation is the point of the node: the worker cannot pass it unread.
+  if (
+    kind.type === 'acknowledge' &&
+    shape.attrs['required'] !== 'false' &&
+    shape.attrs['required'] !== '0'
+  ) {
+    node.required = true
+  }
   const repeat = intAttr(shape.attrs['repeat'])
   const instance = intAttr(shape.attrs['instance'])
   if (repeat !== undefined) node.repeat = repeat
@@ -423,6 +431,9 @@ function classify(
   if (rawType === 'help-message' || rawType === 'help') return 'help'
   if (rawType === 'select_one yesno' || rawType === 'select_yesno') return { type: 'select_yesno' }
   if (rawType === 'input') return { type: 'populate', populateDefault: true }
+  // ODK acknowledge: a message the health worker must confirm they have read.
+  // Drawings sometimes spell the type "aknowledge".
+  if (rawType === 'acknowledge' || rawType === 'aknowledge') return { type: 'acknowledge' }
   if (KNOWN.has(rawType)) return { type: rawType as NodeType }
   return { type: 'note', unmapped: rawType }
 }

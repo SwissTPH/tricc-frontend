@@ -27,12 +27,17 @@ describe('node type table', () => {
   it('derives the same lists the code had before', () => {
     expect(SELECT_TYPES).toEqual(['select_one', 'select_multiple', 'select_yesno'])
     expect(SEQUENCE_TYPES).toEqual(['start', 'activity_start', 'activity_end', 'end'])
-    expect(CAPTURE_TYPES).toEqual(['select_one', 'select_multiple', 'select_yesno', 'integer', 'decimal', 'quantity', 'text', 'date'])
+    expect(CAPTURE_TYPES).toEqual([
+      'select_one', 'select_multiple', 'select_yesno', 'integer', 'decimal', 'quantity', 'text', 'date', 'acknowledge',
+    ])
     expect(NAMED_TYPES).toEqual([
-      'select_one', 'select_multiple', 'select_yesno', 'integer', 'decimal', 'quantity', 'text', 'date',
+      'select_one', 'select_multiple', 'select_yesno', 'integer', 'decimal', 'quantity', 'text', 'date', 'acknowledge',
       'calculate', 'count', 'add', 'populate', 'diagnosis', 'proposed_diagnosis', 'not_available',
     ])
-    expect(TEXT_NODE_TYPES).toEqual([...CAPTURE_TYPES, 'note', 'diagnosis', 'proposed_diagnosis', 'not_available'])
+    expect(TEXT_NODE_TYPES).toEqual([
+      'select_one', 'select_multiple', 'select_yesno', 'integer', 'decimal', 'quantity', 'text', 'date',
+      'note', 'acknowledge', 'diagnosis', 'proposed_diagnosis', 'not_available',
+    ])
     expect(EXTENSION_TARGET_TYPES).toEqual(['not_available'])
     expect(DRAWABLE_TYPES).toEqual(NODE_TYPES.filter((t) => t !== 'not_available'))
     expect(Object.keys(NODE_TYPE_GROUPS)).toEqual([...PALETTE_GROUPS])

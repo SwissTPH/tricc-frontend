@@ -29,6 +29,7 @@ export const NODE_TYPES = [
   'text',
   'date',
   'note',
+  'acknowledge',
   // Logic
   'calculate',
   'rhombus',
