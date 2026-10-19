@@ -165,6 +165,23 @@ test('the text editor inserts a picture from the library picker', async ({ page 
   await expect(page.getByTestId('node-n-decimal-picture').locator('img')).toBeVisible()
 })
 
+test('the picker opens above the text editor and a library picture is clicked in', async ({ page }) => {
+  await newActivity(page, 'Picker on top')
+  await page.getByTestId('tab-media').click()
+  await page.getByTestId('media-file').setInputFiles({ name: 'rash.png', mimeType: 'image/png', buffer: DOT })
+  await expect(page.getByTestId('media-image-rash')).toBeVisible()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId(`nav-activity-activity`).click()
+  await weightQuestion(page)
+  await page.getByTestId('concept-edit').click()
+  await page.getByTestId('concept-q-display-format').click()
+  await page.getByTestId('concept-q-display-image').click()
+  // A real click: it fails when the text editor covers the picker.
+  await page.getByTestId('image-pick-rash').click({ timeout: 5_000 })
+  await expect(page.getByTestId('image-picker')).toHaveCount(0)
+  await expect(page.getByTestId('concept-q-display-rich').locator('img[data-image="rash"]')).toBeVisible()
+})
+
 test('Escape closes the picture picker only', async ({ page }) => {
   await newActivity(page, 'Escape picker')
   await weightQuestion(page)

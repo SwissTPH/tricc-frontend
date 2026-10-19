@@ -44,7 +44,7 @@ export function ImagePicker({ onPick, onClose }: { onPick: (id: string) => void;
 
   return createPortal(
     <div
-      className="tricc-library-modal"
+      className="tricc-library-modal tricc-image-picker-modal"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}

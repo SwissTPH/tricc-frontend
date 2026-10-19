@@ -1416,6 +1416,10 @@
 .tricc-rich-modal {
   z-index: 1100;
 }
+/* Opened from the text editor (and from the dictionary), so it stacks above it. */
+.tricc-image-picker-modal {
+  z-index: 1200;
+}
 .tricc-rich-modal__card {
   width: min(60rem, calc(100vw - 32px));
   max-height: calc(100vh - 48px);
