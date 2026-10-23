@@ -23,7 +23,7 @@ import { fromHtml, isStructured } from '../text/message.js'
  */
 
 const KNOWN = new Set<string>(NODE_TYPES)
-const NAME_RE = /^[A-Za-z_][A-Za-z0-9_.]*$/
+const NAME_RE = /^[A-Za-z_][A-Za-z0-9_.-]*$/
 
 interface XmlNode {
   tag: string

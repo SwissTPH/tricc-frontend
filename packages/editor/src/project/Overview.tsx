@@ -347,11 +347,12 @@ function activityUsage(project: Project): Map<string, string[]> {
   return map
 }
 
-export function uniqueId(base: string, taken: Set<string>): string {
+/** `base`, or `base-2`, `base-3`… when taken. Node names pass `_`, the separator exports keep. */
+export function uniqueId(base: string, taken: Set<string>, sep = '-'): string {
   if (!taken.has(base)) return base
   let n = 2
-  while (taken.has(`${base}-${n}`)) n++
-  return `${base}-${n}`
+  while (taken.has(`${base}${sep}${n}`)) n++
+  return `${base}${sep}${n}`
 }
 
 /** Project settings: its name. A draft until Save; Cancel or Escape discards it. */

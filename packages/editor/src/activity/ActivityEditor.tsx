@@ -29,6 +29,7 @@ import {
 } from '@tricc/core'
 import { useCanWrite, useEditorPreferences, useMutate, useProjectSnapshot } from '../runtime/context.js'
 import { ValidationSummary, uniqueId } from '../project/Overview.js'
+import { NameInput } from '../components/NameInput.js'
 import { CqlExpressionField } from '../cql/CqlExpressionField.js'
 import { expressionNames, renderCqlLabels } from '../cql/names.js'
 import { ActivityCanvas, type CanvasPlacement } from './canvas/Canvas.js'
@@ -240,7 +241,7 @@ export function ActivityEditor({
     const position = at ?? { x: 80, y: lowest + 96 }
     const node: TriccNode = { id, type, ui: { x: position.x, y: position.y } }
     // A goto gets a generated name too: not shown, but stable in exports that want one.
-    if (needsName(type) || type === 'goto') node.name = uniqueId(type, names)
+    if (needsName(type) || type === 'goto') node.name = uniqueId(type, names, '_')
     if (isSelect(type) && type !== 'select_yesno') node.options = []
     if (type === 'acknowledge') node.required = true
     mutate((tx) => tx.addNode(activityId, node))
@@ -629,13 +630,13 @@ export function NodeProperties({
       {hasInternalName(node.type) ? null : (
         <>
           <label htmlFor="node-name">Name</label>
-          <input
+          <NameInput
+            key={node.id}
             id="node-name"
-            data-testid="field-name"
-            value={node.name ?? ''}
+            testId="field-name"
+            value={node.name}
             readOnly={readOnly}
-            disabled={readOnly}
-            onChange={(e) => update({ name: e.target.value || undefined })}
+            onChange={(name) => update({ name })}
           />
         </>
       )}
@@ -890,15 +891,14 @@ export function NodeProperties({
                 }}
               />
               <label htmlFor={`opt-name-${op.id}`}>Answer name</label>
-              <input
+              <NameInput
                 id={`opt-name-${op.id}`}
-                data-testid={`option-name-${op.id}`}
-                value={op.name ?? ''}
+                testId={`option-name-${op.id}`}
+                value={op.name}
                 readOnly={readOnly}
-                disabled={readOnly}
-                onChange={(e) => {
+                onChange={(name) => {
                   const options = (node.options ?? []).map((o) =>
-                    o.id === op.id ? { ...o, name: e.target.value || undefined } : o,
+                    o.id === op.id ? { ...o, name } : o,
                   )
                   update({ options })
                 }}
