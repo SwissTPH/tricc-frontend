@@ -219,7 +219,6 @@ describe('adding nodes', () => {
     await user.click(screen.getByTestId('add-select_one'))
     const nodes = h.open.document.snapshot().activities['triage']!.nodes
     expect(nodes['n-select_one']!.name).toBe('select_one')
-    // A `-` is not allowed in a node name: the project would no longer load.
     expect(nodes['n-select_one-2']!.name).toBe('select_one_2')
   })
 
@@ -231,9 +230,9 @@ describe('adding nodes', () => {
 
     await user.click(screen.getByTestId('add-select_one'))
     await user.clear(screen.getByTestId('field-name'))
-    await user.type(screen.getByTestId('field-name'), 'systolic-bp')
+    await user.type(screen.getByTestId('field-name'), 'systolic bp')
     // What was typed stays in the field, with a warning; the last valid name is what is saved.
-    expect(screen.getByTestId('field-name')).toHaveValue('systolic-bp')
+    expect(screen.getByTestId('field-name')).toHaveValue('systolic bp')
     expect(screen.getByTestId('field-name')).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByTestId('field-name-error')).toBeInTheDocument()
     expect(name()).toBe('systolic')
@@ -244,9 +243,10 @@ describe('adding nodes', () => {
     expect(screen.queryByTestId('field-name-error')).not.toBeInTheDocument()
 
     await user.clear(screen.getByTestId('field-name'))
-    await user.type(screen.getByTestId('field-name'), 'systolic_bp')
+    // A `-` is allowed, so a name can be a code such as `BA00-Z`.
+    await user.type(screen.getByTestId('field-name'), 'systolic-bp')
     expect(screen.queryByTestId('field-name-error')).not.toBeInTheDocument()
-    expect(name()).toBe('systolic_bp')
+    expect(name()).toBe('systolic-bp')
   })
 })
 

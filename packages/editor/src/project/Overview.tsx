@@ -347,7 +347,7 @@ function activityUsage(project: Project): Map<string, string[]> {
   return map
 }
 
-/** `base`, or `base-2`, `base-3`… when taken. Node names pass `_`: they cannot hold a `-`. */
+/** `base`, or `base-2`, `base-3`… when taken. Node names pass `_`, the separator exports keep. */
 export function uniqueId(base: string, taken: Set<string>, sep = '-'): string {
   if (!taken.has(base)) return base
   let n = 2

@@ -36,7 +36,7 @@ export function AnswerPicker({
     // No default CodeSystem yet means the dialog just created it for this concept.
     const current = defaultCodeSystem(project)
     const inDefault = !current || current.url === key.system
-    // A code that is not a valid name (`high-risk`) keeps its concept: the name no longer matches it.
+    // A code that is not a valid name (`high risk`) keeps its concept: the name no longer matches it.
     const name = toName(key.code)
     onAdd(
       inDefault && name === key.code

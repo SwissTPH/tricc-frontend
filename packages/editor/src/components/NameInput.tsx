@@ -44,7 +44,7 @@ export function NameInput({ id, testId, value, onChange, readOnly }: NameInputPr
           data-testid={`${testId}-error`}
           className="tricc-field-error"
         >
-          Not saved: a name holds only letters, digits, _ and ., and starts with a letter or _.
+          Not saved: a name holds only letters, digits, _, . and -, and starts with a letter or _.
         </p>
       )}
     </>
