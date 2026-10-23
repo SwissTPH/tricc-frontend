@@ -208,6 +208,48 @@ describe('authoring an activity end to end', () => {
   })
 })
 
+describe('adding nodes', () => {
+  it('names a second node of the same type with a valid name', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+
+    await user.click(screen.getByTestId('add-select_one'))
+    await user.click(screen.getByTestId('tab-nodes'))
+    await user.click(screen.getByTestId('add-select_one'))
+    const nodes = h.open.document.snapshot().activities['triage']!.nodes
+    expect(nodes['n-select_one']!.name).toBe('select_one')
+    // A `-` is not allowed in a node name: the project would no longer load.
+    expect(nodes['n-select_one-2']!.name).toBe('select_one_2')
+  })
+
+  it('warns about an invalid name and does not save it', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    const name = () => h.open.document.snapshot().activities['triage']!.nodes['n-select_one']!.name
+
+    await user.click(screen.getByTestId('add-select_one'))
+    await user.clear(screen.getByTestId('field-name'))
+    await user.type(screen.getByTestId('field-name'), 'systolic-bp')
+    // What was typed stays in the field, with a warning; the last valid name is what is saved.
+    expect(screen.getByTestId('field-name')).toHaveValue('systolic-bp')
+    expect(screen.getByTestId('field-name')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByTestId('field-name-error')).toBeInTheDocument()
+    expect(name()).toBe('systolic')
+
+    // Leaving the field puts the saved name back.
+    await user.tab()
+    expect(screen.getByTestId('field-name')).toHaveValue('systolic')
+    expect(screen.queryByTestId('field-name-error')).not.toBeInTheDocument()
+
+    await user.clear(screen.getByTestId('field-name'))
+    await user.type(screen.getByTestId('field-name'), 'systolic_bp')
+    expect(screen.queryByTestId('field-name-error')).not.toBeInTheDocument()
+    expect(name()).toBe('systolic_bp')
+  })
+})
+
 describe('validation surfaces in the UI', () => {
   it('shows an error for a select with no options, without blocking editing', async () => {
     const user = userEvent.setup()

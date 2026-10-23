@@ -7,6 +7,12 @@ import { NODE_TYPES } from './node-types.js'
 /** Identifier fragment used for node `name` — what CQL references and what exports mangle. */
 export const NAME_RE = /^[A-Za-z_][A-Za-z0-9_.]*$/
 
+/** `text` made into a valid name: each other character becomes `_`, a leading digit gets a `_`. */
+export function toName(text: string): string {
+  const name = text.replace(/[^A-Za-z0-9_.]/g, '_')
+  return /^[0-9.]/.test(name) ? `_${name}` : name
+}
+
 /**
  * Presentation only. Carries no semantics: removing every `ui` block must leave a project
  * that converts identically. feature/20260825-project-format.md §3.2.
