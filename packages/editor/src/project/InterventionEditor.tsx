@@ -68,11 +68,30 @@ export function InterventionEditor({
     return activity ? isProcessActivity(activity) : false
   })
   const addable = processIds.filter((id) => !used.has(id))
+  // The title opens the process the intervention starts with.
+  const firstProcess = processes[0]?.ref
+  const firstProcessLabel = firstProcess
+    ? (resolve(project.activities[firstProcess]?.title, lang, lang) ?? firstProcess)
+    : undefined
 
   return (
     <li className="tricc-intervention-card" data-testid={`intervention-${intervention.id}`}>
       <header className="tricc-intervention-card__header">
-        <h3>{title}</h3>
+        <h3>
+          {firstProcess && onSelect ? (
+            <button
+              type="button"
+              className="tricc-intervention-card__title"
+              data-testid={`open-intervention-${intervention.id}`}
+              title={`Open ${firstProcessLabel}`}
+              onClick={() => onSelect(firstProcess)}
+            >
+              {title}
+            </button>
+          ) : (
+            title
+          )}
+        </h3>
         <Button
           variant="outline"
           size="icon-sm"

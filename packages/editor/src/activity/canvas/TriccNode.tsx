@@ -4,6 +4,7 @@ import {
   hasInternalName,
   isSequenceNode,
   resolve,
+  type DisplayText,
   type NodeType,
   type TriccNode as Model,
 } from '@tricc/core'
@@ -13,6 +14,7 @@ import { useEditorPreferences } from '../../runtime/context.js'
 import { useImageUrl } from '../../media/images.js'
 import { FollowIcon } from '../../components/Dialog.js'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '../../components/ui/hover-card.js'
+import { RichLabel, labelText } from '../../text/RichLabel.js'
 
 /**
  * Opens the activity a goto goes to. Provided by the canvas, so the node data stays plain
@@ -20,13 +22,23 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '../../components/
  */
 export const FollowContext = createContext<((activityId: string) => void) | undefined>(undefined)
 
+/** An error or warning validation attached to a node. */
+export interface NodeIssue {
+  severity: 'error' | 'warning'
+  message: string
+}
+
 export type TriccFlowNode = Node<
   {
     model: Model
     lang: string
     /** Highest severity attached to this node, or undefined when clean. */
     severity?: 'error' | 'warning'
+    /** The errors and warnings behind the severity, shown in the hover card. */
+    issues?: NodeIssue[]
     conceptDisplay?: string
+    /** The same text with its formatting, when it has any (bold, colour, inline HTML). */
+    conceptRich?: DisplayText
     /** The hint and help a health worker sees (from the concept, or still on the node). */
     hint?: string
     help?: string
@@ -57,6 +69,11 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
   const { diagramStyle } = useEditorPreferences()
   const follow = useContext(FollowContext)
   const display = activityTitle ?? displayText(model, lang, conceptDisplay)
+  // Shown formatted on the node; tooltips and the hover card take its words only.
+  const shown: DisplayText =
+    activityTitle === undefined && data.conceptRich && !isSequenceNode(model.type as NodeType)
+      ? data.conceptRich
+      : display
   const answers =
     model.type === 'select_one' || model.type === 'select_multiple' ? (model.options ?? []) : []
   const confirm = model.type === 'acknowledge'
@@ -71,7 +88,7 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
       </span>
       <span className="tricc-node__body">
         <span className="tricc-node__label" data-testid={`node-${model.id}-label`}>
-          {display}
+          <RichLabel text={shown} />
         </span>
         {model.concept && <span className="tricc-node__code">{model.concept.code}</span>}
         {!model.concept &&
@@ -162,8 +179,8 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
                     data-answer={optionCode(option)}
                     data-option-id={option.id}
                   >
-                    <span className="tricc-node__answer-label" title={text}>
-                      {text}
+                    <span className="tricc-node__answer-label" title={labelText(text)}>
+                      <RichLabel text={text} />
                     </span>
                     {option.is_none && (
                       <span
@@ -188,7 +205,7 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
                       type="source"
                       id={answerHandleId(option.id)}
                       position={Position.Right}
-                      title={`Link from ${text}`}
+                      title={`Link from ${labelText(text)}`}
                     />
                   </li>
                 )
@@ -236,13 +253,28 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
           )}
         </div>
       </HoverCardTrigger>
-      <NodeDetails model={model} display={display} />
+      <NodeDetails model={model} display={labelText(shown)} issues={data.issues} />
     </HoverCard>
   )
 }
 
-/** What the node's hover card shows: its type, then the label, name and concept code. */
-function NodeDetails({ model, display }: { model: Model; display: string }) {
+/**
+ * What the node's hover card shows: its type, then the label, name and concept code,
+ * then any errors and warnings on it, errors first.
+ */
+function NodeDetails({
+  model,
+  display,
+  issues = [],
+}: {
+  model: Model
+  display: string
+  issues?: NodeIssue[]
+}) {
+  const ordered = [
+    ...issues.filter((i) => i.severity === 'error'),
+    ...issues.filter((i) => i.severity === 'warning'),
+  ]
   const rows: [string, string | undefined][] = [
     ['Label', display],
     ['Name', model.name],
@@ -267,6 +299,23 @@ function NodeDetails({ model, display }: { model: Model; display: string }) {
           </div>
         ))}
       </dl>
+      {ordered.length > 0 && (
+        <ul
+          className="m-0 mt-2 flex list-none flex-col gap-1 border-t border-border pt-2 pl-0"
+          data-testid={`node-${model.id}-issues`}
+        >
+          {ordered.map((issue, index) => (
+            <li
+              key={index}
+              className={issue.severity === 'error' ? 'text-destructive' : 'text-[#d97706]'}
+              data-severity={issue.severity}
+            >
+              <span className="font-medium">{issue.severity === 'error' ? 'Error' : 'Warning'}:</span>{' '}
+              {issue.message}
+            </li>
+          ))}
+        </ul>
+      )}
     </HoverCardContent>
   )
 }
