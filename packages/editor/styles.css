@@ -164,6 +164,14 @@
   background: #fff;
 }
 
+.tricc-marquee {
+  position: absolute;
+  z-index: 5;
+  border: 1px solid #2563eb;
+  background: rgb(37 99 235 / 12%);
+  pointer-events: none;
+}
+
 .tricc-canvas[data-dropping='true'] {
   box-shadow: inset 0 0 0 2px #0f172a;
 }

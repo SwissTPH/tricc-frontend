@@ -42,6 +42,8 @@ export interface ProjectContext {
   project: Project
   lang: string
   selectedId: string | undefined
+  /** Set when a right-drag selected more than one element. Those ids are drawn selected. */
+  boxSelection?: readonly string[]
   canWrite: boolean
   severityByNode: Map<string, 'error' | 'warning'>
   /** Positions for nodes the file has none for. */
@@ -75,6 +77,12 @@ export interface CanvasKind {
 /** Projection order: React Flow draws a parent before its children. */
 export const KIND_ORDER: readonly KindName[] = ['group', 'tricc', 'comment']
 
+/** One selected element, or every element in a right-drag selection. */
+function marked(ctx: ProjectContext, id: string): boolean {
+  if (ctx.boxSelection && ctx.boxSelection.length > 0) return ctx.boxSelection.includes(id)
+  return id === ctx.selectedId
+}
+
 /** To the right of the diagram, below what is already there: a free spot for a click-add. */
 function freeSpot(activity: Activity, index: number, step: number): Point {
   const right = Math.max(80, ...Object.values(activity.nodes).map((n) => (n.ui?.x ?? 0) + 260))
@@ -104,7 +112,7 @@ const group: CanvasKind = {
         style: { width: size.width, height: size.height },
         ...(g.parent && ids.has(g.parent) ? { parentId: groupFlowId(g.parent) } : {}),
         ...(measured ? { measured } : {}),
-        selected: id === ctx.selectedId,
+        selected: marked(ctx, id),
         draggable: ctx.canWrite,
         deletable: false,
         data: { group: g, title, canWrite: ctx.canWrite },
@@ -180,7 +188,7 @@ const tricc: CanvasKind = {
           id: model.id,
           type: 'tricc',
           position: drag ?? (model.ui ? { x: model.ui.x, y: model.ui.y } : (ctx.layout.get(model.id) ?? { x: 0, y: 0 })),
-          selected: model.id === ctx.selectedId,
+          selected: marked(ctx, model.id),
           draggable: ctx.canWrite,
           deletable: ctx.canWrite,
           ...(model.group && groupIds.has(model.group) ? { parentId: groupFlowId(model.group) } : {}),
@@ -229,7 +237,7 @@ const comment: CanvasKind = {
         type: 'comment',
         position: ctx.drag(id) ?? { x: c.x, y: c.y },
         ...(measured ? { measured } : {}),
-        selected: id === ctx.selectedId,
+        selected: marked(ctx, id),
         draggable: ctx.canWrite,
         deletable: ctx.canWrite,
         zIndex: 1,

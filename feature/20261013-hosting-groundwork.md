@@ -125,6 +125,9 @@ async join(ref: ProjectRef): Promise<OpenProject> {
   separate question, not part of this spec.
 - `ProjectDocument.fromProject(p).encodeState()` is the only thing the server needs to seed a
   document. It already exists, and no new API is needed.
+- After `20261021-discussions.md`, `join` also connects `discussionDoc` (a second Yjs document on
+  the same ref). Reviewers may write that document without writing the guideline. The platform spec
+  gives each document its own connection rights.
 
 ### 4. Undo covers images
 

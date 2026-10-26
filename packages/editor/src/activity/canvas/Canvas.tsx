@@ -45,6 +45,7 @@ import {
   optionIdFromHandle,
 } from './answer.js'
 import { autoLayout } from './layout.js'
+import { dragSelection, pointerPastMarquee, rectsMeet, screenRect } from './marquee.js'
 import { draggingFiles, imageFiles } from '../../media/images.js'
 
 const nodeTypes = { tricc: TriccNodeView, comment: CommentNodeView, 'group-frame': GroupNodeView }
@@ -71,8 +72,12 @@ export interface CanvasProps {
   issues: Issue[]
   selectedId: string | undefined
   selectedEdgeId: string | undefined
+  /** Flow ids chosen by a right-drag. Empty unless more than one element was swept. */
+  boxSelection?: readonly string[]
   onSelect: (id: string | undefined) => void
   onSelectEdge: (id: string | undefined) => void
+  /** Replace the selection with what a right-drag covered. One id selects that element. */
+  onBoxSelect?: (ids: string[]) => void
   /** Filled while this canvas is mounted, so the palette can place a new node. */
   placementRef?: { current: CanvasPlacement | null }
   /** A palette drag is over the editor. The pane shows where a drop will land. */
@@ -113,8 +118,10 @@ function CanvasInner({
   issues,
   selectedId,
   selectedEdgeId,
+  boxSelection = [],
   onSelect,
   onSelectEdge,
+  onBoxSelect = () => {},
   placementRef,
   dropping,
   onOpenActivity,
@@ -148,6 +155,10 @@ function CanvasInner({
   const nodeCache = useRef(new Map<string, FlowNode>())
   const seenActivity = useRef(activityId)
   const [pendingBranch, setPendingBranch] = useState<PendingBranch | null>(null)
+  /** The right-drag rectangle, in canvas coordinates. Absent until the pointer has moved 6px. */
+  const [marquee, setMarquee] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
+  /** The selection was just set by a right-drag, so the pointer release must not clear it. */
+  const justBoxed = useRef(false)
   const placement = useMemo<CanvasPlacement>(
     () => ({
       atClient: (clientX, clientY) => {
@@ -201,6 +212,7 @@ function CanvasInner({
       project,
       lang,
       selectedId,
+      boxSelection,
       canWrite,
       severityByNode,
       // Nodes without a stored position are laid out on read, so a hand-written or
@@ -223,7 +235,7 @@ function CanvasInner({
     })
     nodeCache.current = next
     return projected
-  }, [activity, project, lang, selectedId, canWrite, severityByNode, dragTick])
+  }, [activity, project, lang, selectedId, boxSelection, canWrite, severityByNode, dragTick])
 
   // When an element's handles change (answers added, removed, reordered; a new type) and its
   // size does not, React Flow keeps the old handle positions. Tell it to read them again.
@@ -263,7 +275,10 @@ function CanvasInner({
             sourceHandle: answer?.optionId ? answerHandleId(answer.optionId) : NODE_OUT_HANDLE,
             type: 'branch' as const,
             deletable: canWrite,
-            selected: e.id === selectedEdgeId,
+            selected:
+              boxSelection.length > 0
+                ? nodeInBox(e.source, boxSelection, activity) && nodeInBox(e.target, boxSelection, activity)
+                : e.id === selectedEdgeId,
             data: {
               ...(e.value !== undefined ? { value: e.value } : {}),
               ...(display ? { display } : {}),
@@ -290,7 +305,7 @@ function CanvasInner({
             }) as TriccFlowEdge,
         ),
     ],
-    [activity, canWrite, selectedEdgeId, names, lang, project, labelChars],
+    [activity, boxSelection, canWrite, selectedEdgeId, names, lang, project, labelChars],
   )
 
   /**
@@ -304,7 +319,7 @@ function CanvasInner({
       // node emits a deselect for the old one alongside the select for the new one, and
       // applying them in sequence against stale state lets the deselect win.
       const selects = changes.filter((c) => c.type === 'select')
-      if (selects.length > 0) {
+      if (selects.length > 0 && !justBoxed.current) {
         const picked = selects.find((c) => c.selected)
         if (picked) {
           onSelect(picked.id)
@@ -409,7 +424,7 @@ function CanvasInner({
   const onEdgesChange = useCallback(
     (changes: EdgeChange<TriccFlowEdge>[]) => {
       const selects = changes.filter((c) => c.type === 'select')
-      if (selects.length > 0) {
+      if (selects.length > 0 && !justBoxed.current) {
         const picked = selects.find((c) => c.selected)
         if (picked) {
           onSelectEdge(picked.id)
@@ -506,6 +521,101 @@ function CanvasInner({
     const optionId = el?.closest<HTMLElement>('[data-option-id]')?.dataset['optionId']
     return { wrapper, nodeId: node.id, ...(optionId ? { optionId } : {}) }
   }
+  useEffect(() => {
+    const frame = frameRef.current
+    if (!frame) return
+    let gesture: { x: number; y: number; pointerId: number; active: boolean } | null = null
+
+    const skip = (target: EventTarget | null) =>
+      target instanceof Element && Boolean(target.closest('.react-flow__controls, .react-flow__minimap'))
+
+    const parentGroup = (flowId: string): string | undefined => {
+      const gid = groupIdOf(flowId)
+      if (gid) {
+        const parent = activity.groups?.find((g) => g.id === gid)?.parent
+        return parent ? groupFlowId(parent) : undefined
+      }
+      const nodeGroup = activity.nodes[flowId]?.group
+      return nodeGroup ? groupFlowId(nodeGroup) : undefined
+    }
+
+    const onDown = (event: PointerEvent) => {
+      if (event.button !== 2 || skip(event.target)) return
+      event.preventDefault()
+      event.stopPropagation()
+      frame.setPointerCapture(event.pointerId)
+      gesture = { x: event.clientX, y: event.clientY, pointerId: event.pointerId, active: false }
+    }
+    const onMove = (event: PointerEvent) => {
+      if (!gesture || event.pointerId !== gesture.pointerId) return
+      if (!gesture.active && !pointerPastMarquee(event.clientX - gesture.x, event.clientY - gesture.y)) return
+      gesture.active = true
+      event.preventDefault()
+      event.stopPropagation()
+      const bounds = frame.getBoundingClientRect()
+      const area = screenRect(gesture.x, gesture.y, event.clientX, event.clientY)
+      setMarquee({
+        left: area.left - bounds.left,
+        top: area.top - bounds.top,
+        width: area.right - area.left,
+        height: area.bottom - area.top,
+      })
+    }
+    const finish = (event: PointerEvent) => {
+      if (!gesture || event.pointerId !== gesture.pointerId) return
+      const was = gesture
+      gesture = null
+      setMarquee(null)
+      if (!was.active) return
+      const area = screenRect(was.x, was.y, event.clientX, event.clientY)
+      const hits: string[] = []
+      for (const el of frame.querySelectorAll<HTMLElement>('.react-flow__node[data-id]')) {
+        const bounds = el.getBoundingClientRect()
+        if (rectsMeet(area, { left: bounds.left, top: bounds.top, right: bounds.right, bottom: bounds.bottom })) {
+          const id = el.dataset.id
+          if (id) hits.push(id)
+        }
+      }
+      justBoxed.current = true
+      window.setTimeout(() => {
+        justBoxed.current = false
+      }, 0)
+      onBoxSelect(dragSelection(hits, parentGroup))
+    }
+    // The menu arrives after pointerup, and the release can be outside the canvas.
+    let swallowMenu = false
+    let menuTimer = 0
+    const onMenu = (event: Event) => {
+      if (!swallowMenu && !(event.target instanceof Node && frame.contains(event.target))) return
+      swallowMenu = false
+      event.preventDefault()
+    }
+    const down = (event: PointerEvent) => {
+      if (event.button === 2) {
+        swallowMenu = true
+        window.clearTimeout(menuTimer)
+        menuTimer = window.setTimeout(() => {
+          swallowMenu = false
+        }, 800)
+      }
+      onDown(event)
+    }
+
+    frame.addEventListener('pointerdown', down, true)
+    frame.addEventListener('pointermove', onMove)
+    frame.addEventListener('pointerup', finish)
+    frame.addEventListener('pointercancel', finish)
+    window.addEventListener('contextmenu', onMenu, true)
+    return () => {
+      frame.removeEventListener('pointerdown', down, true)
+      frame.removeEventListener('pointermove', onMove)
+      frame.removeEventListener('pointerup', finish)
+      frame.removeEventListener('pointercancel', finish)
+      window.removeEventListener('contextmenu', onMenu, true)
+      window.clearTimeout(menuTimer)
+    }
+  }, [activity, onBoxSelect])
+
   const marked = useRef<HTMLElement | null>(null)
   const markDrop = (el: HTMLElement | null) => {
     if (marked.current === el) return
@@ -556,6 +666,12 @@ function CanvasInner({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeDragStop={onNodeDragStop}
+        panOnDrag={[0]}
+        onPaneClick={() => {
+          if (justBoxed.current) return
+          onSelect(undefined)
+          onSelectEdge(undefined)
+        }}
         onNodeClick={(event, flowNode) => {
           if (!(event.ctrlKey || event.metaKey) || !onOpenActivity) return
           const link = activity.nodes[flowNode.id]?.type === 'goto' ? activity.nodes[flowNode.id]?.link : undefined
@@ -577,6 +693,13 @@ function CanvasInner({
         <Controls showInteractive={false} />
         <MiniMap pannable zoomable />
       </ReactFlow>
+      {marquee && (
+        <div
+          className="tricc-marquee"
+          data-testid="selection-marquee"
+          style={{ left: marquee.left, top: marquee.top, width: marquee.width, height: marquee.height }}
+        />
+      )}
       </FollowContext.Provider>
       {pendingBranch && canWrite && (
         <BranchChoiceDialog
@@ -587,6 +710,20 @@ function CanvasInner({
       )}
     </div>
   )
+}
+
+/** A node the selection covers: it was swept, or it sits in a group that was. */
+function nodeInBox(nodeId: string, box: readonly string[], activity: Activity): boolean {
+  if (box.includes(nodeId)) return true
+  const groups = activity.groups ?? []
+  let group = activity.nodes[nodeId]?.group
+  const seen = new Set<string>()
+  while (group && !seen.has(group)) {
+    if (box.includes(groupFlowId(group))) return true
+    seen.add(group)
+    group = groups.find((item) => item.id === group)?.parent
+  }
+  return false
 }
 
 function measuredSize(
