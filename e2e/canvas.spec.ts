@@ -1124,3 +1124,43 @@ test('a validation issue links to its node, in the activity and from the overvie
   await expect(node).toHaveClass(/selected/)
   await expect(page.getByTestId('tab-details')).toHaveAttribute('aria-selected', 'true')
 })
+
+test('a right-drag past 6 pixels selects the elements underneath', async ({ page }) => {
+  await newActivity(page, 'Marquee')
+  await placeNode(page, 'integer')
+  await placeNode(page, 'note')
+  const integer = page.locator('.react-flow__node[data-id="n-integer"]')
+  const note = page.locator('.react-flow__node[data-id="n-note"]')
+  await expect(integer).toBeVisible()
+  await expect(note).toBeVisible()
+
+  const canvas = (await page.getByTestId('activity-canvas').boundingBox())!
+  await page.mouse.click(canvas.x + 8, canvas.y + 8, { button: 'right' })
+  await expect(page.getByTestId('multi-selection')).toHaveCount(0)
+
+  const a = (await integer.boundingBox())!
+  const b = (await note.boundingBox())!
+  const left = Math.min(a.x, b.x) - 16
+  const top = Math.min(a.y, b.y) - 16
+  const right = Math.max(a.x + a.width, b.x + b.width) + 16
+  const bottom = Math.max(a.y + a.height, b.y + b.height) + 16
+  await page.mouse.move(left, top)
+  await page.mouse.down({ button: 'right' })
+  await page.mouse.move(right, bottom, { steps: 12 })
+  await expect(page.getByTestId('selection-marquee')).toBeVisible()
+  await page.mouse.up({ button: 'right' })
+
+  await expect(page.getByTestId('multi-selection')).toBeVisible()
+  await expect(integer).toHaveClass(/selected/)
+  await expect(note).toHaveClass(/selected/)
+
+  const before = (await note.boundingBox())!
+  const from = (await integer.boundingBox())!
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(from.x + from.width / 2 + 80, from.y + from.height / 2 + 48, { steps: 8 })
+  await page.mouse.up()
+  const after = (await note.boundingBox())!
+  expect(after.x - before.x).toBeGreaterThan(40)
+  expect(after.y - before.y).toBeGreaterThan(24)
+})

@@ -83,6 +83,8 @@ export function ActivityEditor({
   const { labelLines, labelChars } = useEditorPreferences()
   const [selectedId, setSelectedId] = useState<string | undefined>(focusNodeId)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | undefined>(focusEdgeId)
+  /** Flow ids from a right-drag that covered more than one element. */
+  const [boxSelection, setBoxSelection] = useState<string[]>([])
   const [reveal, setReveal] = useState<{ ids: string[]; seq: number } | undefined>(undefined)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -105,6 +107,7 @@ export function ActivityEditor({
 
   useEffect(() => {
     if (!focusNodeId) return
+    setBoxSelection([])
     setSelectedId(focusNodeId)
     setSelectedEdgeId(undefined)
     setPanel('details')
@@ -114,6 +117,7 @@ export function ActivityEditor({
   useEffect(() => {
     if (!focusEdgeId) return
     const edge = project.activities[activityId]?.edges[focusEdgeId]
+    setBoxSelection([])
     setSelectedEdgeId(focusEdgeId)
     setSelectedId(undefined)
     setPanel('details')
@@ -155,6 +159,20 @@ export function ActivityEditor({
   const addImages = useAddImages()
   const [notice, setNotice] = useState<string | undefined>(undefined)
 
+  const chooseBox = useCallback((ids: string[]) => {
+    if (ids.length <= 1) {
+      setBoxSelection([])
+      setSelectedId(ids[0])
+      setSelectedEdgeId(undefined)
+      if (ids[0]) setPanel('details')
+      return
+    }
+    setSelectedId(undefined)
+    setSelectedEdgeId(undefined)
+    setBoxSelection(ids)
+    setPanel('details')
+  }, [])
+
   /** Picture files dropped on a node or an answer: into the library, then first in its text. */
   const dropPictures = (files: File[], at: { nodeId: string; optionId?: string }) => {
     setNotice(undefined)
@@ -185,7 +203,8 @@ export function ActivityEditor({
   const selectedComment = activity.ui?.comments?.find((c) => c.id === commentIdOf(selectedId))
   const selectedGroup = activity.groups?.find((g) => g.id === groupIdOf(selectedId))
   const selectedEdge = selectedEdgeId ? activity.edges[selectedEdgeId] : undefined
-  const hasSelection = Boolean(selected || selectedEdge || selectedComment || selectedGroup)
+  const several = boxSelection.length > 1
+  const hasSelection = Boolean(several || selected || selectedEdge || selectedComment || selectedGroup)
   // Details is only a tab while something is selected. A stale "details" choice falls back to Nodes.
   const active: 'details' | 'nodes' | 'connection' | 'validation' =
     panel === 'details' && hasSelection
@@ -205,6 +224,7 @@ export function ActivityEditor({
   const activityIssueCount = issues.filter((issue) => issue.severity !== 'info').length
 
   const chooseNode = (id: string | undefined) => {
+    setBoxSelection([])
     setSelectedId(id)
     if (id) {
       setSelectedEdgeId(undefined)
@@ -212,13 +232,13 @@ export function ActivityEditor({
     }
   }
   const chooseEdge = (id: string | undefined) => {
+    setBoxSelection([])
     setSelectedEdgeId(id)
     if (id) {
       setSelectedId(undefined)
       setPanel('details')
     }
   }
-
   /** Add a comment or a group: at the drop point when dragged, in a free spot when clicked. */
   const addKind = (kind: 'comment' | 'group', at?: { x: number; y: number }) => {
     let flowId: string | undefined
@@ -354,8 +374,10 @@ export function ActivityEditor({
           issues={issues}
           selectedId={selectedId}
           selectedEdgeId={selectedEdgeId}
+          boxSelection={boxSelection}
           onSelect={chooseNode}
           onSelectEdge={chooseEdge}
+          onBoxSelect={chooseBox}
           placementRef={placementRef}
           dropping={dropping}
           onOpenActivity={onOpenActivity}
@@ -420,6 +442,11 @@ export function ActivityEditor({
 
           {active === 'details' && (
             <div role="tabpanel" id="inspector-details" aria-labelledby="tab-details">
+              {several && (
+                <p data-testid="multi-selection">
+                  {boxSelection.length} elements selected. Drag one of them to move them together.
+                </p>
+              )}
               {selectedGroup && (
                 <GroupProperties
                   key={selectedGroup.id}
