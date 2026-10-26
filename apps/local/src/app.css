@@ -56,6 +56,7 @@ header [data-testid='storage-mode'] {
 }
 .tricc-topbar__project {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   flex: 1 1 12em;
@@ -80,6 +81,32 @@ main > [data-testid='activity-editor'] {
   overflow-y: auto;
   flex: 1 1 auto;
   min-height: 0;
+}
+
+.pref-diagram-style {
+  display: inline-flex;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.pref-diagram-style label {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 14px;
+  cursor: pointer;
+}
+.pref-diagram-style label:has(input:checked) {
+  background: #0f172a;
+  color: #fff;
+}
+.pref-diagram-style label:has(input:focus-visible) {
+  outline: 2px solid #0f172a;
+  outline-offset: -4px;
+}
+.pref-diagram-style input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
 [data-testid='save-status'] {
@@ -209,7 +236,7 @@ main > [data-testid='activity-editor'] {
   flex: 0 0 auto;
   max-width: 180px;
 }
-[data-testid='activity-navigator'] button {
+[data-testid='activity-navigator'] button:where(:not([data-slot='button'])) {
   padding: 3px 8px;
   border: 1px solid #cbd5e1;
   border-radius: 5px;
@@ -233,16 +260,8 @@ main > [data-testid='activity-editor'] {
   align-items: center;
   gap: 6px;
 }
-[data-testid='activity-navigator'] button.tricc-nav__add {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  font-size: 18px;
-  line-height: 26px;
-  text-align: center;
-}
-
-button {
+/* shadcn buttons carry their own type scale. */
+button:where(:not([data-slot='button'])) {
   font: inherit;
 }
 input {
@@ -308,10 +327,6 @@ details > summary {
   color: #2563eb;
 }
 
-[data-testid='nav-expand']:disabled {
-  cursor: default;
-  color: #cbd5e1;
-}
 .tricc-nav__empty {
   margin: 0;
   color: #64748b;
@@ -501,6 +516,7 @@ details > summary {
   white-space: nowrap;
 }
 [data-testid='project-list'] [data-testid='import-repo'] {
-  display: block;
+  display: flex;
+  width: fit-content;
   margin-bottom: 8px;
 }

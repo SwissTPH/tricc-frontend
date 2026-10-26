@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { Button } from '../../components/ui/button.js'
 
 export type BranchChoiceValue = 'yes' | 'no' | 'continue'
 
@@ -86,9 +87,16 @@ export function BranchChoiceDialog({
             Follow
           </button>
         </div>
-        <button type="button" className="tricc-branch-modal__cancel" data-testid="branch-cancel" onClick={onCancel}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="tricc-branch-modal__cancel"
+          type="button"
+          data-testid="branch-cancel"
+          onClick={onCancel}
+        >
           Cancel
-        </button>
+        </Button>
       </div>
     </div>
   )

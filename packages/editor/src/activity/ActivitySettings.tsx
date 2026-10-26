@@ -11,6 +11,7 @@ import { useMutate } from '../runtime/context.js'
 import { CqlExpressionField } from '../cql/CqlExpressionField.js'
 import { RepeatFields } from './RepeatFields.js'
 import { ConfirmDelete, Dialog, mergeExpression } from '../components/Dialog.js'
+import { Button } from '../components/ui/button.js'
 
 /** The fallback `tricc_oo` uses when an activity has no name. */
 export function titleSlug(activity: Activity, lang: string): string {
@@ -97,15 +98,17 @@ export function CalledBy({
           {callers.map((c) => (
             <li key={`${c.activityId}/${c.nodeId}`}>
               {onOpenCaller ? (
-                <button
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0"
                   type="button"
-                  className="tricc-link-button"
                   data-testid={`called-by-${c.activityId}-${c.nodeId}`}
                   title="Open that activity on its goto"
                   onClick={() => onOpenCaller(c.activityId, c.nodeId)}
                 >
                   {c.label}
-                </button>
+                </Button>
               ) : (
                 <span data-testid={`called-by-${c.activityId}-${c.nodeId}`}>{c.label}</span>
               )}

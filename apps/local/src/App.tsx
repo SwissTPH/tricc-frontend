@@ -27,6 +27,7 @@ import {
   type ProjectFiles,
   type ProjectRef,
   type ConceptKey,
+  type DiagramStyle,
   type ProjectSummary,
 } from '@tricc/core'
 import {
@@ -34,6 +35,7 @@ import {
   ActivityNavigator,
   BinIcon,
   Breadcrumbs,
+  Button,
   ConfirmDelete,
   DictionaryView,
   GearIcon,
@@ -193,34 +195,39 @@ function ProjectList({ local }: { local: LocalRuntime }) {
       <ul>
         {projects.map((p) => (
           <li key={p.id} className="tricc-project-row">
-            <button
+            <Button
+              variant="link"
+              size="sm"
               type="button"
               data-testid={`open-${p.id}`}
               onClick={() => navigate(`/project/${p.id}`)}
             >
               {p.name}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="icon-sm"
               type="button"
-              className="tricc-icon-button"
               data-testid={`configure-${p.id}`}
               aria-label={`Settings of ${p.name}`}
               title="Project settings"
               onClick={() => navigate(`/project/${p.id}?settings=1`)}
             >
               <GearIcon />
-            </button>
+            </Button>
             {!local.identity.isReadOnly() && (
-              <button
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="text-destructive hover:text-destructive"
                 type="button"
-                className="tricc-icon-button tricc-icon-button--danger"
                 data-testid={`delete-${p.id}`}
                 aria-label={`Delete ${p.name}`}
                 title="Delete project"
                 onClick={async () => setDeleting(await refFor(local, p))}
               >
                 <BinIcon />
-              </button>
+              </Button>
             )}
           </li>
         ))}
@@ -250,7 +257,9 @@ function ProjectList({ local }: { local: LocalRuntime }) {
         <h2 id="open-heading">Open an existing project</h2>
 
         {local.canUseFolders && (
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
             data-testid="open-folder"
             onClick={async () => {
@@ -263,7 +272,7 @@ function ProjectList({ local }: { local: LocalRuntime }) {
             }}
           >
             Open a project folder…
-          </button>
+          </Button>
         )}
 
         <ImportFromRepoButton
@@ -327,7 +336,8 @@ function ProjectList({ local }: { local: LocalRuntime }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <button
+        <Button
+          size="sm"
           type="button"
           data-testid="create-project"
           disabled={name.trim() === ''}
@@ -339,7 +349,7 @@ function ProjectList({ local }: { local: LocalRuntime }) {
           }}
         >
           Create project
-        </button>
+        </Button>
       </section>
     </div>
   )
@@ -381,7 +391,9 @@ function stripExtension(fileName: string): string {
 /** Download the open project as a single file. */
 function ExportButton({ open }: { open: OpenProject }) {
   return (
-    <button
+    <Button
+      variant="outline"
+      size="sm"
       type="button"
       data-testid="export-archive"
       onClick={() => {
@@ -398,7 +410,7 @@ function ExportButton({ open }: { open: OpenProject }) {
       }}
     >
       Export {ARCHIVE_EXTENSION}
-    </button>
+    </Button>
   )
 }
 
@@ -683,6 +695,7 @@ function Preferences({ local }: { local: LocalRuntime }) {
   const [chars, setChars] = useState(String(local.preferences.current().labelChars))
   const [imageWidth, setImageWidth] = useState(String(local.preferences.current().imageMaxWidth))
   const [types, setTypes] = useState(local.preferences.current().conceptTypes.join('\n'))
+  const [diagramStyle, setDiagramStyle] = useState(local.preferences.current().diagramStyle)
   return (
     <div data-testid="preferences">
       <h1>Preferences</h1>
@@ -711,6 +724,36 @@ function Preferences({ local }: { local: LocalRuntime }) {
         }}
       />
       <p>Longer text is cut after this many lines. The full text shows when you hover the node. This is your setting; it is not saved in the project.</p>
+      <label id="pref-diagram-style-label">Diagram style</label>
+      <div
+        role="radiogroup"
+        aria-labelledby="pref-diagram-style-label"
+        className="pref-diagram-style"
+        data-testid="pref-diagram-style"
+      >
+        {(
+          [
+            ['flowchart', 'Flowchart'],
+            ['bpmn', 'BPMN'],
+          ] as [DiagramStyle, string][]
+        ).map(([value, text]) => (
+          <label key={value}>
+            <input
+              type="radio"
+              name="pref-diagram-style"
+              value={value}
+              data-testid={`pref-diagram-style-${value}`}
+              checked={diagramStyle === value}
+              onChange={() => {
+                setDiagramStyle(value)
+                local.preferences.update({ diagramStyle: value })
+              }}
+            />
+            {text}
+          </label>
+        ))}
+      </div>
+      <p>Flowchart draws a Decision as a rhombus; BPMN draws it as a rectangle. This is your setting; it is not saved in the project.</p>
       <label htmlFor="pref-label-chars">Characters of a label in short lists</label>
       <input
         id="pref-label-chars"

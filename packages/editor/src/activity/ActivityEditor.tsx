@@ -49,6 +49,7 @@ import { RepeatFields } from './RepeatFields.js'
 import { ActivitySettings, CalledBy, ConfirmActivityDelete, titleSlug } from './ActivitySettings.js'
 import { useAddImages } from '../media/images.js'
 import { showPictureOn } from '../media/attach.js'
+import { Button } from '../components/ui/button.js'
 
 export function ActivityEditor({
   activityId,
@@ -256,27 +257,30 @@ export function ActivityEditor({
     >
       <header className="tricc-editor__header">
         <h1>{resolve(activity.title, lang, lang) ?? activity.id}</h1>
-        <button
+        <Button
+          variant="outline"
+          size="icon-sm"
           type="button"
-          className="tricc-icon-button"
           data-testid="configure-activity"
           aria-label="Activity settings"
           title="Activity settings"
           onClick={() => setSettingsOpen(true)}
         >
           <GearIcon />
-        </button>
+        </Button>
         {canWrite && (
-          <button
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="text-destructive hover:text-destructive"
             type="button"
-            className="tricc-icon-button tricc-icon-button--danger"
             data-testid="delete-activity"
             aria-label="Delete activity"
             title="Delete activity"
             onClick={() => setConfirmingDelete(true)}
           >
             <BinIcon />
-          </button>
+          </Button>
         )}
         <span className="tricc-editor__kind" data-testid="activity-kind" data-kind={kind}>
           {kind === 'process' ? 'Process activity' : 'Activity'}
@@ -297,7 +301,9 @@ export function ActivityEditor({
           </label>
         )}
         {canWrite && (
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
             data-testid="tidy-layout"
             onClick={() => {
@@ -311,7 +317,7 @@ export function ActivityEditor({
             }}
           >
             Tidy layout
-          </button>
+          </Button>
         )}
         {notice && (
           <p role="status" className="tricc-editor__notice" data-testid="editor-notice">
@@ -916,7 +922,9 @@ export function NodeProperties({
                 None of these
               </label>
               {!readOnly && (
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   type="button"
                   data-testid={`remove-option-${op.id}`}
                   onClick={() =>
@@ -924,7 +932,7 @@ export function NodeProperties({
                   }
                 >
                   Remove answer
-                </button>
+                </Button>
               )}
             </div>
             )
@@ -1066,7 +1074,9 @@ export function NodeProperties({
           onChange={(link) => update({ link })}
         />
         {onOpenActivity && (
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
             data-testid="goto-open"
             disabled={!node.link || !project.activities[node.link]}
@@ -1074,7 +1084,7 @@ export function NodeProperties({
             onClick={() => node.link && onOpenActivity(node.link)}
           >
             Open activity
-          </button>
+          </Button>
         )}
         </>
       )}
@@ -1126,9 +1136,15 @@ export function NodeProperties({
       </p>
 
       {!readOnly && onDelete && (
-        <button type="button" data-testid={`delete-${node.id}`} onClick={onDelete}>
+        <Button
+          variant="destructive"
+          size="sm"
+          type="button"
+          data-testid={`delete-${node.id}`}
+          onClick={onDelete}
+        >
           Delete node
-        </button>
+        </Button>
       )}
     </section>
   )
@@ -1472,9 +1488,15 @@ function ActivitySummary({
           </>
         )}
       </dl>
-      <button type="button" data-testid="root-activity-settings" onClick={onOpenSettings}>
+      <Button
+        variant="outline"
+        size="sm"
+        type="button"
+        data-testid="root-activity-settings"
+        onClick={onOpenSettings}
+      >
         Activity settings
-      </button>
+      </Button>
     </div>
   )
 }

@@ -12,6 +12,7 @@ import {
 import { useProjectSnapshot } from '../runtime/context.js'
 import { Typeahead, type TypeaheadOption } from '../components/Typeahead.js'
 import { ConceptDialog } from './ConceptDialog.js'
+import { Button } from '../components/ui/button.js'
 
 /**
  * Add an answer to a question: find its concept in the dictionary, or create a new one.
@@ -58,9 +59,15 @@ export function AnswerPicker({
           add({ system: id.slice(0, at), code: id.slice(at + 1) })
         }}
       />
-      <button type="button" data-testid="add-option-new" onClick={() => setCreating(true)}>
+      <Button
+        variant="outline"
+        size="sm"
+        type="button"
+        data-testid="add-option-new"
+        onClick={() => setCreating(true)}
+      >
         New answer
-      </button>
+      </Button>
       {creating && (
         <ConceptDialog
           target={{ draft: { conceptType: defaultConceptType('option', node.type), dataType: 'coded' } }}

@@ -13,6 +13,7 @@ import {
 import { useCanWrite, useMutate, useProjectSnapshot } from '../runtime/context.js'
 import { InterventionEditor } from './InterventionEditor.js'
 import { BinIcon, ConfirmDelete, GearIcon } from '../components/Dialog.js'
+import { Button } from '../components/ui/button.js'
 
 /**
  * The layer -1 surface: which interventions are carried together, which activities make
@@ -75,27 +76,30 @@ export function ProjectOverview({
     <div data-testid="project-overview">
       <div className="tricc-overview__title">
         <h1>{resolve(project.title, lang, lang) ?? project.id}</h1>
-        <button
+        <Button
+          variant="outline"
+          size="icon-sm"
           type="button"
-          className="tricc-icon-button"
           data-testid="configure-project"
           aria-label="Project settings"
           title="Project settings"
           onClick={() => setSettingsOpen(true)}
         >
           <GearIcon />
-        </button>
+        </Button>
         {canWrite && onDelete && (
-          <button
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="text-destructive hover:text-destructive"
             type="button"
-            className="tricc-icon-button tricc-icon-button--danger"
             data-testid="delete-project"
             aria-label="Delete project"
             title="Delete project"
             onClick={() => setConfirmingDelete(true)}
           >
             <BinIcon />
-          </button>
+          </Button>
         )}
       </div>
       {settingsOpen && (
@@ -145,7 +149,9 @@ export function ProjectOverview({
           ))}
         </ul>
         {canWrite && (
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
             data-testid="add-intervention"
             onClick={() => {
@@ -161,7 +167,7 @@ export function ProjectOverview({
             }}
           >
             Add intervention
-          </button>
+          </Button>
         )}
       </section>
 
@@ -414,13 +420,19 @@ function ProjectSettings({
         <p>Shown in your project list and saved as the project title in tricc.yaml.</p>
         <div className="tricc-library-modal__actions">
           {!readOnly && (
-            <button type="submit" data-testid="project-settings-save" disabled={!name}>
+            <Button size="sm" type="submit" data-testid="project-settings-save" disabled={!name}>
               Save
-            </button>
+            </Button>
           )}
-          <button type="button" data-testid="project-settings-cancel" onClick={onClose}>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            data-testid="project-settings-cancel"
+            onClick={onClose}
+          >
             {readOnly ? 'Close' : 'Cancel'}
-          </button>
+          </Button>
         </div>
       </form>
     </div>,

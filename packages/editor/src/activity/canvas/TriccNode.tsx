@@ -2,7 +2,8 @@ import { createContext, useContext } from 'react'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import { hasInternalName, isSequenceNode, resolve, type NodeType, type TriccNode as Model } from '@tricc/core'
 import { NODE_OUT_HANDLE, answerHandleId, answerLabel, optionCode } from './answer.js'
-import { visualFor } from './node-visuals.js'
+import { drawnShape, visualFor } from './node-visuals.js'
+import { useEditorPreferences } from '../../runtime/context.js'
 import { useImageUrl } from '../../media/images.js'
 import { FollowIcon } from '../../components/Dialog.js'
 
@@ -46,6 +47,7 @@ export type TriccFlowNode = Node<
 export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
   const { model, lang, severity, conceptDisplay, activityTitle, missing } = data
   const visual = visualFor(model.type as NodeType)
+  const { diagramStyle } = useEditorPreferences()
   const follow = useContext(FollowContext)
   const display = activityTitle ?? displayText(model, lang, conceptDisplay)
   const answers =
@@ -118,7 +120,7 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
     <div
       className={[
         'tricc-node',
-        `tricc-node--${visual.shape}`,
+        `tricc-node--${drawnShape(visual.shape, diagramStyle)}`,
         `tricc-node--${visual.group}`,
         answers.length > 0 ? 'tricc-node--answers' : '',
         confirm ? 'tricc-node--acknowledge' : '',
