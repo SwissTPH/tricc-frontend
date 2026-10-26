@@ -21,6 +21,8 @@
   --primary-foreground: oklch(0.984 0.003 247.858);
   --secondary: oklch(0.968 0.007 247.896);
   --secondary-foreground: oklch(0.208 0.042 265.755);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.129 0.042 264.695);
   --muted: oklch(0.968 0.007 247.896);
   --muted-foreground: oklch(0.554 0.046 257.417);
   --accent: oklch(0.968 0.007 247.896);
@@ -41,6 +43,8 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
@@ -51,7 +55,7 @@
   --color-ring: var(--ring);
 }
 
-/* The slice of preflight shadcn buttons depend on, scoped to them. */
+/* The slice of preflight shadcn buttons and inputs depend on, scoped to them. */
 @layer base {
   [data-slot='button'] {
     margin: 0;
@@ -62,5 +66,18 @@
     font-family: inherit;
     line-height: inherit;
     text-decoration: none;
+  }
+  [data-slot='input'],
+  [data-slot='textarea'] {
+    box-sizing: border-box;
+    margin: 0;
+    border: 0 solid var(--border);
+    color: inherit;
+    font-family: inherit;
+    line-height: inherit;
+  }
+  [data-slot='hover-card-content'] {
+    box-sizing: border-box;
+    border: 0 solid var(--border);
   }
 }

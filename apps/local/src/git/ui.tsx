@@ -9,7 +9,7 @@ import {
   type ProjectRef,
   type ProjectRepository,
 } from '@tricc/core'
-import { Button, Dialog } from '@tricc/editor'
+import { Button, Dialog, Input, Textarea } from '@tricc/editor'
 import type { LocalRuntime } from '../adapters.js'
 import {
   asProjectFiles,
@@ -66,7 +66,7 @@ function TokenField({
     <div className="tricc-repo__token">
       <label htmlFor="repo-token">
         Access token for {new URL(origin).host}
-        <input
+        <Input
           id="repo-token"
           type="password"
           autoComplete="off"
@@ -281,7 +281,7 @@ function ImportFromRepoDialog({
       >
         <label htmlFor="repo-url">
           Link to the project folder
-          <input
+          <Input
             id="repo-url"
             data-testid="repo-url"
             value={url}
@@ -336,7 +336,7 @@ function ImportFromRepoDialog({
             </label>
             <label htmlFor="repo-path">
               Folder
-              <input
+              <Input
                 id="repo-path"
                 data-testid="repo-path"
                 value={path}
@@ -953,7 +953,7 @@ function ProposeDialog({
                   <>
                     <label htmlFor="propose-title-input">
                       Title
-                      <input
+                      <Input
                         id="propose-title-input"
                         data-testid="propose-title"
                         value={title}
@@ -962,7 +962,7 @@ function ProposeDialog({
                     </label>
                     <label htmlFor="propose-body">
                       Description
-                      <textarea
+                      <Textarea
                         id="propose-body"
                         data-testid="propose-body"
                         rows={5}

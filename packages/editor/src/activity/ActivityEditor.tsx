@@ -60,6 +60,8 @@ import { ActivitySettings, CalledBy, ConfirmActivityDelete, titleSlug } from './
 import { useAddImages } from '../media/images.js'
 import { showPictureOn } from '../media/attach.js'
 import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
+import { Textarea } from '../components/ui/textarea.js'
 
 export function ActivityEditor({
   activityId,
@@ -355,7 +357,7 @@ export function ActivityEditor({
         {kind === 'process' && (
           <label className="tricc-editor__process">
             Starts
-            <input
+            <Input size="sm"
               data-testid="activity-process"
               list="cpg-processes"
               value={processOf(activity) ?? ''}
@@ -736,7 +738,7 @@ export function NodeProperties({
       {!textConcept && (
         <>
           <label htmlFor="node-label">Label</label>
-          <input
+          <Input size="sm"
             id="node-label"
             data-testid="field-label"
             value={resolve(node.label, lang, lang) ?? ''}
@@ -778,7 +780,7 @@ export function NodeProperties({
       {(node.type === 'integer' || node.type === 'decimal' || node.type === 'quantity') && (
         <>
           <label htmlFor="node-min">Minimum</label>
-          <input
+          <Input size="sm"
             id="node-min"
             type="number"
             data-testid="field-min"
@@ -790,7 +792,7 @@ export function NodeProperties({
             }
           />
           <label htmlFor="node-max">Maximum</label>
-          <input
+          <Input size="sm"
             id="node-max"
             type="number"
             data-testid="field-max"
@@ -807,7 +809,7 @@ export function NodeProperties({
       {node.type === 'quantity' && (
         <>
           <label htmlFor="node-unit">Unit</label>
-          <input
+          <Input size="sm"
             id="node-unit"
             data-testid="field-unit"
             value={node.unit ?? ''}
@@ -817,7 +819,7 @@ export function NodeProperties({
             onChange={(e) => update({ unit: e.target.value || undefined })}
           />
           <label htmlFor="node-unit-system">Unit system</label>
-          <input
+          <Input size="sm"
             id="node-unit-system"
             data-testid="field-unit-system"
             value={node.unit_system ?? ''}
@@ -827,7 +829,7 @@ export function NodeProperties({
             onChange={(e) => update({ unit_system: e.target.value || undefined })}
           />
           <label htmlFor="node-unit-code">Unit code</label>
-          <input
+          <Input size="sm"
             id="node-unit-code"
             data-testid="field-unit-code"
             value={node.unit_code ?? ''}
@@ -869,7 +871,7 @@ export function NodeProperties({
             }
           />
           <label htmlFor="node-constraint-message">Message when the constraint fails</label>
-          <input
+          <Input size="sm"
             id="node-constraint-message"
             data-testid="field-constraint-message"
             value={resolve(node.constraintMessage, lang, lang) ?? ''}
@@ -887,7 +889,7 @@ export function NodeProperties({
       {!textConcept && (isCapture(node.type) || node.type === 'note' || node.hint || node.help) && (
         <>
           <label htmlFor="node-hint">Hint</label>
-          <input
+          <Input size="sm"
             id="node-hint"
             data-testid="field-hint"
             value={resolve(node.hint, lang, lang) ?? ''}
@@ -896,7 +898,7 @@ export function NodeProperties({
             onChange={(e) => update({ hint: e.target.value ? { [lang]: e.target.value } : undefined })}
           />
           <label htmlFor="node-help">Help</label>
-          <textarea
+          <Textarea size="sm"
             id="node-help"
             data-testid="field-help"
             value={resolve(node.help, lang, lang) ?? ''}
@@ -944,7 +946,7 @@ export function NodeProperties({
             return (
             <div key={op.id}>
               <label htmlFor={`opt-label-${op.id}`}>Answer</label>
-              <input
+              <Input size="sm"
                 id={`opt-label-${op.id}`}
                 data-testid={`option-label-${op.id}`}
                 value={
@@ -1052,7 +1054,7 @@ export function NodeProperties({
             <option value="severe">Severe</option>
           </select>
           <label htmlFor="node-priority">Priority</label>
-          <input
+          <Input size="sm"
             id="node-priority"
             type="number"
             data-testid="field-priority"
@@ -1111,7 +1113,7 @@ export function NodeProperties({
             ))}
           </select>
           <label htmlFor="node-continue-condition">Start condition</label>
-          <textarea
+          <Textarea size="sm"
             id="node-continue-condition"
             data-testid="field-continue-condition"
             value={node.condition ?? ''}
@@ -1120,7 +1122,7 @@ export function NodeProperties({
             onChange={(e) => update({ condition: e.target.value || undefined })}
           />
           <label htmlFor="node-continue-delay">Delay</label>
-          <input
+          <Input size="sm"
             id="node-continue-delay"
             data-testid="field-continue-delay"
             value={node.delay ?? ''}
@@ -1169,7 +1171,7 @@ export function NodeProperties({
       )}
 
       <label htmlFor="node-intent">Relevance — what it should do</label>
-      <input
+      <Input size="sm"
         id="node-intent"
         data-testid="field-relevance-intent"
         value={resolve(node.relevance?.intent, lang, lang) ?? ''}
@@ -1292,7 +1294,7 @@ export function EdgeProperties({
       {kind === 'score' && (
         <>
           <label htmlFor="edge-score">Score</label>
-          <input
+          <Input size="sm"
             id="edge-score"
             type="number"
             data-testid="field-branch-score"

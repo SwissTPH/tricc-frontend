@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useCanWrite, useProjectSnapshot } from '../runtime/context.js'
 import { draggingFiles, imageFiles, imageUrl, useAddImages } from './images.js'
 import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
 
 /**
  * Choose a picture from the image library, or add new ones (file button, or drop on the
@@ -84,7 +85,7 @@ export function ImagePicker({ onPick, onClose }: { onPick: (id: string) => void;
           </Button>
         </div>
         <div className="tricc-image-picker__bar">
-          <input
+          <Input
             ref={searchRef}
             type="search"
             placeholder="Search pictures"

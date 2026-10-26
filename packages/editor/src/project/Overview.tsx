@@ -14,6 +14,7 @@ import { useCanWrite, useMutate, useProjectSnapshot } from '../runtime/context.j
 import { InterventionEditor } from './InterventionEditor.js'
 import { BinIcon, ConfirmDelete, GearIcon } from '../components/Dialog.js'
 import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
 
 /**
  * The layer -1 surface: which interventions are carried together, which activities make
@@ -409,7 +410,7 @@ function ProjectSettings({
       >
         <h2 id="project-settings-title">Project settings</h2>
         <label htmlFor="project-title">Name</label>
-        <input
+        <Input
           ref={inputRef}
           id="project-title"
           data-testid="project-title"

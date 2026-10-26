@@ -15,6 +15,7 @@ import { CqlExpressionField } from '../cql/CqlExpressionField.js'
 import { Typeahead, type TypeaheadOption } from '../components/Typeahead.js'
 import { BinIcon, ConfirmDelete, Dialog, GearIcon, mergeExpression } from '../components/Dialog.js'
 import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
 
 /**
  * An intervention card.
@@ -222,7 +223,7 @@ export function InterventionEditor({
         >
           <div data-testid={`intervention-editor-${intervention.id}`} className="tricc-intervention">
             <label htmlFor={`iv-title-${intervention.id}`}>Title</label>
-            <input
+            <Input size="sm"
               id={`iv-title-${intervention.id}`}
               data-testid={`iv-title-${intervention.id}`}
               value={resolve(intervention.title, lang, lang) ?? ''}
@@ -233,7 +234,7 @@ export function InterventionEditor({
             />
 
             <label htmlFor={`iv-name-${intervention.id}`}>Name</label>
-            <input
+            <Input size="sm"
               id={`iv-name-${intervention.id}`}
               data-testid={`iv-name-${intervention.id}`}
               value={intervention.name ?? ''}
@@ -267,7 +268,7 @@ export function InterventionEditor({
             </select>
 
             <label htmlFor={`iv-intent-${intervention.id}`}>Applies when — in words</label>
-            <input
+            <Input size="sm"
               id={`iv-intent-${intervention.id}`}
               data-testid={`iv-intent-${intervention.id}`}
               value={resolve(intervention.applicability?.intent, lang, lang) ?? ''}
@@ -341,7 +342,7 @@ export function InterventionEditor({
           />
           <div className="tricc-add-process">
             <label htmlFor={`process-name-${intervention.id}`}>New process</label>
-            <input
+            <Input size="sm"
               id={`process-name-${intervention.id}`}
               list={`cpg-processes-${intervention.id}`}
               data-testid={`process-name-${intervention.id}`}

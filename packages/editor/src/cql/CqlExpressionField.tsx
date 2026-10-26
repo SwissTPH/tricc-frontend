@@ -3,6 +3,7 @@ import { useProjectSnapshot } from '../runtime/context.js'
 import { expressionNames, truncateLabel, type ExpressionName } from './names.js'
 import { presentCql } from './present.js'
 import { Button } from '../components/ui/button.js'
+import { Textarea } from '../components/ui/textarea.js'
 
 /**
  * An expression the author already wrote in CQL.
@@ -45,7 +46,7 @@ export function CqlExpressionField({
   return (
     <div className="tricc-cql">
       <label htmlFor={id}>{label}</label>
-      <textarea
+      <Textarea size="sm"
         id={id}
         rows={rows}
         className="tricc-cql__input"

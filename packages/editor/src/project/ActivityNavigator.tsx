@@ -20,6 +20,7 @@ import { uniqueId } from './Overview.js'
 import { ProjectSearchDialog } from './ProjectSearch.js'
 import { dictionaryLabel } from '../terminology/ConceptDialog.js'
 import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
 
 type LibraryTab = 'process' | 'activity'
 
@@ -311,7 +312,7 @@ export function ActivityNavigator({
             </button>
           )}
         </div>
-        <input
+        <Input size="sm"
           type="search"
           className="tricc-nav__project-search"
           data-testid="project-search"
@@ -422,7 +423,7 @@ export function ActivityNavigator({
           selected={selected}
           query={processQuery}
           filter={
-            <input
+            <Input size="sm"
               type="search"
               data-testid="process-search"
               aria-label="Find a process"
@@ -469,7 +470,7 @@ export function ActivityNavigator({
           selected={selected}
           query={activityQuery}
           filter={
-            <input
+            <Input size="sm"
               type="search"
               data-testid="activity-search"
               aria-label="Find an activity"
@@ -706,7 +707,7 @@ function LibraryDraftDialog({
         {draft.kind === 'activity' ? (
           <label>
             Name
-            <input
+            <Input
               data-testid="new-activity-name"
               value={draft.name}
               autoComplete="off"
@@ -716,7 +717,7 @@ function LibraryDraftDialog({
         ) : (
           <label>
             Starts
-            <input
+            <Input
               data-testid="new-process-name"
               list="cpg-processes"
               placeholder="e.g. registration"

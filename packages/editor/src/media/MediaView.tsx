@@ -12,6 +12,7 @@ import { ConfirmDelete, Dialog } from '../components/Dialog.js'
 import { draggingFiles, formatBytes, imageFiles, imageUrl, prepareImage, useAddImages } from './images.js'
 import { useEditorPreferences } from '../runtime/context.js'
 import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
 
 /**
  * The image library (feature/20261012-images.md §5): every picture of the project, what uses
@@ -61,7 +62,7 @@ export function MediaView({ onOpenConcept }: { onOpenConcept?: (key: ConceptKey)
     >
       <header className="tricc-editor__header">
         <h1 id="media-heading">Media</h1>
-        <input
+        <Input size="sm"
           type="search"
           data-testid="media-search"
           aria-label="Find a picture"
@@ -262,7 +263,7 @@ function RenameImage({ id, onClose }: { id: string; onClose: () => void }) {
         }}
       >
         <label htmlFor="media-rename-name">Name</label>
-        <input
+        <Input
           id="media-rename-name"
           data-testid="media-rename-name"
           value={name}

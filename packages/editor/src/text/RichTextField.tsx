@@ -16,6 +16,7 @@ import {
 import { useEditorPreferences, useProjectSnapshot } from '../runtime/context.js'
 import { useImageUrl } from '../media/images.js'
 import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
 
 const RichTextEditor = lazy(() => import('./RichTextEditor.js'))
 
@@ -53,7 +54,7 @@ export function RichTextField({
             <MessageView text={value} />
           </div>
         ) : (
-          <input
+          <Input size="sm"
             id={id}
             data-testid={testId}
             value={value}
