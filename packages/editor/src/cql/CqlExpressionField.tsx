@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useProjectSnapshot } from '../runtime/context.js'
 import { expressionNames, truncateLabel, type ExpressionName } from './names.js'
 import { presentCql } from './present.js'
+import { Button } from '../components/ui/button.js'
 
 /**
  * An expression the author already wrote in CQL.
@@ -141,13 +142,15 @@ function NameChip({
           {info?.activityTitle && <span>Question in {info.activityTitle}</span>}
           {!info && <span>This name has no concept label in the project.</span>}
           {canShow && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               type="button"
               data-testid={`${testId}-show-${index}`}
               onClick={() => onReveal!(info!.activityId!, info!.nodeId!)}
             >
               Show question
-            </button>
+            </Button>
           )}
         </span>
       )}

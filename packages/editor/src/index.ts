@@ -1,5 +1,10 @@
 export * from './runtime/index.js'
-export { ProjectOverview, ValidationSummary, uniqueId, type IssueLinks } from './project/Overview.js'
+export {
+  ProjectOverview,
+  ValidationSummary,
+  uniqueId,
+  type IssueLinks,
+} from './project/Overview.js'
 export { InterventionEditor } from './project/InterventionEditor.js'
 export { ActivityNavigator } from './project/ActivityNavigator.js'
 export { ConceptDialog, type ConceptTarget } from './terminology/ConceptDialog.js'
@@ -25,3 +30,5 @@ export {
 } from './activity/canvas/BranchEdge.js'
 export { autoLayout } from './activity/canvas/layout.js'
 export { NODE_VISUALS, visualFor, type NodeVisual } from './activity/canvas/node-visuals.js'
+export { Button, buttonVariants, type ButtonProps } from './components/ui/button.js'
+export { cn } from './lib/utils.js'

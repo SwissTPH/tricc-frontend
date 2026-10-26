@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useCanWrite, useProjectSnapshot } from '../runtime/context.js'
 import { draggingFiles, imageFiles, imageUrl, useAddImages } from './images.js'
+import { Button } from '../components/ui/button.js'
 
 /**
  * Choose a picture from the image library, or add new ones (file button, or drop on the
@@ -72,9 +73,15 @@ export function ImagePicker({ onPick, onClose }: { onPick: (id: string) => void;
       >
         <div className="tricc-library-modal__header">
           <h2 id="image-picker-title">Insert a picture</h2>
-          <button type="button" data-testid="image-picker-cancel" onClick={onClose}>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            data-testid="image-picker-cancel"
+            onClick={onClose}
+          >
             Cancel
-          </button>
+          </Button>
         </div>
         <div className="tricc-image-picker__bar">
           <input
@@ -88,9 +95,15 @@ export function ImagePicker({ onPick, onClose }: { onPick: (id: string) => void;
           />
           {canWrite && (
             <>
-              <button type="button" data-testid="image-picker-add" onClick={() => fileRef.current?.click()}>
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                data-testid="image-picker-add"
+                onClick={() => fileRef.current?.click()}
+              >
                 Add new…
-              </button>
+              </Button>
               <input
                 ref={fileRef}
                 type="file"

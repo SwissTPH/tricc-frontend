@@ -1,4 +1,4 @@
-import type { NodeType } from '@tricc/core'
+import type { DiagramStyle, NodeType } from '@tricc/core'
 
 /**
  * How each node type reads on the canvas.
@@ -10,6 +10,14 @@ import type { NodeType } from '@tricc/core'
  */
 
 export type NodeShape = 'terminator' | 'rounded' | 'diamond' | 'box' | 'junction' | 'gate'
+
+/**
+ * The shape actually drawn. A diamond is a rhombus in flowchart style and a rectangle
+ * (`decision`) in BPMN style, which is a per-viewer preference.
+ */
+export function drawnShape(shape: NodeShape, style: DiagramStyle): NodeShape | 'decision' {
+  return shape === 'diamond' && style === 'bpmn' ? 'decision' : shape
+}
 
 export interface NodeVisual {
   shape: NodeShape

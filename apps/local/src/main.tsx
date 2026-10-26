@@ -1,3 +1,4 @@
+import './tailwind.css'
 import '@xyflow/react/dist/style.css'
 import '@tricc/editor/styles.css'
 import './app.css'

@@ -61,25 +61,6 @@
   flex: 0 0 auto;
 }
 
-.tricc-history button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid #cbd5e1;
-  border-radius: 5px;
-  background: #fff;
-  color: #0f172a;
-  cursor: pointer;
-}
-
-.tricc-history button:disabled {
-  color: #cbd5e1;
-  cursor: default;
-}
-
 .tricc-editor__body {
   display: grid;
   /* Canvas and the right-hand inspector. Add a node lives in the Nodes tab. */
@@ -221,8 +202,7 @@
   gap: 8px;
 }
 
-.tricc-branch-modal__choices button,
-.tricc-branch-modal__cancel {
+.tricc-branch-modal__choices button {
   font-size: 13px;
   padding: 6px 12px;
   border-radius: 6px;
@@ -231,13 +211,11 @@
   cursor: pointer;
 }
 
-.tricc-branch-modal__choices button:hover,
-.tricc-branch-modal__cancel:hover {
+.tricc-branch-modal__choices button:hover {
   background: #f8fafc;
 }
 
-.tricc-branch-modal__choices button:focus-visible,
-.tricc-branch-modal__cancel:focus-visible {
+.tricc-branch-modal__choices button:focus-visible {
   outline: 2px solid #0f172a;
   outline-offset: 2px;
 }
@@ -253,7 +231,6 @@
 }
 
 .tricc-branch-modal__cancel {
-  display: block;
   margin-top: 12px;
 }
 
@@ -373,43 +350,6 @@
   font-weight: 600;
 }
 
-.tricc-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid #cbd5e1;
-  border-radius: 5px;
-  background: #fff;
-  color: #334155;
-  font: inherit;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.tricc-icon-button:disabled {
-  color: #cbd5e1;
-  cursor: default;
-}
-
-.tricc-icon-button--danger {
-  color: #b91c1c;
-}
-
-.tricc-icon-button--primary {
-  background: #0f172a;
-  border-color: #0f172a;
-  color: #fff;
-}
-
-.tricc-library-modal__actions button.tricc-danger-text {
-  background: #b91c1c;
-  border-color: #b91c1c;
-  color: #fff;
-}
-
 .tricc-import-note {
   margin: 8px 0 0;
   font-size: 13px;
@@ -489,29 +429,6 @@
   margin-top: 14px;
 }
 
-.tricc-library-modal__actions button {
-  font-size: 13px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  cursor: pointer;
-}
-
-.tricc-library-modal__actions button[type='submit'] {
-  background: #0f172a;
-  border-color: #0f172a;
-  color: #fff;
-}
-
-.tricc-library-modal__actions button:disabled {
-  background: #e2e8f0;
-  border-color: #e2e8f0;
-  color: #94a3b8;
-  cursor: default;
-}
-
-.tricc-library-modal__actions button:focus-visible,
 .tricc-library-modal__card input:focus-visible {
   outline: 2px solid #0f172a;
   outline-offset: 2px;
@@ -593,7 +510,53 @@
   border-radius: 24px;
   width: 160px;
 }
+/* A true rhombus: the box itself is invisible and two clipped layers draw the stroke and
+   the fill. Width stays at the layout's 200px; handles land on the top and bottom tips. */
 .tricc-node--diamond {
+  --diamond-stroke: var(--group-colour);
+  --diamond-stroke-width: 2px;
+  border: none;
+  background: transparent;
+  min-height: 100px;
+  padding: 18px 46px;
+  justify-content: center;
+  text-align: center;
+  isolation: isolate;
+}
+.tricc-node--diamond::before,
+.tricc-node--diamond::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.tricc-node--diamond::before {
+  inset: 0;
+  background: var(--diamond-stroke);
+}
+.tricc-node--diamond::after {
+  inset: var(--diamond-stroke-width);
+  background: var(--group-bg, #fff);
+}
+.tricc-node--diamond .tricc-node__label {
+  -webkit-line-clamp: min(var(--tricc-label-lines, 3), 2);
+  line-clamp: min(var(--tricc-label-lines, 3), 2);
+}
+.tricc-node.tricc-node--diamond.is-selected {
+  outline: none;
+  --diamond-stroke: #0f172a;
+  --diamond-stroke-width: 3px;
+}
+.tricc-node.tricc-node--diamond.has-error {
+  --diamond-stroke: var(--tricc-error);
+  --diamond-stroke-width: 3px;
+}
+.tricc-node.tricc-node--diamond.has-warning {
+  border-style: none;
+  --diamond-stroke: var(--tricc-warning);
+}
+/* BPMN style draws a decision as a rectangle with a double border. */
+.tricc-node--decision {
   border-radius: 4px;
   border-style: solid;
   border-width: 1.5px;
@@ -901,8 +864,6 @@
 
 .tricc-cql__card button {
   margin-top: 6px;
-  font: inherit;
-  font-size: 12px;
 }
 
 .tricc-cql__keyword {
@@ -1182,16 +1143,6 @@
 .tricc-called-by p {
   margin: 0;
   color: #64748b;
-}
-.tricc-link-button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--tricc-question);
-  font: inherit;
-  text-align: left;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 /* Data dictionary: the navigator tab, the concept page, and the card on a node. */

@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { Expression } from '@tricc/core'
+import { Button } from './ui/button.js'
 
 /** Settings dialog and delete confirmation shared by the intervention and activity editors. */
 
@@ -57,39 +58,42 @@ export function Dialog({
           <h2 id={titleId}>{title}</h2>
           <span className="tricc-library-modal__header-actions">
             {onSave && (
-              <button
+              <Button
+                size="icon-sm"
                 type="button"
-                className="tricc-icon-button tricc-icon-button--primary"
                 aria-label="Save"
                 title="Save"
                 data-testid={`${testId}-save`}
                 onClick={onSave}
               >
                 <SaveIcon />
-              </button>
+              </Button>
             )}
             {onDelete && (
-              <button
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="text-destructive hover:text-destructive"
                 type="button"
-                className="tricc-icon-button tricc-icon-button--danger"
                 aria-label="Delete"
                 title="Delete"
                 data-testid={deleteTestId}
                 onClick={onDelete}
               >
                 <BinIcon />
-              </button>
+              </Button>
             )}
-            <button
+            <Button
+              variant="outline"
+              size="icon-sm"
               type="button"
-              className="tricc-icon-button"
               aria-label="Close"
               title="Close"
               data-testid={`${testId}-close`}
               onClick={onClose}
             >
               <CloseIcon />
-            </button>
+            </Button>
           </span>
         </div>
         {children}
@@ -143,17 +147,25 @@ export function ConfirmDelete({
         <h2 id={`${testId}-title`}>{heading}</h2>
         {children}
         <div className="tricc-library-modal__actions">
-          <button type="button" ref={cancelRef} data-testid={`${testId}-cancel`} onClick={onCancel}>
-            Cancel
-          </button>
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
-            className="tricc-danger-text"
+            ref={cancelRef}
+            data-testid={`${testId}-cancel`}
+            onClick={onCancel}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            type="button"
             data-testid={`${testId}-confirm`}
             onClick={onConfirm}
           >
             Delete
-          </button>
+          </Button>
         </div>
       </div>
     </div>,

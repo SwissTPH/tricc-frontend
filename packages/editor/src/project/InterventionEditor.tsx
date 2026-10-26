@@ -14,6 +14,7 @@ import { useMutate } from '../runtime/context.js'
 import { CqlExpressionField } from '../cql/CqlExpressionField.js'
 import { Typeahead, type TypeaheadOption } from '../components/Typeahead.js'
 import { BinIcon, ConfirmDelete, Dialog, GearIcon, mergeExpression } from '../components/Dialog.js'
+import { Button } from '../components/ui/button.js'
 
 /**
  * An intervention card.
@@ -71,9 +72,10 @@ export function InterventionEditor({
     <li className="tricc-intervention-card" data-testid={`intervention-${intervention.id}`}>
       <header className="tricc-intervention-card__header">
         <h3>{title}</h3>
-        <button
+        <Button
+          variant="outline"
+          size="icon-sm"
           type="button"
-          className="tricc-icon-button"
           data-testid={`configure-intervention-${intervention.id}`}
           aria-label={`Configure ${title}`}
           title="Start, title, and who this is for"
@@ -83,7 +85,7 @@ export function InterventionEditor({
           }}
         >
           <GearIcon />
-        </button>
+        </Button>
       </header>
       <p data-testid={`intervention-${intervention.id}-trigger`}>
         Starts: {intervention.trigger?.mode ?? 'on-demand'}
@@ -135,9 +137,10 @@ export function InterventionEditor({
               </button>
               {!readOnly && (
                 <span className="tricc-process-row__actions">
-                  <button
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
                     type="button"
-                    className="tricc-icon-button"
                     aria-label={`Move ${ref.ref} earlier`}
                     data-testid={`move-up-${intervention.id}-${ref.ref}`}
                     disabled={index === 0}
@@ -150,10 +153,11 @@ export function InterventionEditor({
                     }
                   >
                     ↑
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
                     type="button"
-                    className="tricc-icon-button"
                     aria-label={`Move ${ref.ref} later`}
                     data-testid={`move-down-${intervention.id}-${ref.ref}`}
                     disabled={index === processes.length - 1}
@@ -166,10 +170,12 @@ export function InterventionEditor({
                     }
                   >
                     ↓
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    className="text-destructive hover:text-destructive"
                     type="button"
-                    className="tricc-icon-button tricc-icon-button--danger"
                     aria-label={`Remove ${ref.ref}`}
                     data-testid={`remove-activity-${intervention.id}-${ref.ref}`}
                     onClick={() =>
@@ -179,7 +185,7 @@ export function InterventionEditor({
                     }
                   >
                     <BinIcon />
-                  </button>
+                  </Button>
                 </span>
               )}
             </li>
@@ -187,9 +193,11 @@ export function InterventionEditor({
         })}
       </ol>
       {!readOnly && (
-        <button
+        <Button
+          variant="outline"
+          size="icon-sm"
+          className="tricc-intervention-card__add"
           type="button"
-          className="tricc-icon-button tricc-intervention-card__add"
           data-testid={`add-process-to-${intervention.id}`}
           aria-label="Add a process"
           title="Add a process"
@@ -199,7 +207,7 @@ export function InterventionEditor({
           }}
         >
           +
-        </button>
+        </Button>
       )}
 
       {settingsOpen && (
@@ -346,7 +354,8 @@ export function InterventionEditor({
                 <option key={p} value={p} />
               ))}
             </datalist>
-            <button
+            <Button
+              size="sm"
               type="button"
               data-testid={`create-process-activity-${intervention.id}`}
               disabled={newProcess.trim() === ''}
@@ -368,7 +377,7 @@ export function InterventionEditor({
               }}
             >
               Create process activity
-            </button>
+            </Button>
           </div>
         </Dialog>
       )}

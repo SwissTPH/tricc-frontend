@@ -298,6 +298,16 @@ describe('LocalPreferences', () => {
     expect(new LocalPreferences(memoryPrefs()).current().labelChars).toBe(20)
   })
 
+  it('defaults to the BPMN diagram style and ignores an unknown one', () => {
+    const prefs = memoryPrefs()
+    const p = new LocalPreferences(prefs)
+    expect(p.current().diagramStyle).toBe('bpmn')
+    p.update({ diagramStyle: 'flowchart' })
+    expect(new LocalPreferences(prefs).current().diagramStyle).toBe('flowchart')
+    prefs.set('tricc.preferences', JSON.stringify({ diagramStyle: 'uml' }))
+    expect(new LocalPreferences(prefs).current().diagramStyle).toBe('bpmn')
+  })
+
   it('falls back to the defaults when storage is corrupt or throws', () => {
     const prefs = memoryPrefs()
     prefs.set('tricc.preferences', 'not json')

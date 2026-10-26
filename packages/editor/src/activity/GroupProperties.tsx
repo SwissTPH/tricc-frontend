@@ -9,6 +9,7 @@ import {
 } from '@tricc/core'
 import { useMutate } from '../runtime/context.js'
 import { ensureDefaultCodeSystem } from '../terminology/codeSystems.js'
+import { Button } from '../components/ui/button.js'
 
 const NAME = /^[A-Za-z][A-Za-z0-9_.-]*$/
 
@@ -95,7 +96,9 @@ export function GroupProperties({
         {inner ? `, ${inner} ${inner === 1 ? 'group' : 'groups'}` : ''} in this group.
       </p>
       {!readOnly && (
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           type="button"
           data-testid="group-ungroup"
           title="Removes the frame; its nodes stay where they are"
@@ -105,7 +108,7 @@ export function GroupProperties({
           }}
         >
           Ungroup
-        </button>
+        </Button>
       )}
     </section>
   )

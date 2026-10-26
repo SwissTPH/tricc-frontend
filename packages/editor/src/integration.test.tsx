@@ -7,8 +7,10 @@ import {
   createProcessActivity,
   createProject,
   createTriccRuntime,
+  DEFAULT_PREFERENCES,
   processOf,
   readProject,
+  type DiagramStyle,
   type OpenProject,
   type Project,
   type TriccRuntime,
@@ -1280,6 +1282,38 @@ describe('node text', () => {
     lines = 5
     act(() => listeners.forEach((l) => l()))
     expect(editor.style.getPropertyValue('--tricc-label-lines')).toBe('5')
+  })
+})
+
+describe('diagram style', () => {
+  it('draws a decision as a rhombus in flowchart style and a rectangle in BPMN style', async () => {
+    const project = seed()
+    const triage = project.activities['triage']!
+    triage.nodes['r'] = { id: 'r', type: 'rhombus', ui: { x: 0, y: 100 } }
+    triage.nodeOrder.push('r')
+    const h = await harness(project)
+    const listeners = new Set<() => void>()
+    let diagramStyle: DiagramStyle = 'flowchart'
+    const preferences = {
+      current: () => ({ ...DEFAULT_PREFERENCES, diagramStyle }),
+      update: () => undefined,
+      onChange: (cb: () => void) => {
+        listeners.add(cb)
+        return () => listeners.delete(cb)
+      },
+    }
+    render(
+      <TriccRuntimeProvider runtime={h.runtime} preferences={preferences}>
+        <OpenProjectProvider project={h.open}>
+          <ActivityEditor activityId="triage" />
+        </OpenProjectProvider>
+      </TriccRuntimeProvider>,
+    )
+    expect(screen.getByTestId('node-r')).toHaveClass('tricc-node--diamond')
+    diagramStyle = 'bpmn'
+    act(() => listeners.forEach((l) => l()))
+    expect(screen.getByTestId('node-r')).toHaveClass('tricc-node--decision')
+    expect(screen.getByTestId('node-r')).not.toHaveClass('tricc-node--diamond')
   })
 })
 

@@ -26,6 +26,7 @@ import { RichTextField } from '../text/RichTextField.js'
 import { ensureDictionary } from './codeSystems.js'
 import { draggingFiles, imageFiles, useAddImages } from '../media/images.js'
 import { withPictureFirst } from '../media/attach.js'
+import { Button } from '../components/ui/button.js'
 
 const CODE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 const USE_LABELS: Record<DesignationUse, string> = {
@@ -443,9 +444,10 @@ export function ConceptDialog({
                       </td>
                       <td>
                         {!readOnly && (
-                          <button
+                          <Button
+                            variant="destructive"
+                            size="sm"
                             type="button"
-                            className="tricc-danger-text"
                             data-testid={`concept-text-${index}-remove`}
                             onClick={() => {
                               if (index < opened.current) opened.current -= 1
@@ -453,7 +455,7 @@ export function ConceptDialog({
                             }}
                           >
                             Remove
-                          </button>
+                          </Button>
                         )}
                       </td>
                     </tr>
@@ -464,7 +466,9 @@ export function ConceptDialog({
           )}
           {!readOnly && (
             <p>
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 type="button"
                 data-testid="concept-text-add"
                 onClick={() => {
@@ -480,7 +484,7 @@ export function ConceptDialog({
                 }}
               >
                 Add a translation or an intervention text
-              </button>
+              </Button>
             </p>
           )}
 
@@ -496,7 +500,10 @@ export function ConceptDialog({
                     const node = activity?.nodes[u.nodeId]
                     return (
                       <li key={`${u.activityId}-${u.nodeId}-${u.optionId ?? ''}`}>
-                        <button
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="h-auto whitespace-normal p-0 text-left"
                           type="button"
                           data-testid={`concept-use-${u.activityId}-${u.nodeId}`}
                           disabled={!onOpenNode}
@@ -507,7 +514,7 @@ export function ConceptDialog({
                         >
                           {resolve(activity?.title, lang, lang) ?? u.activityId} — {node?.name ?? u.nodeId}
                           {u.optionId ? ' (answer)' : ''}
-                        </button>
+                        </Button>
                       </li>
                     )
                   })}
@@ -523,9 +530,10 @@ export function ConceptDialog({
           )}
           <div className="tricc-library-modal__actions">
             {!isNew && canWrite && (
-              <button
+              <Button
+                variant="destructive"
+                size="sm"
                 type="button"
-                className="tricc-danger-text"
                 data-testid="concept-delete"
                 disabled={uses.length > 0}
                 title={uses.length > 0 ? `Used by ${uses.length}. Remove those uses first.` : 'Delete this concept'}
@@ -535,16 +543,27 @@ export function ConceptDialog({
                 }}
               >
                 Delete
-              </button>
+              </Button>
             )}
             {canWrite && (
-              <button type="submit" data-testid="concept-dialog-save" disabled={Boolean(error)}>
+              <Button
+                size="sm"
+                type="submit"
+                data-testid="concept-dialog-save"
+                disabled={Boolean(error)}
+              >
                 Save
-              </button>
+              </Button>
             )}
-            <button type="button" data-testid="concept-dialog-cancel" onClick={onClose}>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              data-testid="concept-dialog-cancel"
+              onClick={onClose}
+            >
               {canWrite ? 'Cancel' : 'Close'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

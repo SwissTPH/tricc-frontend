@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useCanWrite, useOpenProject } from '../runtime/context.js'
+import { Button } from '../components/ui/button.js'
 
 /**
  * Undo and redo for the open project.
@@ -15,7 +16,9 @@ export function HistoryButtons() {
 
   return (
     <span className="tricc-history">
-      <button
+      <Button
+        variant="outline"
+        size="icon-sm"
         type="button"
         data-testid="undo"
         aria-label="Undo"
@@ -24,8 +27,10 @@ export function HistoryButtons() {
         onClick={() => document.undo.undo()}
       >
         <HistoryArrow direction="undo" />
-      </button>
-      <button
+      </Button>
+      <Button
+        variant="outline"
+        size="icon-sm"
         type="button"
         data-testid="redo"
         aria-label="Redo"
@@ -34,7 +39,7 @@ export function HistoryButtons() {
         onClick={() => document.undo.redo()}
       >
         <HistoryArrow direction="redo" />
-      </button>
+      </Button>
     </span>
   )
 }

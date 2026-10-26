@@ -13,7 +13,12 @@ export interface EditorPreferences {
   conceptTypes: string[]
   /** An image wider than this, in pixels, is made smaller when it is added to the library. */
   imageMaxWidth: number
+  /** How a Decision node is drawn: a rhombus (flowchart) or a rectangle (BPMN). */
+  diagramStyle: DiagramStyle
 }
+
+export const DIAGRAM_STYLES = ['flowchart', 'bpmn'] as const
+export type DiagramStyle = (typeof DIAGRAM_STYLES)[number]
 
 /**
  * Concept types `tricc_oo` knows: the defaults it assigns by node type
@@ -61,6 +66,7 @@ export const DEFAULT_PREFERENCES: EditorPreferences = {
   labelChars: 20,
   conceptTypes: [...DEFAULT_CONCEPT_TYPES],
   imageMaxWidth: 800,
+  diagramStyle: 'bpmn',
 }
 
 export interface PreferencesPort {
@@ -91,5 +97,8 @@ export function normalizePreferences(raw: Partial<EditorPreferences> | undefined
     imageMaxWidth: Number.isFinite(width)
       ? Math.min(IMAGE_WIDTH_MAX, Math.max(IMAGE_WIDTH_MIN, width))
       : DEFAULT_PREFERENCES.imageMaxWidth,
+    diagramStyle: DIAGRAM_STYLES.includes(raw?.diagramStyle as DiagramStyle)
+      ? (raw!.diagramStyle as DiagramStyle)
+      : DEFAULT_PREFERENCES.diagramStyle,
   }
 }

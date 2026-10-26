@@ -19,6 +19,7 @@ import { useCanWrite, useMutate, useProjectSnapshot } from '../runtime/context.j
 import { uniqueId } from './Overview.js'
 import { ProjectSearchDialog } from './ProjectSearch.js'
 import { dictionaryLabel } from '../terminology/ConceptDialog.js'
+import { Button } from '../components/ui/button.js'
 
 type LibraryTab = 'process' | 'activity'
 
@@ -327,7 +328,9 @@ export function ActivityNavigator({
         />
         {tab !== 'dictionary' && tab !== 'media' && (
         <>
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           type="button"
           data-testid="nav-expand"
           aria-expanded={expanded}
@@ -336,12 +339,13 @@ export function ActivityNavigator({
           onClick={() => setExpanded((open) => !open)}
         >
           {expanded ? 'Collapse' : 'Expand'}
-        </button>
+        </Button>
         {canWrite && (
           <span className="tricc-nav__create">
-            <button
+            <Button
+              variant="outline"
+              size="icon-sm"
               type="button"
-              className="tricc-nav__add"
               data-testid={tab === 'activity' ? 'add-activity' : 'add-process'}
               aria-label={tab === 'activity' ? 'Add an activity' : 'Add a process'}
               title={tab === 'activity' ? 'Add an activity' : 'Add a process'}
@@ -351,17 +355,18 @@ export function ActivityNavigator({
               }}
             >
               +
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               type="button"
-              className="tricc-nav__import"
               data-testid={tab === 'activity' ? 'import-activity' : 'import-process'}
               aria-label={tab === 'activity' ? 'Import an activity' : 'Import a process'}
               title={tab === 'activity' ? 'Import an activity' : 'Import a process'}
               onClick={openImport}
             >
               Import
-            </button>
+            </Button>
             <input
               ref={fileRef}
               type="file"
@@ -733,16 +738,23 @@ function LibraryDraftDialog({
           )}
         </p>
         <div className="tricc-library-modal__actions">
-          <button
+          <Button
+            size="sm"
             type="submit"
             data-testid={draft.kind === 'activity' ? 'create-activity' : 'add-process-activity'}
             disabled={!savedAs}
           >
             Create
-          </button>
-          <button type="button" data-testid="library-cancel" onClick={onCancel}>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            data-testid="library-cancel"
+            onClick={onCancel}
+          >
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
     </div>,
@@ -857,13 +869,19 @@ function ImportDialog({
         ))}
         <div className="tricc-library-modal__actions">
           {canImport && (
-            <button type="submit" data-testid="import-confirm">
+            <Button size="sm" type="submit" data-testid="import-confirm">
               Import
-            </button>
+            </Button>
           )}
-          <button type="button" data-testid="import-cancel" onClick={onCancel}>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            data-testid="import-cancel"
+            onClick={onCancel}
+          >
             {canImport ? 'Cancel' : 'Close'}
-          </button>
+          </Button>
         </div>
       </form>
     </div>,

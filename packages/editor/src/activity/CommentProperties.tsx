@@ -1,5 +1,6 @@
 import { COMMENT_COLORS, resolve, type Activity, type CanvasComment, type CommentColor } from '@tricc/core'
 import { useMutate } from '../runtime/context.js'
+import { Button } from '../components/ui/button.js'
 
 const COLOR_LABEL: Record<CommentColor, string> = {
   yellow: 'Yellow',
@@ -79,9 +80,10 @@ export function CommentProperties({
       </select>
       <p>Or drag from the comment's handle onto a node. The line it draws is not an edge.</p>
       {!readOnly && (
-        <button
+        <Button
+          variant="destructive"
+          size="sm"
           type="button"
-          className="tricc-danger-text"
           data-testid="comment-delete"
           onClick={() => {
             mutate((tx) => tx.removeComment(activityId, comment.id))
@@ -89,7 +91,7 @@ export function CommentProperties({
           }}
         >
           Delete comment
-        </button>
+        </Button>
       )}
     </section>
   )
