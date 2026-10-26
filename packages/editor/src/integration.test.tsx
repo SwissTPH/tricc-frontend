@@ -1485,6 +1485,18 @@ describe('data dictionary', () => {
     expect(screen.getByTestId('concept-card-q-display')).toHaveTextContent('Weigh the child')
     expect(screen.getByTestId('node-w-label')).toHaveTextContent('Weigh the child')
   })
+
+  it('shows the HTML of a concept text formatted on the node', async () => {
+    const project = withWeight()
+    project.codeSystems[URL]!.concepts['weight']!.display =
+      '<span style="color:red; font-weight:bold">Weigh</span> the <b>child</b>'
+    const h = await harness(project)
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    const label = screen.getByTestId('node-w-label')
+    expect(label).toHaveTextContent('Weigh the child')
+    expect(label.querySelector('strong')).toHaveTextContent('child')
+    expect(label.querySelector('span[style]')).toHaveStyle({ color: 'rgb(255, 0, 0)', fontWeight: 'bold' })
+  })
 })
 
 describe('texts live in the dictionary', () => {

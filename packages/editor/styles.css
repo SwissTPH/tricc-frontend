@@ -647,6 +647,17 @@
   white-space: normal;
 }
 
+.tricc-rich__block {
+  display: block;
+}
+.tricc-node__label ul,
+.tricc-node__label ol,
+.tricc-node__answer-label ul,
+.tricc-node__answer-label ol {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
 .tricc-node__code {
   font-size: 10px;
   color: #64748b;

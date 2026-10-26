@@ -4,6 +4,7 @@ import {
   hasInternalName,
   isSequenceNode,
   resolve,
+  type DisplayText,
   type NodeType,
   type TriccNode as Model,
 } from '@tricc/core'
@@ -13,6 +14,7 @@ import { useEditorPreferences } from '../../runtime/context.js'
 import { useImageUrl } from '../../media/images.js'
 import { FollowIcon } from '../../components/Dialog.js'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '../../components/ui/hover-card.js'
+import { RichLabel, labelText } from '../../text/RichLabel.js'
 
 /**
  * Opens the activity a goto goes to. Provided by the canvas, so the node data stays plain
@@ -35,6 +37,8 @@ export type TriccFlowNode = Node<
     /** The errors and warnings behind the severity, shown in the hover card. */
     issues?: NodeIssue[]
     conceptDisplay?: string
+    /** The same text with its formatting, when it has any (bold, colour, inline HTML). */
+    conceptRich?: DisplayText
     /** The hint and help a health worker sees (from the concept, or still on the node). */
     hint?: string
     help?: string
@@ -65,6 +69,11 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
   const { diagramStyle } = useEditorPreferences()
   const follow = useContext(FollowContext)
   const display = activityTitle ?? displayText(model, lang, conceptDisplay)
+  // Shown formatted on the node; tooltips and the hover card take its words only.
+  const shown: DisplayText =
+    activityTitle === undefined && data.conceptRich && !isSequenceNode(model.type as NodeType)
+      ? data.conceptRich
+      : display
   const answers =
     model.type === 'select_one' || model.type === 'select_multiple' ? (model.options ?? []) : []
   const confirm = model.type === 'acknowledge'
@@ -79,7 +88,7 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
       </span>
       <span className="tricc-node__body">
         <span className="tricc-node__label" data-testid={`node-${model.id}-label`}>
-          {display}
+          <RichLabel text={shown} />
         </span>
         {model.concept && <span className="tricc-node__code">{model.concept.code}</span>}
         {!model.concept &&
@@ -170,8 +179,8 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
                     data-answer={optionCode(option)}
                     data-option-id={option.id}
                   >
-                    <span className="tricc-node__answer-label" title={text}>
-                      {text}
+                    <span className="tricc-node__answer-label" title={labelText(text)}>
+                      <RichLabel text={text} />
                     </span>
                     {option.is_none && (
                       <span
@@ -196,7 +205,7 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
                       type="source"
                       id={answerHandleId(option.id)}
                       position={Position.Right}
-                      title={`Link from ${text}`}
+                      title={`Link from ${labelText(text)}`}
                     />
                   </li>
                 )
@@ -244,7 +253,7 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
           )}
         </div>
       </HoverCardTrigger>
-      <NodeDetails model={model} display={display} issues={data.issues} />
+      <NodeDetails model={model} display={labelText(shown)} issues={data.issues} />
     </HoverCard>
   )
 }

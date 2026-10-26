@@ -167,7 +167,8 @@ const tricc: CanvasKind = {
         const concept = lookupConcept(project, nodeConceptKey(project, model))
         // A text that is only a picture has no words: the node falls back to its own label.
         const text = conceptText(concept, 'q-display', lang, defaultLang)?.trim() || undefined
-        const picture = firstPicture(conceptRichText(concept, 'q-display', lang, defaultLang))
+        const rich = conceptRichText(concept, 'q-display', lang, defaultLang)
+        const picture = firstPicture(rich)
         const hint = conceptText(concept, 'hint', lang, defaultLang) ?? resolve(model.hint, lang, lang)
         const help = conceptText(concept, 'help', lang, defaultLang) ?? resolve(model.help, lang, lang)
         const answerTexts = model.options?.length
@@ -202,6 +203,7 @@ const tricc: CanvasKind = {
             lang,
             ...(severity ? { severity, issues } : {}),
             ...(text ? { conceptDisplay: text } : {}),
+            ...(text && rich !== undefined && rich !== text ? { conceptRich: rich } : {}),
             ...(hint ? { hint } : {}),
             ...(help ? { help } : {}),
             ...(answerTexts ? { answerTexts } : {}),
