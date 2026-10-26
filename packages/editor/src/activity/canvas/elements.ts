@@ -17,7 +17,7 @@ import {
 import { uniqueId } from '../../project/Overview.js'
 import { answerLabel } from './answer.js'
 import { visualFor } from './node-visuals.js'
-import type { TriccFlowNode } from './TriccNode.js'
+import type { NodeIssue, TriccFlowNode } from './TriccNode.js'
 import { COMMENT_PREFIX, commentFlowId, commentIdOf, type CommentFlowNode } from './CommentNode.js'
 import { GROUP_PREFIX, groupFlowId, groupIdOf, type GroupFlowNode } from './GroupNode.js'
 
@@ -45,7 +45,8 @@ export interface ProjectContext {
   /** Set when a right-drag selected more than one element. Those ids are drawn selected. */
   boxSelection?: readonly string[]
   canWrite: boolean
-  severityByNode: Map<string, 'error' | 'warning'>
+  /** Errors and warnings by node id. */
+  issuesByNode: Map<string, NodeIssue[]>
   /** Positions for nodes the file has none for. */
   layout: Map<string, Point>
   /** Position during a drag in progress. */
@@ -180,7 +181,9 @@ const tricc: CanvasKind = {
             return id ? [[o.id, id]] : []
           }),
         )
-        const severity = ctx.severityByNode.get(model.id)
+        const issues = ctx.issuesByNode.get(model.id)
+        // An error outranks any warnings on the same node.
+        const severity = issues && (issues.some((i) => i.severity === 'error') ? 'error' : 'warning')
         const missing = model.type === 'goto' && Boolean(model.link) && project.activities[model.link!] === undefined
         const drag = ctx.drag(model.id)
         const measured = ctx.measured(model.id)
@@ -197,7 +200,7 @@ const tricc: CanvasKind = {
           data: {
             model,
             lang,
-            ...(severity ? { severity } : {}),
+            ...(severity ? { severity, issues } : {}),
             ...(text ? { conceptDisplay: text } : {}),
             ...(hint ? { hint } : {}),
             ...(help ? { help } : {}),

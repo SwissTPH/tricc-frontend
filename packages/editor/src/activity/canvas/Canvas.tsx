@@ -22,7 +22,7 @@ import {
 } from '@tricc/core'
 import { useCanWrite, useEditorPreferences, useMutate } from '../../runtime/context.js'
 import { expressionNames, renderCqlLabels } from '../../cql/names.js'
-import { FollowContext, TriccNodeView } from './TriccNode.js'
+import { FollowContext, TriccNodeView, type NodeIssue } from './TriccNode.js'
 import { CommentNodeView, commentFlowId, commentIdOf } from './CommentNode.js'
 import { GroupNodeView, groupFlowId, groupIdOf } from './GroupNode.js'
 
@@ -193,13 +193,12 @@ function CanvasInner({
     if (pendingBranch) setPendingBranch(null)
   }
 
-  const severityByNode = useMemo(() => {
-    const map = new Map<string, 'error' | 'warning'>()
+  const issuesByNode = useMemo(() => {
+    const map = new Map<string, NodeIssue[]>()
     for (const i of issues) {
       const id = i.location.nodeId
       if (!id || i.severity === 'info') continue
-      // An error outranks a warning already recorded for the same node.
-      if (i.severity === 'error' || !map.has(id)) map.set(id, i.severity)
+      map.set(id, [...(map.get(id) ?? []), { severity: i.severity, message: i.message }])
     }
     return map
   }, [issues])
@@ -214,7 +213,7 @@ function CanvasInner({
       selectedId,
       boxSelection,
       canWrite,
-      severityByNode,
+      issuesByNode,
       // Nodes without a stored position are laid out on read, so a hand-written or
       // machine-generated activity still opens (project-format §3.2).
       layout: autoLayout(activity),
@@ -235,7 +234,7 @@ function CanvasInner({
     })
     nodeCache.current = next
     return projected
-  }, [activity, project, lang, selectedId, boxSelection, canWrite, severityByNode, dragTick])
+  }, [activity, project, lang, selectedId, boxSelection, canWrite, issuesByNode, dragTick])
 
   // When an element's handles change (answers added, removed, reordered; a new type) and its
   // size does not, React Flow keeps the old handle positions. Tell it to read them again.

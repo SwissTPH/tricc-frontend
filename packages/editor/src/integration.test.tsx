@@ -253,6 +253,20 @@ describe('adding nodes', () => {
 })
 
 describe('validation surfaces in the UI', () => {
+  it("lists a node's errors in its hover card", async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+
+    await user.click(screen.getByTestId('add-select_one'))
+    const node = document.querySelector<HTMLElement>('[data-node-type="select_one"]')!
+    expect(node).toHaveAttribute('data-severity', 'error')
+
+    await user.hover(node)
+    const issues = await screen.findByTestId(`${node.dataset.testid}-issues`, {}, { timeout: 2000 })
+    expect(issues.querySelector('[data-severity="error"]')).toHaveTextContent(/^Error: .*nothing to choose/)
+  })
+
   it('shows an error for a select with no options, without blocking editing', async () => {
     const user = userEvent.setup()
     const h = await harness()
@@ -1044,6 +1058,24 @@ describe('process activities versus activities', () => {
       'b-process',
       'a-process',
     ])
+  })
+
+  it('opens the first process from the intervention title', async () => {
+    const user = userEvent.setup()
+    const project = seed()
+    project.activities['a-process'] = createProcessActivity({ id: 'a-process', process: 'triage' })
+    project.activities['b-process'] = createProcessActivity({ id: 'b-process', process: 'triage' })
+    project.interventions = [
+      { id: 'iv', name: 'iv', activities: [{ ref: 'a-process' }, { ref: 'b-process' }] },
+      { id: 'empty', name: 'empty', activities: [] },
+    ]
+    const h = await harness(project)
+    const opened: string[] = []
+    renderWith(h, <ProjectOverview onSelect={(id) => opened.push(id)} />)
+
+    await user.click(screen.getByTestId('open-intervention-iv'))
+    expect(opened).toEqual(['a-process'])
+    expect(screen.queryByTestId('open-intervention-empty')).not.toBeInTheDocument()
   })
 
   it('cannot move the first activity earlier or the last later', async () => {

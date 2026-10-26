@@ -302,6 +302,21 @@
   font-size: 15px;
 }
 
+.tricc-intervention-card__title {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tricc-intervention-card__title:hover,
+.tricc-intervention-card__title:focus-visible {
+  text-decoration: underline;
+}
+
 .tricc-intervention-card > p {
   margin: 0;
   font-size: 12px;

@@ -20,12 +20,20 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '../../components/
  */
 export const FollowContext = createContext<((activityId: string) => void) | undefined>(undefined)
 
+/** An error or warning validation attached to a node. */
+export interface NodeIssue {
+  severity: 'error' | 'warning'
+  message: string
+}
+
 export type TriccFlowNode = Node<
   {
     model: Model
     lang: string
     /** Highest severity attached to this node, or undefined when clean. */
     severity?: 'error' | 'warning'
+    /** The errors and warnings behind the severity, shown in the hover card. */
+    issues?: NodeIssue[]
     conceptDisplay?: string
     /** The hint and help a health worker sees (from the concept, or still on the node). */
     hint?: string
@@ -236,13 +244,28 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
           )}
         </div>
       </HoverCardTrigger>
-      <NodeDetails model={model} display={display} />
+      <NodeDetails model={model} display={display} issues={data.issues} />
     </HoverCard>
   )
 }
 
-/** What the node's hover card shows: its type, then the label, name and concept code. */
-function NodeDetails({ model, display }: { model: Model; display: string }) {
+/**
+ * What the node's hover card shows: its type, then the label, name and concept code,
+ * then any errors and warnings on it, errors first.
+ */
+function NodeDetails({
+  model,
+  display,
+  issues = [],
+}: {
+  model: Model
+  display: string
+  issues?: NodeIssue[]
+}) {
+  const ordered = [
+    ...issues.filter((i) => i.severity === 'error'),
+    ...issues.filter((i) => i.severity === 'warning'),
+  ]
   const rows: [string, string | undefined][] = [
     ['Label', display],
     ['Name', model.name],
@@ -267,6 +290,23 @@ function NodeDetails({ model, display }: { model: Model; display: string }) {
           </div>
         ))}
       </dl>
+      {ordered.length > 0 && (
+        <ul
+          className="m-0 mt-2 flex list-none flex-col gap-1 border-t border-border pt-2 pl-0"
+          data-testid={`node-${model.id}-issues`}
+        >
+          {ordered.map((issue, index) => (
+            <li
+              key={index}
+              className={issue.severity === 'error' ? 'text-destructive' : 'text-[#d97706]'}
+              data-severity={issue.severity}
+            >
+              <span className="font-medium">{issue.severity === 'error' ? 'Error' : 'Warning'}:</span>{' '}
+              {issue.message}
+            </li>
+          ))}
+        </ul>
+      )}
     </HoverCardContent>
   )
 }
