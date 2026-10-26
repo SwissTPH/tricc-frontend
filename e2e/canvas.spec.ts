@@ -1164,3 +1164,42 @@ test('a right-drag past 6 pixels selects the elements underneath', async ({ page
   expect(after.x - before.x).toBeGreaterThan(40)
   expect(after.y - before.y).toBeGreaterThan(24)
 })
+
+test('copy, cut and paste keep concepts and put a cut back with the same ids', async ({ page }) => {
+  await newActivity(page, 'Clipboard')
+  await placeNode(page, 'integer')
+  await placeNode(page, 'note')
+  const integer = page.locator('.react-flow__node[data-id="n-integer"]')
+  const note = page.locator('.react-flow__node[data-id="n-note"]')
+  const a = (await integer.boundingBox())!
+  const b = (await note.boundingBox())!
+  await page.mouse.move(Math.min(a.x, b.x) - 16, Math.min(a.y, b.y) - 16)
+  await page.mouse.down({ button: 'right' })
+  await page.mouse.move(Math.max(a.x + a.width, b.x + b.width) + 16, Math.max(a.y + a.height, b.y + b.height) + 16, { steps: 12 })
+  await page.mouse.up({ button: 'right' })
+  await expect(page.getByTestId('multi-selection')).toBeVisible()
+
+  await page.keyboard.press('Control+c')
+  await page.keyboard.press('Control+v')
+  await expect(integer).toBeVisible()
+  await expect(note).toBeVisible()
+  await expect(page.locator('.react-flow__node[data-id="n-integer-2"]')).toBeVisible()
+  await expect(page.locator('.react-flow__node[data-id="n-note-2"]')).toBeVisible()
+
+  await page.keyboard.press('Control+x')
+  await expect(page.locator('.react-flow__node[data-id="n-integer-2"]')).toHaveCount(0)
+  await expect(page.locator('.react-flow__node[data-id="n-note-2"]')).toHaveCount(0)
+  await expect(integer).toBeVisible()
+
+  await page.keyboard.press('Control+v')
+  await expect(page.locator('.react-flow__node[data-id="n-integer-2"]')).toBeVisible()
+  await expect(page.locator('.react-flow__node[data-id="n-note-2"]')).toBeVisible()
+
+  await page.getByTestId('nav-overview').click()
+  await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
+  await page.getByTestId('activity-canvas').click({ position: { x: 24, y: 80 } })
+  await page.keyboard.press('Control+v')
+  await expect(page.locator('.react-flow__node[data-id="n-integer-2"]')).toBeVisible()
+  await expect(page.locator('.react-flow__node[data-id="n-note-2"]')).toBeVisible()
+})

@@ -34,6 +34,16 @@ import { CqlExpressionField } from '../cql/CqlExpressionField.js'
 import { expressionNames, renderCqlLabels } from '../cql/names.js'
 import { ActivityCanvas, type CanvasPlacement } from './canvas/Canvas.js'
 import { autoLayout, renderedNodeSize } from './canvas/layout.js'
+import {
+  applyCut,
+  applyPaste,
+  heldClipboard,
+  nextPasteOffset,
+  planPaste,
+  rememberClipboard,
+  selectionSnapshot,
+  type CanvasClipboard,
+} from './canvas/clipboard.js'
 import { commentIdOf } from './canvas/CommentNode.js'
 import { CANVAS_KINDS } from './canvas/elements.js'
 import { groupIdOf } from './canvas/GroupNode.js'
@@ -174,6 +184,43 @@ export function ActivityEditor({
     setBoxSelection(ids)
     setPanel('details')
   }, [])
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.repeat || event.altKey || event.shiftKey) return
+      if (!(event.ctrlKey || event.metaKey)) return
+      if (event.code !== 'KeyC' && event.code !== 'KeyX' && event.code !== 'KeyV') return
+      if (editingField(event.target) || document.querySelector('[role="dialog"]')) return
+      const activityNow = project.activities[activityId]
+      if (!activityNow) return
+      if (event.code === 'KeyV') {
+        const clip = heldClipboard()
+        if (!clip || !canWrite) return
+        const selectedText = window.getSelection()
+        if (selectedText && !selectedText.isCollapsed && selectedText.toString()) return
+        event.preventDefault()
+        const plan = planPaste(clip, activityNow, project, nextPasteOffset(activityId))
+        mutate((tx) => applyPaste(tx, activityId, plan))
+        chooseBox(plan.select)
+        return
+      }
+      const selectedText = window.getSelection()
+      if (selectedText && !selectedText.isCollapsed && selectedText.toString()) return
+      const ids = boxSelection.length > 0 ? boxSelection : selectedId ? [selectedId] : []
+      const snap = selectionSnapshot(activityNow, ids)
+      if (snap.nodes.length + snap.groups.length + snap.comments.length === 0) return
+      if (event.code === 'KeyX' && !canWrite) return
+      event.preventDefault()
+      const clip: CanvasClipboard = { ...snap, fromActivityId: activityId, cut: event.code === 'KeyX' }
+      rememberClipboard(clip)
+      if (event.code === 'KeyX') {
+        mutate((tx) => applyCut(tx, activityId, clip))
+        chooseBox([])
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [activityId, boxSelection, canWrite, chooseBox, mutate, project, selectedId])
 
   /** Picture files dropped on a node or an answer: into the library, then first in its text. */
   const dropPictures = (files: File[], at: { nodeId: string; optionId?: string }) => {
@@ -446,7 +493,8 @@ export function ActivityEditor({
             <div role="tabpanel" id="inspector-details" aria-labelledby="tab-details">
               {several && (
                 <p data-testid="multi-selection">
-                  {boxSelection.length} elements selected. Drag one of them to move them together.
+                  {boxSelection.length} elements selected. Drag one of them to move them together. Ctrl+C
+                  copies, Ctrl+X cuts, and Ctrl+V pastes.
                 </p>
               )}
               {selectedGroup && (
@@ -1306,6 +1354,11 @@ function canOffer(type: NodeType, nodes: Record<string, TriccNode>): boolean {
   // An activity may finish in several places, so Activity end stays on the palette.
   if (spec.root) return !Object.values(nodes).some((n) => NODE_TYPE_SPECS[n.type]?.root)
   return true
+}
+
+/** A text field keeps the browser's own copy, cut and paste. */
+function editingField(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
 }
 
 const DRAG_THRESHOLD_PX = 4
