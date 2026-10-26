@@ -10,6 +10,7 @@ import {
 import { useMutate } from '../runtime/context.js'
 import { ensureDefaultCodeSystem } from '../terminology/codeSystems.js'
 import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
 
 const NAME = /^[A-Za-z][A-Za-z0-9_.-]*$/
 
@@ -47,7 +48,7 @@ export function GroupProperties({
       <h2 id="group-heading">Group</h2>
       <p>A section of the form. Drag nodes into the frame to add them, out of it to take them out.</p>
       <label htmlFor="group-name">Name</label>
-      <input
+      <Input size="sm"
         id="group-name"
         data-testid="group-name"
         value={group.name ?? ''}
@@ -58,7 +59,7 @@ export function GroupProperties({
         }}
       />
       <label htmlFor="group-title">Title</label>
-      <input
+      <Input size="sm"
         id="group-title"
         data-testid="group-title"
         value={title}

@@ -40,10 +40,12 @@ import {
   DictionaryView,
   GearIcon,
   HomeIcon,
+  Input,
   MediaView,
   HistoryButtons,
   OpenProjectProvider,
   ProjectOverview,
+  Textarea,
   TriccRuntimeProvider,
   nextTrail,
   useSave,
@@ -330,7 +332,7 @@ function ProjectList({ local }: { local: LocalRuntime }) {
       <section aria-labelledby="create-heading">
         <h2 id="create-heading">Start a new project</h2>
         <label htmlFor="new-project-name">New project name</label>
-        <input
+        <Input
           id="new-project-name"
           data-testid="new-project-name"
           value={name}
@@ -701,7 +703,7 @@ function Preferences({ local }: { local: LocalRuntime }) {
       <h1>Preferences</h1>
       {/* No accounts and no authentication - a display name, used for authorship. */}
       <label htmlFor="display-name">Display name</label>
-      <input
+      <Input
         id="display-name"
         data-testid="display-name"
         value={name}
@@ -711,7 +713,7 @@ function Preferences({ local }: { local: LocalRuntime }) {
         }}
       />
       <label htmlFor="pref-label-lines">Lines of text on a node</label>
-      <input
+      <Input
         id="pref-label-lines"
         data-testid="pref-label-lines"
         type="number"
@@ -755,7 +757,7 @@ function Preferences({ local }: { local: LocalRuntime }) {
       </div>
       <p>Flowchart draws a Decision as a rhombus; BPMN draws it as a rectangle. This is your setting; it is not saved in the project.</p>
       <label htmlFor="pref-label-chars">Characters of a label in short lists</label>
-      <input
+      <Input
         id="pref-label-chars"
         data-testid="pref-label-chars"
         type="number"
@@ -769,7 +771,7 @@ function Preferences({ local }: { local: LocalRuntime }) {
       />
       <p>How much of a label shows on an answer link and in the Insert data list. The full text is on hover.</p>
       <label htmlFor="pref-concept-types">Concept types</label>
-      <textarea
+      <Textarea
         id="pref-concept-types"
         data-testid="pref-concept-types"
         rows={8}
@@ -781,7 +783,7 @@ function Preferences({ local }: { local: LocalRuntime }) {
       />
       <p>One per line. The data dictionary offers these as a concept's type; tricc_oo maps them to a FHIR resource.</p>
       <label htmlFor="pref-image-width">Maximum image width (pixels)</label>
-      <input
+      <Input
         id="pref-image-width"
         data-testid="pref-image-width"
         type="number"

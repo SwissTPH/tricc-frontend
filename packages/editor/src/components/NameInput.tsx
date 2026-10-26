@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NAME_RE } from '@tricc/core'
+import { Input } from './ui/input.js'
 
 export interface NameInputProps {
   id: string
@@ -22,7 +23,7 @@ export function NameInput({ id, testId, value, onChange, readOnly }: NameInputPr
   const invalid = draft !== '' && !NAME_RE.test(draft)
   return (
     <>
-      <input
+      <Input size="sm"
         id={id}
         data-testid={testId}
         value={draft}

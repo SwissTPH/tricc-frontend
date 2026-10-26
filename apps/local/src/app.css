@@ -187,11 +187,6 @@ main > [data-testid='activity-editor'] {
 .tricc-nav__row input[type='search'] {
   flex: 0 0 9em;
   min-width: 0;
-  padding: 3px 6px;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  font: inherit;
-  font-size: 12px;
 }
 .tricc-nav__bar input.tricc-nav__project-search {
   max-width: 20em;
@@ -200,11 +195,6 @@ main > [data-testid='activity-editor'] {
   flex: 1 1 8em;
   min-width: 0;
   max-width: 16em;
-  padding: 3px 6px;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  font: inherit;
-  font-size: 12px;
 }
 [data-testid='activity-navigator'] [role='tabpanel'] {
   display: flex;
@@ -260,11 +250,11 @@ main > [data-testid='activity-editor'] {
   align-items: center;
   gap: 6px;
 }
-/* shadcn buttons carry their own type scale. */
+/* shadcn buttons and inputs carry their own type scale. */
 button:where(:not([data-slot='button'])) {
   font: inherit;
 }
-input {
+input:where(:not([data-slot='input'])) {
   font: inherit;
 }
 
@@ -296,9 +286,8 @@ input {
   color: #64748b;
   margin: 8px 0 2px;
 }
-.tricc-intervention input,
-.tricc-intervention select,
-.tricc-intervention textarea {
+.tricc-intervention input:where(:not([data-slot='input'])),
+.tricc-intervention select {
   width: 100%;
   box-sizing: border-box;
   padding: 4px 6px;
@@ -427,8 +416,7 @@ details > summary {
 .tricc-repo p {
   margin: 0;
 }
-.tricc-repo select,
-.tricc-repo textarea {
+.tricc-repo select {
   display: block;
   width: 100%;
   margin-top: 4px;
@@ -439,9 +427,6 @@ details > summary {
   font-size: 14px;
   color: #0f172a;
   background: #fff;
-}
-.tricc-repo textarea {
-  resize: vertical;
 }
 .tricc-repo__where {
   color: #475569;

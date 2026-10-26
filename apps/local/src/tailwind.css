@@ -51,7 +51,7 @@
   --color-ring: var(--ring);
 }
 
-/* The slice of preflight shadcn buttons depend on, scoped to them. */
+/* The slice of preflight shadcn buttons and inputs depend on, scoped to them. */
 @layer base {
   [data-slot='button'] {
     margin: 0;
@@ -62,5 +62,14 @@
     font-family: inherit;
     line-height: inherit;
     text-decoration: none;
+  }
+  [data-slot='input'],
+  [data-slot='textarea'] {
+    box-sizing: border-box;
+    margin: 0;
+    border: 0 solid var(--border);
+    color: inherit;
+    font-family: inherit;
+    line-height: inherit;
   }
 }

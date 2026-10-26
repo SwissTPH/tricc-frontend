@@ -27,6 +27,8 @@ import { ensureDictionary } from './codeSystems.js'
 import { draggingFiles, imageFiles, useAddImages } from '../media/images.js'
 import { withPictureFirst } from '../media/attach.js'
 import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
+import { Textarea } from '../components/ui/textarea.js'
 
 const CODE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 const USE_LABELS: Record<DesignationUse, string> = {
@@ -228,7 +230,7 @@ export function ConceptDialog({
           )}
 
           <label htmlFor="concept-code">Code</label>
-          <input
+          <Input
             id="concept-code"
             data-testid="concept-code"
             value={draft.code}
@@ -238,7 +240,7 @@ export function ConceptDialog({
           />
 
           <label htmlFor="concept-display">Display</label>
-          <input
+          <Input
             id="concept-display"
             data-testid="concept-display"
             value={draft.display ?? ''}
@@ -274,7 +276,7 @@ export function ConceptDialog({
           />
 
           <label htmlFor="concept-definition">Definition</label>
-          <textarea
+          <Textarea
             id="concept-definition"
             data-testid="concept-definition"
             rows={2}
@@ -316,7 +318,7 @@ export function ConceptDialog({
           </select>
 
           <label htmlFor="concept-unit">Unit</label>
-          <input
+          <Input
             id="concept-unit"
             data-testid="concept-unit"
             value={draft.unit ?? ''}
@@ -324,7 +326,7 @@ export function ConceptDialog({
             onChange={(e) => set({ unit: e.target.value })}
           />
           <label htmlFor="concept-target-resource">Stored in — resource</label>
-          <input
+          <Input
             id="concept-target-resource"
             data-testid="concept-target-resource"
             value={draft.targetResource ?? ''}
@@ -332,7 +334,7 @@ export function ConceptDialog({
             onChange={(e) => set({ targetResource: e.target.value })}
           />
           <label htmlFor="concept-target-path">Stored in — path</label>
-          <input
+          <Input
             id="concept-target-path"
             data-testid="concept-target-path"
             value={draft.targetPath ?? ''}
@@ -382,12 +384,12 @@ export function ConceptDialog({
                         </select>
                       </td>
                       <td>
-                        <input
+                        <Input
                           data-testid={`concept-text-${index}-language`}
                           aria-label="Language"
                           placeholder="fr"
                           list="concept-languages"
-                          size={4}
+                          htmlSize={4}
                           value={d.language}
                           disabled={readOnly}
                           onChange={(e) => updateAt(index, { ...d, language: e.target.value })}
@@ -433,7 +435,7 @@ export function ConceptDialog({
                             onChange={(t) => updateAt(index, withDesignationText(d, t))}
                           />
                         ) : (
-                          <input
+                          <Input
                             data-testid={`concept-text-${index}-value`}
                             aria-label="Text"
                             value={d.value}

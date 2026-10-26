@@ -1,6 +1,7 @@
 import { COMMENT_COLORS, resolve, type Activity, type CanvasComment, type CommentColor } from '@tricc/core'
 import { useMutate } from '../runtime/context.js'
 import { Button } from '../components/ui/button.js'
+import { Textarea } from '../components/ui/textarea.js'
 
 const COLOR_LABEL: Record<CommentColor, string> = {
   yellow: 'Yellow',
@@ -37,7 +38,7 @@ export function CommentProperties({
       <h2 id="comment-heading">Comment</h2>
       <p>Only on the drawing, for authors. It is not part of the guideline and is never converted.</p>
       <label htmlFor="comment-text">Text</label>
-      <textarea
+      <Textarea size="sm"
         id="comment-text"
         data-testid="comment-text"
         rows={4}

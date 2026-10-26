@@ -12,6 +12,7 @@ import { CqlExpressionField } from '../cql/CqlExpressionField.js'
 import { RepeatFields } from './RepeatFields.js'
 import { ConfirmDelete, Dialog, mergeExpression } from '../components/Dialog.js'
 import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
 
 /** The fallback `tricc_oo` uses when an activity has no name. */
 export function titleSlug(activity: Activity, lang: string): string {
@@ -168,7 +169,7 @@ export function ActivitySettings({
       >
         <div className="tricc-intervention">
           <label htmlFor="act-title">Title</label>
-          <input
+          <Input size="sm"
             id="act-title"
             data-testid="act-title"
             value={resolve(activity.title, lang, lang) ?? ''}
@@ -177,7 +178,7 @@ export function ActivitySettings({
           />
 
           <label htmlFor="act-name">Name</label>
-          <input
+          <Input size="sm"
             id="act-name"
             data-testid="act-name"
             value={activity.name ?? ''}
@@ -189,7 +190,7 @@ export function ActivitySettings({
           {kind === 'process' && (
             <>
               <label htmlFor="act-process">Process</label>
-              <input
+              <Input size="sm"
                 id="act-process"
                 data-testid="act-process"
                 list="cpg-processes"
@@ -204,7 +205,7 @@ export function ActivitySettings({
           )}
 
           <label htmlFor="act-intent">Applies when — in words</label>
-          <input
+          <Input size="sm"
             id="act-intent"
             data-testid="act-intent"
             value={resolve(activity.applicability?.intent, lang, lang) ?? ''}

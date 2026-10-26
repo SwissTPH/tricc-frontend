@@ -31,4 +31,6 @@ export {
 export { autoLayout } from './activity/canvas/layout.js'
 export { NODE_VISUALS, visualFor, type NodeVisual } from './activity/canvas/node-visuals.js'
 export { Button, buttonVariants, type ButtonProps } from './components/ui/button.js'
+export { Input, inputVariants, type InputProps } from './components/ui/input.js'
+export { Textarea, textareaVariants, type TextareaProps } from './components/ui/textarea.js'
 export { cn } from './lib/utils.js'
