@@ -1641,15 +1641,14 @@ describe('node fields', () => {
     expect(screen.queryByTestId('field-name')).not.toBeInTheDocument()
   })
 
-  it('opens the activity a goto goes to, from its details and by Ctrl+click', async () => {
+  it('opens the activity a goto goes to from its details', async () => {
     const user = userEvent.setup()
     const h = await harness(withGoto())
     const opened: string[] = []
     renderWith(h, <ActivityEditor activityId="triage" onOpenActivity={(id) => opened.push(id)} />)
     selectNode('g')
     await user.click(screen.getByTestId('goto-open'))
-    fireEvent.click(screen.getByTestId('node-g'), { ctrlKey: true })
-    expect(opened).toEqual(['cough', 'cough'])
+    expect(opened).toEqual(['cough'])
   })
 
   it('opens the activity a goto goes to from the follow button on the node', async () => {

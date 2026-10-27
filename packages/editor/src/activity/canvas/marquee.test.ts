@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dragSelection, pointerPastMarquee, rectsMeet, screenRect } from './marquee.js'
+import { dragSelection, edgePan, pointerPastMarquee, rectContains, rectsMeet, screenRect } from './marquee.js'
 
 describe('pointerPastMarquee', () => {
   it('stays a click inside 6 pixels', () => {
@@ -21,6 +21,36 @@ describe('rectsMeet', () => {
     expect(rectsMeet(area, screenRect(10, 10, 20, 20))).toBe(true)
     expect(rectsMeet(area, screenRect(40, 0, 50, 10))).toBe(false)
     expect(rectsMeet(area, screenRect(50, 50, 60, 60))).toBe(false)
+  })
+})
+
+describe('rectContains', () => {
+  const area = screenRect(0, 0, 100, 80)
+
+  it('accepts an element that sits wholly inside', () => {
+    expect(rectContains(area, screenRect(10, 10, 40, 40), 0)).toBe(true)
+    expect(rectContains(area, area, 0)).toBe(true)
+  })
+
+  it('rejects an element that only overlaps the rectangle', () => {
+    expect(rectContains(area, screenRect(90, 10, 120, 40), 0)).toBe(false)
+    expect(rectContains(area, screenRect(-10, 10, 20, 40), 0)).toBe(false)
+    expect(rectContains(area, screenRect(10, 70, 40, 100), 0)).toBe(false)
+  })
+})
+
+describe('edgePan', () => {
+  const size = { width: 400, height: 300 }
+
+  it('stays still while the pointer is away from the edge', () => {
+    expect(edgePan({ x: 200, y: 150 }, size)).toEqual({ x: 0, y: 0 })
+  })
+
+  it('moves the diagram so the side past the pointer comes into view', () => {
+    expect(edgePan({ x: 0, y: 150 }, size).x).toBeGreaterThan(0)
+    expect(edgePan({ x: 400, y: 150 }, size).x).toBeLessThan(0)
+    expect(edgePan({ x: 200, y: 0 }, size).y).toBeGreaterThan(0)
+    expect(edgePan({ x: 200, y: 300 }, size).y).toBeLessThan(0)
   })
 })
 

@@ -493,8 +493,8 @@ export function ActivityEditor({
             <div role="tabpanel" id="inspector-details" aria-labelledby="tab-details">
               {several && (
                 <p data-testid="multi-selection">
-                  {boxSelection.length} elements selected. Drag one of them to move them together. Ctrl+C
-                  copies, Ctrl+X cuts, and Ctrl+V pastes.
+                  {boxSelection.length} elements selected. Drag one of them to move them together. Ctrl+click
+                  adds an element. Ctrl+C copies, Ctrl+X cuts, and Ctrl+V pastes.
                 </p>
               )}
               {selectedGroup && (
@@ -1157,7 +1157,7 @@ export function NodeProperties({
             type="button"
             data-testid="goto-open"
             disabled={!node.link || !project.activities[node.link]}
-            title="Ctrl+click the node on the diagram does the same"
+            title="The button on the node does the same"
             onClick={() => node.link && onOpenActivity(node.link)}
           >
             Open activity
