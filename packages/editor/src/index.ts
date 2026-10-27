@@ -20,6 +20,7 @@ export { CalledBy, goToCallers, type GotoCaller } from './activity/ActivitySetti
 export { Typeahead, type TypeaheadOption, type TypeaheadProps } from './components/Typeahead.js'
 export { ActivityRefField } from './components/ActivityRefField.js'
 export { ActivityEditor, NodeProperties, EdgeProperties } from './activity/ActivityEditor.js'
+export { DiscussionsButton } from './discussion/Discussion.js'
 export { ActivityCanvas } from './activity/canvas/Canvas.js'
 export { TriccNodeView } from './activity/canvas/TriccNode.js'
 export {

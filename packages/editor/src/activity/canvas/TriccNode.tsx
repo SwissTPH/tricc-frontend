@@ -13,6 +13,7 @@ import { useEditorPreferences } from '../../runtime/context.js'
 import { useImageUrl } from '../../media/images.js'
 import { FollowIcon } from '../../components/Dialog.js'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '../../components/ui/hover-card.js'
+import { ElementMark } from '../../discussion/ElementMark.js'
 
 /**
  * Opens the activity a goto goes to. Provided by the canvas, so the node data stays plain
@@ -225,6 +226,8 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
               )}
             </span>
           )}
+
+          <ElementMark kind="node" id={model.id} />
 
           {visual.sources && (
             <Handle

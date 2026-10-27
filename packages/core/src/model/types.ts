@@ -277,6 +277,77 @@ export interface CodeSystem {
   conceptOrder: string[]
 }
 
+export type DiscussionStatus = 'open' | 'pending' | 'resolved' | 'wont_change'
+
+/** A person as written in the files: an id, and the name shown then. */
+export interface Person {
+  id: string
+  name: string
+}
+
+/** What a discussion is about. A sticky note is a `comment`. */
+export type Anchor =
+  | { kind: 'project' }
+  | { kind: 'intervention'; interventionId: string }
+  | { kind: 'activity'; activityId: string }
+  | { kind: 'node'; activityId: string; nodeId: string }
+  | { kind: 'edge'; activityId: string; edgeId: string }
+  | { kind: 'group'; activityId: string; groupId: string }
+  | { kind: 'comment'; activityId: string; commentId: string }
+  | { kind: 'concept'; system: string; code: string }
+  | { kind: 'image'; imageId: string }
+
+export interface DiscussionComment {
+  id: string
+  author: Person
+  /** ISO 8601, UTC. */
+  at: string
+  /** Plain text. `@[Name](user:<id>)` is a tag made on the platform. */
+  text?: string
+  edited?: string
+  /** Removed by its author or a moderator: the text is gone, the place is kept. */
+  deleted?: boolean
+}
+
+export interface DiscussionEvent {
+  at: string
+  by: Person
+  status?: DiscussionStatus
+  /** The one category, when it changed. Stored as a list so the file can name it. */
+  labels?: string[]
+  /** Platform only. `null` is "unassigned". */
+  assignee?: Person | null
+}
+
+export interface DiscussionResolution {
+  by: Person
+  at: string
+  note?: string
+  version?: string
+}
+
+export interface Discussion {
+  id: string
+  about: Anchor
+  /** The element's name when the discussion started; shown once the element is gone. */
+  label: string
+  status: DiscussionStatus
+  /** The category. One id. An empty list is a discussion that was not classified. */
+  labels: string[]
+  /** Platform only. */
+  assignee?: Person
+  comments: DiscussionComment[]
+  events: DiscussionEvent[]
+  resolution?: DiscussionResolution
+}
+
+/** A project's categories. A discussion carries one of these. */
+export interface DiscussionLabel {
+  id: string
+  name: string
+  color: CommentColor
+}
+
 export interface Project {
   formatVersion: string
   id: string
@@ -305,6 +376,12 @@ export interface Project {
   images?: Record<string, ProjectImage>
   /** The git repository the project lives in, when it has one. */
   repository?: ProjectRepository
+  /** Conversations about elements. Absent until the first one, so a save stays the same. */
+  discussions?: Record<string, Discussion>
+  /** The categories a discussion can be. One discussion carries one of them. */
+  discussionLabels?: DiscussionLabel[]
+  /** Discussion files that could not be read, kept so a save does not delete them. */
+  discussionKeep?: Record<string, string>
 }
 
 /**
@@ -378,7 +455,10 @@ export function imagesDir(project: Pick<Project, 'mediaPath'>): string {
   return `${(project.mediaPath ?? PATHS.media).replace(/\/+$/, '')}/images`
 }
 
-export function imagePath(project: Pick<Project, 'mediaPath'>, image: Pick<ProjectImage, 'id' | 'contentType'>): string {
+export function imagePath(
+  project: Pick<Project, 'mediaPath'>,
+  image: Pick<ProjectImage, 'id' | 'contentType'>,
+): string {
   return `${imagesDir(project)}/${image.id}.${IMAGE_TYPES[image.contentType]}`
 }
 
@@ -392,6 +472,7 @@ export const PATHS = {
   terminology: 'terminology',
   cql: 'cql',
   media: 'media',
+  discussions: 'discussions',
 } as const
 
 export function activityPath(id: string): string {
