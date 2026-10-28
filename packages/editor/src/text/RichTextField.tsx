@@ -15,6 +15,8 @@ import {
 } from '@tricc/core'
 import { useEditorPreferences, useProjectSnapshot } from '../runtime/context.js'
 import { useImageUrl } from '../media/images.js'
+import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
 
 const RichTextEditor = lazy(() => import('./RichTextEditor.js'))
 
@@ -52,7 +54,7 @@ export function RichTextField({
             <MessageView text={value} />
           </div>
         ) : (
-          <input
+          <Input size="sm"
             id={id}
             data-testid={testId}
             value={value}
@@ -62,14 +64,16 @@ export function RichTextField({
           />
         )}
         {!disabled && (
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
             data-testid={`${testId}-format`}
             title="Bold, colour, lists, pictures, and data from earlier answers"
             onClick={() => setEditing(true)}
           >
             {structured ? 'Edit…' : 'Format…'}
-          </button>
+          </Button>
         )}
       </span>
       {editing && (
@@ -143,12 +147,23 @@ function RichTextModal({
           <RichTextEditor value={draft} onChange={setDraft} testId={testId} names={names} label={label} />
         </Suspense>
         <div className="tricc-library-modal__actions">
-          <button type="button" data-testid={`${testId}-modal-save`} onClick={() => onSave(draft)}>
+          <Button
+            size="sm"
+            type="button"
+            data-testid={`${testId}-modal-save`}
+            onClick={() => onSave(draft)}
+          >
             Save
-          </button>
-          <button type="button" data-testid={`${testId}-modal-cancel`} onClick={onCancel}>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            data-testid={`${testId}-modal-cancel`}
+            onClick={onCancel}
+          >
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
     </div>,

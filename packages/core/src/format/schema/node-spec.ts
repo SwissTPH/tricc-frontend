@@ -125,6 +125,16 @@ export const NODE_TYPE_SPECS: Record<NodeType, NodeTypeSpec> = {
   text: { label: 'Text', group: 'questions', drawable: true, named: true, capture: true, text: true, dataType: 'string' },
   date: { label: 'Date', group: 'questions', drawable: true, named: true, capture: true, text: true, dataType: 'date' },
   note: { label: 'Note', group: 'questions', drawable: true, text: true, conceptType: 'InteractSet' },
+  acknowledge: {
+    label: 'Acknowledge',
+    group: 'questions',
+    drawable: true,
+    named: true,
+    capture: true,
+    text: true,
+    dataType: 'boolean',
+    conceptType: 'InteractSet',
+  },
   // Logic
   calculate: { label: 'Calculation', group: 'logic', drawable: true, named: true, branching: true, unreachableOk: true, calculated: true },
   rhombus: { label: 'Decision', group: 'logic', drawable: true, internalName: true, branching: true, cqlReference: true },

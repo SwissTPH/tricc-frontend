@@ -34,6 +34,23 @@ export {
   mergeImages,
 } from './format/serialize/index.js'
 export {
+  anchorFromParam,
+  anchorKey,
+  anchorKindName,
+  anchorLabel,
+  anchorToParam,
+  resolveAnchor,
+} from './discussion/anchor.js'
+export { DEFAULT_DISCUSSION_LABELS } from './discussion/labels.js'
+export { parseCommentText, type TextPart } from './discussion/text.js'
+export {
+  decisionLog,
+  decisionLogCsv,
+  decisionLogMarkdown,
+  type DecisionRow,
+} from './discussion/decision-log.js'
+export { LocalDiscussions, oneCategory, type DiscussionPort } from './discussion/port.js'
+export {
   readRepository,
   repositoryOfTriccYaml,
   setTriccYamlRepository,
@@ -59,6 +76,7 @@ export {
   CapabilityError,
   ALL_CAPABILITIES,
   READ_ONLY_CAPABILITIES,
+  REVIEW_CAPABILITIES,
   type ProjectDocumentOptions,
   type Unsubscribe,
 } from './document/doc.js'

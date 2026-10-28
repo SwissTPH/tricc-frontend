@@ -24,6 +24,7 @@ import {
 import { useMutate, useProjectSnapshot } from '../runtime/context.js'
 import { Typeahead, type TypeaheadOption } from '../components/Typeahead.js'
 import { ConceptDialog, type ConceptTarget } from './ConceptDialog.js'
+import { Button } from '../components/ui/button.js'
 
 /**
  * Nodes that stand for a concept: those whose text the health worker reads, and the values
@@ -89,13 +90,15 @@ export function ConceptCard({
             mutate((tx) => tx.updateNode(activityId, linkTo(node, home, { system, code })))
           }}
         />
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           type="button"
           data-testid="concept-create"
           onClick={() => setDialog({ draft: conceptFromNode(node, home, defaultLang) })}
         >
           Create concept{node.name ? ` “${node.name}”` : ''}
-        </button>
+        </Button>
         {dialogs}
       </div>
     )
@@ -117,9 +120,15 @@ export function ConceptCard({
           Shared by {uses} nodes. A text changed in the concept changes all of them.
         </p>
       )}
-      <button type="button" data-testid="concept-edit" onClick={() => setDialog({ key })}>
+      <Button
+        variant="outline"
+        size="sm"
+        type="button"
+        data-testid="concept-edit"
+        onClick={() => setDialog({ key })}
+      >
         {readOnly ? 'Show concept' : 'Edit concept'}
-      </button>
+      </Button>
       {dialogs}
     </div>
   )

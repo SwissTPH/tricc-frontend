@@ -14,6 +14,9 @@ export const CAPABILITIES = [
   'terminology.read',
   'terminology.write',
   'settings.write',
+  'comment.read',
+  'comment.write',
+  'comment.moderate',
   /** Hosted only; never granted locally. */
   'project.share',
 ] as const
@@ -35,6 +38,8 @@ export interface Scope {
 
 export interface IdentityPort {
   current(): Identity
+  /** The local app asks for a name the first time someone comments. */
+  update?(patch: Partial<Identity>): void
   capabilities(scope?: Scope): CapabilitySet
   onChange(cb: () => void): () => void
 }

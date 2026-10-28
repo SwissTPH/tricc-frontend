@@ -11,6 +11,8 @@ import { useCanWrite, useMutate, useProjectSnapshot } from '../runtime/context.j
 import { ConfirmDelete, Dialog } from '../components/Dialog.js'
 import { draggingFiles, formatBytes, imageFiles, imageUrl, prepareImage, useAddImages } from './images.js'
 import { useEditorPreferences } from '../runtime/context.js'
+import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
 
 /**
  * The image library (feature/20261012-images.md §5): every picture of the project, what uses
@@ -60,7 +62,7 @@ export function MediaView({ onOpenConcept }: { onOpenConcept?: (key: ConceptKey)
     >
       <header className="tricc-editor__header">
         <h1 id="media-heading">Media</h1>
-        <input
+        <Input size="sm"
           type="search"
           data-testid="media-search"
           aria-label="Find a picture"
@@ -70,9 +72,15 @@ export function MediaView({ onOpenConcept }: { onOpenConcept?: (key: ConceptKey)
         />
         {canWrite && (
           <>
-            <button type="button" data-testid="media-add" onClick={() => fileRef.current?.click()}>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              data-testid="media-add"
+              onClick={() => fileRef.current?.click()}
+            >
               + Pictures
-            </button>
+            </Button>
             <input
               ref={fileRef}
               type="file"
@@ -184,15 +192,33 @@ function MediaTile({
       </span>
       {canWrite && (
         <span className="tricc-media__actions">
-          <button type="button" data-testid={`media-rename-${image.id}`} onClick={onRename}>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            data-testid={`media-rename-${image.id}`}
+            onClick={onRename}
+          >
             Rename
-          </button>
-          <button type="button" data-testid={`media-replace-${image.id}`} onClick={() => replaceRef.current?.click()}>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            data-testid={`media-replace-${image.id}`}
+            onClick={() => replaceRef.current?.click()}
+          >
             Replace
-          </button>
-          <button type="button" data-testid={`media-delete-${image.id}`} onClick={onDelete}>
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            type="button"
+            data-testid={`media-delete-${image.id}`}
+            onClick={onDelete}
+          >
             Delete
-          </button>
+          </Button>
           <input
             ref={replaceRef}
             type="file"
@@ -237,7 +263,7 @@ function RenameImage({ id, onClose }: { id: string; onClose: () => void }) {
         }}
       >
         <label htmlFor="media-rename-name">Name</label>
-        <input
+        <Input
           id="media-rename-name"
           data-testid="media-rename-name"
           value={name}
@@ -247,12 +273,23 @@ function RenameImage({ id, onClose }: { id: string; onClose: () => void }) {
         <p className="tricc-nav__note">The file is renamed too, and every text showing it follows.</p>
         {problem && <p role="alert">{problem}</p>}
         <div className="tricc-library-modal__actions">
-          <button type="submit" data-testid="media-rename-save" disabled={Boolean(problem)}>
+          <Button
+            size="sm"
+            type="submit"
+            data-testid="media-rename-save"
+            disabled={Boolean(problem)}
+          >
             Save
-          </button>
-          <button type="button" data-testid="media-rename-cancel" onClick={onClose}>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            data-testid="media-rename-cancel"
+            onClick={onClose}
+          >
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
     </Dialog>

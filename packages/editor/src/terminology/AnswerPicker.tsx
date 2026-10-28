@@ -3,6 +3,7 @@ import {
   defaultCodeSystem,
   defaultConceptType,
   optionConceptKey,
+  toName,
   type ConceptKey,
   type Project,
   type SelectOption,
@@ -11,6 +12,7 @@ import {
 import { useProjectSnapshot } from '../runtime/context.js'
 import { Typeahead, type TypeaheadOption } from '../components/Typeahead.js'
 import { ConceptDialog } from './ConceptDialog.js'
+import { Button } from '../components/ui/button.js'
 
 /**
  * Add an answer to a question: find its concept in the dictionary, or create a new one.
@@ -35,7 +37,13 @@ export function AnswerPicker({
     // No default CodeSystem yet means the dialog just created it for this concept.
     const current = defaultCodeSystem(project)
     const inDefault = !current || current.url === key.system
-    onAdd(inDefault ? { id, name: key.code } : { id, name: key.code, concept: { system: key.system, code: key.code } })
+    // A code that is not a valid name (`high risk`) keeps its concept: the name no longer matches it.
+    const name = toName(key.code)
+    onAdd(
+      inDefault && name === key.code
+        ? { id, name }
+        : { id, name, concept: { system: key.system, code: key.code } },
+    )
   }
 
   return (
@@ -51,9 +59,15 @@ export function AnswerPicker({
           add({ system: id.slice(0, at), code: id.slice(at + 1) })
         }}
       />
-      <button type="button" data-testid="add-option-new" onClick={() => setCreating(true)}>
+      <Button
+        variant="outline"
+        size="sm"
+        type="button"
+        data-testid="add-option-new"
+        onClick={() => setCreating(true)}
+      >
         New answer
-      </button>
+      </Button>
       {creating && (
         <ConceptDialog
           target={{ draft: { conceptType: defaultConceptType('option', node.type), dataType: 'coded' } }}

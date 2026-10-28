@@ -9,7 +9,7 @@ import {
   type ProjectRef,
   type ProjectRepository,
 } from '@tricc/core'
-import { Dialog } from '@tricc/editor'
+import { Button, Dialog, Input, Textarea } from '@tricc/editor'
 import type { LocalRuntime } from '../adapters.js'
 import {
   asProjectFiles,
@@ -66,7 +66,7 @@ function TokenField({
     <div className="tricc-repo__token">
       <label htmlFor="repo-token">
         Access token for {new URL(origin).host}
-        <input
+        <Input
           id="repo-token"
           type="password"
           autoComplete="off"
@@ -179,9 +179,15 @@ export function ImportFromRepoButton({
   const [openDialog, setOpenDialog] = useState(false)
   return (
     <>
-      <button type="button" data-testid="import-repo" onClick={() => setOpenDialog(true)}>
+      <Button
+        variant="outline"
+        size="sm"
+        type="button"
+        data-testid="import-repo"
+        onClick={() => setOpenDialog(true)}
+      >
         Import from GitHub or GitLab…
-      </button>
+      </Button>
       {openDialog && (
         <ImportFromRepoDialog onImport={onImport} onClose={() => setOpenDialog(false)} />
       )}
@@ -275,7 +281,7 @@ function ImportFromRepoDialog({
       >
         <label htmlFor="repo-url">
           Link to the project folder
-          <input
+          <Input
             id="repo-url"
             data-testid="repo-url"
             value={url}
@@ -330,7 +336,7 @@ function ImportFromRepoDialog({
             </label>
             <label htmlFor="repo-path">
               Folder
-              <input
+              <Input
                 id="repo-path"
                 data-testid="repo-path"
                 value={path}
@@ -352,17 +358,22 @@ function ImportFromRepoDialog({
           </p>
         )}
         <div className="tricc-library-modal__actions">
-          <button type="button" onClick={onClose}>
+          <Button variant="outline" size="sm" type="button" onClick={onClose}>
             Cancel
-          </button>
+          </Button>
           {found ? (
-            <button type="submit" data-testid="repo-import" disabled={busy}>
+            <Button size="sm" type="submit" data-testid="repo-import" disabled={busy}>
               {busy ? 'Importing…' : 'Import'}
-            </button>
+            </Button>
           ) : (
-            <button type="submit" data-testid="repo-look" disabled={busy || !parsed || !hostKind}>
+            <Button
+              size="sm"
+              type="submit"
+              data-testid="repo-look"
+              disabled={busy || !parsed || !hostKind}
+            >
               {busy ? 'Looking…' : 'Find the project'}
-            </button>
+            </Button>
           )}
         </div>
       </form>
@@ -575,16 +586,20 @@ export function ChooseCopyDialog({
         )}
         <div className="tricc-library-modal__actions">
           {state && (
-            <button
+            <Button
+              variant={pending.length > 0 ? 'default' : 'outline'}
+              size="sm"
               type={pending.length > 0 ? 'submit' : 'button'}
               data-testid="choose-copy-continue"
               onClick={onContinue}
               disabled={busy}
             >
               {pending.length > 0 ? 'Continue with my changes' : 'Keep this copy'}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
+            variant={state && pending.length > 0 ? 'outline' : 'default'}
+            size="sm"
             type={state && pending.length > 0 ? 'button' : 'submit'}
             data-testid="choose-copy-load"
             disabled={busy}
@@ -600,7 +615,7 @@ export function ChooseCopyDialog({
             }}
           >
             {busy ? 'Loading…' : `Load ${branch}`}
-          </button>
+          </Button>
         </div>
       </div>
     </Dialog>
@@ -645,7 +660,9 @@ export function RepoTools({
       </a>
       {inBrowser && (
         <>
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
             data-testid="repo-switch"
             onClick={async () => {
@@ -655,10 +672,16 @@ export function RepoTools({
             }}
           >
             Branch…
-          </button>
-          <button type="button" data-testid="propose-changes" onClick={() => setDialog('propose')}>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            data-testid="propose-changes"
+            onClick={() => setDialog('propose')}
+          >
             Propose changes…
-          </button>
+          </Button>
         </>
       )}
       {dialog === 'branch' && check && (
@@ -930,7 +953,7 @@ function ProposeDialog({
                   <>
                     <label htmlFor="propose-title-input">
                       Title
-                      <input
+                      <Input
                         id="propose-title-input"
                         data-testid="propose-title"
                         value={title}
@@ -939,7 +962,7 @@ function ProposeDialog({
                     </label>
                     <label htmlFor="propose-body">
                       Description
-                      <textarea
+                      <Textarea
                         id="propose-body"
                         data-testid="propose-body"
                         rows={5}
@@ -959,18 +982,23 @@ function ProposeDialog({
           </p>
         )}
         <div className="tricc-library-modal__actions">
-          <button type="button" onClick={onClose}>
+          <Button variant="outline" size="sm" type="button" onClick={onClose}>
             {done ? 'Close' : 'Cancel'}
-          </button>
+          </Button>
           {state && !done && error && (
-            <button type="button" onClick={() => setAttempt((n) => n + 1)}>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => setAttempt((n) => n + 1)}
+            >
               Try again
-            </button>
+            </Button>
           )}
           {state && !done && (
-            <button
-              // Not in a form: the type only gives it the primary look.
-              type="submit"
+            <Button
+              size="sm"
+              type="button"
               data-testid="propose-create"
               disabled={busy || !proposal || changes.length === 0 || !title.trim()}
               onClick={() => void create()}
@@ -980,7 +1008,7 @@ function ProposeDialog({
                 : proposal && !proposal.createBranch
                   ? `Update the ${word}`
                   : `Create ${word}`}
-            </button>
+            </Button>
           )}
         </div>
       </div>

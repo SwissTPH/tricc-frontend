@@ -16,6 +16,8 @@ import { draggingFiles, imageFiles, useAddImages } from '../media/images.js'
 import { withPictureFirst } from '../media/attach.js'
 import { TextImage } from '../text/RichTextField.js'
 import { ConceptDialog, type ConceptTarget } from './ConceptDialog.js'
+import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
 
 /**
  * A data dictionary: its concepts in one list, with code, display and questionnaire text.
@@ -65,7 +67,7 @@ export function DictionaryView({
         <h1 id="dictionary-heading">
           Data dictionary{dictionary ? <span data-testid="dictionary-id"> — {dictionary.id}</span> : null}
         </h1>
-        <input
+        <Input size="sm"
           type="search"
           data-testid="concept-search"
           aria-label="Find a concept"
@@ -74,9 +76,15 @@ export function DictionaryView({
           onChange={(e) => setQuery(e.target.value)}
         />
         {canWrite && (
-          <button type="button" data-testid="concept-add" onClick={() => setCreating(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            data-testid="concept-add"
+            onClick={() => setCreating(true)}
+          >
             + Concept
-          </button>
+          </Button>
         )}
       </header>
       {dictionary?.kind === 'calculate' && (

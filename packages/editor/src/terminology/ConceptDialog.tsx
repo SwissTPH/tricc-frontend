@@ -26,6 +26,9 @@ import { RichTextField } from '../text/RichTextField.js'
 import { ensureDictionary } from './codeSystems.js'
 import { draggingFiles, imageFiles, useAddImages } from '../media/images.js'
 import { withPictureFirst } from '../media/attach.js'
+import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
+import { Textarea } from '../components/ui/textarea.js'
 
 const CODE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 const USE_LABELS: Record<DesignationUse, string> = {
@@ -227,7 +230,7 @@ export function ConceptDialog({
           )}
 
           <label htmlFor="concept-code">Code</label>
-          <input
+          <Input
             id="concept-code"
             data-testid="concept-code"
             value={draft.code}
@@ -237,7 +240,7 @@ export function ConceptDialog({
           />
 
           <label htmlFor="concept-display">Display</label>
-          <input
+          <Input
             id="concept-display"
             data-testid="concept-display"
             value={draft.display ?? ''}
@@ -273,7 +276,7 @@ export function ConceptDialog({
           />
 
           <label htmlFor="concept-definition">Definition</label>
-          <textarea
+          <Textarea
             id="concept-definition"
             data-testid="concept-definition"
             rows={2}
@@ -315,7 +318,7 @@ export function ConceptDialog({
           </select>
 
           <label htmlFor="concept-unit">Unit</label>
-          <input
+          <Input
             id="concept-unit"
             data-testid="concept-unit"
             value={draft.unit ?? ''}
@@ -323,7 +326,7 @@ export function ConceptDialog({
             onChange={(e) => set({ unit: e.target.value })}
           />
           <label htmlFor="concept-target-resource">Stored in — resource</label>
-          <input
+          <Input
             id="concept-target-resource"
             data-testid="concept-target-resource"
             value={draft.targetResource ?? ''}
@@ -331,7 +334,7 @@ export function ConceptDialog({
             onChange={(e) => set({ targetResource: e.target.value })}
           />
           <label htmlFor="concept-target-path">Stored in — path</label>
-          <input
+          <Input
             id="concept-target-path"
             data-testid="concept-target-path"
             value={draft.targetPath ?? ''}
@@ -381,12 +384,12 @@ export function ConceptDialog({
                         </select>
                       </td>
                       <td>
-                        <input
+                        <Input
                           data-testid={`concept-text-${index}-language`}
                           aria-label="Language"
                           placeholder="fr"
                           list="concept-languages"
-                          size={4}
+                          htmlSize={4}
                           value={d.language}
                           disabled={readOnly}
                           onChange={(e) => updateAt(index, { ...d, language: e.target.value })}
@@ -432,7 +435,7 @@ export function ConceptDialog({
                             onChange={(t) => updateAt(index, withDesignationText(d, t))}
                           />
                         ) : (
-                          <input
+                          <Input
                             data-testid={`concept-text-${index}-value`}
                             aria-label="Text"
                             value={d.value}
@@ -443,9 +446,10 @@ export function ConceptDialog({
                       </td>
                       <td>
                         {!readOnly && (
-                          <button
+                          <Button
+                            variant="destructive"
+                            size="sm"
                             type="button"
-                            className="tricc-danger-text"
                             data-testid={`concept-text-${index}-remove`}
                             onClick={() => {
                               if (index < opened.current) opened.current -= 1
@@ -453,7 +457,7 @@ export function ConceptDialog({
                             }}
                           >
                             Remove
-                          </button>
+                          </Button>
                         )}
                       </td>
                     </tr>
@@ -464,7 +468,9 @@ export function ConceptDialog({
           )}
           {!readOnly && (
             <p>
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 type="button"
                 data-testid="concept-text-add"
                 onClick={() => {
@@ -480,7 +486,7 @@ export function ConceptDialog({
                 }}
               >
                 Add a translation or an intervention text
-              </button>
+              </Button>
             </p>
           )}
 
@@ -496,7 +502,10 @@ export function ConceptDialog({
                     const node = activity?.nodes[u.nodeId]
                     return (
                       <li key={`${u.activityId}-${u.nodeId}-${u.optionId ?? ''}`}>
-                        <button
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="h-auto whitespace-normal p-0 text-left"
                           type="button"
                           data-testid={`concept-use-${u.activityId}-${u.nodeId}`}
                           disabled={!onOpenNode}
@@ -507,7 +516,7 @@ export function ConceptDialog({
                         >
                           {resolve(activity?.title, lang, lang) ?? u.activityId} — {node?.name ?? u.nodeId}
                           {u.optionId ? ' (answer)' : ''}
-                        </button>
+                        </Button>
                       </li>
                     )
                   })}
@@ -523,9 +532,10 @@ export function ConceptDialog({
           )}
           <div className="tricc-library-modal__actions">
             {!isNew && canWrite && (
-              <button
+              <Button
+                variant="destructive"
+                size="sm"
                 type="button"
-                className="tricc-danger-text"
                 data-testid="concept-delete"
                 disabled={uses.length > 0}
                 title={uses.length > 0 ? `Used by ${uses.length}. Remove those uses first.` : 'Delete this concept'}
@@ -535,16 +545,27 @@ export function ConceptDialog({
                 }}
               >
                 Delete
-              </button>
+              </Button>
             )}
             {canWrite && (
-              <button type="submit" data-testid="concept-dialog-save" disabled={Boolean(error)}>
+              <Button
+                size="sm"
+                type="submit"
+                data-testid="concept-dialog-save"
+                disabled={Boolean(error)}
+              >
                 Save
-              </button>
+              </Button>
             )}
-            <button type="button" data-testid="concept-dialog-cancel" onClick={onClose}>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              data-testid="concept-dialog-cancel"
+              onClick={onClose}
+            >
               {canWrite ? 'Cancel' : 'Close'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

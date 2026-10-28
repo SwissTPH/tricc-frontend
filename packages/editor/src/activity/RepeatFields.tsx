@@ -1,4 +1,5 @@
 import type { TriccNode } from '@tricc/core'
+import { Input } from '../components/ui/input.js'
 
 /**
  * `repeat` and `instance` of a node (docs/tricc-elements.md in tricc_oo, "Instance vs repeat"):
@@ -23,7 +24,7 @@ export function RepeatFields({
   return (
     <>
       <label htmlFor={`${idPrefix}-repeat`}>Repeat</label>
-      <input
+      <Input size="sm"
         id={`${idPrefix}-repeat`}
         type="number"
         min={-1}
@@ -44,7 +45,7 @@ export function RepeatFields({
         -1 collects it here only, inheriting nothing.
       </p>
       <label htmlFor={`${idPrefix}-instance`}>Instance</label>
-      <input
+      <Input size="sm"
         id={`${idPrefix}-instance`}
         type="number"
         min={-1}

@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { Input } from './ui/input.js'
 
 export interface TypeaheadOption {
   id: string
@@ -134,7 +135,7 @@ export function Typeahead({
   return (
     <div className="tricc-typeahead" ref={rootRef}>
       <label htmlFor={inputId}>{label}</label>
-      <input
+      <Input size="sm"
         id={inputId}
         data-testid={testId}
         role="combobox"

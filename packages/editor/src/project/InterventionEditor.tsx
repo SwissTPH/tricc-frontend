@@ -14,6 +14,9 @@ import { useMutate } from '../runtime/context.js'
 import { CqlExpressionField } from '../cql/CqlExpressionField.js'
 import { Typeahead, type TypeaheadOption } from '../components/Typeahead.js'
 import { BinIcon, ConfirmDelete, Dialog, GearIcon, mergeExpression } from '../components/Dialog.js'
+import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
+import { ActivityDiscussMarks } from '../discussion/DiscussionMark.js'
 
 /**
  * An intervention card.
@@ -71,9 +74,10 @@ export function InterventionEditor({
     <li className="tricc-intervention-card" data-testid={`intervention-${intervention.id}`}>
       <header className="tricc-intervention-card__header">
         <h3>{title}</h3>
-        <button
+        <Button
+          variant="outline"
+          size="icon-sm"
           type="button"
-          className="tricc-icon-button"
           data-testid={`configure-intervention-${intervention.id}`}
           aria-label={`Configure ${title}`}
           title="Start, title, and who this is for"
@@ -83,7 +87,7 @@ export function InterventionEditor({
           }}
         >
           <GearIcon />
-        </button>
+        </Button>
       </header>
       <p data-testid={`intervention-${intervention.id}-trigger`}>
         Starts: {intervention.trigger?.mode ?? 'on-demand'}
@@ -98,16 +102,16 @@ export function InterventionEditor({
       )}
 
       {processes.length === 0 && (
-        <p data-testid={`iv-no-activities-${intervention.id}`}>
-          No processes yet. Add one with +.
-        </p>
+        <p data-testid={`iv-no-activities-${intervention.id}`}>No processes yet. Add one with +.</p>
       )}
       <ol className="tricc-process-rows" data-testid={`iv-activities-${intervention.id}`}>
         {processes.map((ref, index) => {
           const activity = project.activities[ref.ref]
           const label = resolve(activity?.title, lang, lang) ?? ref.ref
           const process = activity ? processOf(activity) : undefined
-          const others = (sharedWith?.get(ref.ref) ?? []).filter((other) => other !== intervention.id)
+          const others = (sharedWith?.get(ref.ref) ?? []).filter(
+            (other) => other !== intervention.id,
+          )
           return (
             <li
               key={ref.ref}
@@ -133,11 +137,13 @@ export function InterventionEditor({
                   </span>
                 )}
               </button>
+              <ActivityDiscussMarks activityId={ref.ref} />
               {!readOnly && (
                 <span className="tricc-process-row__actions">
-                  <button
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
                     type="button"
-                    className="tricc-icon-button"
                     aria-label={`Move ${ref.ref} earlier`}
                     data-testid={`move-up-${intervention.id}-${ref.ref}`}
                     disabled={index === 0}
@@ -150,10 +156,11 @@ export function InterventionEditor({
                     }
                   >
                     ↑
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
                     type="button"
-                    className="tricc-icon-button"
                     aria-label={`Move ${ref.ref} later`}
                     data-testid={`move-down-${intervention.id}-${ref.ref}`}
                     disabled={index === processes.length - 1}
@@ -166,10 +173,12 @@ export function InterventionEditor({
                     }
                   >
                     ↓
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    className="text-destructive hover:text-destructive"
                     type="button"
-                    className="tricc-icon-button tricc-icon-button--danger"
                     aria-label={`Remove ${ref.ref}`}
                     data-testid={`remove-activity-${intervention.id}-${ref.ref}`}
                     onClick={() =>
@@ -179,7 +188,7 @@ export function InterventionEditor({
                     }
                   >
                     <BinIcon />
-                  </button>
+                  </Button>
                 </span>
               )}
             </li>
@@ -187,9 +196,11 @@ export function InterventionEditor({
         })}
       </ol>
       {!readOnly && (
-        <button
+        <Button
+          variant="outline"
+          size="icon-sm"
+          className="tricc-intervention-card__add"
           type="button"
-          className="tricc-icon-button tricc-intervention-card__add"
           data-testid={`add-process-to-${intervention.id}`}
           aria-label="Add a process"
           title="Add a process"
@@ -199,7 +210,7 @@ export function InterventionEditor({
           }}
         >
           +
-        </button>
+        </Button>
       )}
 
       {settingsOpen && (
@@ -212,9 +223,13 @@ export function InterventionEditor({
           onDelete={readOnly ? undefined : () => setConfirmingDelete(true)}
           deleteTestId={`delete-intervention-${intervention.id}`}
         >
-          <div data-testid={`intervention-editor-${intervention.id}`} className="tricc-intervention">
+          <div
+            data-testid={`intervention-editor-${intervention.id}`}
+            className="tricc-intervention"
+          >
             <label htmlFor={`iv-title-${intervention.id}`}>Title</label>
-            <input
+            <Input
+              size="sm"
               id={`iv-title-${intervention.id}`}
               data-testid={`iv-title-${intervention.id}`}
               value={resolve(intervention.title, lang, lang) ?? ''}
@@ -225,7 +240,8 @@ export function InterventionEditor({
             />
 
             <label htmlFor={`iv-name-${intervention.id}`}>Name</label>
-            <input
+            <Input
+              size="sm"
               id={`iv-name-${intervention.id}`}
               data-testid={`iv-name-${intervention.id}`}
               value={intervention.name ?? ''}
@@ -259,7 +275,8 @@ export function InterventionEditor({
             </select>
 
             <label htmlFor={`iv-intent-${intervention.id}`}>Applies when — in words</label>
-            <input
+            <Input
+              size="sm"
               id={`iv-intent-${intervention.id}`}
               data-testid={`iv-intent-${intervention.id}`}
               value={resolve(intervention.applicability?.intent, lang, lang) ?? ''}
@@ -333,7 +350,8 @@ export function InterventionEditor({
           />
           <div className="tricc-add-process">
             <label htmlFor={`process-name-${intervention.id}`}>New process</label>
-            <input
+            <Input
+              size="sm"
               id={`process-name-${intervention.id}`}
               list={`cpg-processes-${intervention.id}`}
               data-testid={`process-name-${intervention.id}`}
@@ -346,7 +364,8 @@ export function InterventionEditor({
                 <option key={p} value={p} />
               ))}
             </datalist>
-            <button
+            <Button
+              size="sm"
               type="button"
               data-testid={`create-process-activity-${intervention.id}`}
               disabled={newProcess.trim() === ''}
@@ -368,7 +387,7 @@ export function InterventionEditor({
               }}
             >
               Create process activity
-            </button>
+            </Button>
           </div>
         </Dialog>
       )}

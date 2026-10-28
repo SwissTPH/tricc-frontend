@@ -61,25 +61,6 @@
   flex: 0 0 auto;
 }
 
-.tricc-history button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid #cbd5e1;
-  border-radius: 5px;
-  background: #fff;
-  color: #0f172a;
-  cursor: pointer;
-}
-
-.tricc-history button:disabled {
-  color: #cbd5e1;
-  cursor: default;
-}
-
 .tricc-editor__body {
   display: grid;
   /* Canvas and the right-hand inspector. Add a node lives in the Nodes tab. */
@@ -183,6 +164,14 @@
   background: #fff;
 }
 
+.tricc-marquee {
+  position: absolute;
+  z-index: 5;
+  border: 1px solid #2563eb;
+  background: rgb(37 99 235 / 12%);
+  pointer-events: none;
+}
+
 .tricc-canvas[data-dropping='true'] {
   box-shadow: inset 0 0 0 2px #0f172a;
 }
@@ -221,8 +210,7 @@
   gap: 8px;
 }
 
-.tricc-branch-modal__choices button,
-.tricc-branch-modal__cancel {
+.tricc-branch-modal__choices button {
   font-size: 13px;
   padding: 6px 12px;
   border-radius: 6px;
@@ -231,13 +219,11 @@
   cursor: pointer;
 }
 
-.tricc-branch-modal__choices button:hover,
-.tricc-branch-modal__cancel:hover {
+.tricc-branch-modal__choices button:hover {
   background: #f8fafc;
 }
 
-.tricc-branch-modal__choices button:focus-visible,
-.tricc-branch-modal__cancel:focus-visible {
+.tricc-branch-modal__choices button:focus-visible {
   outline: 2px solid #0f172a;
   outline-offset: 2px;
 }
@@ -253,7 +239,6 @@
 }
 
 .tricc-branch-modal__cancel {
-  display: block;
   margin-top: 12px;
 }
 
@@ -373,43 +358,6 @@
   font-weight: 600;
 }
 
-.tricc-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid #cbd5e1;
-  border-radius: 5px;
-  background: #fff;
-  color: #334155;
-  font: inherit;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.tricc-icon-button:disabled {
-  color: #cbd5e1;
-  cursor: default;
-}
-
-.tricc-icon-button--danger {
-  color: #b91c1c;
-}
-
-.tricc-icon-button--primary {
-  background: #0f172a;
-  border-color: #0f172a;
-  color: #fff;
-}
-
-.tricc-library-modal__actions button.tricc-danger-text {
-  background: #b91c1c;
-  border-color: #b91c1c;
-  color: #fff;
-}
-
 .tricc-import-note {
   margin: 8px 0 0;
   font-size: 13px;
@@ -465,7 +413,8 @@
   color: #64748b;
 }
 
-.tricc-library-modal__card input {
+/* Text fields are shadcn inputs and bring their own look; this styles what is left. */
+.tricc-library-modal__card input:where(:not([data-slot='input'])) {
   display: block;
   width: 100%;
   margin-top: 4px;
@@ -489,32 +438,14 @@
   margin-top: 14px;
 }
 
-.tricc-library-modal__actions button {
-  font-size: 13px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  cursor: pointer;
-}
-
-.tricc-library-modal__actions button[type='submit'] {
-  background: #0f172a;
-  border-color: #0f172a;
-  color: #fff;
-}
-
-.tricc-library-modal__actions button:disabled {
-  background: #e2e8f0;
-  border-color: #e2e8f0;
-  color: #94a3b8;
-  cursor: default;
-}
-
-.tricc-library-modal__actions button:focus-visible,
-.tricc-library-modal__card input:focus-visible {
+.tricc-library-modal__card input:where(:not([data-slot='input'])):focus-visible {
   outline: 2px solid #0f172a;
   outline-offset: 2px;
+}
+
+.tricc-library-modal__card [data-slot='input'],
+.tricc-library-modal__card [data-slot='textarea'] {
+  margin-top: 4px;
 }
 
 .tricc-canvas .react-flow__attribution {
@@ -593,7 +524,53 @@
   border-radius: 24px;
   width: 160px;
 }
+/* A true rhombus: the box itself is invisible and two clipped layers draw the stroke and
+   the fill. Width stays at the layout's 200px; handles land on the top and bottom tips. */
 .tricc-node--diamond {
+  --diamond-stroke: var(--group-colour);
+  --diamond-stroke-width: 2px;
+  border: none;
+  background: transparent;
+  min-height: 100px;
+  padding: 18px 46px;
+  justify-content: center;
+  text-align: center;
+  isolation: isolate;
+}
+.tricc-node--diamond::before,
+.tricc-node--diamond::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.tricc-node--diamond::before {
+  inset: 0;
+  background: var(--diamond-stroke);
+}
+.tricc-node--diamond::after {
+  inset: var(--diamond-stroke-width);
+  background: var(--group-bg, #fff);
+}
+.tricc-node--diamond .tricc-node__label {
+  -webkit-line-clamp: min(var(--tricc-label-lines, 3), 2);
+  line-clamp: min(var(--tricc-label-lines, 3), 2);
+}
+.tricc-node.tricc-node--diamond.is-selected {
+  outline: none;
+  --diamond-stroke: #0f172a;
+  --diamond-stroke-width: 3px;
+}
+.tricc-node.tricc-node--diamond.has-error {
+  --diamond-stroke: var(--tricc-error);
+  --diamond-stroke-width: 3px;
+}
+.tricc-node.tricc-node--diamond.has-warning {
+  border-style: none;
+  --diamond-stroke: var(--tricc-warning);
+}
+/* BPMN style draws a decision as a rectangle with a double border. */
+.tricc-node--decision {
   border-radius: 4px;
   border-style: solid;
   border-width: 1.5px;
@@ -670,11 +647,30 @@
   flex: 0 0 auto;
 }
 
-.tricc-node--answers {
+.tricc-node--answers,
+.tricc-node--acknowledge {
   flex-direction: column;
   align-items: stretch;
   width: 220px;
   gap: 6px;
+}
+
+.tricc-node__confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--group-colour) 35%, white);
+  font-size: 11px;
+  color: #334155;
+}
+
+.tricc-node__radio {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  flex: 0 0 auto;
 }
 
 .tricc-node__head {
@@ -769,6 +765,9 @@
 
 .tricc-edge__label {
   position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 10px;
   padding: 1px 5px;
   border-radius: 3px;
@@ -800,9 +799,8 @@
   margin: 8px 0 2px;
 }
 
-.tricc-inspector input,
-.tricc-inspector select,
-.tricc-inspector textarea {
+.tricc-inspector input:where(:not([data-slot='input'])),
+.tricc-inspector select {
   width: 100%;
   box-sizing: border-box;
   padding: 4px 6px;
@@ -810,11 +808,6 @@
   border-radius: 4px;
   font: inherit;
   font-size: 12px;
-}
-
-.tricc-inspector textarea {
-  min-height: 4.5em;
-  resize: vertical;
 }
 
 .tricc-cql__input {
@@ -882,8 +875,6 @@
 
 .tricc-cql__card button {
   margin-top: 6px;
-  font: inherit;
-  font-size: 12px;
 }
 
 .tricc-cql__keyword {
@@ -912,9 +903,8 @@
   margin: 4px 0 0;
 }
 
-.tricc-inspector input:disabled,
-.tricc-inspector select:disabled,
-.tricc-inspector textarea:disabled {
+.tricc-inspector input:where(:not([data-slot='input'])):disabled,
+.tricc-inspector select:disabled {
   background: #f1f5f9;
   color: #64748b;
 }
@@ -1027,16 +1017,6 @@
   max-width: 340px;
 }
 
-.tricc-typeahead input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 4px 6px;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  font: inherit;
-  font-size: 12px;
-}
-
 .tricc-typeahead__list {
   position: absolute;
   z-index: 20;
@@ -1097,14 +1077,6 @@
   font-size: 11px;
   color: #64748b;
 }
-.tricc-editor__process input {
-  padding: 3px 6px;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  font: inherit;
-  font-size: 12px;
-}
-
 .tricc-ref-field {
   margin: 8px 0;
 }
@@ -1163,16 +1135,6 @@
 .tricc-called-by p {
   margin: 0;
   color: #64748b;
-}
-.tricc-link-button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--tricc-question);
-  font: inherit;
-  text-align: left;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 /* Data dictionary: the navigator tab, the concept page, and the card on a node. */
@@ -1458,6 +1420,7 @@
 
 /* Comments: sticky notes for authors, drawn but never converted. */
 .tricc-comment {
+  position: relative;
   width: 180px;
   min-height: 48px;
   padding: 8px 10px;
@@ -1480,7 +1443,7 @@
 .tricc-comment--pink { background: #fbd9e3; }
 .tricc-comment--grey { background: #e6e9ed; }
 .tricc-comment__text:empty::before {
-  content: 'Comment';
+  content: 'Sticky note';
   opacity: 0.5;
 }
 .tricc-edge--about path {
@@ -1490,6 +1453,7 @@
 
 /* Page groups: a titled frame behind its nodes; a section of the form once converted. */
 .tricc-group {
+  position: relative;
   width: 100%;
   height: 100%;
   border: 1.5px dashed #7d8b99;
@@ -1703,6 +1667,11 @@
 .tricc-image-picker__empty {
   color: #64748b;
 }
+.tricc-field-error {
+  color: var(--tricc-error);
+  font-size: 12px;
+  margin: 2px 0 0;
+}
 .tricc-image-picker__error {
   color: var(--tricc-error);
   font-size: 12px;
@@ -1810,4 +1779,126 @@
 .tricc-node__answer-none {
   flex: none;
   margin-left: 4px;
+}
+
+/* Discussion marks: a filled dot for open, a hollow ring for pending. */
+.tricc-discuss-marks {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  z-index: 4;
+  display: inline-flex;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.tricc-edge__label .tricc-discuss-marks {
+  position: static;
+  top: auto;
+  right: auto;
+}
+.tricc-discuss-marks__open,
+.tricc-discuss-marks__pending {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  display: inline-block;
+  box-sizing: border-box;
+}
+.tricc-discuss-marks__open {
+  background: #2563eb;
+  color: #fff;
+}
+.tricc-discuss-marks__pending {
+  /* Apricot fill with a dark rim. A white centre disappears on the canvas. */
+  background: #fdba74;
+  color: #7c2d12;
+  border: 2px solid #9a3412;
+  line-height: 14px;
+}
+.tricc-discussion__thread {
+  padding: 8px;
+  margin: 0 0 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+}
+.tricc-discussion__thread[data-highlight='true'] {
+  border-color: #2563eb;
+}
+.tricc-discussion__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.tricc-discussion__meta .tricc-discuss-marks__open,
+.tricc-discussion__meta .tricc-discuss-marks__pending {
+  position: static;
+}
+.tricc-discussion__status.is-settled {
+  color: #64748b;
+}
+.tricc-discussion__composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+}
+.tricc-discussion__start {
+  font-size: 12px;
+  font-weight: 600;
+}
+.tricc-discussion__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tricc-discuss-chip {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #1e293b;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tricc-discuss-chip--blue.is-selected { background: #2563eb; border-color: #2563eb; color: #fff; }
+.tricc-discuss-chip--green.is-selected { background: #16a34a; border-color: #16a34a; color: #fff; }
+.tricc-discuss-chip--pink.is-selected { background: #db2777; border-color: #db2777; color: #fff; }
+.tricc-discuss-chip--yellow.is-selected { background: #d97706; border-color: #d97706; color: #fff; }
+.tricc-discuss-chip--grey.is-selected { background: #64748b; border-color: #64748b; color: #fff; }
+.tricc-discuss-chip--blue:not(.is-selected) { color: #2563eb; border-color: #2563eb; }
+.tricc-discuss-chip--green:not(.is-selected) { color: #16a34a; border-color: #16a34a; }
+.tricc-discuss-chip--pink:not(.is-selected) { color: #db2777; border-color: #db2777; }
+.tricc-discuss-chip--yellow:not(.is-selected) { color: #d97706; border-color: #d97706; }
+.tricc-discuss-chip--grey:not(.is-selected) { color: #64748b; border-color: #64748b; }
+.tricc-discuss-button {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tricc-discuss-button__open { color: #2563eb; }
+.tricc-discuss-button__pending { color: #d97706; }
+.tricc-process-row__marks,
+.tricc-unassigned__marks {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+.tricc-process-row__marks .tricc-discuss-marks__open,
+.tricc-process-row__marks .tricc-discuss-marks__pending,
+.tricc-unassigned__marks .tricc-discuss-marks__open,
+.tricc-unassigned__marks .tricc-discuss-marks__pending {
+  position: static;
 }

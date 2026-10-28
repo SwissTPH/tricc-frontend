@@ -1,5 +1,13 @@
-import { COMMENT_COLORS, resolve, type Activity, type CanvasComment, type CommentColor } from '@tricc/core'
+import {
+  COMMENT_COLORS,
+  resolve,
+  type Activity,
+  type CanvasComment,
+  type CommentColor,
+} from '@tricc/core'
 import { useMutate } from '../runtime/context.js'
+import { Button } from '../components/ui/button.js'
+import { Textarea } from '../components/ui/textarea.js'
 
 const COLOR_LABEL: Record<CommentColor, string> = {
   yellow: 'Yellow',
@@ -33,10 +41,13 @@ export function CommentProperties({
   }
   return (
     <section aria-labelledby="comment-heading" data-testid="comment-properties">
-      <h2 id="comment-heading">Comment</h2>
-      <p>Only on the drawing, for authors. It is not part of the guideline and is never converted.</p>
+      <h2 id="comment-heading">Sticky note</h2>
+      <p>
+        Only on the drawing, for authors. It is not part of the guideline and is never converted.
+      </p>
       <label htmlFor="comment-text">Text</label>
-      <textarea
+      <Textarea
+        size="sm"
         id="comment-text"
         data-testid="comment-text"
         rows={4}
@@ -79,9 +90,10 @@ export function CommentProperties({
       </select>
       <p>Or drag from the comment's handle onto a node. The line it draws is not an edge.</p>
       {!readOnly && (
-        <button
+        <Button
+          variant="destructive"
+          size="sm"
           type="button"
-          className="tricc-danger-text"
           data-testid="comment-delete"
           onClick={() => {
             mutate((tx) => tx.removeComment(activityId, comment.id))
@@ -89,7 +101,7 @@ export function CommentProperties({
           }}
         >
           Delete comment
-        </button>
+        </Button>
       )}
     </section>
   )

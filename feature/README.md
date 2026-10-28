@@ -73,6 +73,16 @@ Drafts written from the 2026-10-08 review remarks. Suggested order:
 | [20261014-calculate-dictionary-on-import.md](./20261014-calculate-dictionary-on-import.md) | `@tricc/core`, `@tricc/editor`, `tricc_oo` | **Draft.** Imported diagnoses and proposed diagnoses get their concepts in the calculate dictionary; phase 2 does calculations, counts and sums once `tricc_oo` refills calculate labels. |
 | [20261015-git-host-import-and-pull-requests.md](./20261015-git-host-import-and-pull-requests.md) | `apps/local`, `@tricc/core` | **Implemented (local app).** Import a project folder from GitHub or GitLab (self-hosted too); propose changes as one pull / merge request per copy, applied file by file so nobody else's change is overwritten; reopening asks between the copy's changes and a branch. `tricc.yaml` `repository` says where the project lives. Personal access tokens, never stored by the hosted copy. |
 
+### Discussions and the hosted platform (2026-10-21)
+
+The **app** is built first. The **platform** is a separate repository (`tricc_platform`) and is
+specified here until that repo exists, then mirrored, as with `tricc_oo`.
+
+| Spec | Where | What it covers |
+|------|---------|----------------|
+| [20261021-discussions.md](./20261021-discussions.md) | this repo: `@tricc/core`, `@tricc/editor`, `apps/local` | **Draft. Build this next.** Discussions saved in the project (`discussions/`), attached to an element's id, with status, labels, a decision log in the files and a separate Markdown/CSV download. Sticky notes stay. Tagging, assigning and notifications are not in this spec. |
+| [20261021-hosted-platform.md](./20261021-hosted-platform.md) | `tricc_platform` (companion; this repo stays libraries plus the local app) | **Draft. After the app.** Accounts (Keycloak), organisations, project roles, live co-editing, tagging, assigning, in-app and email notifications, versions, security, privacy, operations. Discussions themselves are the app spec: the platform syncs them live and tells people. Library P0 is `20261013-hosting-groundwork.md`. |
+
 ### Companion spec in `tricc_oo`
 
 [`../../tricc_oo/feature/20260825-snippet-params-and-start-node.md`](../../tricc_oo/feature/20260825-snippet-params-and-start-node.md)
@@ -99,8 +109,10 @@ Rows marked **overridden** follow [20261008-authoring-continuation.md](./2026100
 | Environment seams | Every difference behind a port, with local adapters. Identity and capabilities threaded through the UI from day one. |
 | Concurrency | The project document is a **CRDT (Yjs)** from the start, so live collaboration is not a later rewrite. |
 | Distribution | Published to npm from the start; pre-1.0 until the API is proven against a second consumer. |
-| User management | **None.** No accounts, no authentication in the local shell — a display name in Preferences, used for authorship and presence. The prototype's `UserAccount.tsx` is deleted. |
-| Persistence | Local files only. No backend, no server. |
+| User management | **None in this repo.** No accounts, no authentication in the local shell — a display name in Preferences, used for authorship and presence. The prototype's `UserAccount.tsx` is deleted. Accounts live in `tricc_platform`. |
+| Persistence | Local files only in this repo. No backend, no server. |
+| Hosted platform | **Separate repo** (`tricc_platform`). This repo stays libraries plus `apps/local`. Restated 2026-10-21 after a brief monorepo draft. |
+| Discussions | **2026-10-21.** Saved in the project files (`discussions/`), so an export carries them. Built in this app first. Tagging people, assigning, live co-editing and notifications are platform-only. See `20261021-discussions.md`. |
 
 ### Who this is for
 

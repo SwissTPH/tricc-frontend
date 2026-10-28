@@ -1,6 +1,12 @@
 import * as Y from 'yjs'
 import type { Project } from '../model/types.js'
 import type { Capability, CapabilitySet } from '../ports/identity.js'
+import {
+  readDiscussions,
+  seedDiscussions,
+  DiscussionMutations,
+  type DiscussionActor,
+} from '../discussion/store.js'
 import { LOCAL_ORIGIN, projectFromDoc, projectToDoc } from './codec.js'
 import { Mutations } from './mutations.js'
 import { UndoController } from './undo.js'
@@ -28,31 +34,38 @@ export type Unsubscribe = () => void
  */
 export class ProjectDocument {
   readonly doc: Y.Doc
+  /** Discussions live here, so Ctrl+Z on the guideline never removes a comment. */
+  readonly discussionDoc: Y.Doc
   readonly undo: UndoController
   private readonly caps: () => CapabilitySet
   private cached: { version: number; value: Project } | undefined
   private version = 0
   private readonly listeners = new Set<() => void>()
 
-  private constructor(doc: Y.Doc, opts: ProjectDocumentOptions) {
+  private constructor(doc: Y.Doc, discussionDoc: Y.Doc, opts: ProjectDocumentOptions) {
     this.doc = doc
+    this.discussionDoc = discussionDoc
     this.caps = opts.capabilities ?? (() => ALL_CAPABILITIES)
     this.undo = new UndoController(doc, LOCAL_ORIGIN)
-    this.doc.on('afterTransaction', () => {
+    const bump = () => {
       this.version++
       this.cached = undefined
       for (const l of this.listeners) l()
-    })
+    }
+    this.doc.on('afterTransaction', bump)
+    this.discussionDoc.on('afterTransaction', bump)
   }
 
   static fromProject(project: Project, opts: ProjectDocumentOptions = {}): ProjectDocument {
     const doc = new Y.Doc()
     projectToDoc(project, doc)
-    return new ProjectDocument(doc, opts)
+    const discussionDoc = new Y.Doc()
+    seedDiscussions(project, discussionDoc)
+    return new ProjectDocument(doc, discussionDoc, opts)
   }
 
   static fromDoc(doc: Y.Doc, opts: ProjectDocumentOptions = {}): ProjectDocument {
-    return new ProjectDocument(doc, opts)
+    return new ProjectDocument(doc, new Y.Doc(), opts)
   }
 
   /**
@@ -62,8 +75,24 @@ export class ProjectDocument {
   snapshot(): Project {
     if (this.cached?.version === this.version) return this.cached.value
     const value = projectFromDoc(this.doc)
+    const extra = readDiscussions(this.discussionDoc)
+    if (extra.discussions) value.discussions = extra.discussions
+    if (extra.discussionLabels) value.discussionLabels = extra.discussionLabels
+    if (extra.discussionKeep) value.discussionKeep = extra.discussionKeep
     this.cached = { version: this.version, value }
     return value
+  }
+
+  /**
+   * Change a discussion. Requires `comment.write`. The guideline undo stack does not see it.
+   */
+  discuss<T>(actor: DiscussionActor, fn: (tx: DiscussionMutations) => T): T {
+    this.require('comment.write')
+    let result!: T
+    this.discussionDoc.transact(() => {
+      result = fn(new DiscussionMutations(this.discussionDoc, actor))
+    })
+    return result
   }
 
   /**
@@ -115,6 +144,7 @@ export class ProjectDocument {
     this.undo.destroy()
     this.listeners.clear()
     this.doc.destroy()
+    this.discussionDoc.destroy()
   }
 }
 
@@ -126,10 +156,20 @@ export const ALL_CAPABILITIES: CapabilitySet = new Set([
   'terminology.read',
   'terminology.write',
   'settings.write',
+  'comment.read',
+  'comment.write',
+  'comment.moderate',
 ]) as CapabilitySet
 
 export const READ_ONLY_CAPABILITIES: CapabilitySet = new Set([
   'project.read',
   'project.export',
   'terminology.read',
+  'comment.read',
+]) as CapabilitySet
+
+/** A reviewer can discuss and cannot change the guideline. */
+export const REVIEW_CAPABILITIES: CapabilitySet = new Set([
+  ...READ_ONLY_CAPABILITIES,
+  'comment.write',
 ]) as CapabilitySet

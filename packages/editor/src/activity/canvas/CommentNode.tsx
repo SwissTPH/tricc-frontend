@@ -1,5 +1,6 @@
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
 import type { CanvasComment } from '@tricc/core'
+import { ElementMark } from '../../discussion/ElementMark.js'
 
 export type CommentFlowNode = Node<{ comment: CanvasComment }, 'comment'>
 
@@ -25,10 +26,16 @@ export function CommentNodeView({ data, selected }: NodeProps<CommentFlowNode>) 
         ...(comment.width ? { width: comment.width } : {}),
         ...(comment.height ? { minHeight: comment.height } : {}),
       }}
-      title="Comment — only on the drawing, not in the guideline"
+      title="Sticky note — only on the drawing, not in the guideline"
     >
-      <span className="tricc-comment__text">{comment.text || 'Comment'}</span>
-      <Handle type="source" position={Position.Right} id="about" title="Drag onto the node this is about" />
+      <span className="tricc-comment__text">{comment.text || 'Sticky note'}</span>
+      <ElementMark kind="comment" id={comment.id} />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="about"
+        title="Drag onto the node this is about"
+      />
     </div>
   )
 }

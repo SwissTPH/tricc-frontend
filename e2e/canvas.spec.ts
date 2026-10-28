@@ -864,7 +864,7 @@ test('tidy layout spaces tall nodes without overlap', async ({ page }) => {
   expect(overlap).toBe(false)
 })
 
-test('a goto opens its activity from the details, and by Ctrl+click on the diagram', async ({ page }) => {
+test('a goto opens its activity from the details and from the button on the node', async ({ page }) => {
   await newActivity(page, 'Jump guideline')
   await page.getByTestId('nav-overview').click()
   await page.getByTestId('add-activity').click()
@@ -879,7 +879,7 @@ test('a goto opens its activity from the details, and by Ctrl+click on the diagr
   await page.getByTestId('goto-open').click()
   await expect(page.getByTestId('nav-activity-activity-2')).toHaveAttribute('aria-current', /true|page/)
   await page.getByTestId(`nav-activity-${FIRST_ACTIVITY}`).click()
-  await page.getByTestId('node-n-goto').click({ modifiers: ['ControlOrMeta'] })
+  await page.getByTestId('goto-follow-n-goto').click()
   await expect(page.getByTestId('nav-activity-activity-2')).toHaveAttribute('aria-current', /true|page/)
 })
 
@@ -1123,4 +1123,136 @@ test('a validation issue links to its node, in the activity and from the overvie
   await expect(page.getByTestId('activity-editor')).toBeVisible()
   await expect(node).toHaveClass(/selected/)
   await expect(page.getByTestId('tab-details')).toHaveAttribute('aria-selected', 'true')
+})
+
+test('a right-drag past 6 pixels selects the elements underneath', async ({ page }) => {
+  await newActivity(page, 'Marquee')
+  await placeNode(page, 'integer')
+  await placeNode(page, 'note')
+  const integer = page.locator('.react-flow__node[data-id="n-integer"]')
+  const note = page.locator('.react-flow__node[data-id="n-note"]')
+  await expect(integer).toBeVisible()
+  await expect(note).toBeVisible()
+
+  const canvas = (await page.getByTestId('activity-canvas').boundingBox())!
+  await page.mouse.click(canvas.x + 8, canvas.y + 8, { button: 'right' })
+  await expect(page.getByTestId('multi-selection')).toHaveCount(0)
+
+  const a = (await integer.boundingBox())!
+  const b = (await note.boundingBox())!
+  const left = Math.min(a.x, b.x) - 16
+  const top = Math.min(a.y, b.y) - 16
+  const right = Math.max(a.x + a.width, b.x + b.width) + 16
+  const bottom = Math.max(a.y + a.height, b.y + b.height) + 16
+  await page.mouse.move(left, top)
+  await page.mouse.down({ button: 'right' })
+  await page.mouse.move(right, bottom, { steps: 12 })
+  await expect(page.getByTestId('selection-marquee')).toBeVisible()
+  await page.mouse.up({ button: 'right' })
+
+  await expect(page.getByTestId('multi-selection')).toBeVisible()
+  await expect(integer).toHaveClass(/selected/)
+  await expect(note).toHaveClass(/selected/)
+
+  const before = (await note.boundingBox())!
+  const from = (await integer.boundingBox())!
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(from.x + from.width / 2 + 80, from.y + from.height / 2 + 48, { steps: 8 })
+  await page.mouse.up()
+  const after = (await note.boundingBox())!
+  expect(after.x - before.x).toBeGreaterThan(40)
+  expect(after.y - before.y).toBeGreaterThan(24)
+})
+
+test('a right-drag selects only elements that sit fully inside the rectangle', async ({ page }) => {
+  await newActivity(page, 'Partial')
+  await placeNode(page, 'integer')
+  const integer = page.locator('.react-flow__node[data-id="n-integer"]')
+  const box = (await integer.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down({ button: 'right' })
+  await page.mouse.move(box.x + box.width + 40, box.y + box.height + 40, { steps: 8 })
+  await page.mouse.up({ button: 'right' })
+  await expect(page.getByTestId('multi-selection')).toHaveCount(0)
+  await expect(integer).not.toHaveClass(/selected/)
+})
+
+test('Ctrl+click adds an element to the selection', async ({ page }) => {
+  await newActivity(page, 'Add')
+  await placeNode(page, 'integer')
+  await placeNode(page, 'note')
+  await placeNode(page, 'decimal')
+  const integer = page.locator('.react-flow__node[data-id="n-integer"]')
+  const note = page.locator('.react-flow__node[data-id="n-note"]')
+  const decimal = page.locator('.react-flow__node[data-id="n-decimal"]')
+  const a = (await integer.boundingBox())!
+  const b = (await note.boundingBox())!
+  await page.mouse.move(Math.min(a.x, b.x) - 12, Math.min(a.y, b.y) - 12)
+  await page.mouse.down({ button: 'right' })
+  await page.mouse.move(Math.max(a.x + a.width, b.x + b.width) + 12, Math.max(a.y + a.height, b.y + b.height) + 12, { steps: 10 })
+  await page.mouse.up({ button: 'right' })
+  await expect(integer).toHaveClass(/selected/)
+  await expect(note).toHaveClass(/selected/)
+  await expect(decimal).not.toHaveClass(/selected/)
+
+  await decimal.click({ modifiers: ['Control'] })
+  await expect(page.getByTestId('multi-selection')).toContainText('3 elements selected')
+  await expect(integer).toHaveClass(/selected/)
+  await expect(note).toHaveClass(/selected/)
+  await expect(decimal).toHaveClass(/selected/)
+})
+
+test('a right-drag at the canvas edge pans the diagram', async ({ page }) => {
+  await newActivity(page, 'Pan')
+  await placeNode(page, 'note')
+  const note = page.locator('.react-flow__node[data-id="n-note"]')
+  const canvas = (await page.getByTestId('activity-canvas').boundingBox())!
+  const before = (await note.boundingBox())!
+  await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2)
+  await page.mouse.down({ button: 'right' })
+  await page.mouse.move(canvas.x + canvas.width - 4, canvas.y + canvas.height / 2, { steps: 15 })
+  await page.waitForTimeout(250)
+  const during = (await note.boundingBox())!
+  await page.mouse.up({ button: 'right' })
+  expect(before.x - (during?.x ?? before.x)).toBeGreaterThan(20)
+})
+
+test('copy, cut and paste keep concepts and put a cut back with the same ids', async ({ page }) => {
+  await newActivity(page, 'Clipboard')
+  await placeNode(page, 'integer')
+  await placeNode(page, 'note')
+  const integer = page.locator('.react-flow__node[data-id="n-integer"]')
+  const note = page.locator('.react-flow__node[data-id="n-note"]')
+  const a = (await integer.boundingBox())!
+  const b = (await note.boundingBox())!
+  await page.mouse.move(Math.min(a.x, b.x) - 16, Math.min(a.y, b.y) - 16)
+  await page.mouse.down({ button: 'right' })
+  await page.mouse.move(Math.max(a.x + a.width, b.x + b.width) + 16, Math.max(a.y + a.height, b.y + b.height) + 16, { steps: 12 })
+  await page.mouse.up({ button: 'right' })
+  await expect(page.getByTestId('multi-selection')).toBeVisible()
+
+  await page.keyboard.press('Control+c')
+  await page.keyboard.press('Control+v')
+  await expect(integer).toBeVisible()
+  await expect(note).toBeVisible()
+  await expect(page.locator('.react-flow__node[data-id="n-integer-2"]')).toBeVisible()
+  await expect(page.locator('.react-flow__node[data-id="n-note-2"]')).toBeVisible()
+
+  await page.keyboard.press('Control+x')
+  await expect(page.locator('.react-flow__node[data-id="n-integer-2"]')).toHaveCount(0)
+  await expect(page.locator('.react-flow__node[data-id="n-note-2"]')).toHaveCount(0)
+  await expect(integer).toBeVisible()
+
+  await page.keyboard.press('Control+v')
+  await expect(page.locator('.react-flow__node[data-id="n-integer-2"]')).toBeVisible()
+  await expect(page.locator('.react-flow__node[data-id="n-note-2"]')).toBeVisible()
+
+  await page.getByTestId('nav-overview').click()
+  await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
+  await page.getByTestId('activity-canvas').click({ position: { x: 24, y: 80 } })
+  await page.keyboard.press('Control+v')
+  await expect(page.locator('.react-flow__node[data-id="n-integer-2"]')).toBeVisible()
+  await expect(page.locator('.react-flow__node[data-id="n-note-2"]')).toBeVisible()
 })

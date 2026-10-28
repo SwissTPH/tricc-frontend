@@ -13,6 +13,10 @@ import {
 import { useCanWrite, useMutate, useProjectSnapshot } from '../runtime/context.js'
 import { InterventionEditor } from './InterventionEditor.js'
 import { BinIcon, ConfirmDelete, GearIcon } from '../components/Dialog.js'
+import { LabelSettings } from '../discussion/LabelSettings.js'
+import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
+import { ActivityDiscussMarks } from '../discussion/DiscussionMark.js'
 
 /**
  * The layer -1 surface: which interventions are carried together, which activities make
@@ -75,27 +79,30 @@ export function ProjectOverview({
     <div data-testid="project-overview">
       <div className="tricc-overview__title">
         <h1>{resolve(project.title, lang, lang) ?? project.id}</h1>
-        <button
+        <Button
+          variant="outline"
+          size="icon-sm"
           type="button"
-          className="tricc-icon-button"
           data-testid="configure-project"
           aria-label="Project settings"
           title="Project settings"
           onClick={() => setSettingsOpen(true)}
         >
           <GearIcon />
-        </button>
+        </Button>
         {canWrite && onDelete && (
-          <button
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="text-destructive hover:text-destructive"
             type="button"
-            className="tricc-icon-button tricc-icon-button--danger"
             data-testid="delete-project"
             aria-label="Delete project"
             title="Delete project"
             onClick={() => setConfirmingDelete(true)}
           >
             <BinIcon />
-          </button>
+          </Button>
         )}
       </div>
       {settingsOpen && (
@@ -145,7 +152,9 @@ export function ProjectOverview({
           ))}
         </ul>
         {canWrite && (
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
             data-testid="add-intervention"
             onClick={() => {
@@ -161,7 +170,7 @@ export function ProjectOverview({
             }}
           >
             Add intervention
-          </button>
+          </Button>
         )}
       </section>
 
@@ -175,6 +184,7 @@ export function ProjectOverview({
             .map((id) => (
               <li key={id} data-testid={`unassigned-${id}`}>
                 {id}
+                <ActivityDiscussMarks activityId={id} />
               </li>
             ))}
         </ul>
@@ -226,7 +236,11 @@ export function ValidationSummary({
           .map((i, idx) => {
             const target = links ? issueTarget(project, i.location, links) : undefined
             return (
-              <li key={`${i.rule}-${idx}`} data-testid={`issue-${i.rule}`} data-severity={i.severity}>
+              <li
+                key={`${i.rule}-${idx}`}
+                data-testid={`issue-${i.rule}`}
+                data-severity={i.severity}
+              >
                 {i.message}
                 {target && (
                   <button
@@ -256,7 +270,11 @@ interface IssueTarget {
 }
 
 /** The most specific element an issue is about that the host can show, named for the author. */
-function issueTarget(project: Project, at: IssueLocation, links: IssueLinks): IssueTarget | undefined {
+function issueTarget(
+  project: Project,
+  at: IssueLocation,
+  links: IssueLinks,
+): IssueTarget | undefined {
   const lang = project.languages.default
   const activity = at.activityId ? project.activities[at.activityId] : undefined
   const nodeName = (id: string): string => {
@@ -296,7 +314,9 @@ function issueTarget(project: Project, at: IssueLocation, links: IssueLinks): Is
       go: () => links.concept?.(key),
     }
   }
-  const iv = at.interventionId ? project.interventions.find((i) => i.id === at.interventionId) : undefined
+  const iv = at.interventionId
+    ? project.interventions.find((i) => i.id === at.interventionId)
+    : undefined
   if (iv && links.intervention) {
     return {
       kind: 'intervention',
@@ -347,11 +367,12 @@ function activityUsage(project: Project): Map<string, string[]> {
   return map
 }
 
-export function uniqueId(base: string, taken: Set<string>): string {
+/** `base`, or `base-2`, `base-3`… when taken. Node names pass `_`, the separator exports keep. */
+export function uniqueId(base: string, taken: Set<string>, sep = '-'): string {
   if (!taken.has(base)) return base
   let n = 2
-  while (taken.has(`${base}-${n}`)) n++
-  return `${base}-${n}`
+  while (taken.has(`${base}${sep}${n}`)) n++
+  return `${base}${sep}${n}`
 }
 
 /** Project settings: its name. A draft until Save; Cancel or Escape discards it. */
@@ -402,7 +423,7 @@ function ProjectSettings({
       >
         <h2 id="project-settings-title">Project settings</h2>
         <label htmlFor="project-title">Name</label>
-        <input
+        <Input
           ref={inputRef}
           id="project-title"
           data-testid="project-title"
@@ -411,19 +432,25 @@ function ProjectSettings({
           onChange={(e) => setTitle(e.target.value)}
         />
         <p>Shown in your project list and saved as the project title in tricc.yaml.</p>
+        <LabelSettings />
         <div className="tricc-library-modal__actions">
           {!readOnly && (
-            <button type="submit" data-testid="project-settings-save" disabled={!name}>
+            <Button size="sm" type="submit" data-testid="project-settings-save" disabled={!name}>
               Save
-            </button>
+            </Button>
           )}
-          <button type="button" data-testid="project-settings-cancel" onClick={onClose}>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            data-testid="project-settings-cancel"
+            onClick={onClose}
+          >
             {readOnly ? 'Close' : 'Cancel'}
-          </button>
+          </Button>
         </div>
       </form>
     </div>,
     document.body,
   )
 }
-

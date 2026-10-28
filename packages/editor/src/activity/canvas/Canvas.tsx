@@ -45,6 +45,7 @@ import {
   optionIdFromHandle,
 } from './answer.js'
 import { autoLayout } from './layout.js'
+import { dragSelection, edgePan, pointerPastMarquee, rectContains, screenRect } from './marquee.js'
 import { draggingFiles, imageFiles } from '../../media/images.js'
 
 const nodeTypes = { tricc: TriccNodeView, comment: CommentNodeView, 'group-frame': GroupNodeView }
@@ -71,13 +72,17 @@ export interface CanvasProps {
   issues: Issue[]
   selectedId: string | undefined
   selectedEdgeId: string | undefined
+  /** Flow ids chosen by a right-drag. Empty unless more than one element was swept. */
+  boxSelection?: readonly string[]
   onSelect: (id: string | undefined) => void
   onSelectEdge: (id: string | undefined) => void
+  /** Replace the selection with what a right-drag covered. One id selects that element. */
+  onBoxSelect?: (ids: string[]) => void
   /** Filled while this canvas is mounted, so the palette can place a new node. */
   placementRef?: { current: CanvasPlacement | null }
   /** A palette drag is over the editor. The pane shows where a drop will land. */
   dropping?: boolean
-  /** Ctrl/Cmd+click on a goto opens the activity it goes to. */
+  /** Ctrl/Cmd+click adds the element to the selection. A button on a goto opens its activity. */
   onOpenActivity?: (activityId: string) => void
   /** Bring these nodes into view. A new object (`seq`) asks again for the same ids. */
   reveal?: { ids: string[]; seq: number }
@@ -113,8 +118,10 @@ function CanvasInner({
   issues,
   selectedId,
   selectedEdgeId,
+  boxSelection = [],
   onSelect,
   onSelectEdge,
+  onBoxSelect = () => {},
   placementRef,
   dropping,
   onOpenActivity,
@@ -131,7 +138,7 @@ function CanvasInner({
     () => expressionNames(project, lang, activityId),
     [project, lang, activityId],
   )
-  // The follow button on a goto opens its target, like Ctrl+click does.
+  // The follow button on a goto opens its target.
   const follow = useCallback(
     (link: string) => {
       if (onOpenActivity && project.activities[link]) onOpenActivity(link)
@@ -148,6 +155,17 @@ function CanvasInner({
   const nodeCache = useRef(new Map<string, FlowNode>())
   const seenActivity = useRef(activityId)
   const [pendingBranch, setPendingBranch] = useState<PendingBranch | null>(null)
+  /** The right-drag rectangle, in canvas coordinates. Absent until the pointer has moved 6px. */
+  const [marquee, setMarquee] = useState<{
+    left: number
+    top: number
+    width: number
+    height: number
+  } | null>(null)
+  /** The selection was just set by a right-drag, so the pointer release must not clear it. */
+  const justBoxed = useRef(false)
+  /** Ctrl or Cmd was down on the left-click that is changing the selection. */
+  const additive = useRef(false)
   const placement = useMemo<CanvasPlacement>(
     () => ({
       atClient: (clientX, clientY) => {
@@ -165,8 +183,14 @@ function CanvasInner({
     const flow = instance.current
     if (!flow || ids.length === 0) return
     // After the frame that selects them, so the nodes are measured where they now are.
-    requestAnimationFrame(() =>
-      void flow.fitView({ nodes: ids.map((id) => ({ id })), duration: 300, maxZoom: 1, padding: 0.5 }),
+    requestAnimationFrame(
+      () =>
+        void flow.fitView({
+          nodes: ids.map((id) => ({ id })),
+          duration: 300,
+          maxZoom: 1,
+          padding: 0.5,
+        }),
     )
   }, [])
   useEffect(() => {
@@ -201,6 +225,7 @@ function CanvasInner({
       project,
       lang,
       selectedId,
+      boxSelection,
       canWrite,
       severityByNode,
       // Nodes without a stored position are laid out on read, so a hand-written or
@@ -223,7 +248,7 @@ function CanvasInner({
     })
     nodeCache.current = next
     return projected
-  }, [activity, project, lang, selectedId, canWrite, severityByNode, dragTick])
+  }, [activity, project, lang, selectedId, boxSelection, canWrite, severityByNode, dragTick])
 
   // When an element's handles change (answers added, removed, reordered; a new type) and its
   // size does not, React Flow keeps the old handle positions. Tell it to read them again.
@@ -250,7 +275,13 @@ function CanvasInner({
         .filter((e): e is NonNullable<typeof e> => Boolean(e))
         .map((e) => {
           const kind = branchKindOf(e.value)
-          const answer = answerEdgeCaption(activity.nodes[e.source], e.value, lang, project, labelChars)
+          const answer = answerEdgeCaption(
+            activity.nodes[e.source],
+            e.value,
+            lang,
+            project,
+            labelChars,
+          )
           const display =
             answer?.short ??
             (kind === 'condition' && e.value ? renderCqlLabels(e.value, names) : undefined)
@@ -263,7 +294,11 @@ function CanvasInner({
             sourceHandle: answer?.optionId ? answerHandleId(answer.optionId) : NODE_OUT_HANDLE,
             type: 'branch' as const,
             deletable: canWrite,
-            selected: e.id === selectedEdgeId,
+            selected:
+              boxSelection.length > 0
+                ? nodeInBox(e.source, boxSelection, activity) &&
+                  nodeInBox(e.target, boxSelection, activity)
+                : e.id === selectedEdgeId,
             data: {
               ...(e.value !== undefined ? { value: e.value } : {}),
               ...(display ? { display } : {}),
@@ -290,7 +325,7 @@ function CanvasInner({
             }) as TriccFlowEdge,
         ),
     ],
-    [activity, canWrite, selectedEdgeId, names, lang, project, labelChars],
+    [activity, boxSelection, canWrite, selectedEdgeId, names, lang, project, labelChars],
   )
 
   /**
@@ -304,9 +339,13 @@ function CanvasInner({
       // node emits a deselect for the old one alongside the select for the new one, and
       // applying them in sequence against stale state lets the deselect win.
       const selects = changes.filter((c) => c.type === 'select')
-      if (selects.length > 0) {
+      if (selects.length > 0 && !justBoxed.current) {
         const picked = selects.find((c) => c.selected)
-        if (picked) {
+        if (picked && additive.current) {
+          const current = boxSelection.length > 0 ? boxSelection : selectedId ? [selectedId] : []
+          const next = current.includes(picked.id) ? [...current] : [...current, picked.id]
+          onBoxSelect(dragSelection(next, (id) => parentFlowId(id, activity)))
+        } else if (picked) {
           onSelect(picked.id)
           onSelectEdge(undefined)
         } else if (selects.some((c) => c.id === selectedId)) {
@@ -327,7 +366,9 @@ function CanvasInner({
             resizeDims.current.delete(change.id)
             dragChanged = true
             const size = { ...change.dimensions }
-            mutate((tx) => kindOf(change.id).commitResize?.(tx, activityId, activity, change.id, size))
+            mutate((tx) =>
+              kindOf(change.id).commitResize?.(tx, activityId, activity, change.id, size),
+            )
           }
           continue
         }
@@ -353,11 +394,22 @@ function CanvasInner({
       if (dragChanged) setDragTick((n) => n + 1)
       if (commits.length > 0) {
         mutate((tx) => {
-          for (const commit of commits) kindOf(commit.id).commitMove(tx, activityId, activity, commit.id, commit)
+          for (const commit of commits)
+            kindOf(commit.id).commitMove(tx, activityId, activity, commit.id, commit)
         })
       }
     },
-    [activity, activityId, canWrite, mutate, onSelect, onSelectEdge, selectedId],
+    [
+      activity,
+      activityId,
+      boxSelection,
+      canWrite,
+      mutate,
+      onBoxSelect,
+      onSelect,
+      onSelectEdge,
+      selectedId,
+    ],
   )
 
   /**
@@ -376,7 +428,9 @@ function CanvasInner({
       const h = internal.measured?.height ?? 0
       const centre = { x: abs.x + w / 2, y: abs.y + h / 2 }
       const draggedGroup = groupIdOf(dragged.id)
-      const excluded = draggedGroup ? descendantsOf(activity.groups ?? [], draggedGroup) : new Set<string>()
+      const excluded = draggedGroup
+        ? descendantsOf(activity.groups ?? [], draggedGroup)
+        : new Set<string>()
       let best: { id: string; area: number; x: number; y: number } | undefined
       for (const g of activity.groups ?? []) {
         if (excluded.has(g.id)) continue
@@ -385,8 +439,10 @@ function CanvasInner({
         const gp = gi.internals.positionAbsolute
         const gw = gi.measured?.width ?? g.width
         const gh = gi.measured?.height ?? g.height
-        const inside = centre.x >= gp.x && centre.x <= gp.x + gw && centre.y >= gp.y && centre.y <= gp.y + gh
-        if (inside && (!best || gw * gh < best.area)) best = { id: g.id, area: gw * gh, x: gp.x, y: gp.y }
+        const inside =
+          centre.x >= gp.x && centre.x <= gp.x + gw && centre.y >= gp.y && centre.y <= gp.y + gh
+        if (inside && (!best || gw * gh < best.area))
+          best = { id: g.id, area: gw * gh, x: gp.x, y: gp.y }
       }
       const x = Math.round(abs.x - (best?.x ?? 0))
       const y = Math.round(abs.y - (best?.y ?? 0))
@@ -409,7 +465,7 @@ function CanvasInner({
   const onEdgesChange = useCallback(
     (changes: EdgeChange<TriccFlowEdge>[]) => {
       const selects = changes.filter((c) => c.type === 'select')
-      if (selects.length > 0) {
+      if (selects.length > 0 && !justBoxed.current) {
         const picked = selects.find((c) => c.selected)
         if (picked) {
           onSelectEdge(picked.id)
@@ -453,7 +509,9 @@ function CanvasInner({
       // A kind whose connections are not guideline edges (a comment's "about") stores its own.
       const connectFrom = kindOf(connection.source).connectFrom
       if (connectFrom) {
-        mutate((tx) => connectFrom(tx, activityId, activity, connection.source!, connection.target!))
+        mutate((tx) =>
+          connectFrom(tx, activityId, activity, connection.source!, connection.target!),
+        )
         return
       }
       // Not available attaches to its question: the link takes no answer and no branch.
@@ -464,7 +522,9 @@ function CanvasInner({
       }
       const optionId = optionIdFromHandle(connection.sourceHandle)
       if (optionId) {
-        const option = activity.nodes[connection.source]?.options?.find((item) => item.id === optionId)
+        const option = activity.nodes[connection.source]?.options?.find(
+          (item) => item.id === optionId,
+        )
         if (!option) return
         commitEdge(connection.source, connection.target, answerExpression(optionCode(option)))
         return
@@ -506,6 +566,187 @@ function CanvasInner({
     const optionId = el?.closest<HTMLElement>('[data-option-id]')?.dataset['optionId']
     return { wrapper, nodeId: node.id, ...(optionId ? { optionId } : {}) }
   }
+  useEffect(() => {
+    const frame = frameRef.current
+    if (!frame) return
+    // The press is remembered in diagram coordinates, so panning grows the rectangle
+    // toward the pointer instead of sliding the elements out of a rectangle stuck to the screen.
+    let gesture: {
+      clientX: number
+      clientY: number
+      flowX: number
+      flowY: number
+      pointerId: number
+      active: boolean
+    } | null = null
+    let panFrame = 0
+    let panning = false
+    const pointer = { x: 0, y: 0 }
+
+    const skip = (target: EventTarget | null) =>
+      target instanceof Element &&
+      Boolean(target.closest('.react-flow__controls, .react-flow__minimap'))
+
+    const areaAt = (clientX: number, clientY: number) => {
+      const flow = instance.current
+      const start =
+        gesture && flow
+          ? flow.flowToScreenPosition({ x: gesture.flowX, y: gesture.flowY })
+          : { x: gesture?.clientX ?? clientX, y: gesture?.clientY ?? clientY }
+      return screenRect(start.x, start.y, clientX, clientY)
+    }
+    const paint = (clientX: number, clientY: number) => {
+      const bounds = frame.getBoundingClientRect()
+      const area = areaAt(clientX, clientY)
+      setMarquee({
+        left: area.left - bounds.left,
+        top: area.top - bounds.top,
+        width: area.right - area.left,
+        height: area.bottom - area.top,
+      })
+      return area
+    }
+
+    const stopPan = () => {
+      if (panFrame) cancelAnimationFrame(panFrame)
+      panFrame = 0
+    }
+    const panLoop = () => {
+      panFrame = 0
+      if (!gesture?.active || panning) return
+      const bounds = frame.getBoundingClientRect()
+      const delta = edgePan(pointer, bounds)
+      if (!delta.x && !delta.y) return
+      const flow = instance.current
+      if (!flow) return
+      panning = true
+      const view = flow.getViewport()
+      void flow
+        .setViewport({ x: view.x + delta.x, y: view.y + delta.y, zoom: view.zoom })
+        .then((moved) => {
+          panning = false
+          if (!gesture?.active || !moved) return
+          paint(bounds.left + pointer.x, bounds.top + pointer.y)
+          panFrame = requestAnimationFrame(panLoop)
+        })
+    }
+    const schedulePan = () => {
+      if (!panFrame) panFrame = requestAnimationFrame(panLoop)
+    }
+
+    const onDown = (event: PointerEvent) => {
+      if (event.button !== 2 || skip(event.target)) return
+      event.preventDefault()
+      event.stopPropagation()
+      frame.setPointerCapture(event.pointerId)
+      const flow = instance.current
+      const at = flow?.screenToFlowPosition(
+        { x: event.clientX, y: event.clientY },
+        { snapToGrid: false },
+      )
+      gesture = {
+        clientX: event.clientX,
+        clientY: event.clientY,
+        flowX: at?.x ?? event.clientX,
+        flowY: at?.y ?? event.clientY,
+        pointerId: event.pointerId,
+        active: false,
+      }
+    }
+    const onMove = (event: PointerEvent) => {
+      if (!gesture || event.pointerId !== gesture.pointerId) return
+      const bounds = frame.getBoundingClientRect()
+      pointer.x = event.clientX - bounds.left
+      pointer.y = event.clientY - bounds.top
+      if (
+        !gesture.active &&
+        !pointerPastMarquee(event.clientX - gesture.clientX, event.clientY - gesture.clientY)
+      )
+        return
+      gesture.active = true
+      event.preventDefault()
+      event.stopPropagation()
+      paint(event.clientX, event.clientY)
+      schedulePan()
+    }
+    const finish = (event: PointerEvent) => {
+      if (!gesture || event.pointerId !== gesture.pointerId) return
+      const wasActive = gesture.active
+      const area = wasActive ? areaAt(event.clientX, event.clientY) : null
+      gesture = null
+      stopPan()
+      setMarquee(null)
+      if (!wasActive || !area) return
+      const hits: string[] = []
+      for (const el of frame.querySelectorAll<HTMLElement>('.react-flow__node[data-id]')) {
+        const bounds = el.getBoundingClientRect()
+        if (
+          rectContains(area, {
+            left: bounds.left,
+            top: bounds.top,
+            right: bounds.right,
+            bottom: bounds.bottom,
+          })
+        ) {
+          const id = el.dataset.id
+          if (id) hits.push(id)
+        }
+      }
+      justBoxed.current = true
+      window.setTimeout(() => {
+        justBoxed.current = false
+      }, 0)
+      onBoxSelect(dragSelection(hits, (id) => parentFlowId(id, activity)))
+    }
+    // The menu arrives after pointerup, and the release can be outside the canvas.
+    let swallowMenu = false
+    let menuTimer = 0
+    const onMenu = (event: Event) => {
+      if (!swallowMenu && !(event.target instanceof Node && frame.contains(event.target))) return
+      swallowMenu = false
+      event.preventDefault()
+    }
+    let additiveTimer = 0
+    const down = (event: PointerEvent) => {
+      if (event.button === 0) {
+        additive.current = event.ctrlKey || event.metaKey
+        window.clearTimeout(additiveTimer)
+      }
+      if (event.button === 2) {
+        swallowMenu = true
+        window.clearTimeout(menuTimer)
+        menuTimer = window.setTimeout(() => {
+          swallowMenu = false
+        }, 800)
+      }
+      onDown(event)
+    }
+    const releaseAdd = () => {
+      window.clearTimeout(additiveTimer)
+      additiveTimer = window.setTimeout(() => {
+        additive.current = false
+      }, 0)
+    }
+
+    frame.addEventListener('pointerdown', down, true)
+    frame.addEventListener('pointermove', onMove)
+    frame.addEventListener('pointerup', finish)
+    frame.addEventListener('pointercancel', finish)
+    frame.addEventListener('pointerup', releaseAdd, true)
+    window.addEventListener('contextmenu', onMenu, true)
+    return () => {
+      frame.removeEventListener('pointerdown', down, true)
+      frame.removeEventListener('pointermove', onMove)
+      frame.removeEventListener('pointerup', finish)
+      frame.removeEventListener('pointercancel', finish)
+      frame.removeEventListener('pointerup', releaseAdd, true)
+      window.removeEventListener('contextmenu', onMenu, true)
+      window.clearTimeout(menuTimer)
+      window.clearTimeout(additiveTimer)
+      stopPan()
+    }
+  }, [activity, onBoxSelect])
+
   const marked = useRef<HTMLElement | null>(null)
   const markDrop = (el: HTMLElement | null) => {
     if (marked.current === el) return
@@ -538,45 +779,62 @@ function CanvasInner({
         if (!at) return
         event.preventDefault()
         const files = imageFiles(event.dataTransfer.files)
-        if (files.length > 0) onDropPictures(files, at.optionId ? { nodeId: at.nodeId, optionId: at.optionId } : { nodeId: at.nodeId })
+        if (files.length > 0)
+          onDropPictures(
+            files,
+            at.optionId ? { nodeId: at.nodeId, optionId: at.optionId } : { nodeId: at.nodeId },
+          )
       }}
     >
       <FollowContext.Provider value={onOpenActivity ? follow : undefined}>
-      <ReactFlow<FlowNode, TriccFlowEdge>
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        onInit={(i) => {
-          instance.current = i
-          if (pendingReveal.current) fitTo(pendingReveal.current)
-          pendingReveal.current = null
-        }}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeDragStop={onNodeDragStop}
-        onNodeClick={(event, flowNode) => {
-          if (!(event.ctrlKey || event.metaKey) || !onOpenActivity) return
-          const link = activity.nodes[flowNode.id]?.type === 'goto' ? activity.nodes[flowNode.id]?.link : undefined
-          if (link && project.activities[link]) onOpenActivity(link)
-        }}
-        nodesDraggable={canWrite}
-        nodesConnectable={canWrite}
-        elementsSelectable
-        deleteKeyCode={canWrite ? DELETE_KEYS : null}
-        snapToGrid
-        snapGrid={[8, 8]}
-        fitView
-        proOptions={{ hideAttribution: true }}
-        // Past this many nodes the cost of rendering off-screen elements shows up in
-        // interaction latency.
-        onlyRenderVisibleElements={nodes.length > 150}
-      >
-        <Background gap={16} />
-        <Controls showInteractive={false} />
-        <MiniMap pannable zoomable />
-      </ReactFlow>
+        <ReactFlow<FlowNode, TriccFlowEdge>
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          onInit={(i) => {
+            instance.current = i
+            if (pendingReveal.current) fitTo(pendingReveal.current)
+            pendingReveal.current = null
+          }}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeDragStop={onNodeDragStop}
+          panOnDrag={[0]}
+          onPaneClick={() => {
+            if (justBoxed.current) return
+            onSelect(undefined)
+            onSelectEdge(undefined)
+          }}
+          nodesDraggable={canWrite}
+          nodesConnectable={canWrite}
+          elementsSelectable
+          deleteKeyCode={canWrite ? DELETE_KEYS : null}
+          snapToGrid
+          snapGrid={[8, 8]}
+          fitView
+          proOptions={{ hideAttribution: true }}
+          // Past this many nodes the cost of rendering off-screen elements shows up in
+          // interaction latency.
+          onlyRenderVisibleElements={nodes.length > 150}
+        >
+          <Background gap={16} />
+          <Controls showInteractive={false} />
+          <MiniMap pannable zoomable />
+        </ReactFlow>
+        {marquee && (
+          <div
+            className="tricc-marquee"
+            data-testid="selection-marquee"
+            style={{
+              left: marquee.left,
+              top: marquee.top,
+              width: marquee.width,
+              height: marquee.height,
+            }}
+          />
+        )}
       </FollowContext.Provider>
       {pendingBranch && canWrite && (
         <BranchChoiceDialog
@@ -587,6 +845,31 @@ function CanvasInner({
       )}
     </div>
   )
+}
+
+/** The flow id of the group that contains this element, when it has one. */
+function parentFlowId(flowId: string, activity: Activity): string | undefined {
+  const gid = groupIdOf(flowId)
+  if (gid) {
+    const parent = activity.groups?.find((g) => g.id === gid)?.parent
+    return parent ? groupFlowId(parent) : undefined
+  }
+  const nodeGroup = activity.nodes[flowId]?.group
+  return nodeGroup ? groupFlowId(nodeGroup) : undefined
+}
+
+/** A node the selection covers: it was swept, or it sits in a group that was. */
+function nodeInBox(nodeId: string, box: readonly string[], activity: Activity): boolean {
+  if (box.includes(nodeId)) return true
+  const groups = activity.groups ?? []
+  let group = activity.nodes[nodeId]?.group
+  const seen = new Set<string>()
+  while (group && !seen.has(group)) {
+    if (box.includes(groupFlowId(group))) return true
+    seen.add(group)
+    group = groups.find((item) => item.id === group)?.parent
+  }
+  return false
 }
 
 function measuredSize(

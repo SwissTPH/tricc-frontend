@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { activityKind, resolve, type Project } from '@tricc/core'
 import { Typeahead, type TypeaheadOption } from './Typeahead.js'
+import { Button } from './ui/button.js'
 
 /**
  * Pick one activity.
@@ -61,20 +62,24 @@ export function ActivityRefField({
         </span>
         {!readOnly && (
           <>
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               type="button"
               data-testid={`${testId}-change`}
               onClick={() => setChanging(true)}
             >
               Change
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               type="button"
               data-testid={`${testId}-clear`}
               onClick={() => onChange(undefined)}
             >
               Clear
-            </button>
+            </Button>
           </>
         )}
       </div>
@@ -102,9 +107,15 @@ export function ActivityRefField({
         }}
       />
       {changing && !readOnly && (
-        <button type="button" data-testid={`${testId}-cancel`} onClick={() => setChanging(false)}>
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+          data-testid={`${testId}-cancel`}
+          onClick={() => setChanging(false)}
+        >
           Cancel
-        </button>
+        </Button>
       )}
     </div>
   )

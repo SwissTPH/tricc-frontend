@@ -7,8 +7,10 @@ import {
   createProcessActivity,
   createProject,
   createTriccRuntime,
+  DEFAULT_PREFERENCES,
   processOf,
   readProject,
+  type DiagramStyle,
   type OpenProject,
   type Project,
   type TriccRuntime,
@@ -205,6 +207,48 @@ describe('authoring an activity end to end', () => {
     await user.click(screen.getByTestId('tab-validation'))
     expect(screen.getByTestId('validation-scope')).toHaveTextContent('This node')
     expect(screen.queryByTestId('issue-activity.no-end')).not.toBeInTheDocument()
+  })
+})
+
+describe('adding nodes', () => {
+  it('names a second node of the same type with a valid name', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+
+    await user.click(screen.getByTestId('add-select_one'))
+    await user.click(screen.getByTestId('tab-nodes'))
+    await user.click(screen.getByTestId('add-select_one'))
+    const nodes = h.open.document.snapshot().activities['triage']!.nodes
+    expect(nodes['n-select_one']!.name).toBe('select_one')
+    expect(nodes['n-select_one-2']!.name).toBe('select_one_2')
+  })
+
+  it('warns about an invalid name and does not save it', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    const name = () => h.open.document.snapshot().activities['triage']!.nodes['n-select_one']!.name
+
+    await user.click(screen.getByTestId('add-select_one'))
+    await user.clear(screen.getByTestId('field-name'))
+    await user.type(screen.getByTestId('field-name'), 'systolic bp')
+    // What was typed stays in the field, with a warning; the last valid name is what is saved.
+    expect(screen.getByTestId('field-name')).toHaveValue('systolic bp')
+    expect(screen.getByTestId('field-name')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByTestId('field-name-error')).toBeInTheDocument()
+    expect(name()).toBe('systolic')
+
+    // Leaving the field puts the saved name back.
+    await user.tab()
+    expect(screen.getByTestId('field-name')).toHaveValue('systolic')
+    expect(screen.queryByTestId('field-name-error')).not.toBeInTheDocument()
+
+    await user.clear(screen.getByTestId('field-name'))
+    // A `-` is allowed, so a name can be a code such as `BA00-Z`.
+    await user.type(screen.getByTestId('field-name'), 'systolic-bp')
+    expect(screen.queryByTestId('field-name-error')).not.toBeInTheDocument()
+    expect(name()).toBe('systolic-bp')
   })
 })
 
@@ -1241,6 +1285,38 @@ describe('node text', () => {
   })
 })
 
+describe('diagram style', () => {
+  it('draws a decision as a rhombus in flowchart style and a rectangle in BPMN style', async () => {
+    const project = seed()
+    const triage = project.activities['triage']!
+    triage.nodes['r'] = { id: 'r', type: 'rhombus', ui: { x: 0, y: 100 } }
+    triage.nodeOrder.push('r')
+    const h = await harness(project)
+    const listeners = new Set<() => void>()
+    let diagramStyle: DiagramStyle = 'flowchart'
+    const preferences = {
+      current: () => ({ ...DEFAULT_PREFERENCES, diagramStyle }),
+      update: () => undefined,
+      onChange: (cb: () => void) => {
+        listeners.add(cb)
+        return () => listeners.delete(cb)
+      },
+    }
+    render(
+      <TriccRuntimeProvider runtime={h.runtime} preferences={preferences}>
+        <OpenProjectProvider project={h.open}>
+          <ActivityEditor activityId="triage" />
+        </OpenProjectProvider>
+      </TriccRuntimeProvider>,
+    )
+    expect(screen.getByTestId('node-r')).toHaveClass('tricc-node--diamond')
+    diagramStyle = 'bpmn'
+    act(() => listeners.forEach((l) => l()))
+    expect(screen.getByTestId('node-r')).toHaveClass('tricc-node--decision')
+    expect(screen.getByTestId('node-r')).not.toHaveClass('tricc-node--diamond')
+  })
+})
+
 describe('the start node is the activity', () => {
   it('shows the activity title on the root, and no Name field on sequence nodes', async () => {
     const user = userEvent.setup()
@@ -1565,15 +1641,14 @@ describe('node fields', () => {
     expect(screen.queryByTestId('field-name')).not.toBeInTheDocument()
   })
 
-  it('opens the activity a goto goes to, from its details and by Ctrl+click', async () => {
+  it('opens the activity a goto goes to from its details', async () => {
     const user = userEvent.setup()
     const h = await harness(withGoto())
     const opened: string[] = []
     renderWith(h, <ActivityEditor activityId="triage" onOpenActivity={(id) => opened.push(id)} />)
     selectNode('g')
     await user.click(screen.getByTestId('goto-open'))
-    fireEvent.click(screen.getByTestId('node-g'), { ctrlKey: true })
-    expect(opened).toEqual(['cough', 'cough'])
+    expect(opened).toEqual(['cough'])
   })
 
   it('opens the activity a goto goes to from the follow button on the node', async () => {

@@ -1,5 +1,10 @@
 export * from './runtime/index.js'
-export { ProjectOverview, ValidationSummary, uniqueId, type IssueLinks } from './project/Overview.js'
+export {
+  ProjectOverview,
+  ValidationSummary,
+  uniqueId,
+  type IssueLinks,
+} from './project/Overview.js'
 export { InterventionEditor } from './project/InterventionEditor.js'
 export { ActivityNavigator } from './project/ActivityNavigator.js'
 export { ConceptDialog, type ConceptTarget } from './terminology/ConceptDialog.js'
@@ -15,6 +20,7 @@ export { CalledBy, goToCallers, type GotoCaller } from './activity/ActivitySetti
 export { Typeahead, type TypeaheadOption, type TypeaheadProps } from './components/Typeahead.js'
 export { ActivityRefField } from './components/ActivityRefField.js'
 export { ActivityEditor, NodeProperties, EdgeProperties } from './activity/ActivityEditor.js'
+export { DiscussionsButton } from './discussion/Discussion.js'
 export { ActivityCanvas } from './activity/canvas/Canvas.js'
 export { TriccNodeView } from './activity/canvas/TriccNode.js'
 export {
@@ -25,3 +31,7 @@ export {
 } from './activity/canvas/BranchEdge.js'
 export { autoLayout } from './activity/canvas/layout.js'
 export { NODE_VISUALS, visualFor, type NodeVisual } from './activity/canvas/node-visuals.js'
+export { Button, buttonVariants, type ButtonProps } from './components/ui/button.js'
+export { Input, inputVariants, type InputProps } from './components/ui/input.js'
+export { Textarea, textareaVariants, type TextareaProps } from './components/ui/textarea.js'
+export { cn } from './lib/utils.js'

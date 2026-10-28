@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { searchProject, type ConceptKey } from '@tricc/core'
 import { useProjectSnapshot } from '../runtime/context.js'
+import { Button } from '../components/ui/button.js'
 
 /**
  * What a search across the project found, by source: dictionary concepts, processes,
@@ -124,9 +125,15 @@ export function ProjectSearchDialog({
           ))}
         </Hits>
         <div className="tricc-library-modal__actions">
-          <button type="button" data-testid="project-search-close" onClick={onClose}>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            data-testid="project-search-close"
+            onClick={onClose}
+          >
             Close
-          </button>
+          </Button>
         </div>
       </div>
     </div>,
