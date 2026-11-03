@@ -76,7 +76,9 @@ export interface PreferencesPort {
 }
 
 /** Keep a stored or typed value inside what the editor can render. */
-export function normalizePreferences(raw: Partial<EditorPreferences> | undefined): EditorPreferences {
+export function normalizePreferences(
+  raw: Partial<EditorPreferences> | undefined,
+): EditorPreferences {
   const lines = Math.round(Number(raw?.labelLines))
   const chars = Math.round(Number(raw?.labelChars))
   const width = Math.round(Number(raw?.imageMaxWidth))

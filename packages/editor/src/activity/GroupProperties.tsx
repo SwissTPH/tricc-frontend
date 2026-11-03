@@ -41,14 +41,18 @@ export function GroupProperties({
   const title = conceptText(concept, 'display', lang, project.languages.default) ?? ''
   const members = Object.values(activity.nodes).filter((n) => n.group === group.id).length
   const inner = (activity.groups ?? []).filter((g) => g.parent === group.id).length
-  const update = (patch: Partial<CanvasGroup>) => mutate((tx) => tx.setGroup(activityId, { ...group, ...patch }))
+  const update = (patch: Partial<CanvasGroup>) =>
+    mutate((tx) => tx.setGroup(activityId, { ...group, ...patch }))
 
   return (
     <section aria-labelledby="group-heading" data-testid="group-properties">
       <h2 id="group-heading">Group</h2>
-      <p>A section of the form. Drag nodes into the frame to add them, out of it to take them out.</p>
+      <p>
+        A section of the form. Drag nodes into the frame to add them, out of it to take them out.
+      </p>
       <label htmlFor="group-name">Name</label>
-      <Input size="sm"
+      <Input
+        size="sm"
         id="group-name"
         data-testid="group-name"
         value={group.name ?? ''}
@@ -59,7 +63,8 @@ export function GroupProperties({
         }}
       />
       <label htmlFor="group-title">Title</label>
-      <Input size="sm"
+      <Input
+        size="sm"
         id="group-title"
         data-testid="group-title"
         value={title}
@@ -72,7 +77,12 @@ export function GroupProperties({
             const target = ensureDefaultCodeSystem(project, tx)
             const current = target.concepts[name]
             tx.upsertConcept(target.url, {
-              ...(current ?? { system: target.url, code: name, designations: [], conceptType: 'Misc' }),
+              ...(current ?? {
+                system: target.url,
+                code: name,
+                designations: [],
+                conceptType: 'Misc',
+              }),
               display: e.target.value,
             })
           })

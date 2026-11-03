@@ -47,7 +47,9 @@ export function readActivityFile(
 function isDrawio(filename: string, body: string): boolean {
   if (/\.drawio$/i.test(filename)) return true
   const start = body.trimStart().slice(0, 400).toLowerCase()
-  return start.startsWith('<?xml') || start.startsWith('<mxfile') || start.startsWith('<mxgraphmodel')
+  return (
+    start.startsWith('<?xml') || start.startsWith('<mxfile') || start.startsWith('<mxgraphmodel')
+  )
 }
 
 function drawioActivities(body: string, taken: Set<string>, lang: string): ParsedActivity[] {
@@ -57,7 +59,11 @@ function drawioActivities(body: string, taken: Set<string>, lang: string): Parse
   try {
     activities = activitiesFromDrawio(body, taken, lang, images)
   } catch (error) {
-    throw new Error(error instanceof Error && error.message ? error.message : 'This file is not a draw.io diagram.')
+    throw new Error(
+      error instanceof Error && error.message
+        ? error.message
+        : 'This file is not a draw.io diagram.',
+    )
   }
   // Ids come from page names. An id with a numeric suffix whose base is already taken,
   // in the project or earlier in this file, was renamed to stay unique.

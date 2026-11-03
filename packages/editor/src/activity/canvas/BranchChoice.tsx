@@ -50,8 +50,7 @@ export function BranchChoiceDialog({
     return () => document.removeEventListener('keydown', onKey)
   }, [onCancel])
 
-  const leaves =
-    sourceType === 'select_yesno' ? 'a yes/no question' : 'a decision'
+  const leaves = sourceType === 'select_yesno' ? 'a yes/no question' : 'a decision'
 
   return (
     <div

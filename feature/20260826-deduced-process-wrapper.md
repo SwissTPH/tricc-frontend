@@ -1,12 +1,12 @@
 # Deduced process wrapper — the intervention link as definition
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft |
-| **Repo** | `tricc_frontend` + **`tricc_oo`** (the deduction happens on the Python side) |
-| **Related** | `20260826-project-and-interventions.md` (the intervention model this builds on), `20260825-tricc-oo-interop.md` (§5 `TriccProjectStrategy`, where the deduction would live), `20260825-project-format.md` §4 (node types), `../../tricc_oo/tricc_oo/strategies/input/base_input_strategy.py` (`execute_linked_process`) |
-| **Supersedes** | Nothing. This is the **alternative** to the materialised process activity shipped in the app today. |
-| **Approval** | — |
+| Field          | Value                                                                                                                                                                                                                                                                                                                   |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**     | Draft                                                                                                                                                                                                                                                                                                                   |
+| **Repo**       | `tricc_frontend` + **`tricc_oo`** (the deduction happens on the Python side)                                                                                                                                                                                                                                            |
+| **Related**    | `20260826-project-and-interventions.md` (the intervention model this builds on), `20260825-tricc-oo-interop.md` (§5 `TriccProjectStrategy`, where the deduction would live), `20260825-project-format.md` §4 (node types), `../../tricc_oo/tricc_oo/strategies/input/base_input_strategy.py` (`execute_linked_process`) |
+| **Supersedes** | Nothing. This is the **alternative** to the materialised process activity shipped in the app today.                                                                                                                                                                                                                     |
+| **Approval**   | —                                                                                                                                                                                                                                                                                                                       |
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
@@ -44,7 +44,7 @@ that some activities are secretly entry points with different linking semantics.
 the barrier-lowering `20260825-guided-authoring.md` exists to achieve, applied to the one
 place the current design still asks an author to understand an implementation detail.
 
-**One source of truth.** The intervention's ordered list *is* the process definition, so
+**One source of truth.** The intervention's ordered list _is_ the process definition, so
 nothing can disagree with it. With authored wrappers there are two places that must
 match — the intervention's list and the wrapper's calls — and they can drift.
 
@@ -75,7 +75,7 @@ Python code rather than a page an author can open and look at.
 
 ### 1. What changes in the authored project
 
-Nothing is added to the format. What changes is what is *absent*: there are no activities
+Nothing is added to the format. What changes is what is _absent_: there are no activities
 rooted by `start`, and `activity.process` is not set by the editor.
 
 ```jsonc
@@ -135,11 +135,11 @@ wrapper is synthesized.
 This is what makes the migration path work in both directions, and it is what turns the
 two options into one design with an escape hatch:
 
-| Situation | Behaviour |
-|-----------|-----------|
-| Intervention lists normal activities only | Wrapper synthesized |
-| Intervention lists an authored process activity | That page used as-is |
-| Intervention lists a mix under one process | **Error.** Half-deduced, half-drawn is not a state anyone can reason about. |
+| Situation                                       | Behaviour                                                                   |
+| ----------------------------------------------- | --------------------------------------------------------------------------- |
+| Intervention lists normal activities only       | Wrapper synthesized                                                         |
+| Intervention lists an authored process activity | That page used as-is                                                        |
+| Intervention lists a mix under one process      | **Error.** Half-deduced, half-drawn is not a state anyone can reason about. |
 
 ### 4. Materialising
 
@@ -172,15 +172,15 @@ implemented before that one is settled.**
 
 ### 6. Code checklist
 
-| Repo | Path | Change |
-|------|------|--------|
-| `tricc_oo` | `strategies/input/tricc_project.py` | Synthesize wrappers from intervention process groups |
-| `tricc_oo` | `models/tricc.py` | Nothing — wrappers are ordinary activities |
-| `tricc_oo` | `strategies/input/base_input_strategy.py` | Verify chain behaviour with several interventions (§5) |
-| `tricc_frontend` | `packages/core/src/model/activity-kind.ts` | `deducedWrapperId(intervention, process)`, shared with the Python side by convention |
-| `tricc_frontend` | `packages/core/src/validate/project.ts` | Replace `intervention.not-a-process-activity` with the mixed-listing rule (§3) |
-| `tricc_frontend` | `packages/editor/src/project/InterventionEditor.tsx` | Offer normal activities again; add "materialise" |
-| `tricc_frontend` | `packages/editor/src/project/ActivityNavigator.tsx` | Show deduced processes as derived, visibly distinct from authored ones |
+| Repo             | Path                                                 | Change                                                                               |
+| ---------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `tricc_oo`       | `strategies/input/tricc_project.py`                  | Synthesize wrappers from intervention process groups                                 |
+| `tricc_oo`       | `models/tricc.py`                                    | Nothing — wrappers are ordinary activities                                           |
+| `tricc_oo`       | `strategies/input/base_input_strategy.py`            | Verify chain behaviour with several interventions (§5)                               |
+| `tricc_frontend` | `packages/core/src/model/activity-kind.ts`           | `deducedWrapperId(intervention, process)`, shared with the Python side by convention |
+| `tricc_frontend` | `packages/core/src/validate/project.ts`              | Replace `intervention.not-a-process-activity` with the mixed-listing rule (§3)       |
+| `tricc_frontend` | `packages/editor/src/project/InterventionEditor.tsx` | Offer normal activities again; add "materialise"                                     |
+| `tricc_frontend` | `packages/editor/src/project/ActivityNavigator.tsx`  | Show deduced processes as derived, visibly distinct from authored ones               |
 
 ### 7. Tests
 
@@ -195,7 +195,7 @@ would have (asserted against a fixture shared with the Python tests, the same te
 CQL corpus uses); materialise is one undo step; the navigator distinguishes deduced from
 authored.
 
-**Equivalence** — the strongest test available: the *same guideline* expressed with
+**Equivalence** — the strongest test available: the _same guideline_ expressed with
 authored wrappers and with deduction produces equivalent exports. If that does not hold,
 deduction is not a faithful replacement and the question reopens.
 

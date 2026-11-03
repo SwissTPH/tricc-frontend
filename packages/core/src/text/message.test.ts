@@ -18,7 +18,11 @@ import {
  * rules change, and this test says where the two disagree.
  */
 describe('display text matches tricc_oo', () => {
-  for (const { html, tree, markdown } of fixtures as { html: string; tree: DisplayText; markdown: string }[]) {
+  for (const { html, tree, markdown } of fixtures as {
+    html: string
+    tree: DisplayText
+    markdown: string
+  }[]) {
     it(`parses ${JSON.stringify(html)}`, () => {
       expect(fromHtml(html)).toEqual(tree)
       expect(toMarkdown(fromHtml(html))).toBe(markdown)
@@ -62,7 +66,10 @@ describe('display text', () => {
     // Back to plain: the tree goes, other extensions stay.
     const scoped = {
       ...rich,
-      extension: [...rich.extension!, { url: 'https://tricc.org/StructureDefinition/designation-intervention', valueCode: 'iv' }],
+      extension: [
+        ...rich.extension!,
+        { url: 'https://tricc.org/StructureDefinition/designation-intervention', valueCode: 'iv' },
+      ],
     }
     expect(withDesignationText(scoped, 'Plain again').extension).toEqual([
       { url: 'https://tricc.org/StructureDefinition/designation-intervention', valueCode: 'iv' },
@@ -74,7 +81,12 @@ describe('font colour', () => {
   const red = {
     type: 'message' as const,
     children: [
-      { type: 'mark' as const, kind: 'color' as const, color: '#d32f2f', children: [{ type: 'text' as const, value: 'Danger' }] },
+      {
+        type: 'mark' as const,
+        kind: 'color' as const,
+        color: '#d32f2f',
+        children: [{ type: 'text' as const, value: 'Danger' }],
+      },
       { type: 'text' as const, value: ' sign' },
     ],
   }
@@ -91,4 +103,3 @@ describe('font colour', () => {
     expect(() => messageFromJson(bad)).toThrow()
   })
 })
-

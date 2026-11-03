@@ -322,7 +322,9 @@ describe('validation surfaces in the UI', () => {
     await user.click(screen.getByTestId('tab-validation'))
     expect(screen.queryByTestId('issue-expression.open-handoff')).not.toBeInTheDocument()
     await user.click(screen.getByTestId('tab-details'))
-    expect(screen.getByTestId('field-relevance-expression-display')).toHaveTextContent('AgeInMonths')
+    expect(screen.getByTestId('field-relevance-expression-display')).toHaveTextContent(
+      'AgeInMonths',
+    )
     expect(screen.queryByText(/not rewritten into CQL/)).not.toBeInTheDocument()
   })
 
@@ -711,7 +713,9 @@ describe('intervention editing', () => {
     await pickActivity(user, 'add-activity-to-sick-child', 'triage-process')
 
     await user.click(screen.getByTestId('add-process-to-sick-child'))
-    expect(screen.getByTestId('add-activity-to-sick-child-exhausted')).toHaveTextContent('already listed')
+    expect(screen.getByTestId('add-activity-to-sick-child-exhausted')).toHaveTextContent(
+      'already listed',
+    )
     expect(screen.queryByTestId('add-activity-to-sick-child-option-triage')).not.toBeInTheDocument()
   })
 
@@ -886,7 +890,9 @@ describe('process activities versus activities', () => {
 
     await user.upload(screen.getByTestId('import-activity-file', { hidden: true }), cough)
     await waitFor(() =>
-      expect(screen.getByTestId('import-modal')).toHaveTextContent('Nothing is added until you import.'),
+      expect(screen.getByTestId('import-modal')).toHaveTextContent(
+        'Nothing is added until you import.',
+      ),
     )
     expect(screen.getByTestId('import-id-cough')).toHaveTextContent('cough')
     await user.click(screen.getByTestId('import-cancel'))
@@ -915,7 +921,10 @@ describe('process activities versus activities', () => {
     expect(screen.queryByTestId('import-group-activity')).not.toBeInTheDocument()
     await user.click(screen.getByTestId('import-confirm'))
     expect(activityKind(h.open.document.snapshot().activities['airway-process']!)).toBe('process')
-    expect(screen.getByTestId('nav-activity-airway-process')).toHaveAttribute('data-kind', 'process')
+    expect(screen.getByTestId('nav-activity-airway-process')).toHaveAttribute(
+      'data-kind',
+      'process',
+    )
   })
 
   it('hides import when the project is read-only', async () => {
@@ -973,7 +982,9 @@ describe('process activities versus activities', () => {
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
 
-    expect(screen.queryByTestId('issue-intervention.not-a-process-activity')).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('issue-intervention.not-a-process-activity'),
+    ).not.toBeInTheDocument()
     expect(screen.queryByTestId('intervention-iv-activity-triage')).not.toBeInTheDocument()
   })
 
@@ -1228,7 +1239,12 @@ describe('activity settings and delete', () => {
       edges: {},
     }
     project.interventions = [
-      { id: 'iv', title: { en: 'Sick child' }, trigger: { mode: 'on-demand' }, activities: [{ ref: 'triage' }, { ref: 'caller' }] },
+      {
+        id: 'iv',
+        title: { en: 'Sick child' },
+        trigger: { mode: 'on-demand' },
+        activities: [{ ref: 'triage' }, { ref: 'caller' }],
+      },
     ]
     const h = await harness(project)
     let deleted = false
@@ -1333,7 +1349,9 @@ describe('the start node is the activity', () => {
     await user.click(screen.getByTestId('add-activity_end'))
     expect(screen.getByTestId('node-properties')).toHaveTextContent('activity_end')
     expect(screen.queryByTestId('field-name')).not.toBeInTheDocument()
-    expect(h.open.document.snapshot().activities['triage']?.nodes['n-activity_end']?.name).toBeUndefined()
+    expect(
+      h.open.document.snapshot().activities['triage']?.nodes['n-activity_end']?.name,
+    ).toBeUndefined()
   })
 
   it('a renamed activity shows its new title on the root node', async () => {
@@ -1358,7 +1376,13 @@ describe('data dictionary', () => {
       status: 'draft',
       content: 'complete',
       concepts: {
-        weight: { system: URL, code: 'weight', display: 'Weight (kg)', designations: [], dataType: 'decimal' },
+        weight: {
+          system: URL,
+          code: 'weight',
+          display: 'Weight (kg)',
+          designations: [],
+          dataType: 'decimal',
+        },
       },
       conceptOrder: ['weight'],
     }
@@ -1404,7 +1428,9 @@ describe('data dictionary', () => {
     await user.clear(screen.getByTestId('concept-display'))
     await user.type(screen.getByTestId('concept-display'), 'Body weight')
     await user.click(screen.getByTestId('concept-dialog-cancel'))
-    expect(h.open.document.snapshot().codeSystems[URL]!.concepts['weight']!.display).toBe('Weight (kg)')
+    expect(h.open.document.snapshot().codeSystems[URL]!.concepts['weight']!.display).toBe(
+      'Weight (kg)',
+    )
   })
 
   it('saves texts and type from the dialog, and offers concept types from preferences', async () => {
@@ -1418,7 +1444,11 @@ describe('data dictionary', () => {
     const concept = h.open.document.snapshot().codeSystems[URL]!.concepts['weight']!
     expect(concept.conceptType).toBe('Vital')
     expect(concept.designations).toEqual([
-      { language: 'en', use: { system: 'https://tricc.org/CodeSystem/designation-use', code: 'hint' }, value: 'In kilograms' },
+      {
+        language: 'en',
+        use: { system: 'https://tricc.org/CodeSystem/designation-use', code: 'hint' },
+        value: 'In kilograms',
+      },
     ])
   })
 
@@ -1518,11 +1548,18 @@ describe('questionnaire text per intervention', () => {
       url,
       status: 'draft',
       content: 'complete',
-      concepts: { weight: { system: url, code: 'weight', display: 'Weight (kg)', designations: [] } },
+      concepts: {
+        weight: { system: url, code: 'weight', display: 'Weight (kg)', designations: [] },
+      },
       conceptOrder: ['weight'],
     }
     project.interventions = [
-      { id: 'community', title: { en: 'Community' }, trigger: { mode: 'on-demand' }, activities: [] },
+      {
+        id: 'community',
+        title: { en: 'Community' },
+        trigger: { mode: 'on-demand' },
+        activities: [],
+      },
     ]
     const h = await harness(project)
     renderWith(h, <DictionaryView open={{ system: url, code: 'weight' }} onOpen={() => {}} />)
@@ -1535,7 +1572,10 @@ describe('questionnaire text per intervention', () => {
     const d = h.open.document.snapshot().codeSystems[url]!.concepts['weight']!.designations[0]!
     expect(d).toMatchObject({ language: 'en', value: 'Weigh the child' })
     expect(d.extension).toEqual([
-      { url: 'https://tricc.org/StructureDefinition/designation-intervention', valueCode: 'community' },
+      {
+        url: 'https://tricc.org/StructureDefinition/designation-intervention',
+        valueCode: 'community',
+      },
     ])
   })
 })
@@ -1565,7 +1605,10 @@ describe('project settings and delete', () => {
     const user = userEvent.setup()
     const h = await harness()
     let deleted = 0
-    renderWith(h, <ProjectOverview onDelete={() => deleted++} deleteNote="The folder stays on disk." />)
+    renderWith(
+      h,
+      <ProjectOverview onDelete={() => deleted++} deleteNote="The folder stays on disk." />,
+    )
     await user.click(screen.getByTestId('delete-project'))
     expect(screen.getByTestId('delete-project-note')).toHaveTextContent('The folder stays on disk.')
     await user.click(screen.getByTestId('delete-project-cancel'))
@@ -1706,7 +1749,12 @@ describe('comments on the diagram', () => {
   it('adds a coloured comment about a node, keeps it out of the guideline, and deletes it', async () => {
     const user = userEvent.setup()
     const project = seed()
-    project.activities['triage']!.nodes['w'] = { id: 'w', type: 'decimal', name: 'weight', ui: { x: 0, y: 100 } }
+    project.activities['triage']!.nodes['w'] = {
+      id: 'w',
+      type: 'decimal',
+      name: 'weight',
+      ui: { x: 0, y: 100 },
+    }
     project.activities['triage']!.nodeOrder.push('w')
     const h = await harness(project)
     renderWith(h, <ActivityEditor activityId="triage" />)
@@ -1719,7 +1767,12 @@ describe('comments on the diagram', () => {
 
     const triage = h.open.document.snapshot().activities['triage']!
     expect(triage.ui?.comments).toEqual([
-      expect.objectContaining({ id: 'comment', text: 'Check the 9 kg threshold', color: 'pink', node: 'w' }),
+      expect.objectContaining({
+        id: 'comment',
+        text: 'Check the 9 kg threshold',
+        color: 'pink',
+        node: 'w',
+      }),
     ])
     // Not a node, not an edge: conversion never sees it.
     expect(Object.keys(triage.nodes)).toEqual(['s', 'w'])
@@ -1737,7 +1790,12 @@ describe('page groups', () => {
   it('adds a group, titles it through its concept, and ungroups keeping its nodes', async () => {
     const user = userEvent.setup()
     const project = seed()
-    project.activities['triage']!.nodes['q'] = { id: 'q', type: 'select_yesno', name: 'convulsions', ui: { x: 0, y: 100 } }
+    project.activities['triage']!.nodes['q'] = {
+      id: 'q',
+      type: 'select_yesno',
+      name: 'convulsions',
+      ui: { x: 0, y: 100 },
+    }
     project.activities['triage']!.nodeOrder.push('q')
     const h = await harness(project)
     renderWith(h, <ActivityEditor activityId="triage" />)
@@ -1752,7 +1810,9 @@ describe('page groups', () => {
     const snap = h.open.document.snapshot()
     const group = snap.activities['triage']!.groups![0]!
     expect(group).toMatchObject({ id: 'group', name: 'danger_signs', color: 'pink' })
-    expect(Object.values(snap.codeSystems)[0]!.concepts['danger_signs']?.display).toBe('Danger signs')
+    expect(Object.values(snap.codeSystems)[0]!.concepts['danger_signs']?.display).toBe(
+      'Danger signs',
+    )
 
     // Membership is what tricc_oo reads; dragging into the frame sets it (e2e). Here directly.
     h.open.document.transact((tx) => tx.setNodeGroup('triage', 'q', 'group', 10, 40))
@@ -1800,13 +1860,18 @@ describe('hint and help marks', () => {
     triage.nodeOrder.push('w', 'a')
     const h = await harness(project)
     renderWith(h, <ActivityEditor activityId="triage" />)
-    expect(screen.getByTestId('node-w-hint')).toHaveAttribute('title', 'Hint: Use a calibrated scale')
-    expect(screen.getByTestId('node-w-help')).toHaveAttribute('title', 'Help: Undress the child first')
+    expect(screen.getByTestId('node-w-hint')).toHaveAttribute(
+      'title',
+      'Hint: Use a calibrated scale',
+    )
+    expect(screen.getByTestId('node-w-help')).toHaveAttribute(
+      'title',
+      'Help: Undress the child first',
+    )
     expect(screen.queryByTestId('node-a-hint')).not.toBeInTheDocument()
     expect(screen.queryByTestId('node-a-help')).not.toBeInTheDocument()
   })
 })
-
 
 describe('breadcrumb trail', () => {
   it('resets from a list, grows through gotos and cuts back on a loop', () => {

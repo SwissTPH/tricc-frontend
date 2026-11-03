@@ -18,7 +18,8 @@ function mxfile(
       if (page.compress) {
         // Global drawings deflate the URL-encoded XML, then base64 it.
         const source = page.compress === 'drawio' ? encodeURIComponent(body) : body
-        const bytes = page.compress === 'zlib' ? zlibSync(strToU8(source)) : deflateSync(strToU8(source))
+        const bytes =
+          page.compress === 'zlib' ? zlibSync(strToU8(source)) : deflateSync(strToU8(source))
         const b64 = Buffer.from(bytes).toString('base64')
         body = page.compress === 'url' ? encodeURIComponent(b64) : b64
       }
@@ -36,7 +37,11 @@ describe('draw.io pages', () => {
         name: 'Page 1',
         body: graph(
           [
-            cell('s', 'odk_type="activity_start" relevance="AgeInMonths() &lt; 60"', 'Weight measurement'),
+            cell(
+              's',
+              'odk_type="activity_start" relevance="AgeInMonths() &lt; 60"',
+              'Weight measurement',
+            ),
             cell('w', 'odk_type="decimal" name="weight"', 'Weight (kg)'),
           ].join(''),
         ),
@@ -145,7 +150,16 @@ describe('draw.io pages', () => {
     ])
     const [activity] = activitiesFromDrawio(xml, new Set())
     expect(activity?.groups).toEqual([
-      { id: 'box', name: 'danger_signs', label: { en: 'Danger signs' }, color: 'grey', x: 300, y: 100, width: 400, height: 300 },
+      {
+        id: 'box',
+        name: 'danger_signs',
+        label: { en: 'Danger signs' },
+        color: 'grey',
+        x: 300,
+        y: 100,
+        width: 400,
+        height: 300,
+      },
     ])
     expect(activity?.nodes['q']).toMatchObject({ group: 'box', ui: { x: 20, y: 40 } })
     expect(activity?.nodes['box']).toBeUndefined()
@@ -173,7 +187,10 @@ describe('draw.io pages', () => {
       },
     ])
     const [activity] = activitiesFromDrawio(xml, new Set())
-    expect(activity?.nodes['w']).toMatchObject({ hint: { en: 'Use a calibrated scale' }, help: { en: 'Undress the child' } })
+    expect(activity?.nodes['w']).toMatchObject({
+      hint: { en: 'Use a calibrated scale' },
+      help: { en: 'Undress the child' },
+    })
     expect(Object.values(activity!.edges).map((e) => [e.source, e.target])).toEqual([['s', 'w']])
     expect(activity?.ui?.comments?.map((c) => c.id)).toEqual(['lost'])
   })
@@ -210,7 +227,11 @@ describe('draw.io pages', () => {
         body: graph(
           [
             cell('s', 'odk_type="activity_start"', 'Consent'),
-            cell('a', 'odk_type="acknowledge" name="read_warning"', 'This medicine can cause drowsiness'),
+            cell(
+              'a',
+              'odk_type="acknowledge" name="read_warning"',
+              'This medicine can cause drowsiness',
+            ),
             cell('b', 'odk_type="aknowledge" name="read_risk"', 'Confirm you understand the risk'),
           ].join(''),
         ),
@@ -239,8 +260,16 @@ describe('draw.io pages', () => {
         name: 'Village visit',
         body: graph(
           [
-            cell('s1', 'odk_type="activity_start" name="visit_start" form_id="visitform" process="registration"', 'Start'),
-            cell('p1', 'odk_type="start" name="reg" form_id="visitform" process="registration"', 'Process'),
+            cell(
+              's1',
+              'odk_type="activity_start" name="visit_start" form_id="visitform" process="registration"',
+              'Start',
+            ),
+            cell(
+              'p1',
+              'odk_type="start" name="reg" form_id="visitform" process="registration"',
+              'Process',
+            ),
             cell('w1', 'odk_type="integer" name="weight_kg"', 'Weight'),
             cell('u1', 'odk_type="mystery_shape" name="mystery"', 'Mystery box'),
             cell('loose', '', 'Loose label'),
@@ -267,7 +296,11 @@ describe('draw.io pages', () => {
     expect(activity?.nodes['u1']).toBeUndefined()
     expect(activity?.nodes['loose']).toBeUndefined()
     expect(activity?.ui?.comments).toEqual([
-      expect.objectContaining({ id: 'u1', text: 'Unmapped type: mystery_shape — Mystery box', color: 'pink' }),
+      expect.objectContaining({
+        id: 'u1',
+        text: 'Unmapped type: mystery_shape — Mystery box',
+        color: 'pink',
+      }),
       expect.objectContaining({ id: 'loose', text: 'Loose label', color: 'yellow' }),
     ])
     expect(activity?.nodes['blank']).toBeUndefined()
@@ -287,14 +320,18 @@ describe('draw.io pages', () => {
     expect(() => inflateDiagram('@@@')).toThrow(/neither plain XML nor a compressed/)
   })
 
-  it('ignores a select filter (choices compile from the options\' relevance)', () => {
+  it("ignores a select filter (choices compile from the options' relevance)", () => {
     const xml = mxfile([
       {
         id: 'p',
         name: 'Coma',
         body: graph(
           [
-            cell('q1', 'odk_type="select_one" name="select_" filter="etat.coma.004"', 'Check blood sugar'),
+            cell(
+              'q1',
+              'odk_type="select_one" name="select_" filter="etat.coma.004"',
+              'Check blood sugar',
+            ),
             cell('q2', 'odk_type="select_one" name="etat.r.001" filter=""', 'Age category'),
           ].join(''),
         ),
@@ -313,9 +350,17 @@ describe('draw.io pages', () => {
         cell('q', 'odk_type="select_one yesno" name="breathing"', 'Breathing?'),
         `<object id="opt" label="Yes" odk_type="select_option" name="yes"><mxCell vertex="1" parent="q"><mxGeometry x="0" y="0" width="40" height="20" as="geometry"/></mxCell></object>`,
         `<object id="hint" label="Look at the chest" odk_type="hint-message"><mxCell vertex="1" parent="q"><mxGeometry x="0" y="0" width="40" height="20" as="geometry"/></mxCell></object>`,
-        cell('calc', 'odk_type="calculate" name="score" reference="&quot;weight_kg&quot; + 1"', 'Score'),
+        cell(
+          'calc',
+          'odk_type="calculate" name="score" reference="&quot;weight_kg&quot; + 1"',
+          'Score',
+        ),
         cell('pop', 'odk_type="input" name="prev_weight"', 'Previous weight'),
-        cell('rh', 'odk_type="rhombus" name="gate" reference="&quot;age&quot; &lt; 60" severity="severe"', 'Young'),
+        cell(
+          'rh',
+          'odk_type="rhombus" name="gate" reference="&quot;age&quot; &lt; 60" severity="severe"',
+          'Young',
+        ),
         `<object id="go" label="Temperature" odk_type="goto" name="temp_goto" link="data:page/id,other"><mxCell vertex="1" parent="1"><mxGeometry x="10" y="20" width="70" height="40" as="geometry"/></mxCell></object>`,
         `<object id="gone" label="Oxygen" odk_type="goto" link="data:page/name,Missing page"><mxCell vertex="1" parent="1"><mxGeometry x="10" y="20" width="70" height="40" as="geometry"/></mxCell></object>`,
         '<mxCell id="e1" edge="1" parent="1" source="q" target="calc" value="Yes"><mxGeometry relative="1" as="geometry"/></mxCell>',
@@ -336,7 +381,11 @@ describe('draw.io pages', () => {
     expect(main?.nodes['opt']).toBeUndefined()
     expect(main?.nodes['calc']?.calculate).toEqual({ expression: '"weight_kg" + 1' })
     expect(main?.nodes['pop']).toMatchObject({ type: 'populate', context: 'encounter' })
-    expect(main?.nodes['rh']).toMatchObject({ type: 'rhombus', severity: 'severe', reference: '"age" < 60' })
+    expect(main?.nodes['rh']).toMatchObject({
+      type: 'rhombus',
+      severity: 'severe',
+      reference: '"age" < 60',
+    })
     expect(main?.nodes['go']?.link).toBe('temperature-page')
     expect(main?.nodes['gone']?.link).toBe('oxygen')
     expect(Object.values(main?.edges ?? {})).toEqual([
@@ -347,15 +396,12 @@ describe('draw.io pages', () => {
   it('rejects a file that is not a diagram and an empty page', () => {
     expect(() => activitiesFromDrawio('<html></html>', new Set())).toThrow(/not a draw\.io diagram/)
     expect(() => activitiesFromDrawio('<mxfile></mxfile>', new Set())).toThrow(/no pages/)
-    expect(() => activitiesFromDrawio('<mxfile><diagram id="e" name="Empty"></diagram></mxfile>', new Set())).toThrow(
-      /empty/,
-    )
+    expect(() =>
+      activitiesFromDrawio('<mxfile><diagram id="e" name="Empty"></diagram></mxfile>', new Set()),
+    ).toThrow(/empty/)
     expect(() => activitiesFromDrawio('   ', new Set())).toThrow(/empty/)
-    expect(() => activitiesFromDrawio('<mxfile><diagram name="Bad" foo=bar></diagram></mxfile>', new Set())).toThrow(
-      /unquoted/,
-    )
+    expect(() =>
+      activitiesFromDrawio('<mxfile><diagram name="Bad" foo=bar></diagram></mxfile>', new Set()),
+    ).toThrow(/unquoted/)
   })
-
-
-
 })

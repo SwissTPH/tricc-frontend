@@ -1,13 +1,13 @@
 # Answers in CQL: shown by name, and imported from drawings
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft |
-| **Repo** | `tricc_frontend` — `@tricc/core` (draw.io import), `@tricc/editor` (CQL display); `tricc_oo` only if §2 option B is chosen |
-| **Source** | Patrick, 2026-10-14: "support options in the CQL rendering; maybe we need to simply write them as double quotes (import update required)" |
-| **Related** | `20260825-cql-authoring.md` (unbuilt parser), `20261008-drawio-import-and-sequence-nodes.md`, `20261014-none-answer-repeat-instance.md` |
-| **Decisions** | — (§2 is open) |
-| **Approval** | — |
+| Field         | Value                                                                                                                                     |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**    | Draft                                                                                                                                     |
+| **Repo**      | `tricc_frontend` — `@tricc/core` (draw.io import), `@tricc/editor` (CQL display); `tricc_oo` only if §2 option B is chosen                |
+| **Source**    | Patrick, 2026-10-14: "support options in the CQL rendering; maybe we need to simply write them as double quotes (import update required)" |
+| **Related**   | `20260825-cql-authoring.md` (unbuilt parser), `20261008-drawio-import-and-sequence-nodes.md`, `20261014-none-answer-repeat-instance.md`   |
+| **Decisions** | — (§2 is open)                                                                                                                            |
+| **Approval**  | —                                                                                                                                         |
 
 ## Part I — What the author sees
 
@@ -47,11 +47,11 @@ tricc_oo reads them the same way.
 display recognises a string literal in these positions and resolves it against that question's
 options:
 
-| Pattern | Example |
-|---|---|
-| `"q" = 'x'`, `"q" != 'x'`, `'x' = "q"` | `"hiv_stat" = '1'` |
-| `'x' in "q"`, `"q" contains 'x'` | `'Gliclazide' in "dm_drugs"` |
-| `Answer('x')` (edge value) | already labelled; reuse the same lookup |
+| Pattern                                | Example                                 |
+| -------------------------------------- | --------------------------------------- |
+| `"q" = 'x'`, `"q" != 'x'`, `'x' = "q"` | `"hiv_stat" = '1'`                      |
+| `'x' in "q"`, `"q" contains 'x'`       | `'Gliclazide' in "dm_drugs"`            |
+| `Answer('x')` (edge value)             | already labelled; reuse the same lookup |
 
 - Pros: no format change, no `tricc_oo` change, existing drawings and YAML render at once.
   Answers resolve within their question, so generic codes (`yes`, `1`, `other`) are unambiguous.
@@ -79,7 +79,7 @@ build A's resolution first and add B's import rewrite and the `tricc_oo` resolve
   in `answer.ts`.
 - `NameChip` renders `answer` with the answer label. The card shows the answer and its question,
   with "Show question". Unknown code: error style, message "`'x'` is not an answer of
-  *question*".
+  _question_".
 - `renderCqlLabels` (canvas and edge list) uses the same pass, so a canvas condition reads
   `Type of fever = Intermittent`.
 

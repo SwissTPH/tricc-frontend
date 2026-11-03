@@ -275,7 +275,9 @@ test('a project reopens from the project list', async ({ page }) => {
   await expect(page.getByTestId('nav-activity-activity')).toBeVisible()
 })
 
-test('the activity gear sets its name and applicability, and the bin deletes it', async ({ page }) => {
+test('the activity gear sets its name and applicability, and the bin deletes it', async ({
+  page,
+}) => {
   await createProject(page, 'Settings guideline')
   await page.getByTestId('add-activity').click()
   await page.getByTestId('create-activity').click()
@@ -296,7 +298,9 @@ test('the activity gear sets its name and applicability, and the bin deletes it'
   await expect(page.getByTestId('activity-canvas')).toHaveCount(0)
 })
 
-test('the activity bin is hidden when read-only, and the gear still shows the settings', async ({ page }) => {
+test('the activity bin is hidden when read-only, and the gear still shows the settings', async ({
+  page,
+}) => {
   await createProject(page, 'Read-only settings guideline')
   await page.getByTestId('add-activity').click()
   await page.getByTestId('create-activity').click()
@@ -317,7 +321,9 @@ test('a question gets a concept, and the dictionary lists and edits it', async (
   await page.getByTestId('concept-create').click()
   await expect(page.getByTestId('concept-dialog')).toBeVisible()
   await expect(page.getByTestId('concept-code')).toHaveValue('weight_kg')
-  await page.getByTestId('concept-q-display').fill('Weigh the child and enter the weight in kilograms')
+  await page
+    .getByTestId('concept-q-display')
+    .fill('Weigh the child and enter the weight in kilograms')
   await page.getByTestId('concept-type').selectOption('Vital')
   await page.getByTestId('concept-dialog-save').click()
   await expect(page.getByTestId('concept-dialog')).toHaveCount(0)
@@ -340,7 +346,9 @@ test('a question gets a concept, and the dictionary lists and edits it', async (
   await expect(page.getByTestId('concept-delete')).toBeDisabled()
   await page.getByTestId('concept-use-activity-n-decimal').click()
   await expect(page.getByTestId('concept-card-code')).toHaveText('weight_kg')
-  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 })
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', {
+    timeout: 10_000,
+  })
 })
 
 test('a questionnaire text gets bold and data from an earlier answer', async ({ page }) => {
@@ -366,7 +374,9 @@ test('a questionnaire text gets bold and data from an earlier answer', async ({ 
   await page.getByTestId('concept-q-display-bold').click()
   await page.keyboard.type('Give ')
   // The data list reads "<code>: <display>".
-  await expect(page.getByTestId('concept-q-display-insert').locator('option[value="dose"]')).toHaveText('dose: Dose')
+  await expect(
+    page.getByTestId('concept-q-display-insert').locator('option[value="dose"]'),
+  ).toHaveText('dose: Dose')
   await page.getByTestId('concept-q-display-insert').selectOption('dose')
   await page.keyboard.type(' mg')
   await page.keyboard.press('Enter')
@@ -393,7 +403,9 @@ test('a questionnaire text gets bold and data from an earlier answer', async ({ 
   await expect(page.getByTestId('concept-q-display-modal')).toHaveCount(0)
   await expect(page.getByTestId('concept-dialog')).toBeVisible()
   await page.getByTestId('concept-dialog-cancel').click()
-  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 })
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', {
+    timeout: 10_000,
+  })
 })
 
 test('concept types come from the preferences', async ({ page }) => {
@@ -403,7 +415,11 @@ test('concept types come from the preferences', async ({ page }) => {
   await createProject(page, 'Types guideline')
   await page.getByTestId('tab-dictionary').click()
   await page.getByTestId('concept-add').click()
-  await expect(page.getByTestId('concept-type').locator('option')).toHaveText(['—', 'Vital', 'Counselling'])
+  await expect(page.getByTestId('concept-type').locator('option')).toHaveText([
+    '—',
+    'Vital',
+    'Counselling',
+  ])
 })
 
 test('the project gear renames it, and the bin deletes it after confirmation', async ({ page }) => {
@@ -430,4 +446,3 @@ test('a renamed project shows its new name in the project list', async ({ page }
   await expect(page.getByText('New name')).toBeVisible()
   await expect(page.getByText('Old name')).toHaveCount(0)
 })
-

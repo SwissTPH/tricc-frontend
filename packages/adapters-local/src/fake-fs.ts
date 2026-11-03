@@ -61,9 +61,11 @@ export class FakeDir implements DirHandle {
       name,
       async getFile() {
         const f = store.get(name) as FakeFile
-        const bytes = () => (typeof f.content === 'string' ? new TextEncoder().encode(f.content) : f.content)
+        const bytes = () =>
+          typeof f.content === 'string' ? new TextEncoder().encode(f.content) : f.content
         return {
-          text: async () => (typeof f.content === 'string' ? f.content : new TextDecoder().decode(f.content)),
+          text: async () =>
+            typeof f.content === 'string' ? f.content : new TextDecoder().decode(f.content),
           arrayBuffer: async () => bytes().slice().buffer as ArrayBuffer,
           lastModified: f.lastModified,
         }

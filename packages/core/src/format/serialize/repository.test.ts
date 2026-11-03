@@ -31,13 +31,24 @@ describe('tricc.yaml repository', () => {
   it('ignores an incomplete entry and trims slashes', () => {
     expect(readRepository({ host: 'bitbucket', url: 'x', branch: 'main' })).toBeUndefined()
     expect(readRepository({ host: 'gitlab', url: 'https://gitlab.com/a/b' })).toBeUndefined()
-    expect(readRepository({ host: 'gitlab', url: 'https://gitlab.com/a/b/', branch: 'dev', path: '/p/' })).toEqual({
+    expect(
+      readRepository({
+        host: 'gitlab',
+        url: 'https://gitlab.com/a/b/',
+        branch: 'dev',
+        path: '/p/',
+      }),
+    ).toEqual({
       host: 'gitlab',
       url: 'https://gitlab.com/a/b',
       branch: 'dev',
       path: 'p',
     })
-    expect(readRepository({ ...REPO, path: '' })).toEqual({ host: 'github', url: REPO.url, branch: 'main' })
+    expect(readRepository({ ...REPO, path: '' })).toEqual({
+      host: 'github',
+      url: REPO.url,
+      branch: 'main',
+    })
   })
 
   it('is set in a tricc.yaml text without touching the rest of it', () => {

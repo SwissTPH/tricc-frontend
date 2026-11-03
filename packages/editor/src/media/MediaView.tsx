@@ -9,7 +9,14 @@ import {
 } from '@tricc/core'
 import { useCanWrite, useMutate, useProjectSnapshot } from '../runtime/context.js'
 import { ConfirmDelete, Dialog } from '../components/Dialog.js'
-import { draggingFiles, formatBytes, imageFiles, imageUrl, prepareImage, useAddImages } from './images.js'
+import {
+  draggingFiles,
+  formatBytes,
+  imageFiles,
+  imageUrl,
+  prepareImage,
+  useAddImages,
+} from './images.js'
 import { useEditorPreferences } from '../runtime/context.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
@@ -62,7 +69,8 @@ export function MediaView({ onOpenConcept }: { onOpenConcept?: (key: ConceptKey)
     >
       <header className="tricc-editor__header">
         <h1 id="media-heading">Media</h1>
-        <Input size="sm"
+        <Input
+          size="sm"
           type="search"
           data-testid="media-search"
           aria-label="Find a picture"
@@ -125,7 +133,11 @@ export function MediaView({ onOpenConcept }: { onOpenConcept?: (key: ConceptKey)
       )}
       {renaming && <RenameImage id={renaming} onClose={() => setRenaming(undefined)} />}
       {deleting && (
-        <DeleteImage id={deleting} users={usage.get(deleting) ?? []} onClose={() => setDeleting(undefined)} />
+        <DeleteImage
+          id={deleting}
+          users={usage.get(deleting) ?? []}
+          onClose={() => setDeleting(undefined)}
+        />
       )}
     </section>
   )
@@ -168,7 +180,9 @@ function MediaTile({
       <img
         src={imageUrl(image)}
         alt=""
-        onLoad={(e) => setSize(`${e.currentTarget.naturalWidth} × ${e.currentTarget.naturalHeight}`)}
+        onLoad={(e) =>
+          setSize(`${e.currentTarget.naturalWidth} × ${e.currentTarget.naturalHeight}`)
+        }
       />
       <strong className="tricc-media__name">{image.id}</strong>
       <span className="tricc-media__meta">
@@ -255,7 +269,12 @@ function RenameImage({ id, onClose }: { id: string; onClose: () => void }) {
     onClose()
   }
   return (
-    <Dialog testId="media-rename" titleId="media-rename-title" title="Rename picture" onClose={onClose}>
+    <Dialog
+      testId="media-rename"
+      titleId="media-rename-title"
+      title="Rename picture"
+      onClose={onClose}
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault()
@@ -270,7 +289,9 @@ function RenameImage({ id, onClose }: { id: string; onClose: () => void }) {
           onChange={(e) => setName(e.target.value)}
           aria-invalid={problem ? true : undefined}
         />
-        <p className="tricc-nav__note">The file is renamed too, and every text showing it follows.</p>
+        <p className="tricc-nav__note">
+          The file is renamed too, and every text showing it follows.
+        </p>
         {problem && <p role="alert">{problem}</p>}
         <div className="tricc-library-modal__actions">
           <Button
@@ -296,7 +317,15 @@ function RenameImage({ id, onClose }: { id: string; onClose: () => void }) {
   )
 }
 
-function DeleteImage({ id, users, onClose }: { id: string; users: ConceptKey[]; onClose: () => void }) {
+function DeleteImage({
+  id,
+  users,
+  onClose,
+}: {
+  id: string
+  users: ConceptKey[]
+  onClose: () => void
+}) {
   const project = useProjectSnapshot()
   const mutate = useMutate()
   const lang = project.languages.default

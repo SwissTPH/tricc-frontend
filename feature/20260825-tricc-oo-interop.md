@@ -1,11 +1,11 @@
 # tricc_oo Interop — reading the frontend project format
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft |
-| **Repo** | **`tricc_oo`** (specified here; mirror into `../../tricc_oo/feature/` on approval) |
-| **Related** | `20260825-project-format.md`, `20260825-cql-authoring.md`, `../../tricc_oo/tricc_oo/strategies/input/yaml.py`, `../../tricc_oo/feature/careplan-intervention-plandefinition.md` |
-| **Approval** | — |
+| Field        | Value                                                                                                                                                                           |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**   | Draft                                                                                                                                                                           |
+| **Repo**     | **`tricc_oo`** (specified here; mirror into `../../tricc_oo/feature/` on approval)                                                                                              |
+| **Related**  | `20260825-project-format.md`, `20260825-cql-authoring.md`, `../../tricc_oo/tricc_oo/strategies/input/yaml.py`, `../../tricc_oo/feature/careplan-intervention-plandefinition.md` |
+| **Approval** | —                                                                                                                                                                               |
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
@@ -57,13 +57,13 @@ onto the existing machinery, not a rewrite of it.
 
 ### 1. Scope
 
-| In | Out |
-|----|-----|
-| New `TriccProjectStrategy` input strategy | Any change to `DrawioStrategy` |
-| `YamlStrategy` schema extension | Any change to output strategies beyond §4 |
-| CQL → `TriccOperation` translation | Full CQL support (profile only, §3) |
-| Multi-intervention export | BPMN input |
-| Shared CQL fixture corpus | Migrating existing draw.io guidelines |
+| In                                        | Out                                       |
+| ----------------------------------------- | ----------------------------------------- |
+| New `TriccProjectStrategy` input strategy | Any change to `DrawioStrategy`            |
+| `YamlStrategy` schema extension           | Any change to output strategies beyond §4 |
+| CQL → `TriccOperation` translation        | Full CQL support (profile only, §3)       |
+| Multi-intervention export                 | BPMN input                                |
+| Shared CQL fixture corpus                 | Migrating existing draw.io guidelines     |
 
 ### 2. `YamlStrategy` extension
 
@@ -241,17 +241,17 @@ something different in Python. Adding a corpus case is part of adding a mapping 
 
 ### 7. Code checklist (`tricc_oo`)
 
-| Path | Change |
-|------|--------|
-| `tricc_oo/strategies/input/yaml.py` | Node types, fields, localized text, `ui` drop, id validation |
-| `tricc_oo/strategies/input/tricc_project.py` | New `TriccProjectStrategy` |
-| `tricc_oo/strategies/__init__.py` | Register it (eager import — an unregistered strategy reports as "unknown" at runtime) |
-| `tricc_oo/converters/cql/` | New CQL package |
-| `tricc_oo/models/tricc.py` | `TriccIntervention`; `TriccProject.interventions` |
-| `tricc_oo/strategies/output/opensrp.py` | One PD per intervention |
-| `tests/build.py` | Directory / ZIP input detection |
-| `docs/cli-and-inputs.md`, `docs/pipeline.md` | Document the new input |
-| `AGENTS.md` | Add the strategy to the structure overview |
+| Path                                         | Change                                                                                |
+| -------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `tricc_oo/strategies/input/yaml.py`          | Node types, fields, localized text, `ui` drop, id validation                          |
+| `tricc_oo/strategies/input/tricc_project.py` | New `TriccProjectStrategy`                                                            |
+| `tricc_oo/strategies/__init__.py`            | Register it (eager import — an unregistered strategy reports as "unknown" at runtime) |
+| `tricc_oo/converters/cql/`                   | New CQL package                                                                       |
+| `tricc_oo/models/tricc.py`                   | `TriccIntervention`; `TriccProject.interventions`                                     |
+| `tricc_oo/strategies/output/opensrp.py`      | One PD per intervention                                                               |
+| `tests/build.py`                             | Directory / ZIP input detection                                                       |
+| `docs/cli-and-inputs.md`, `docs/pipeline.md` | Document the new input                                                                |
+| `AGENTS.md`                                  | Add the strategy to the structure overview                                            |
 
 ### 8. Tests (`tricc_oo`)
 

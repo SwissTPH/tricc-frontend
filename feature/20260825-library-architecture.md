@@ -1,11 +1,11 @@
 # Library Architecture — packages, ports, capabilities, publishing
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft |
-| **Repo** | `tricc_frontend` |
-| **Related** | `20260825-document-model.md` (the CRDT core), `20260825-local-app.md` (the first instantiation), all other specs (each now names its package) |
-| **Approval** | — |
+| Field        | Value                                                                                                                                         |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**   | Draft                                                                                                                                         |
+| **Repo**     | `tricc_frontend`                                                                                                                              |
+| **Related**  | `20260825-document-model.md` (the CRDT core), `20260825-local-app.md` (the first instantiation), all other specs (each now names its package) |
+| **Approval** | —                                                                                                                                             |
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
@@ -85,12 +85,12 @@ without anyone noticing until the first publish.
 
 ### 2. Packages
 
-| Package | Contains | Depends on |
-|---------|----------|------------|
-| **`@tricc/core`** | Guideline model; Yjs document (`20260825-document-model.md`); file format read/write and migrations (`20260825-project-format.md`); authoring validation; terminology model, search index and usage walker (`20260825-terminology.md`); **all port interfaces** | `yjs`, `zod`, `yaml`, `@tricc/cql` |
-| **`@tricc/cql`** | Vendored `Cql.g4`, generated parser, resolution, TRICC profile, `TriccOperation` mapping, language-service primitives (`20260825-cql-authoring.md`) | `antlr4ng` |
-| **`@tricc/editor`** | React: canvas, palette, property panels, CQL editor, concept picker, concept browser, validation panel | `@tricc/core`, `@tricc/cql`, React, MUI, `@xyflow/react`, CodeMirror (peers) |
-| **`@tricc/adapters-local`** | File System Access + download persistence, local project catalog, local identity, IndexedDB collaboration provider | `@tricc/core`, `y-indexeddb` |
+| Package                     | Contains                                                                                                                                                                                                                                                        | Depends on                                                                   |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **`@tricc/core`**           | Guideline model; Yjs document (`20260825-document-model.md`); file format read/write and migrations (`20260825-project-format.md`); authoring validation; terminology model, search index and usage walker (`20260825-terminology.md`); **all port interfaces** | `yjs`, `zod`, `yaml`, `@tricc/cql`                                           |
+| **`@tricc/cql`**            | Vendored `Cql.g4`, generated parser, resolution, TRICC profile, `TriccOperation` mapping, language-service primitives (`20260825-cql-authoring.md`)                                                                                                             | `antlr4ng`                                                                   |
+| **`@tricc/editor`**         | React: canvas, palette, property panels, CQL editor, concept picker, concept browser, validation panel                                                                                                                                                          | `@tricc/core`, `@tricc/cql`, React, MUI, `@xyflow/react`, CodeMirror (peers) |
+| **`@tricc/adapters-local`** | File System Access + download persistence, local project catalog, local identity, IndexedDB collaboration provider                                                                                                                                              | `@tricc/core`, `y-indexeddb`                                                 |
 
 **`core` and `cql` contain no React.** That is enforced by an ESLint rule banning `react` imports
 in those packages, not merely by intention. They are the parts with real logic; keeping them out of
@@ -117,12 +117,12 @@ interface PersistencePort {
 interface ProjectCatalogPort {
   list(): Promise<ProjectSummary[]>
   create(name: string): Promise<ProjectRef>
-  open(): Promise<ProjectRef | undefined>     // may prompt
+  open(): Promise<ProjectRef | undefined> // may prompt
   remove(ref: ProjectRef): Promise<void>
 }
 
 interface IdentityPort {
-  current(): Identity                          // { id, displayName, email?, colour? }
+  current(): Identity // { id, displayName, email?, colour? }
   capabilities(scope: Scope): CapabilitySet
   onChange(cb: () => void): Disposable
 }
@@ -139,7 +139,9 @@ interface TerminologySourcePort {
   readonly online: boolean
 }
 
-interface TelemetryPort { event(name: string, data?: Record<string, unknown>): void }
+interface TelemetryPort {
+  event(name: string, data?: Record<string, unknown>): void
+}
 ```
 
 `PersistencePort.capabilities()` exists because the shells genuinely differ in kind: a download-mode
@@ -151,10 +153,14 @@ adaptation testable.
 
 ```ts
 type Capability =
-  | 'project.read' | 'project.write' | 'project.export' | 'project.delete'
-  | 'terminology.read' | 'terminology.write'
+  | 'project.read'
+  | 'project.write'
+  | 'project.export'
+  | 'project.delete'
+  | 'terminology.read'
+  | 'terminology.write'
   | 'settings.write'
-  | 'project.share'          // hosted only; locally never granted
+  | 'project.share' // hosted only; locally never granted
 ```
 
 - `@tricc/adapters-local` returns one identity holding every capability except `project.share`.
@@ -217,14 +223,14 @@ exposes it programmatically so a shell can report "this project needs a newer TR
 
 ### 8. Testing
 
-| Scope | Where |
-|-------|-------|
-| Unit | Per package, Vitest. `core` and `cql` carry the bulk. |
-| Component | `packages/editor`, Vitest + RTL, against the in-memory adapter set |
-| CRDT convergence | `packages/core` — see `20260825-document-model.md` §8 |
-| Contract | Adapter conformance suite (§8.1) |
-| API surface | `api-extractor` report diff; `publint`; `attw` |
-| E2E | `e2e/`, Playwright, drives `apps/local` |
+| Scope            | Where                                                              |
+| ---------------- | ------------------------------------------------------------------ |
+| Unit             | Per package, Vitest. `core` and `cql` carry the bulk.              |
+| Component        | `packages/editor`, Vitest + RTL, against the in-memory adapter set |
+| CRDT convergence | `packages/core` — see `20260825-document-model.md` §8              |
+| Contract         | Adapter conformance suite (§8.1)                                   |
+| API surface      | `api-extractor` report diff; `publint`; `attw`                     |
+| E2E              | `e2e/`, Playwright, drives `apps/local`                            |
 
 #### 8.1 Adapter conformance suite
 
@@ -243,17 +249,17 @@ the reference implementation and as proof the ports are actually sufficient.
 
 ### 9. Code checklist
 
-| Path | Purpose |
-|------|---------|
-| `pnpm-workspace.yaml`, `turbo.json` | Workspace + task graph |
-| `packages/core/src/ports/` | Every port interface |
-| `packages/core/src/runtime.ts` | `createTriccRuntime`, capability enforcement |
-| `packages/core/src/testing/` | Adapter conformance suite |
-| `packages/editor/src/runtime/` | `TriccRuntimeProvider`, `useCapability`, `RequireCapability` |
-| `packages/adapters-local/src/` | Local adapters |
-| `packages/adapters-memory/src/` | In-memory adapters (private) |
-| `.changeset/`, `api-extractor.json` | Release + API surface tooling |
-| `src/pages/UserAccount.tsx` | **Deleted** — no accounts without a backend |
+| Path                                | Purpose                                                      |
+| ----------------------------------- | ------------------------------------------------------------ |
+| `pnpm-workspace.yaml`, `turbo.json` | Workspace + task graph                                       |
+| `packages/core/src/ports/`          | Every port interface                                         |
+| `packages/core/src/runtime.ts`      | `createTriccRuntime`, capability enforcement                 |
+| `packages/core/src/testing/`        | Adapter conformance suite                                    |
+| `packages/editor/src/runtime/`      | `TriccRuntimeProvider`, `useCapability`, `RequireCapability` |
+| `packages/adapters-local/src/`      | Local adapters                                               |
+| `packages/adapters-memory/src/`     | In-memory adapters (private)                                 |
+| `.changeset/`, `api-extractor.json` | Release + API surface tooling                                |
+| `src/pages/UserAccount.tsx`         | **Deleted** — no accounts without a backend                  |
 
 ### 10. Acceptance criteria
 

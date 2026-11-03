@@ -1,11 +1,11 @@
 # Document Model — CRDT project document, undo, presence, file projection
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft |
-| **Repo** | `tricc_frontend` — `@tricc/core` |
-| **Related** | `20260825-library-architecture.md` (packages, ports), `20260825-project-format.md` (the file projection), `20260825-activity-editor.md` (consumer), `20260825-cql-authoring.md` (collaborative expression editing) |
-| **Approval** | — |
+| Field        | Value                                                                                                                                                                                                              |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Status**   | Draft                                                                                                                                                                                                              |
+| **Repo**     | `tricc_frontend` — `@tricc/core`                                                                                                                                                                                   |
+| **Related**  | `20260825-library-architecture.md` (packages, ports), `20260825-project-format.md` (the file projection), `20260825-activity-editor.md` (consumer), `20260825-cql-authoring.md` (collaborative expression editing) |
+| **Approval** | —                                                                                                                                                                                                                  |
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
@@ -38,14 +38,14 @@ that has one user. This is a bet that the hosted version happens.
 ### What it means in practice
 
 - Two authors editing different activities never conflict.
-- Two authors editing the *same* CQL expression merge character by character, the way a shared
+- Two authors editing the _same_ CQL expression merge character by character, the way a shared
   document does — not "last save wins", which would silently discard someone's work.
-- Undo is yours. Pressing undo reverses *your* last change, not your colleague's.
+- Undo is yours. Pressing undo reverses _your_ last change, not your colleague's.
 - Work done offline merges when you reconnect, rather than forcing a choice between two versions.
 
 ### Files remain the truth
 
-The collaborative document is how a guideline is *edited*. Files in your project folder are how it
+The collaborative document is how a guideline is _edited_. Files in your project folder are how it
 is **stored, reviewed and converted**. Every change is written out to those files, and opening a
 project reads them. If someone changes a file outside the tool — a `git pull`, a text editor — the
 files win, because that is what everyone else and every other tool sees.
@@ -105,19 +105,19 @@ Y.Map { id, type, name, save, repeat, instance, required, min, max,
 These are what make the document merge correctly. They are enforced by the schema layer (§5), not
 left to discipline.
 
-| Rule | Reason |
-|------|--------|
-| Identity-keyed collections are `Y.Map`, keyed by stable id | Two authors adding a node concurrently both survive. An array would interleave by position and could lose one. |
-| Genuinely ordered lists are `Y.Array` | Select options, process ordering, edge waypoints. Yjs arrays handle concurrent insertion correctly; the ordering carries meaning and must not be re-derived. |
-| Every entity has a stable, immutable `id` | Ids are never regenerated — `goto.link`, edge endpoints and undo all depend on them. |
-| Free text is `Y.Text` | Labels, definitions, and every CQL expression. Character-level merge; last-write-wins on a shared expression would silently destroy work. |
-| Scalars are plain values in a `Y.Map` | Per-key last-write-wins is correct for `x`, `required`, `min`. |
-| **No derived state in the document** | Validation results, layout output, search indices, parsed CQL. Derived state in a CRDT means peers replicate stale conclusions and fight over recomputing them. |
-| No `ui` field affects semantics | Already required by `20260825-project-format.md` §3.2; here it additionally means position churn never conflicts with content edits. |
+| Rule                                                       | Reason                                                                                                                                                          |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identity-keyed collections are `Y.Map`, keyed by stable id | Two authors adding a node concurrently both survive. An array would interleave by position and could lose one.                                                  |
+| Genuinely ordered lists are `Y.Array`                      | Select options, process ordering, edge waypoints. Yjs arrays handle concurrent insertion correctly; the ordering carries meaning and must not be re-derived.    |
+| Every entity has a stable, immutable `id`                  | Ids are never regenerated — `goto.link`, edge endpoints and undo all depend on them.                                                                            |
+| Free text is `Y.Text`                                      | Labels, definitions, and every CQL expression. Character-level merge; last-write-wins on a shared expression would silently destroy work.                       |
+| Scalars are plain values in a `Y.Map`                      | Per-key last-write-wins is correct for `x`, `required`, `min`.                                                                                                  |
+| **No derived state in the document**                       | Validation results, layout output, search indices, parsed CQL. Derived state in a CRDT means peers replicate stale conclusions and fight over recomputing them. |
+| No `ui` field affects semantics                            | Already required by `20260825-project-format.md` §3.2; here it additionally means position churn never conflicts with content edits.                            |
 
 The last one carries a subtlety worth stating: `ui.x`/`ui.y` are last-write-wins scalars, so two
 people dragging the same node concurrently produces one winner. That is acceptable — it is a
-position, it is visible, and it is trivially re-dragged. It is explicitly *not* acceptable for
+position, it is visible, and it is trivially re-dragged. It is explicitly _not_ acceptable for
 anything semantic, which is why nothing semantic is a bare scalar that two people plausibly edit at
 once.
 
@@ -128,7 +128,7 @@ The document is not exposed raw. `@tricc/core` provides:
 ```ts
 interface ProjectDocument {
   readonly doc: Y.Doc
-  snapshot(): Project                                  // plain, immutable, for pure consumers
+  snapshot(): Project // plain, immutable, for pure consumers
   transact<T>(fn: (tx: Mutations) => T, origin?: unknown): T
   observe(path: Path, cb: (event) => void): Disposable
   readonly undo: UndoController
@@ -174,12 +174,12 @@ be reconciled.
 
 #### 7.1 Layers
 
-| Layer | Role | Lifetime |
-|-------|------|----------|
-| `Y.Doc` in memory | The editing document | Session |
-| `y-indexeddb` | Local update log; instant reload, offline safety | Until the project is closed and files are clean |
-| Sidecar `.tricc/state.bin` | Update log persisted beside the project | Optional; gitignored |
-| **Project files** | **Canonical. Reviewed, committed, converted.** | Permanent |
+| Layer                      | Role                                             | Lifetime                                        |
+| -------------------------- | ------------------------------------------------ | ----------------------------------------------- |
+| `Y.Doc` in memory          | The editing document                             | Session                                         |
+| `y-indexeddb`              | Local update log; instant reload, offline safety | Until the project is closed and files are clean |
+| Sidecar `.tricc/state.bin` | Update log persisted beside the project          | Optional; gitignored                            |
+| **Project files**          | **Canonical. Reviewed, committed, converted.**   | Permanent                                       |
 
 #### 7.2 Writing
 
@@ -234,15 +234,15 @@ holds; document under a stated memory budget.
 
 ### 9. Code checklist
 
-| Path | Purpose |
-|------|---------|
-| `packages/core/src/document/doc.ts` | `ProjectDocument`, `transact`, capability enforcement |
-| `packages/core/src/document/codec.ts` | Plain ⇄ Y types; the §3 rules |
-| `packages/core/src/document/snapshot.ts` | Memoized structural sharing |
-| `packages/core/src/document/undo.ts` | `UndoController` over `Y.UndoManager` |
-| `packages/core/src/document/observe.ts` | Path-scoped subscriptions |
-| `packages/editor/src/hooks/` | `useProjectDocument`, `useActivity`, `useNode`, `useUndo` |
-| `packages/core/src/persistence/` | Snapshot diff → `ChangeSet`; open/save orchestration |
+| Path                                     | Purpose                                                   |
+| ---------------------------------------- | --------------------------------------------------------- |
+| `packages/core/src/document/doc.ts`      | `ProjectDocument`, `transact`, capability enforcement     |
+| `packages/core/src/document/codec.ts`    | Plain ⇄ Y types; the §3 rules                             |
+| `packages/core/src/document/snapshot.ts` | Memoized structural sharing                               |
+| `packages/core/src/document/undo.ts`     | `UndoController` over `Y.UndoManager`                     |
+| `packages/core/src/document/observe.ts`  | Path-scoped subscriptions                                 |
+| `packages/editor/src/hooks/`             | `useProjectDocument`, `useActivity`, `useNode`, `useUndo` |
+| `packages/core/src/persistence/`         | Snapshot diff → `ChangeSet`; open/save orchestration      |
 
 ### 10. Acceptance criteria
 

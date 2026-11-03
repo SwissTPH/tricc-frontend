@@ -1,4 +1,12 @@
-import { resolve, type SelectOption, type TriccNode, conceptText, lookupConcept, optionConceptKey, type Project } from '@tricc/core'
+import {
+  resolve,
+  type SelectOption,
+  type TriccNode,
+  conceptText,
+  lookupConcept,
+  optionConceptKey,
+  type Project,
+} from '@tricc/core'
 
 /** How much of an answer label an edge may show. The rest is on hover. */
 export const ANSWER_LABEL_LIMIT = 20
@@ -69,5 +77,10 @@ export function answerEdgeCaption(
   if (code === undefined) return undefined
   const option = findAnswer(node, code)
   const title = option ? answerLabel(option, lang, project) : code
-  return { code, short: shortenAnswer(title, limit), title, ...(option ? { optionId: option.id } : {}) }
+  return {
+    code,
+    short: shortenAnswer(title, limit),
+    title,
+    ...(option ? { optionId: option.id } : {}),
+  }
 }

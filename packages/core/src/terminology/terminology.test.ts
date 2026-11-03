@@ -41,7 +41,9 @@ describe('concept search ranking', () => {
       concept('fever', 'Fever'),
       concept('fever_duration', 'Fever duration in days', { dataType: 'integer' }),
       concept('high_fever', 'High fever'),
-      concept('temp', 'Body temperature', { designations: [{ language: 'fr', value: 'Temperature corporelle' }] }),
+      concept('temp', 'Body temperature', {
+        designations: [{ language: 'fr', value: 'Temperature corporelle' }],
+      }),
       concept('malaria', 'Malaria', { definition: 'Diagnosed after a fever and a positive test' }),
     ]),
   )
@@ -164,7 +166,10 @@ describe('designations keep their use', () => {
           },
           {
             language: 'fr',
-            use: { system: 'http://terminology.hl7.org/CodeSystem/designation-usage', code: 'display' },
+            use: {
+              system: 'http://terminology.hl7.org/CodeSystem/designation-usage',
+              code: 'display',
+            },
             value: 'Âge (années)',
           },
           { language: 'fr', value: 'Âge' },
@@ -213,7 +218,9 @@ describe('concept usage and texts', () => {
     expect(renamed.display).toBe('Age (years)')
     const q = withConceptText(renamed, 'q-display', 'en', 'How old is the child, in years?')
     expect(conceptText(q, 'q-display', 'en')).toBe('How old is the child, in years?')
-    expect(conceptText(withConceptText(q, 'q-display', 'en', undefined), 'q-display', 'en')).toBe('Age (years)')
+    expect(conceptText(withConceptText(q, 'q-display', 'en', undefined), 'q-display', 'en')).toBe(
+      'Age (years)',
+    )
     expect(base.designations).toHaveLength(0)
   })
 })
@@ -241,7 +248,12 @@ describe('texts move from the activity to the concept', () => {
           ],
         },
         // Same concept, longer wording: becomes the questionnaire text.
-        cough2: { id: 'cough2', type: 'select_yesno', name: 'cough', label: { en: 'Does the child cough?' } },
+        cough2: {
+          id: 'cough2',
+          type: 'select_yesno',
+          name: 'cough',
+          label: { en: 'Does the child cough?' },
+        },
         anon: { id: 'anon', type: 'note', label: { en: 'No name yet' } },
         calc: { id: 'calc', type: 'calculate', name: 'score', label: { en: 'Score' } },
       },
@@ -291,7 +303,9 @@ describe('texts move from the activity to the concept', () => {
     expect(read.migratedFrom).toBe('concept-texts')
     const saved = writeProject(read.project)
     for (const text of ['Cough', 'Yes', 'No', 'Does the child cough?', 'Ask the caregiver']) {
-      expect(saved['activities/a.activity.yaml']).not.toMatch(new RegExp(`: ${text.replace('?', '\\?')}$`, 'm'))
+      expect(saved['activities/a.activity.yaml']).not.toMatch(
+        new RegExp(`: ${text.replace('?', '\\?')}$`, 'm'),
+      )
     }
     expect(saved['activities/a.activity.yaml']).toContain('No name yet')
     const terminology = Object.keys(saved).find((p) => p.startsWith('terminology/'))!
@@ -329,7 +343,9 @@ describe('questionnaire text per intervention', () => {
 
   it('prefers the text scoped to the intervention, and never leaks it elsewhere', () => {
     expect(conceptText(weight, 'q-display', 'en', 'en', 'community')).toBe('Weigh the child')
-    expect(conceptText(weight, 'q-display', 'en', 'en', 'facility')).toBe('Weigh the child on the scale')
+    expect(conceptText(weight, 'q-display', 'en', 'en', 'facility')).toBe(
+      'Weigh the child on the scale',
+    )
     expect(conceptText(weight, 'q-display', 'en', 'en')).toBe('Weigh the child on the scale')
     expect(designationInterventions(weight.designations[1]!)).toEqual(['community'])
   })
@@ -405,7 +421,9 @@ describe('formatted texts', () => {
           system: 'http://x',
           code: 'note',
           dataType: 'string',
-          designations: [withDesignationText({ language: 'en', value: '' }, fromPlain('Give ${ghost}'))],
+          designations: [
+            withDesignationText({ language: 'en', value: '' }, fromPlain('Give ${ghost}')),
+          ],
         },
       },
       conceptOrder: ['note'],
@@ -424,8 +442,20 @@ describe('default concept types', () => {
       edges: {},
       nodes: {
         s: { id: 's', type: 'activity_start' },
-        one: { id: 'one', type: 'select_one', name: 'cough', label: { en: 'Cough' }, options: [{ id: 'o', name: 'dry', label: { en: 'Dry' } }] },
-        many: { id: 'many', type: 'select_multiple', name: 'signs', label: { en: 'Signs' }, options: [{ id: 'm', name: 'rash', label: { en: 'Rash' } }] },
+        one: {
+          id: 'one',
+          type: 'select_one',
+          name: 'cough',
+          label: { en: 'Cough' },
+          options: [{ id: 'o', name: 'dry', label: { en: 'Dry' } }],
+        },
+        many: {
+          id: 'many',
+          type: 'select_multiple',
+          name: 'signs',
+          label: { en: 'Signs' },
+          options: [{ id: 'm', name: 'rash', label: { en: 'Rash' } }],
+        },
         dx: { id: 'dx', type: 'proposed_diagnosis', name: 'pneumonia', label: { en: 'Pneumonia' } },
       },
     }

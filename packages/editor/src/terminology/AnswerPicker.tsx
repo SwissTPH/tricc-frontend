@@ -70,7 +70,9 @@ export function AnswerPicker({
       </Button>
       {creating && (
         <ConceptDialog
-          target={{ draft: { conceptType: defaultConceptType('option', node.type), dataType: 'coded' } }}
+          target={{
+            draft: { conceptType: defaultConceptType('option', node.type), dataType: 'coded' },
+          }}
           onClose={close}
           onSaved={add}
         />

@@ -67,7 +67,12 @@ describe('planPaste', () => {
       other: { id: 'other', type: 'note', ui: { x: 0, y: 0 } },
     },
     edges: {
-      'e-n-integer-n-note': { id: 'e-n-integer-n-note', source: 'n-integer', target: 'n-note', value: 'yes' },
+      'e-n-integer-n-note': {
+        id: 'e-n-integer-n-note',
+        source: 'n-integer',
+        target: 'n-note',
+        value: 'yes',
+      },
       'e-out': { id: 'e-out', source: 'n-integer', target: 'other' },
     },
     ui: { comments: [{ id: 'c1', text: 'check', color: 'yellow', x: 1, y: 2, node: 'n-integer' }] },
@@ -115,7 +120,11 @@ describe('planPaste', () => {
   })
 
   it('reuses a free id when pasting into another activity', () => {
-    const other = activity({ id: 'b', nodeOrder: ['start'], nodes: { start: { id: 'start', type: 'activity_start', ui: { x: 0, y: 0 } } } })
+    const other = activity({
+      id: 'b',
+      nodeOrder: ['start'],
+      nodes: { start: { id: 'start', type: 'activity_start', ui: { x: 0, y: 0 } } },
+    })
     const plan = planPaste(copied(), other, project, 0)
     expect(plan.nodes.map((node) => node.id)).toEqual(['n-integer', 'n-note'])
     expect(plan.comments[0]?.node).toBe('n-integer')
@@ -137,7 +146,11 @@ describe('planPaste', () => {
       nodeOrder: ['q'],
       nodes: { q: { id: 'q', type: 'note', group: 'box', ui: { x: 8, y: 10 } } },
     })
-    const clip: CanvasClipboard = { fromActivityId: 'a', cut: false, ...selectionSnapshot(grouped, ['q']) }
+    const clip: CanvasClipboard = {
+      fromActivityId: 'a',
+      cut: false,
+      ...selectionSnapshot(grouped, ['q']),
+    }
     const plan = planPaste(clip, grouped, project, 32)
     expect(plan.nodes[0]).toMatchObject({ id: 'q-2', group: 'box', ui: { x: 40, y: 42 } })
   })
@@ -149,7 +162,11 @@ describe('planPaste', () => {
       nodeOrder: ['q'],
       nodes: { q: { id: 'q', type: 'note', group: 'box', ui: { x: 8, y: 10 } } },
     })
-    const clip: CanvasClipboard = { fromActivityId: 'a', cut: true, ...selectionSnapshot(grouped, ['q']) }
+    const clip: CanvasClipboard = {
+      fromActivityId: 'a',
+      cut: true,
+      ...selectionSnapshot(grouped, ['q']),
+    }
     const plan = planPaste(clip, activity({ id: 'b' }), project, 0)
     expect(plan.nodes[0]?.group).toBeUndefined()
     expect(plan.nodes[0]?.ui).toMatchObject({ x: 108, y: 60 })
@@ -162,7 +179,11 @@ describe('planPaste', () => {
       nodeOrder: ['q'],
       nodes: { q: { id: 'q', type: 'note', group: 'box', ui: { x: 8, y: 10 } } },
     })
-    const clip: CanvasClipboard = { fromActivityId: 'a', cut: false, ...selectionSnapshot(grouped, ['group:box']) }
+    const clip: CanvasClipboard = {
+      fromActivityId: 'a',
+      cut: false,
+      ...selectionSnapshot(grouped, ['group:box']),
+    }
     const plan = planPaste(clip, grouped, project, 32)
     expect(plan.groups[0]).toMatchObject({ id: 'box-2', x: 42, y: 42 })
     expect(plan.nodes[0]).toMatchObject({ id: 'q-2', group: 'box-2', ui: { x: 8, y: 10 } })

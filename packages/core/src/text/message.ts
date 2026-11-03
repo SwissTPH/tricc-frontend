@@ -125,10 +125,18 @@ function parseHtml(html: string): HtmlNode[] {
 function decodeEntities(text: string): string {
   return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, body: string) => {
     if (body[0] === '#') {
-      const code = body[1]?.toLowerCase() === 'x' ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10)
+      const code =
+        body[1]?.toLowerCase() === 'x' ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10)
       return Number.isFinite(code) ? String.fromCodePoint(code) : whole
     }
-    const named: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' }
+    const named: Record<string, string> = {
+      amp: '&',
+      lt: '<',
+      gt: '>',
+      quot: '"',
+      apos: "'",
+      nbsp: ' ',
+    }
     return named[body.toLowerCase()] ?? whole
   })
 }
@@ -150,7 +158,13 @@ function htmlNode(node: HtmlNode, leadingBreak: boolean): MessageNode[] {
   if (UNWRAP.has(tag)) return htmlChildren(node.children)
   if (tag === 'br') return [{ type: 'break' }]
   const kind: MarkKind | undefined =
-    tag === 'b' || tag === 'strong' ? 'strong' : tag === 'i' || tag === 'em' ? 'em' : tag === 'u' ? 'u' : undefined
+    tag === 'b' || tag === 'strong'
+      ? 'strong'
+      : tag === 'i' || tag === 'em'
+        ? 'em'
+        : tag === 'u'
+          ? 'u'
+          : undefined
   if (kind) {
     const inner = htmlChildren(node.children)
     return inner.length ? [{ type: 'mark', kind, children: inner }] : []
@@ -175,7 +189,8 @@ function mergeText(nodes: MessageNode[]): MessageNode[] {
   const out: MessageNode[] = []
   for (const node of nodes) {
     const last = out[out.length - 1]
-    if (last?.type === 'text' && node.type === 'text') out[out.length - 1] = { type: 'text', value: last.value + node.value }
+    if (last?.type === 'text' && node.type === 'text')
+      out[out.length - 1] = { type: 'text', value: last.value + node.value }
     else out.push(node)
   }
   return out
@@ -221,7 +236,8 @@ function markdownNode(node: MessageNode): string {
       if (node.kind === 'strong') return `**${inner}**`
       if (node.kind === 'em') return `_${inner}_`
       // ODK and CHT labels render this inline HTML; Markdown has no colour of its own.
-      if (node.kind === 'color' && isColor(node.color)) return `<span style="color:${node.color}">${inner}</span>`
+      if (node.kind === 'color' && isColor(node.color))
+        return `<span style="color:${node.color}">${inner}</span>`
       return inner
     }
     case 'list':
@@ -257,7 +273,8 @@ export function toPlain(text: DisplayText): string {
 
 /** Names injected with `${name}`, in reading order. */
 export function references(text: DisplayText): string[] {
-  if (typeof text === 'string') return splitTokens(text).flatMap((n) => (n.type === 'interp' ? [n.name] : []))
+  if (typeof text === 'string')
+    return splitTokens(text).flatMap((n) => (n.type === 'interp' ? [n.name] : []))
   const out: string[] = []
   const walk = (nodes: MessageNode[]) => {
     for (const n of nodes) {
@@ -291,13 +308,19 @@ export function imageRefs(text: DisplayText): string[] {
  * The text with every picture of image `from` pointing at `to`, or removed when `to` is
  * undefined. Unchanged texts are returned as is (same object).
  */
-export function retargetImage(text: DisplayText, from: string, to: string | undefined): DisplayText {
+export function retargetImage(
+  text: DisplayText,
+  from: string,
+  to: string | undefined,
+): DisplayText {
   if (typeof text === 'string' || !imageRefs(text).includes(from)) return text
   const walk = (nodes: MessageNode[]): MessageNode[] =>
     nodes.flatMap((n): MessageNode[] => {
-      if (n.type === 'image' && imageIdOf(n.src) === from) return to ? [{ ...n, src: imageSrc(to) }] : []
+      if (n.type === 'image' && imageIdOf(n.src) === from)
+        return to ? [{ ...n, src: imageSrc(to) }] : []
       if (n.type === 'mark') return [{ ...n, children: walk(n.children) }]
-      if (n.type === 'list') return [{ ...n, items: n.items.map((i) => ({ ...i, children: walk(i.children) })) }]
+      if (n.type === 'list')
+        return [{ ...n, items: n.items.map((i) => ({ ...i, children: walk(i.children) })) }]
       return [n]
     })
   return simplify({ type: 'message', children: walk(text.children) })
@@ -380,7 +403,9 @@ export function designationText(d: Designation): DisplayText {
  * consumer; the tree is added only when the text has structure, so plain texts cost nothing.
  */
 export function withDesignationText(d: Designation, text: DisplayText): Designation {
-  const others = (d.extension ?? []).filter((e) => (e as { url?: unknown }).url !== DESIGNATION_MESSAGE_URL)
+  const others = (d.extension ?? []).filter(
+    (e) => (e as { url?: unknown }).url !== DESIGNATION_MESSAGE_URL,
+  )
   const next: Designation = { ...d, value: toMarkdown(text) }
   const extension = isStructured(text)
     ? [...others, { url: DESIGNATION_MESSAGE_URL, valueString: JSON.stringify(text) }]

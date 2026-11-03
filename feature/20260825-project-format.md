@@ -1,11 +1,11 @@
 # TRICC Project Format — native JSON project + per-activity YAML
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft |
-| **Repo** | `tricc_frontend` — `@tricc/core` |
-| **Related** | `20260825-document-model.md` (the in-memory document this format projects from), `20260825-tricc-oo-interop.md` (the `tricc_oo` side of this contract), `20260825-cql-authoring.md` (expression syntax), `20260825-terminology.md` (CodeSystem), `../../tricc_oo/tricc_oo/strategies/input/yaml.py` (the schema this extends) |
-| **Approval** | — |
+| Field        | Value                                                                                                                                                                                                                                                                                                                         |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**   | Draft                                                                                                                                                                                                                                                                                                                         |
+| **Repo**     | `tricc_frontend` — `@tricc/core`                                                                                                                                                                                                                                                                                              |
+| **Related**  | `20260825-document-model.md` (the in-memory document this format projects from), `20260825-tricc-oo-interop.md` (the `tricc_oo` side of this contract), `20260825-cql-authoring.md` (expression syntax), `20260825-terminology.md` (CodeSystem), `../../tricc_oo/tricc_oo/strategies/input/yaml.py` (the schema this extends) |
+| **Approval** | —                                                                                                                                                                                                                                                                                                                             |
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
@@ -49,8 +49,8 @@ the layer authors actually reason about. A project holds as many interventions a
 needs.
 
 > **Known gap.** `tricc_oo` today assumes one project equals exactly one intervention
-> (`../../tricc_oo/feature/careplan-intervention-plandefinition.md`: *"Matches today's reality:
-> one project = one Intervention"*). Supporting several per project is a change on the Python
+> (`../../tricc_oo/feature/careplan-intervention-plandefinition.md`: _"Matches today's reality:
+> one project = one Intervention"_). Supporting several per project is a change on the Python
 > side too — it is specified in `20260825-tricc-oo-interop.md` §4, and until it lands, exporting
 > a multi-intervention project will be blocked by validation with a clear message rather than
 > silently producing a wrong bundle.
@@ -119,7 +119,7 @@ Neither is optional, and both are asserted in §11.
   "system": "http://tricc.org/smart-imci",
   "code": "smart-imci",
   "version": "0.3.0",
-  "title":       { "en": "IMCI sick child", "fr": "PCIME enfant malade" },
+  "title": { "en": "IMCI sick child", "fr": "PCIME enfant malade" },
   "description": { "en": "..." },
   "languages": { "default": "en", "available": ["en", "fr"] },
 
@@ -131,31 +131,34 @@ Neither is optional, and both are asserted in §11.
       "description": { "en": "..." },
       "applicability": {
         "intent": { "en": "Children from 2 months up to 5 years" },
-        "expression": "AgeInMonths() >= 2 and AgeInMonths() < 60"
+        "expression": "AgeInMonths() >= 2 and AgeInMonths() < 60",
       },
       "trigger": { "mode": "on-demand" },
       "processes": [
-        { "process": "registration",         "activities": ["reg-child"] },
-        { "process": "triage",               "activities": ["triage-danger-signs"] },
-        { "process": "history-and-physical", "activities": [
+        { "process": "registration", "activities": ["reg-child"] },
+        { "process": "triage", "activities": ["triage-danger-signs"] },
+        {
+          "process": "history-and-physical",
+          "activities": [
             "hp-cough",
-            { "ref": "hp-diarrhoea", "applicability": { "expression": "\"Diarrhoea reported\"" } }
-        ]},
-        { "process": "determine-diagnosis",  "activities": [] }
-      ]
-    }
+            { "ref": "hp-diarrhoea", "applicability": { "expression": "\"Diarrhoea reported\"" } },
+          ],
+        },
+        { "process": "determine-diagnosis", "activities": [] },
+      ],
+    },
   ],
 
   "contexts": [
-    { "system": "http://tricc.org/context", "code": "encounter", "display": "Encounter" }
+    { "system": "http://tricc.org/context", "code": "encounter", "display": "Encounter" },
   ],
 
   "terminology": {
     "codeSystems": ["terminology/tricc.codesystem.json"],
-    "default": "http://tricc.org/CodeSystem/tricc"
+    "default": "http://tricc.org/CodeSystem/tricc",
   },
   "cqlLibraries": ["cql/Shared.cql"],
-  "mediaPath": "media/"
+  "mediaPath": "media/",
 }
 ```
 
@@ -183,11 +186,11 @@ existing keys keep their exact meaning; everything new is either an additive key
 namespaced `ui:` block that a parser may ignore without changing semantics.
 
 ```yaml
-formatVersion: "1.0.0"
-id: triage-danger-signs           # stable; goto targets resolve against this
-title:   { en: "Triage — danger signs" }
+formatVersion: '1.0.0'
+id: triage-danger-signs # stable; goto targets resolve against this
+title: { en: 'Triage — danger signs' }
 process: triage
-applicability: "AgeInMonths() < 60"     # CQL
+applicability: 'AgeInMonths() < 60' # CQL
 
 ui:
   viewport: { x: 0, y: 0, zoom: 1 }
@@ -196,31 +199,31 @@ nodes:
   - id: n-start
     type: activity_start
     name: triage_danger_signs
-    label: { en: "Triage — danger signs" }
+    label: { en: 'Triage — danger signs' }
     ui: { x: 40, y: 40 }
 
   - id: n-weight
     type: integer
     name: weight
-    label: { en: "Weight (kg)", fr: "Poids (kg)" }
-    hint:  { en: "Use a calibrated scale" }
-    help:  { en: "Remove heavy clothing before weighing." }
-    concept: { system: "http://tricc.org/CodeSystem/tricc", code: "weight" }
+    label: { en: 'Weight (kg)', fr: 'Poids (kg)' }
+    hint: { en: 'Use a calibrated scale' }
+    help: { en: 'Remove heavy clothing before weighing.' }
+    concept: { system: 'http://tricc.org/CodeSystem/tricc', code: 'weight' }
     required: true
     min: 0
     max: 200
-    relevance: "\"Child is present\""     # CQL
+    relevance: '"Child is present"' # CQL
     repeat: 1
-    notAvailable:                          # modifier — expands on save, see §4
+    notAvailable: # modifier — expands on save, see §4
       name: weight_not_available
-      label: { en: "Weight not available" }
-    media: { image: "media/scale.png" }
+      label: { en: 'Weight not available' }
+    media: { image: 'media/scale.png' }
     ui: { x: 40, y: 160, width: 200, height: 70 }
 
   - id: n-severe
     type: proposed_diagnosis
     name: severe_disease
-    label: { en: "Very severe disease" }
+    label: { en: 'Very severe disease' }
     severity: severe
     priority: 10
     ui: { x: 40, y: 420 }
@@ -234,7 +237,7 @@ edges:
   - id: e2
     source: n-weight
     target: n-severe
-    value: "yes"                           # branch semantics, see §5
+    value: 'yes' # branch semantics, see §5
     ui: { waypoints: [] }
 ```
 
@@ -243,28 +246,28 @@ edges:
 Fields marked **new** do not exist in `YamlNode` today and are covered by
 `20260825-tricc-oo-interop.md` §2.
 
-| Field | Applies to | Notes |
-|-------|-----------|-------|
-| `id` | all | Unique within the activity. Referenced by edges. |
-| `type` | all | See §4 for the permitted set. |
-| `name` | all addressable | The export name; what CQL expressions reference. **The prototype has no such field at all** — this is the single most important model gap it leaves. |
-| `label`, `hint`, `help` | display models | **new:** language maps rather than plain strings (§6). |
-| `concept` | capture nodes | **new:** `{system, code}` reference into the project CodeSystem. |
-| `relevance` | most | CQL. |
-| `calculate` | `calculate` | CQL. |
-| `expression`, `reference` | `rhombus`, `calculate` | CQL / node name. |
-| `required`, `min`, `max`, `constraint`, `constraintMessage` | inputs | `constraint*` **new** to YAML (exists in draw.io `TYPE_MAP`). |
-| ~~`save`~~ | — | **Deprecated.** Read on load, surfaced as a migration warning, **never written**. Superseded by concept-level persistence mapping — see below. |
-| `repeat` | capture nodes, `activity_start` | Integer slot. `1` default, `0` force in-form collection, `-1` local-only. |
-| `instance` | `goto`, `activity_start` | `0` auto-unique, `-1` snippet injection. |
-| `link` | `goto` | Target **activity `id`**. |
-| `list_name`, `options` | selects | Options gain `concept` (**new**). |
-| `severity`, `priority` | diagnoses | **new** to YAML; `severity` ∈ `light` \| `mild` \| `moderate` \| `severe`. |
-| `context`, `period` | `populate` | Unchanged. |
-| `form_id`, `process` | `start` | Unchanged. |
-| `media` | media-capable | **new:** `{image: <path>}`, relative to `mediaPath`. |
-| `notAvailable` | inputs | **new:** modifier, see §4. |
-| `ui` | all, activity, edges | **new:** presentation only. |
+| Field                                                       | Applies to                      | Notes                                                                                                                                                |
+| ----------------------------------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                                                        | all                             | Unique within the activity. Referenced by edges.                                                                                                     |
+| `type`                                                      | all                             | See §4 for the permitted set.                                                                                                                        |
+| `name`                                                      | all addressable                 | The export name; what CQL expressions reference. **The prototype has no such field at all** — this is the single most important model gap it leaves. |
+| `label`, `hint`, `help`                                     | display models                  | **new:** language maps rather than plain strings (§6).                                                                                               |
+| `concept`                                                   | capture nodes                   | **new:** `{system, code}` reference into the project CodeSystem.                                                                                     |
+| `relevance`                                                 | most                            | CQL.                                                                                                                                                 |
+| `calculate`                                                 | `calculate`                     | CQL.                                                                                                                                                 |
+| `expression`, `reference`                                   | `rhombus`, `calculate`          | CQL / node name.                                                                                                                                     |
+| `required`, `min`, `max`, `constraint`, `constraintMessage` | inputs                          | `constraint*` **new** to YAML (exists in draw.io `TYPE_MAP`).                                                                                        |
+| ~~`save`~~                                                  | —                               | **Deprecated.** Read on load, surfaced as a migration warning, **never written**. Superseded by concept-level persistence mapping — see below.       |
+| `repeat`                                                    | capture nodes, `activity_start` | Integer slot. `1` default, `0` force in-form collection, `-1` local-only.                                                                            |
+| `instance`                                                  | `goto`, `activity_start`        | `0` auto-unique, `-1` snippet injection.                                                                                                             |
+| `link`                                                      | `goto`                          | Target **activity `id`**.                                                                                                                            |
+| `list_name`, `options`                                      | selects                         | Options gain `concept` (**new**).                                                                                                                    |
+| `severity`, `priority`                                      | diagnoses                       | **new** to YAML; `severity` ∈ `light` \| `mild` \| `moderate` \| `severe`.                                                                           |
+| `context`, `period`                                         | `populate`                      | Unchanged.                                                                                                                                           |
+| `form_id`, `process`                                        | `start`                         | Unchanged.                                                                                                                                           |
+| `media`                                                     | media-capable                   | **new:** `{image: <path>}`, relative to `mediaPath`.                                                                                                 |
+| `notAvailable`                                              | inputs                          | **new:** modifier, see §4.                                                                                                                           |
+| `ui`                                                        | all, activity, edges            | **new:** presentation only.                                                                                                                          |
 
 #### 3.1a Persistence is a property of the concept, not of the node
 
@@ -302,17 +305,17 @@ hand-written or machine-generated activity still opens.
 
 **Drawable types (v1).** Author-facing only:
 
-| Group | Types |
-|-------|-------|
-| Flow | `start`, `activity_start`, `activity_end`, `end`, `goto`, `link_in`, `link_out`, `bridge`, `wait` |
+| Group     | Types                                                                                                          |
+| --------- | -------------------------------------------------------------------------------------------------------------- |
+| Flow      | `start`, `activity_start`, `activity_end`, `end`, `goto`, `link_in`, `link_out`, `bridge`, `wait`              |
 | Questions | `select_one`, `select_multiple`, `select_yesno`, `select_option`, `integer`, `decimal`, `text`, `date`, `note` |
-| Logic | `calculate`, `rhombus`, `count`, `add`, `not` |
-| Data | `populate` |
-| Clinical | `diagnosis`, `proposed_diagnosis` |
+| Logic     | `calculate`, `rhombus`, `count`, `add`, `not`                                                                  |
+| Data      | `populate`                                                                                                     |
+| Clinical  | `diagnosis`, `proposed_diagnosis`                                                                              |
 
 `bridge` and `wait` are drawable, matching draw.io — both are in
 `../../tricc_oo/tricc_oo/converters/drawio_type_map.py` today, `wait` with mandatory `reference`,
-`name` and `label`. Both are *also* injected during processing, which is a different thing from
+`name` and `label`. Both are _also_ injected during processing, which is a different thing from
 being injection-only. See §4.1 and §4.2.
 
 **Never drawable.** `factor` is created by `tricc_oo` from numeric edge labels
@@ -327,7 +330,7 @@ to an author is graph legibility: routing N predecessors into M successors throu
 **N + M** edges instead of **N × M**, and gives the diagram a visible junction rather than a
 thicket.
 
-Semantically it is a path merge — a node after a bridge is on the path of *any* of the bridge's
+Semantically it is a path merge — a node after a bridge is on the path of _any_ of the bridge's
 predecessors. `tricc_oo` also injects bridges itself (`get_bridge_path`, named `path_<id>`); those
 are a product of processing and never appear in an authored file.
 
@@ -336,9 +339,9 @@ are a product of processing and never appear in an authored file.
 `wait` carries two distinct things
 (`../../tricc_oo/tricc_oo/models/calculate.py:201`):
 
-| Field | Meaning |
-|-------|---------|
-| `path` | Where **relevance** comes from — normally the wait's own sequence predecessor |
+| Field       | Meaning                                                                                        |
+| ----------- | ---------------------------------------------------------------------------------------------- |
+| `path`      | Where **relevance** comes from — normally the wait's own sequence predecessor                  |
 | `reference` | What must be **complete** before proceeding — one or more nodes, an activity, or an expression |
 
 That split is the whole point: a wait enforces ordering **without** putting the awaited thing on
@@ -362,11 +365,11 @@ and the author sees whichever reads better.
 **Modifiers.** Some concepts read naturally as a property of a node but are separate nodes in the
 model. The editor renders these on the node itself; the serializer expands them.
 
-| Modifier | Nature | Serialization |
-|----------|--------|---------------|
-| `hint` | attribute | `hint:` on the node |
-| `help` | attribute | `help:` on the node |
-| image | attribute | `media.image` on the node |
+| Modifier           | Nature               | Serialization                                                                 |
+| ------------------ | -------------------- | ----------------------------------------------------------------------------- |
+| `hint`             | attribute            | `hint:` on the node                                                           |
+| `help`             | attribute            | `help:` on the node                                                           |
+| image              | attribute            | `media.image` on the node                                                     |
 | **`notAvailable`** | **generates a node** | Expands to a sibling `not_available` node plus an edge from the modified node |
 
 `not_available` is genuinely different from the other three and must not be lumped in with them:
@@ -381,15 +384,15 @@ saved YAML contains a distinct node with its own `name`, and CQL may reference t
 `value` on an edge carries the branch condition, matching `process_edges` in
 `xml_to_tricc.py`:
 
-| `value` | Meaning |
-|---------|---------|
-| absent | Unconditional flow |
-| `yes` / `oui` | Affirmative branch |
-| `no` / `non` | Negative / exclusive branch |
-| `continue` | Continue without branching |
-| `follow` / `suivre` | **Deprecated** aliases of `continue`. Accepted on load, never written. |
+| `value`                | Meaning                                                                                                   |
+| ---------------------- | --------------------------------------------------------------------------------------------------------- |
+| absent                 | Unconditional flow                                                                                        |
+| `yes` / `oui`          | Affirmative branch                                                                                        |
+| `no` / `non`           | Negative / exclusive branch                                                                               |
+| `continue`             | Continue without branching                                                                                |
+| `follow` / `suivre`    | **Deprecated** aliases of `continue`. Accepted on load, never written.                                    |
 | integer (`-1`, `2`, …) | Affirmative branch carrying a score factor. `tricc_oo` injects a `factor` node when the value is not `1`. |
-| anything else | A CQL condition |
+| anything else          | A CQL condition                                                                                           |
 
 The editor presents these as a typed choice rather than free text, so the author picks
 "Yes"/"No"/"Continue"/"Score"/"Condition" and only the last opens a CQL editor. Free-typing
@@ -402,7 +405,7 @@ deprecated spelling.
 ### 6. Localized text
 
 ```yaml
-label: { en: "Weight (kg)", fr: "Poids (kg)" }
+label: { en: 'Weight (kg)', fr: 'Poids (kg)' }
 ```
 
 - A **bare string is legal shorthand** for `{<default language>: "..."}`, so hand-written
@@ -440,7 +443,7 @@ Two distinct levels, surfaced differently:
 
 - **Schema validity** — does it parse, are references resolvable. Blocks load. Zod schemas are the
   single source of truth for both the file shape and the TypeScript types, with JSON Schema
-  generated from them for external tooling. They validate document *snapshots*, never the CRDT
+  generated from them for external tooling. They validate document _snapshots_, never the CRDT
   itself (`20260825-document-model.md` §5).
 - **Authoring validity** — is the guideline sound: unreachable nodes, `goto` to a missing
   activity, selects without options, calculates without expressions, capture nodes with no
@@ -452,16 +455,16 @@ most of the time it is being written.
 
 ### 10. Code checklist
 
-| Path | Change |
-|------|--------|
-| `packages/core/src/format/schema/project.ts` | Zod schema + inferred `Project` type |
-| `packages/core/src/format/schema/activity.ts` | Zod schema + inferred `Activity`, `Node`, `Edge` types |
-| `packages/core/src/format/schema/localized.ts` | `LocalizedText` codec (string shorthand ↔ language map) |
-| `packages/core/src/format/serialize/` | Project/activity read + write, YAML via `yaml` (comment- and order-preserving round-trip) |
-| `packages/core/src/format/migrations/` | Version migration registry |
-| `packages/core/src/format/validate/` | Authoring-validity rules, each independently testable |
-| `src/types/index.ts` | **Deleted.** Superseded by generated types; the prototype's model is not salvageable (no `name`, no `required`, no `repeat`, no `instance`, `relevance` misnamed `applicability`). |
-| `src/utils/export-generators.ts` | **Deleted.** Its BPMN output emits `<bpmn:incoming>` refs that match no `sequenceFlow` id, hardcodes every DI waypoint to `0,0 → 100,100`, and its CQL generator returns a library whose only define is `true`. |
+| Path                                           | Change                                                                                                                                                                                                          |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/src/format/schema/project.ts`   | Zod schema + inferred `Project` type                                                                                                                                                                            |
+| `packages/core/src/format/schema/activity.ts`  | Zod schema + inferred `Activity`, `Node`, `Edge` types                                                                                                                                                          |
+| `packages/core/src/format/schema/localized.ts` | `LocalizedText` codec (string shorthand ↔ language map)                                                                                                                                                         |
+| `packages/core/src/format/serialize/`          | Project/activity read + write, YAML via `yaml` (comment- and order-preserving round-trip)                                                                                                                       |
+| `packages/core/src/format/migrations/`         | Version migration registry                                                                                                                                                                                      |
+| `packages/core/src/format/validate/`           | Authoring-validity rules, each independently testable                                                                                                                                                           |
+| `src/types/index.ts`                           | **Deleted.** Superseded by generated types; the prototype's model is not salvageable (no `name`, no `required`, no `repeat`, no `instance`, `relevance` misnamed `applicability`).                              |
+| `src/utils/export-generators.ts`               | **Deleted.** Its BPMN output emits `<bpmn:incoming>` refs that match no `sequenceFlow` id, hardcodes every DI waypoint to `0,0 → 100,100`, and its CQL generator returns a library whose only define is `true`. |
 
 ### 11. Tests
 

@@ -1,13 +1,13 @@
 # Not available — a node with reasons
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft |
-| **Repo** | `tricc_frontend` + **`tricc_oo`** (§2.6, YAML path only) |
-| **Depends on** | `20261008-data-dictionary-and-concept-texts.md` phases 1-3. The node and its reasons carry concept codes only, and their texts live in the CodeSystem. |
-| **Related** | `../../tricc_oo/feature/20260902-not-available-title-options.md` (Implemented in `tricc_oo`), `20261008-drawio-import-and-sequence-nodes.md` §2.4, `20260825-project-format.md` §4 (the `notAvailable` modifier this replaces) |
-| **Source** | Review remarks, 2026-10-08 |
-| **Approval** | — |
+| Field          | Value                                                                                                                                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Status**     | Draft                                                                                                                                                                                                                          |
+| **Repo**       | `tricc_frontend` + **`tricc_oo`** (§2.6, YAML path only)                                                                                                                                                                       |
+| **Depends on** | `20261008-data-dictionary-and-concept-texts.md` phases 1-3. The node and its reasons carry concept codes only, and their texts live in the CodeSystem.                                                                         |
+| **Related**    | `../../tricc_oo/feature/20260902-not-available-title-options.md` (Implemented in `tricc_oo`), `20261008-drawio-import-and-sequence-nodes.md` §2.4, `20260825-project-format.md` §4 (the `notAvailable` modifier this replaces) |
+| **Source**     | Review remarks, 2026-10-08                                                                                                                                                                                                     |
+| **Approval**   | —                                                                                                                                                                                                                              |
 
 ---
 
@@ -18,7 +18,7 @@ stable enough to weigh. TRICC calls this **Not available**. It is a small questi
 measurement. When it is ticked, the measurement is no longer required and the guideline
 continues without it.
 
-`tricc_oo` now supports giving the *reasons* (2026-09-02). The node has two parts:
+`tricc_oo` now supports giving the _reasons_ (2026-09-02). The node has two parts:
 
 - a title, for example "Weight could not be measured";
 - a list of reasons, for example "No scale" and "Not stable enough".
@@ -109,12 +109,12 @@ edges:
 
 ### 2.3 Validation
 
-| Code | Severity | Rule |
-|------|----------|------|
-| `not-available.no-parent` | error | Exactly one incoming edge, and its source is a question node. |
-| `not-available.no-reasons` | warning | No options. `tricc_oo` then renders no radios, so the node cannot be chosen. |
-| `node.missing-concept` | error | From the data-dictionary spec. Applies to the node and to each reason. |
-| `node.missing-name` | error | Existing rule. |
+| Code                       | Severity | Rule                                                                         |
+| -------------------------- | -------- | ---------------------------------------------------------------------------- |
+| `not-available.no-parent`  | error    | Exactly one incoming edge, and its source is a question node.                |
+| `not-available.no-reasons` | warning  | No options. `tricc_oo` then renders no radios, so the node cannot be chosen. |
+| `node.missing-concept`     | error    | From the data-dictionary spec. Applies to the node and to each reason.       |
+| `node.missing-name`        | error    | Existing rule.                                                               |
 
 `not_available` stays exempt from the unreachable warning (`validate/activity.ts:85`).
 
@@ -186,8 +186,8 @@ YamlStrategy `_build_activity` does not, so the relevance and required coupling
 
 ### 2.8 Open questions
 
-| # | Question | Recommendation |
-|---|----------|----------------|
-| 1 | Should Not available be restricted to numeric and date sources? | Warn on other sources. Do not block. |
-| 2 | Should the editor seed a default reason set? | No. Do not invent values. Offer existing reason concepts first. |
-| 3 | Code pattern for generated title concepts (`<code>.na`)? | Yes, unless the project has a naming convention. |
+| #   | Question                                                        | Recommendation                                                  |
+| --- | --------------------------------------------------------------- | --------------------------------------------------------------- |
+| 1   | Should Not available be restricted to numeric and date sources? | Warn on other sources. Do not block.                            |
+| 2   | Should the editor seed a default reason set?                    | No. Do not invent values. Offer existing reason concepts first. |
+| 3   | Code pattern for generated title concepts (`<code>.na`)?        | Yes, unless the project has a naming convention.                |

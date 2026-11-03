@@ -83,7 +83,11 @@ export function clearClipboard(): void {
  * The first paste of a cut back home, and the first paste into another activity, land
  * where the elements were. Every other paste steps down and right so copies do not stack.
  */
-export function pasteShift(clip: Pick<CanvasClipboard, 'cut' | 'fromActivityId'>, activityId: string, n: number): number {
+export function pasteShift(
+  clip: Pick<CanvasClipboard, 'cut' | 'fromActivityId'>,
+  activityId: string,
+  n: number,
+): number {
   const firstCutHome = clip.cut && clip.fromActivityId === activityId && n === 0
   const firstElsewhere = clip.fromActivityId !== activityId && n === 0
   if (firstCutHome || firstElsewhere) return 0
@@ -99,7 +103,10 @@ export function nextPasteOffset(activityId: string): number {
 }
 
 /** The elements a selection covers. A selected group includes everything it carries. */
-export function selectionSnapshot(activity: Activity, flowIds: readonly string[]): Omit<CanvasClipboard, 'fromActivityId' | 'cut'> {
+export function selectionSnapshot(
+  activity: Activity,
+  flowIds: readonly string[],
+): Omit<CanvasClipboard, 'fromActivityId' | 'cut'> {
   const groups = activity.groups ?? []
   const selectedGroups = new Set<string>()
   const selectedNodes = new Set<string>()
@@ -153,7 +160,12 @@ export function selectionSnapshot(activity: Activity, flowIds: readonly string[]
   return { nodes, groups: copiedGroups, comments, edges }
 }
 
-export function planPaste(clip: CanvasClipboard, target: Activity, project: Project, offset: number): PastePlan {
+export function planPaste(
+  clip: CanvasClipboard,
+  target: Activity,
+  project: Project,
+  offset: number,
+): PastePlan {
   const copiedGroupIds = new Set(clip.groups.map((item) => item.group.id))
   const groupTaken = new Set((target.groups ?? []).map((g) => g.id))
   const nodeTaken = new Set(Object.keys(target.nodes))
@@ -162,13 +174,16 @@ export function planPaste(clip: CanvasClipboard, target: Activity, project: Proj
   const allowSame = clip.cut || clip.fromActivityId !== target.id
 
   const groupIds = new Map<string, string>()
-  for (const item of clip.groups) groupIds.set(item.group.id, takeId(item.group.id, groupTaken, allowSame))
+  for (const item of clip.groups)
+    groupIds.set(item.group.id, takeId(item.group.id, groupTaken, allowSame))
 
   const nodeIds = new Map<string, string>()
-  for (const item of clip.nodes) nodeIds.set(item.node.id, takeId(item.node.id, nodeTaken, allowSame))
+  for (const item of clip.nodes)
+    nodeIds.set(item.node.id, takeId(item.node.id, nodeTaken, allowSame))
 
   const commentIds = new Map<string, string>()
-  for (const comment of clip.comments) commentIds.set(comment.id, takeId(comment.id, commentTaken, allowSame))
+  for (const comment of clip.comments)
+    commentIds.set(comment.id, takeId(comment.id, commentTaken, allowSame))
 
   const names = new Set<string>()
   for (const node of Object.values(target.nodes)) {
@@ -181,7 +196,8 @@ export function planPaste(clip: CanvasClipboard, target: Activity, project: Proj
     group.id = groupIds.get(group.id)!
     if (group.parent && groupIds.has(group.parent)) group.parent = groupIds.get(group.parent)
     const parentCopied = item.group.parent !== undefined && copiedGroupIds.has(item.group.parent)
-    const parentHere = group.parent !== undefined && (target.groups ?? []).some((g) => g.id === group.parent)
+    const parentHere =
+      group.parent !== undefined && (target.groups ?? []).some((g) => g.id === group.parent)
     // A copied parent already carries the offset, so a group inside it keeps its relative position.
     if (!parentCopied && item.group.parent && parentHere) {
       group.x = Math.round(group.x + offset)
@@ -199,17 +215,23 @@ export function planPaste(clip: CanvasClipboard, target: Activity, project: Proj
     node.id = nodeIds.get(node.id)!
     const groupCopied = node.group !== undefined && copiedGroupIds.has(node.group)
     if (node.group && groupIds.has(node.group)) node.group = groupIds.get(node.group)
-    const groupHere = node.group !== undefined && (target.groups ?? []).some((g) => g.id === node.group)
+    const groupHere =
+      node.group !== undefined && (target.groups ?? []).some((g) => g.id === node.group)
     if (groupCopied) {
       node.ui = { ...(node.ui ?? { x: 0, y: 0 }), x: node.ui?.x ?? 0, y: node.ui?.y ?? 0 }
     } else if (item.node.group && groupHere) {
       node.ui = shifted(node.ui, offset, offset)
     } else {
       delete node.group
-      node.ui = shifted({ ...(node.ui ?? { x: 0, y: 0 }), x: item.pageX, y: item.pageY }, offset, offset)
+      node.ui = shifted(
+        { ...(node.ui ?? { x: 0, y: 0 }), x: item.pageX, y: item.pageY },
+        offset,
+        offset,
+      )
     }
     const renamed = rename(node, names, project)
-    if (renamed.name && !hasInternalName(renamed.type)) names.add(nameKey(renamed.name, renamed.repeat))
+    if (renamed.name && !hasInternalName(renamed.type))
+      names.add(nameKey(renamed.name, renamed.repeat))
     return renamed
   })
 
@@ -282,7 +304,13 @@ function takeId(id: string, taken: Set<string>, allowSame: boolean): string {
   return next
 }
 
-function takeEdgeId(id: string, source: string, target: string, taken: Set<string>, allowSame: boolean): string {
+function takeEdgeId(
+  id: string,
+  source: string,
+  target: string,
+  taken: Set<string>,
+  allowSame: boolean,
+): string {
   if (allowSame && !taken.has(id)) {
     taken.add(id)
     return id
@@ -300,9 +328,11 @@ function nameKey(name: string, repeat: number | undefined): string {
 
 /** A copied question keeps its concept even when its name has to change to stay unique. */
 function rename(node: TriccNode, names: Set<string>, project: Project): TriccNode {
-  if (!node.name || hasInternalName(node.type) || !names.has(nameKey(node.name, node.repeat))) return node
+  if (!node.name || hasInternalName(node.type) || !names.has(nameKey(node.name, node.repeat)))
+    return node
   const key = nodeConceptKey(project, node)
-  const pinned = node.concept || !key ? node : { ...node, concept: { system: key.system, code: key.code } }
+  const pinned =
+    node.concept || !key ? node : { ...node, concept: { system: key.system, code: key.code } }
   const sameSlot = new Set<string>()
   const slot = String(node.repeat ?? 1)
   for (const existing of names) {
@@ -313,10 +343,19 @@ function rename(node: TriccNode, names: Set<string>, project: Project): TriccNod
 }
 
 function shifted(ui: TriccNode['ui'], dx: number, dy: number): NonNullable<TriccNode['ui']> {
-  return { ...(ui ?? { x: 0, y: 0 }), x: Math.round((ui?.x ?? 0) + dx), y: Math.round((ui?.y ?? 0) + dy) }
+  return {
+    ...(ui ?? { x: 0, y: 0 }),
+    x: Math.round((ui?.x ?? 0) + dx),
+    y: Math.round((ui?.y ?? 0) + dy),
+  }
 }
 
-function pagePoint(activity: Activity, groupId: string | undefined, x: number, y: number): { x: number; y: number } {
+function pagePoint(
+  activity: Activity,
+  groupId: string | undefined,
+  x: number,
+  y: number,
+): { x: number; y: number } {
   let px = x
   let py = y
   let id = groupId

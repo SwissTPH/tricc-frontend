@@ -93,9 +93,9 @@ test('the condition stays on the intervention, not on the activity reference', a
   await page.getByTestId('iv-cql-intervention').fill('AgeInMonths() < 60')
 
   await expect(page.getByTestId('iv-cql-intervention')).toHaveValue('AgeInMonths() < 60')
-  await expect(page.getByTestId('intervention-intervention-activity-triage-process')).not.toContainText(
-    'conditional',
-  )
+  await expect(
+    page.getByTestId('intervention-intervention-activity-triage-process'),
+  ).not.toContainText('conditional')
   await expect(page.locator('[data-testid^="iv-activity-cql-"]')).toHaveCount(0)
 })
 
@@ -172,7 +172,9 @@ test('the activity picker searches rather than listing everything', async ({ pag
 
   await picker.fill('triage-process-2')
   await expect(suggestions).toHaveCount(1)
-  await expect(page.getByTestId('add-activity-to-intervention-option-triage-process-2')).toBeVisible()
+  await expect(
+    page.getByTestId('add-activity-to-intervention-option-triage-process-2'),
+  ).toBeVisible()
 })
 
 test('the activity picker is fully keyboard operable', async ({ page }) => {
@@ -259,7 +261,9 @@ test('creates a process activity straight from the intervention', async ({ page 
 
   await page.getByTestId('process-name-intervention').fill('registration')
   await page.getByTestId('create-process-activity-intervention').click()
-  await expect(page.getByTestId('intervention-intervention-activity-registration-process')).toBeVisible()
+  await expect(
+    page.getByTestId('intervention-intervention-activity-registration-process'),
+  ).toBeVisible()
   await page.getByTestId('tab-processes').click()
   await expect(page.getByTestId('nav-activity-registration-process')).toHaveAttribute(
     'data-kind',
@@ -307,7 +311,11 @@ test('intervention cards sit side by side, and a process chip opens it', async (
   expect(narrow.secondY).toBeGreaterThan(narrow.firstBottom - 2)
 
   await page.setViewportSize({ width: 1280, height: 800 })
-  await page.getByTestId('intervention-intervention-activity-triage-process').getByRole('button').first().click()
+  await page
+    .getByTestId('intervention-intervention-activity-triage-process')
+    .getByRole('button')
+    .first()
+    .click()
   await expect(page.getByTestId('activity-editor')).toBeVisible()
   await expect(page.getByTestId('activity-kind')).toHaveText('Process activity')
 })

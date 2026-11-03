@@ -1,12 +1,12 @@
 # CQL Authoring — expression language, parser, editor, concept picker
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft |
-| **Repo** | `tricc_frontend` — `@tricc/cql` (language tooling), `@tricc/editor` (components) |
-| **Related** | `20260825-document-model.md` (expressions are `Y.Text`), `20260825-project-format.md` (where expressions live), `20260825-terminology.md` (concept source), `20260825-tricc-oo-interop.md` (§3 — the Python side must read this) |
-| **Approval** | — |
-| **Reference** | Spark Editor (docs.thespark.dev) — syntax highlighting, real-time error checking, terminology-backed autocomplete, split-screen data dictionary |
+| Field         | Value                                                                                                                                                                                                                            |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**    | Draft                                                                                                                                                                                                                            |
+| **Repo**      | `tricc_frontend` — `@tricc/cql` (language tooling), `@tricc/editor` (components)                                                                                                                                                 |
+| **Related**   | `20260825-document-model.md` (expressions are `Y.Text`), `20260825-project-format.md` (where expressions live), `20260825-terminology.md` (concept source), `20260825-tricc-oo-interop.md` (§3 — the Python side must read this) |
+| **Approval**  | —                                                                                                                                                                                                                                |
+| **Reference** | Spark Editor (docs.thespark.dev) — syntax highlighting, real-time error checking, terminology-backed autocomplete, split-screen data dictionary                                                                                  |
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
@@ -44,7 +44,7 @@ So an author writes and reads:
 while the file on disk carries exact codes. Nothing is guessed by string matching, and nothing is
 unreadable.
 
-The double quote is not an arbitrary trigger: in CQL, a double-quoted name *is* how you refer to a
+The double quote is not an arbitrary trigger: in CQL, a double-quoted name _is_ how you refer to a
 declared concept or a named expression. Typing `"` already means "I am about to name something",
 so the picker appears precisely where the language expects a name.
 
@@ -72,13 +72,13 @@ targets it would break. This keeps "CQL everywhere" from quietly becoming "FHIR 
 
 ### 1. Where CQL appears
 
-| Location | Field |
-|----------|-------|
-| Node | `relevance`, `calculate`, `expression`, `constraint` |
-| Node | `default` (constant expressions only) |
-| Edge | `value`, when the branch type is Condition |
-| Activity | `applicability` |
-| Project | `cql/*.cql` — hand-written shared libraries |
+| Location | Field                                                |
+| -------- | ---------------------------------------------------- |
+| Node     | `relevance`, `calculate`, `expression`, `constraint` |
+| Node     | `default` (constant expressions only)                |
+| Edge     | `value`, when the branch type is Condition           |
+| Activity | `applicability`                                      |
+| Project  | `cql/*.cql` — hand-written shared libraries          |
 
 Fields hold **expression fragments**, not whole libraries. The tooling wraps a fragment in a
 synthesized library for parsing (§4.2); the author never sees the wrapper.
@@ -90,24 +90,24 @@ A whitelist. Everything permitted maps onto a `TriccOperator`
 
 #### 2.1 Permitted
 
-| CQL | `TriccOperator` |
-|-----|-----------------|
-| `and`, `or`, `not` | `AND`, `OR`, `NOT` |
-| `=`, `!=`, `>`, `>=`, `<`, `<=` | `EQUAL`, `NOTEQUAL`, `MORE`, `MORE_OR_EQUAL`, `LESS`, `LESS_OR_EQUAL` |
-| `between X and Y` | `BETWEEN` |
-| `+`, `-`, `*`, `/`, `mod` | `PLUS`, `MINUS`, `MULTIPLIED`, `DIVIDED`, `MODULO` |
-| `is null`, `is not null` | `ISNULL`, `ISNOTNULL` |
-| `exists`, `not exists` | `EXISTS`, `NOTEXISTS` |
-| `is true`, `is false` | `ISTRUE`, `ISFALSE` |
-| `if c then a else b` | `IF` |
-| `case … when … then … else … end` | `CASE` / `IFS` |
-| `in`, `contains` | `SELECTED`, `CONTAINS` |
-| `( … )` | `PARENTHESIS` |
-| `Coalesce`, `Round`, `Abs`, `Min`, `Max`, `Sum`, `Count`, `Length` | matching operators |
-| `Today`, `Now` | `TODAY`, `NOW` |
-| `Matches`, `NormalizeSpace`, `FormatDate` | `MATCHES`, `NORMALIZE_SPACE`, `FORMAT_DATE` |
-| `ToInteger`, `ToDecimal`, `ToDate`, `ToString`, `ToBoolean` | the `CAST_*` family |
-| `&` / `+` on strings | `CONCATENATE` |
+| CQL                                                                | `TriccOperator`                                                       |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| `and`, `or`, `not`                                                 | `AND`, `OR`, `NOT`                                                    |
+| `=`, `!=`, `>`, `>=`, `<`, `<=`                                    | `EQUAL`, `NOTEQUAL`, `MORE`, `MORE_OR_EQUAL`, `LESS`, `LESS_OR_EQUAL` |
+| `between X and Y`                                                  | `BETWEEN`                                                             |
+| `+`, `-`, `*`, `/`, `mod`                                          | `PLUS`, `MINUS`, `MULTIPLIED`, `DIVIDED`, `MODULO`                    |
+| `is null`, `is not null`                                           | `ISNULL`, `ISNOTNULL`                                                 |
+| `exists`, `not exists`                                             | `EXISTS`, `NOTEXISTS`                                                 |
+| `is true`, `is false`                                              | `ISTRUE`, `ISFALSE`                                                   |
+| `if c then a else b`                                               | `IF`                                                                  |
+| `case … when … then … else … end`                                  | `CASE` / `IFS`                                                        |
+| `in`, `contains`                                                   | `SELECTED`, `CONTAINS`                                                |
+| `( … )`                                                            | `PARENTHESIS`                                                         |
+| `Coalesce`, `Round`, `Abs`, `Min`, `Max`, `Sum`, `Count`, `Length` | matching operators                                                    |
+| `Today`, `Now`                                                     | `TODAY`, `NOW`                                                        |
+| `Matches`, `NormalizeSpace`, `FormatDate`                          | `MATCHES`, `NORMALIZE_SPACE`, `FORMAT_DATE`                           |
+| `ToInteger`, `ToDecimal`, `ToDate`, `ToString`, `ToBoolean`        | the `CAST_*` family                                                   |
+| `&` / `+` on strings                                               | `CONCATENATE`                                                         |
 
 **TRICC domain functions**, declared in a generated helper library so they are ordinary,
 well-formed CQL:
@@ -143,11 +143,11 @@ says so by name when it sees a retrieve, and offers to create the `populate` nod
 
 #### 2.3 Diagnostics
 
-| Level | Meaning |
-|-------|---------|
-| Error | Not valid CQL, or an unresolvable reference. Blocks export. |
-| Profile violation | Valid CQL, outside the profile. Blocks export; message names the construct and the targets that would break. |
-| Warning | Valid and in-profile but suspect — comparing a select to a number, unused declaration, integer division where decimal was likely meant. |
+| Level             | Meaning                                                                                                                                 |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Error             | Not valid CQL, or an unresolvable reference. Blocks export.                                                                             |
+| Profile violation | Valid CQL, outside the profile. Blocks export; message names the construct and the targets that would break.                            |
+| Warning           | Valid and in-profile but suspect — comparing a select to a number, unused declaration, integer division where decimal was likely meant. |
 
 ### 3. Editor: CodeMirror 6
 
@@ -179,10 +179,10 @@ Extensions:
 
 #### 4.1 Two-tier
 
-| Tier | Tool | Purpose | Budget |
-|------|------|---------|--------|
-| Tokens | CodeMirror `StreamLanguage` | Highlighting, bracket matching, completion context | every keystroke |
-| Full parse | ANTLR-generated CQL parser | Diagnostics, reference resolution, profile check, `TriccOperation` mapping | debounced 250 ms |
+| Tier       | Tool                        | Purpose                                                                    | Budget           |
+| ---------- | --------------------------- | -------------------------------------------------------------------------- | ---------------- |
+| Tokens     | CodeMirror `StreamLanguage` | Highlighting, bracket matching, completion context                         | every keystroke  |
+| Full parse | ANTLR-generated CQL parser  | Diagnostics, reference resolution, profile check, `TriccOperation` mapping | debounced 250 ms |
 
 A single ANTLR parse on every keystroke is affordable for short fragments but not for a 400-line
 project library, and highlighting must never lag. Hence the split.
@@ -216,7 +216,7 @@ is the classic defect, so §9 tests it directly.
 
 `packages/cql/src/tricc/` walks the parse tree and produces a `TriccOperation` tree in the shape
 `../../tricc_oo/tricc_oo/models/base.py` defines. It exists in the frontend for two reasons: it
-*is* the profile check (anything unmappable is a violation), and it lets the editor show the
+_is_ the profile check (anything unmappable is a violation), and it lets the editor show the
 author what their CQL becomes.
 
 The frontend does **not** serialize `TriccOperation` into the project file — the file carries CQL,
@@ -231,12 +231,12 @@ Triggered by `"`, by Ctrl+Space, and after `.`.
 
 Four kinds, visually distinguished:
 
-| Kind | Source | Inserted |
-|------|--------|----------|
-| **Concept** | project CodeSystem | `"<concept name>"` + declaration if new |
-| **Node** | nodes in scope | `"<node name>"` |
-| **Function** | TRICC helpers + profile functions | `Name(…)` with signature |
-| **Define** | project libraries | `"<define name>"` |
+| Kind         | Source                            | Inserted                                |
+| ------------ | --------------------------------- | --------------------------------------- |
+| **Concept**  | project CodeSystem                | `"<concept name>"` + declaration if new |
+| **Node**     | nodes in scope                    | `"<node name>"`                         |
+| **Function** | TRICC helpers + profile functions | `Name(…)` with signature                |
+| **Define**   | project libraries                 | `"<define name>"`                       |
 
 "In scope" for nodes means: reachable predecessors in this activity, plus nodes in earlier
 activities of the same intervention, plus `populate` nodes. Offering an unreachable node produces
@@ -267,7 +267,7 @@ pasting into another tool needs the literal source.
 #### 6.2 Hover card
 
 Display (full, untruncated), code, system, version, data type, concept type, definition, and
-"used in *N* places" with links.
+"used in _N_ places" with links.
 
 #### 6.3 (i) navigation
 
@@ -288,17 +288,17 @@ frontend's generation is for review and for tools that want a library without ru
 
 ### 8. Code checklist
 
-| Path | Purpose |
-|------|---------|
-| `packages/cql/src/grammar/` | Vendored `Cql.g4` + generated parser |
-| `packages/cql/src/parse/` | Fragment wrapping, parse, position mapping |
-| `packages/cql/src/resolve/` | Reference resolution (concepts, nodes, defines, functions) |
-| `packages/cql/src/profile/` | Profile whitelist + violation diagnostics |
-| `packages/cql/src/tricc/` | `TriccOperation` mapping |
-| `packages/cql/src/helpers/` | TRICC helper function declarations |
-| `packages/cql/src/editor/` | CodeMirror extensions: highlight, complete, lint, chips, hover |
-| `packages/cql/src/generate/` | Library emission |
-| `packages/editor/src/cql/EdgeLogicEditor.tsx` | **Deleted.** Prototype's plain textarea. |
+| Path                                          | Purpose                                                        |
+| --------------------------------------------- | -------------------------------------------------------------- |
+| `packages/cql/src/grammar/`                   | Vendored `Cql.g4` + generated parser                           |
+| `packages/cql/src/parse/`                     | Fragment wrapping, parse, position mapping                     |
+| `packages/cql/src/resolve/`                   | Reference resolution (concepts, nodes, defines, functions)     |
+| `packages/cql/src/profile/`                   | Profile whitelist + violation diagnostics                      |
+| `packages/cql/src/tricc/`                     | `TriccOperation` mapping                                       |
+| `packages/cql/src/helpers/`                   | TRICC helper function declarations                             |
+| `packages/cql/src/editor/`                    | CodeMirror extensions: highlight, complete, lint, chips, hover |
+| `packages/cql/src/generate/`                  | Library emission                                               |
+| `packages/editor/src/cql/EdgeLogicEditor.tsx` | **Deleted.** Prototype's plain textarea.                       |
 
 ### 9. Tests
 
@@ -306,7 +306,7 @@ frontend's generation is for review and for tools that want a library without ru
 
 - Parse: every profile construct in §2.1 parses; every §2.2 construct is detected as a violation
   with the right message.
-- **Position mapping** — a syntax error at fragment offset *n* reports offset *n*, verified across
+- **Position mapping** — a syntax error at fragment offset _n_ reports offset _n_, verified across
   multi-line fragments and fragments whose generated header length varies. Explicit, because this
   is where such tooling usually breaks.
 - Resolution: concepts, node names, defines, ambiguity, unresolvable references.

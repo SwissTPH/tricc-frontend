@@ -1,14 +1,14 @@
 # Hosted platform: accounts, live editing, tagging and notifications
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft |
-| **Repo** | `tricc_platform` (does not exist yet). This file is drafted in `tricc_frontend` and is **mirrored** into that repo when it is created, the same way as the `tricc_oo` companion specs. This frontend repo stays libraries plus `apps/local`, with no backend. |
-| **Related** | [`20261021-discussions.md`](./20261021-discussions.md) (discussions in the project files — built first, in this repo), [`20261013-hosting-groundwork.md`](./20261013-hosting-groundwork.md) (library P0: `BlobPort`, `TriccRuntime.join` of both documents), `20260825-library-architecture.md` |
-| **Source** | 2026-10-21: an online platform so people can use the editor according to their account. Live co-editing, tagging, assigning, in-app and email notifications. Discussions themselves are part of the drawing and are specified in the app. |
-| **Decisions** | 2026-10-21: **separate repository**. Organisations own projects. Open sign-up with a verified email; a new account sees nothing until invited. Live co-editing in the first release. Notifications in the app and by email. Email excerpts are **per project**. A notification stores the project, the element id and the discussion id, and opening it jumps there (`?open=` / `?discussion=`, already in the app spec). Discussions are **not** a server table: they travel in the shared documents and the exported files. Any verified account may create an organisation, up to a limit. A reviewer may resolve a discussion they did not start. |
-| **Approval** | — |
-| **Build after** | The discussions spec is `Approved` and implemented in `tricc_frontend`, and hosting-groundwork (`join`, `BlobPort`) is implemented. |
+| Field           | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**      | Draft                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| **Repo**        | `tricc_platform` (does not exist yet). This file is drafted in `tricc_frontend` and is **mirrored** into that repo when it is created, the same way as the `tricc_oo` companion specs. This frontend repo stays libraries plus `apps/local`, with no backend.                                                                                                                                                                                                                                                                                                                                                                                         |
+| **Related**     | [`20261021-discussions.md`](./20261021-discussions.md) (discussions in the project files — built first, in this repo), [`20261013-hosting-groundwork.md`](./20261013-hosting-groundwork.md) (library P0: `BlobPort`, `TriccRuntime.join` of both documents), `20260825-library-architecture.md`                                                                                                                                                                                                                                                                                                                                                       |
+| **Source**      | 2026-10-21: an online platform so people can use the editor according to their account. Live co-editing, tagging, assigning, in-app and email notifications. Discussions themselves are part of the drawing and are specified in the app.                                                                                                                                                                                                                                                                                                                                                                                                             |
+| **Decisions**   | 2026-10-21: **separate repository**. Organisations own projects. Open sign-up with a verified email; a new account sees nothing until invited. Live co-editing in the first release. Notifications in the app and by email. Email excerpts are **per project**. A notification stores the project, the element id and the discussion id, and opening it jumps there (`?open=` / `?discussion=`, already in the app spec). Discussions are **not** a server table: they travel in the shared documents and the exported files. Any verified account may create an organisation, up to a limit. A reviewer may resolve a discussion they did not start. |
+| **Approval**    | —                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| **Build after** | The discussions spec is `Approved` and implemented in `tricc_frontend`, and hosting-groundwork (`join`, `BlobPort`) is implemented.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ---
 
@@ -26,13 +26,13 @@ adds the parts that need a signed-in person.
 
 ### App vs platform
 
-| App (`tricc_frontend`, no server) | Platform (`tricc_platform`) |
-|---|---|
-| The editor, the guideline model, validation | Sign-up, sign-in, organisations |
-| Discussions in `discussions/`, statuses, labels, decision log | Who may open or change a project (roles) |
-| Sticky notes | Several people editing together |
-| Jump to an element from `?open=` and `?discussion=` | `@` tagging, assigning a discussion |
-| GitHub / GitLab import from a personal token | Bell, "You were tagged in a comment", email |
+| App (`tricc_frontend`, no server)                             | Platform (`tricc_platform`)                 |
+| ------------------------------------------------------------- | ------------------------------------------- |
+| The editor, the guideline model, validation                   | Sign-up, sign-in, organisations             |
+| Discussions in `discussions/`, statuses, labels, decision log | Who may open or change a project (roles)    |
+| Sticky notes                                                  | Several people editing together             |
+| Jump to an element from `?open=` and `?discussion=`           | `@` tagging, assigning a discussion         |
+| GitHub / GitLab import from a personal token                  | Bell, "You were tagged in a comment", email |
 
 ### Accounts
 
@@ -57,13 +57,13 @@ outside the organisation can be invited to one project only.
 
 Each person has one role per project.
 
-| A person can… | Viewer | Reviewer | Editor | Owner |
-|---|:-:|:-:|:-:|:-:|
-| Open the guideline, export it, read discussions | ✓ | ✓ | ✓ | ✓ |
-| Start and answer discussions, set a status, tag, assign | | ✓ | ✓ | ✓ |
-| Change the guideline (diagram, data dictionary, media) | | | ✓ | ✓ |
-| Invite people, change roles, rename or delete the project | | | | ✓ |
-| Edit or remove someone else's comment | | | | ✓ |
+| A person can…                                             | Viewer | Reviewer | Editor | Owner |
+| --------------------------------------------------------- | :----: | :------: | :----: | :---: |
+| Open the guideline, export it, read discussions           |   ✓    |    ✓     |   ✓    |   ✓   |
+| Start and answer discussions, set a status, tag, assign   |        |    ✓     |   ✓    |   ✓   |
+| Change the guideline (diagram, data dictionary, media)    |        |          |   ✓    |   ✓   |
+| Invite people, change roles, rename or delete the project |        |          |        |   ✓   |
+| Edit or remove someone else's comment                     |        |          |        |   ✓   |
 
 Organisation **owners** and **admins** are owners of every project in their organisation. An
 organisation **member** is a viewer of organisation-visible projects, and may create projects.
@@ -86,7 +86,7 @@ reach the guideline; they do reach the discussions.
 ### Being told
 
 - A bell in the top bar shows unread notifications and updates live. Example: "Alice Martin tagged
-  you in a discussion on *Weight (kg)*, IMCI 2–59 months".
+  you in a discussion on _Weight (kg)_, IMCI 2–59 months".
 - Clicking a notification opens the project at that element, with the discussion open. The
   notification stores the **project id**, the **element id** (anchor) and the **discussion id**.
   The editor already jumps there from `?open=` and `?discussion=` (app spec §7). If the element
@@ -136,14 +136,14 @@ tricc_platform/
 Depends on published (or workspace-linked, while pre-1.0) `@tricc/core` and `@tricc/editor`.
 Nothing from this platform is imported back into `tricc_frontend`.
 
-| Concern | Choice |
-|---|---|
-| API | Node 22, TypeScript, Fastify 5 |
-| Database | Postgres 16, Drizzle, SQL migrations |
-| Shared documents | Hocuspocus 2, two docs per project |
-| Identity | Keycloak 26 (OIDC). Organisation and project roles are **in the app database**. |
-| Browser session | Backend-for-frontend: the browser never holds an access token, only `__Host-tricc_session`. |
-| Email | Nodemailer over SMTP (Mailpit in development) |
+| Concern          | Choice                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| API              | Node 22, TypeScript, Fastify 5                                                              |
+| Database         | Postgres 16, Drizzle, SQL migrations                                                        |
+| Shared documents | Hocuspocus 2, two docs per project                                                          |
+| Identity         | Keycloak 26 (OIDC). Organisation and project roles are **in the app database**.             |
+| Browser session  | Backend-for-frontend: the browser never holds an access token, only `__Host-tricc_session`. |
+| Email            | Nodemailer over SMTP (Mailpit in development)                                               |
 
 ### 2. What the libraries must already provide
 
@@ -188,12 +188,12 @@ to the invitation**. Soft-delete projects for 30 days. Import uses the same `rea
 
 `roleCapabilities` in `packages/shared`, used by API and browser.
 
-| Capability | Viewer | Reviewer | Editor | Owner |
-|---|:-:|:-:|:-:|:-:|
-| `project.read`, `project.export`, `terminology.read`, `comment.read` | ✓ | ✓ | ✓ | ✓ |
-| `comment.write` | | ✓ | ✓ | ✓ |
-| `project.write`, `terminology.write` | | | ✓ | ✓ |
-| `project.share`, `project.delete`, `settings.write`, `comment.moderate` | | | | ✓ |
+| Capability                                                              | Viewer | Reviewer | Editor | Owner |
+| ----------------------------------------------------------------------- | :----: | :------: | :----: | :---: |
+| `project.read`, `project.export`, `terminology.read`, `comment.read`    |   ✓    |    ✓     |   ✓    |   ✓   |
+| `comment.write`                                                         |        |    ✓     |   ✓    |   ✓   |
+| `project.write`, `terminology.write`                                    |        |          |   ✓    |   ✓   |
+| `project.share`, `project.delete`, `settings.write`, `comment.moderate` |        |          |        |   ✓   |
 
 Enforced three times: API routes (declare a capability or fail at startup; other org → 404),
 collab server (read-only per document), browser (`HostedIdentity.capabilities({ projectId })`).
@@ -234,13 +234,13 @@ outbox
 projects.email_excerpt  boolean, default true   -- per project
 ```
 
-| Event | Who | In the app |
-|---|---|---|
-| Tagged | the person tagged | "Alice Martin tagged you in a discussion on *Weight (kg)*, …" |
-| Reply | subscribers, unless muted | "Alice Martin answered a discussion you follow on …" |
-| Status | subscribers | "Alice Martin resolved a discussion on …" |
-| Assigned | the assignee | "Alice Martin assigned you a discussion on …" |
-| Invited / role changed | that person | "Alice Martin invited you to *IMCI* as Reviewer" |
+| Event                  | Who                       | In the app                                                    |
+| ---------------------- | ------------------------- | ------------------------------------------------------------- |
+| Tagged                 | the person tagged         | "Alice Martin tagged you in a discussion on _Weight (kg)_, …" |
+| Reply                  | subscribers, unless muted | "Alice Martin answered a discussion you follow on …"          |
+| Status                 | subscribers               | "Alice Martin resolved a discussion on …"                     |
+| Assigned               | the assignee              | "Alice Martin assigned you a discussion on …"                 |
+| Invited / role changed | that person               | "Alice Martin invited you to _IMCI_ as Reviewer"              |
 
 The actor is never told. Access is checked again at delivery. Clicking opens
 `/o/:org/p/:project?open=<anchor>&discussion=<id>`.
@@ -265,8 +265,8 @@ SSE `GET /api/events` (session cookie) for the bell and live discussion events.
 
 The same baseline as a public web app: HTTPS, HSTS, CSP (`script-src 'self'`), deny-by-default
 API, zod on every body, rate limits, no secrets in git, logs without tokens or comment text,
-`security.txt`, GDPR/FADP (delete my account, download my data, comments remain as *Deleted
-user*). Hosting in Switzerland or the EU.
+`security.txt`, GDPR/FADP (delete my account, download my data, comments remain as _Deleted
+user_). Hosting in Switzerland or the EU.
 
 Compose for development (Postgres, Keycloak, Mailpit), staging and production. Backups with
 point-in-time recovery (lose at most 15 minutes). `/healthz` and `/readyz`. Outbox lag alert.

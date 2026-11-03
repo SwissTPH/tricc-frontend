@@ -90,7 +90,11 @@ export function Breadcrumbs({
  * An activity already on the trail cuts it back there, so following a loop of gotos
  * never grows the trail without bound.
  */
-export function nextTrail(trail: string[], id: string, mode: 'reset' | 'follow' | 'return'): string[] {
+export function nextTrail(
+  trail: string[],
+  id: string,
+  mode: 'reset' | 'follow' | 'return',
+): string[] {
   const at = trail.indexOf(id)
   if (mode === 'reset') return [id]
   if (at >= 0) return trail.slice(0, at + 1)

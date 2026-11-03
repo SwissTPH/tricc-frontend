@@ -75,7 +75,9 @@ async function widePng(page: Page, width: number, height: number): Promise<Buffe
       const ctx = canvas.getContext('2d')!
       ctx.fillStyle = '#c33'
       ctx.fillRect(0, 0, width, height)
-      const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), 'image/png'))
+      const blob = await new Promise<Blob>((resolve) =>
+        canvas.toBlob((b) => resolve(b!), 'image/png'),
+      )
       const bytes = new Uint8Array(await blob.arrayBuffer())
       let bin = ''
       for (const b of bytes) bin += String.fromCharCode(b)
@@ -86,13 +88,17 @@ async function widePng(page: Page, width: number, height: number): Promise<Buffe
   return Buffer.from(b64, 'base64')
 }
 
-test('the Media tab adds a picture smaller than the preference, renames and deletes it', async ({ page }) => {
+test('the Media tab adds a picture smaller than the preference, renames and deletes it', async ({
+  page,
+}) => {
   await newActivity(page, 'Media library')
   await page.getByTestId('tab-media').click()
   await expect(page.getByTestId('no-images')).toBeVisible()
 
   const wide = await widePng(page, 2000, 100)
-  await page.getByTestId('media-file').setInputFiles({ name: 'Red Band.png', mimeType: 'image/png', buffer: wide })
+  await page
+    .getByTestId('media-file')
+    .setInputFiles({ name: 'Red Band.png', mimeType: 'image/png', buffer: wide })
   const tile = page.getByTestId('media-image-red-band')
   await expect(tile).toBeVisible()
   // Wider than the 800 px default: made smaller, in proportion.
@@ -110,7 +116,9 @@ test('the Media tab adds a picture smaller than the preference, renames and dele
   await expect(page.getByTestId('no-images')).toBeVisible()
 })
 
-test('a picture dropped on a node shows on top of it, is saved, and is exported', async ({ page }) => {
+test('a picture dropped on a node shows on top of it, is saved, and is exported', async ({
+  page,
+}) => {
   await newActivity(page, 'Dropped picture')
   const node = await weightQuestion(page)
   const before = (await node.boundingBox())!
@@ -125,7 +133,9 @@ test('a picture dropped on a node shows on top of it, is saved, and is exported'
 
   // The picture is first in the concept's questionnaire text.
   await page.getByTestId('concept-edit').click()
-  await expect(page.getByTestId('concept-q-display').locator('img[data-image="scale"]')).toBeVisible()
+  await expect(
+    page.getByTestId('concept-q-display').locator('img[data-image="scale"]'),
+  ).toBeVisible()
   await page.getByTestId('concept-dialog-cancel').click()
 
   // The library lists it with the concept that shows it.
@@ -133,15 +143,18 @@ test('a picture dropped on a node shows on top of it, is saved, and is exported'
   await expect(page.getByTestId('media-users-scale')).toContainText('weight_kg')
 
   // Saved: a reload still shows it.
-  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 })
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', {
+    timeout: 10_000,
+  })
   await page.reload()
   await page.getByTestId('nav-activity-activity').click()
   await expect(page.getByTestId('node-n-decimal-picture').locator('img')).toBeVisible()
 
   // Exported: the archive carries the file next to the YAML.
-  const download = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-archive').click()]).then(
-    ([d]) => d,
-  )
+  const download = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('export-archive').click(),
+  ]).then(([d]) => d)
   const path = await download.path()
   if (!path) throw new Error('download produced no file')
   expect(readFileSync(path).toString('latin1')).toContain('media/images/scale.png')
@@ -154,10 +167,14 @@ test('the text editor inserts a picture from the library picker', async ({ page 
   await page.getByTestId('concept-q-display-format').click()
   await page.getByTestId('concept-q-display-image').click()
   await expect(page.getByTestId('image-picker-empty')).toBeVisible()
-  await page.getByTestId('image-picker-file').setInputFiles({ name: 'chest.png', mimeType: 'image/png', buffer: DOT })
+  await page
+    .getByTestId('image-picker-file')
+    .setInputFiles({ name: 'chest.png', mimeType: 'image/png', buffer: DOT })
   // One new picture is inserted at once.
   await expect(page.getByTestId('image-picker')).toHaveCount(0)
-  await expect(page.getByTestId('concept-q-display-rich').locator('img[data-image="chest"]')).toBeVisible()
+  await expect(
+    page.getByTestId('concept-q-display-rich').locator('img[data-image="chest"]'),
+  ).toBeVisible()
 
   // Saved through both dialogs, the picture reaches the node.
   await page.getByTestId('concept-q-display-modal-save').click()
@@ -165,10 +182,14 @@ test('the text editor inserts a picture from the library picker', async ({ page 
   await expect(page.getByTestId('node-n-decimal-picture').locator('img')).toBeVisible()
 })
 
-test('the picker opens above the text editor and a library picture is clicked in', async ({ page }) => {
+test('the picker opens above the text editor and a library picture is clicked in', async ({
+  page,
+}) => {
   await newActivity(page, 'Picker on top')
   await page.getByTestId('tab-media').click()
-  await page.getByTestId('media-file').setInputFiles({ name: 'rash.png', mimeType: 'image/png', buffer: DOT })
+  await page
+    .getByTestId('media-file')
+    .setInputFiles({ name: 'rash.png', mimeType: 'image/png', buffer: DOT })
   await expect(page.getByTestId('media-image-rash')).toBeVisible()
   await page.getByTestId('tab-activities').click()
   await page.getByTestId(`nav-activity-activity`).click()
@@ -179,7 +200,9 @@ test('the picker opens above the text editor and a library picture is clicked in
   // A real click: it fails when the text editor covers the picker.
   await page.getByTestId('image-pick-rash').click({ timeout: 5_000 })
   await expect(page.getByTestId('image-picker')).toHaveCount(0)
-  await expect(page.getByTestId('concept-q-display-rich').locator('img[data-image="rash"]')).toBeVisible()
+  await expect(
+    page.getByTestId('concept-q-display-rich').locator('img[data-image="rash"]'),
+  ).toBeVisible()
 })
 
 test('Escape closes the picture picker only', async ({ page }) => {
@@ -195,7 +218,9 @@ test('Escape closes the picture picker only', async ({ page }) => {
   await expect(page.getByTestId('concept-dialog')).toBeVisible()
 })
 
-test('a picture drawn on a draw.io page joins the library and shows on its question', async ({ page }) => {
+test('a picture drawn on a draw.io page joins the library and shows on its question', async ({
+  page,
+}) => {
   await page.getByTestId('new-project-name').fill('Drawn pictures')
   await page.getByTestId('create-project').click()
   const cell = (id: string, attrs: string, label: string, y: number) =>

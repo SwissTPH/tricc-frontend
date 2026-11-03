@@ -1,10 +1,5 @@
 import { useCallback } from 'react'
-import {
-  IMAGE_TYPES,
-  imageIdFrom,
-  type ImageContentType,
-  type ProjectImage,
-} from '@tricc/core'
+import { IMAGE_TYPES, imageIdFrom, type ImageContentType, type ProjectImage } from '@tricc/core'
 import { useEditorPreferences, useMutate, useProjectSnapshot } from '../runtime/context.js'
 
 /**
@@ -41,7 +36,8 @@ export async function prepareImage(
     throw new ImageFileError('Only PNG, JPEG, GIF, WebP and SVG pictures can be added.')
   }
   const original = await blobBytes(file)
-  if (contentType === 'image/svg+xml' || contentType === 'image/gif') return { contentType, data: original }
+  if (contentType === 'image/svg+xml' || contentType === 'image/gif')
+    return { contentType, data: original }
   const smaller = await scaleDown(file, contentType, maxWidth)
   if (!smaller || smaller.length >= original.length) return { contentType, data: original }
   return { contentType, data: smaller }
@@ -49,7 +45,8 @@ export async function prepareImage(
 
 /** The bytes of a file. `FileReader` where `Blob.arrayBuffer` is missing (older engines, jsdom). */
 function blobBytes(blob: Blob): Promise<Uint8Array> {
-  if (typeof blob.arrayBuffer === 'function') return blob.arrayBuffer().then((b) => new Uint8Array(b))
+  if (typeof blob.arrayBuffer === 'function')
+    return blob.arrayBuffer().then((b) => new Uint8Array(b))
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer))
@@ -58,7 +55,11 @@ function blobBytes(blob: Blob): Promise<Uint8Array> {
   })
 }
 
-async function scaleDown(file: Blob, type: string, maxWidth: number): Promise<Uint8Array | undefined> {
+async function scaleDown(
+  file: Blob,
+  type: string,
+  maxWidth: number,
+): Promise<Uint8Array | undefined> {
   if (typeof createImageBitmap !== 'function') return undefined
   let bitmap: ImageBitmap
   try {
@@ -133,7 +134,9 @@ export function imageUrl(image: ProjectImage): string {
   if (!url) {
     url =
       typeof URL.createObjectURL === 'function'
-        ? URL.createObjectURL(new Blob([image.data.slice().buffer as ArrayBuffer], { type: image.contentType }))
+        ? URL.createObjectURL(
+            new Blob([image.data.slice().buffer as ArrayBuffer], { type: image.contentType }),
+          )
         : `data:${image.contentType};base64,${btoa(String.fromCharCode(...image.data))}`
     urls.set(image.data, url)
   }

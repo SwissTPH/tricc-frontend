@@ -20,7 +20,9 @@ export class LocalPreferences implements PreferencesPort {
   private load(): EditorPreferences {
     try {
       const raw = this.prefs.get(KEY)
-      return raw ? normalizePreferences(JSON.parse(raw) as Partial<EditorPreferences>) : DEFAULT_PREFERENCES
+      return raw
+        ? normalizePreferences(JSON.parse(raw) as Partial<EditorPreferences>)
+        : DEFAULT_PREFERENCES
     } catch {
       return DEFAULT_PREFERENCES
     }

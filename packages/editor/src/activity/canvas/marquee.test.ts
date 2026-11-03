@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { dragSelection, edgePan, pointerPastMarquee, rectContains, rectsMeet, screenRect } from './marquee.js'
+import {
+  dragSelection,
+  edgePan,
+  pointerPastMarquee,
+  rectContains,
+  rectsMeet,
+  screenRect,
+} from './marquee.js'
 
 describe('pointerPastMarquee', () => {
   it('stays a click inside 6 pixels', () => {
