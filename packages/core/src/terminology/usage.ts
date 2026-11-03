@@ -35,7 +35,9 @@ export function findCodeSystem(project: Project, ref: string | undefined): CodeS
 export function defaultCodeSystem(project: Project): CodeSystem | undefined {
   return (
     findCodeSystem(project, project.defaultCodeSystem) ??
-    (Object.keys(project.codeSystems).length === 1 ? Object.values(project.codeSystems)[0] : undefined)
+    (Object.keys(project.codeSystems).length === 1
+      ? Object.values(project.codeSystems)[0]
+      : undefined)
   )
 }
 
@@ -44,7 +46,10 @@ export function lookupConcept(project: Project, key: ConceptKey | undefined): Co
   return findCodeSystem(project, key.system)?.concepts[key.code]
 }
 
-function refOf(project: Project, item: { concept?: { system: string; code: string }; name?: string }): ConceptKey | undefined {
+function refOf(
+  project: Project,
+  item: { concept?: { system: string; code: string }; name?: string },
+): ConceptKey | undefined {
   if (item.concept) {
     const cs = findCodeSystem(project, item.concept.system)
     return { system: cs?.url ?? item.concept.system, code: item.concept.code }
@@ -81,7 +86,8 @@ export function conceptUsage(project: Project, key: ConceptKey): ConceptUse[] {
       if (!node) continue
       if (same(nodeConceptKey(project, node))) out.push({ activityId, nodeId })
       for (const option of node.options ?? []) {
-        if (same(optionConceptKey(project, option))) out.push({ activityId, nodeId, optionId: option.id })
+        if (same(optionConceptKey(project, option)))
+          out.push({ activityId, nodeId, optionId: option.id })
       }
     }
   }

@@ -77,9 +77,9 @@ describe('project round-trip', () => {
     const yaml = files['tricc.yaml'] ?? ''
     const mentions = yaml.split('activities/triage-danger-signs.activity.yaml').length - 1
     expect(mentions).toBe(2)
-    expect(Object.keys(files).filter((p) => p.endsWith('triage-danger-signs.activity.yaml'))).toEqual([
-      'activities/triage-danger-signs.activity.yaml',
-    ])
+    expect(
+      Object.keys(files).filter((p) => p.endsWith('triage-danger-signs.activity.yaml')),
+    ).toEqual(['activities/triage-danger-signs.activity.yaml'])
     const { project: back } = readProject(files)
     expect(Object.keys(back.activities).filter((id) => id === 'triage-danger-signs')).toEqual([
       'triage-danger-signs',
@@ -129,10 +129,7 @@ describe('project round-trip', () => {
     expect(project.interventions[0]?.activities).toEqual([{ ref: 'weight' }])
     expect(project.interventions[1]?.activities).toEqual([{ ref: 'weight' }])
   })
-
-
 })
-
 
 describe('incremental write', () => {
   it('reads a CodeSystem that tricc.yaml lists elsewhere, and writes it back there', () => {
@@ -356,10 +353,9 @@ describe('shorthands', () => {
     const listed = project.interventions[0]!.activities[0]!.ref
     const path = `activities/${listed}.activity.yaml`
     // Make the first listed activity a legacy process page that still carries form_id.
-    files[path] = (files[path] ?? '').replace(/type: activity_start/, 'type: start').replace(
-      /^nodes:/m,
-      'form_id: questionaire\nnodes:',
-    )
+    files[path] = (files[path] ?? '')
+      .replace(/type: activity_start/, 'type: start')
+      .replace(/^nodes:/m, 'form_id: questionaire\nnodes:')
     const back = readProject(files).project
     expect(back.interventions.find((i) => i.id === 'sick-child')?.name).toBe('questionaire')
     expect(back.interventions.find((i) => i.id === 'named')?.name).toBe('keep-me')
@@ -408,7 +404,10 @@ describe('shorthands', () => {
 
   it('reads a select filter without keeping it', () => {
     const activity = decodeActivity(
-      { id: 'a', nodes: [{ id: 'q', type: 'select_one', name: 'select_', filter: 'etat.coma.004' }] },
+      {
+        id: 'a',
+        nodes: [{ id: 'q', type: 'select_one', name: 'select_', filter: 'etat.coma.004' }],
+      },
       'en',
     )
     expect(activity.nodes['q']).not.toHaveProperty('filter')
@@ -511,7 +510,11 @@ describe('the start node is the activity', () => {
 
   it('keeps the activity value when the root disagrees', () => {
     const activity = decodeActivity(
-      { id: 'a', title: 'Activity title', nodes: [{ id: 's', type: 'activity_start', label: 'Old label' }] },
+      {
+        id: 'a',
+        title: 'Activity title',
+        nodes: [{ id: 's', type: 'activity_start', label: 'Old label' }],
+      },
       'en',
     )
     expect(activity.title).toEqual({ en: 'Activity title' })
@@ -538,7 +541,14 @@ describe('comments on the diagram', () => {
         id: 'a',
         ui: {
           comments: [
-            { id: 'c1', text: 'Ask Dr N about this cut-off', color: 'blue', x: 10, y: 20, node: 'w' },
+            {
+              id: 'c1',
+              text: 'Ask Dr N about this cut-off',
+              color: 'blue',
+              x: 10,
+              y: 20,
+              node: 'w',
+            },
             { id: 'c2', text: 'Draft', x: 0, y: 0 },
           ],
         },
@@ -557,12 +567,28 @@ describe('page groups', () => {
     const activity = decodeActivity(
       {
         id: 'a',
-        groups: [{ id: 'g', name: 'danger_signs', ui: { x: 10, y: 20, width: 300, height: 200, color: 'pink' } }],
-        nodes: [{ id: 'q', type: 'select_yesno', name: 'convulsions', group: 'g', ui: { x: 5, y: 6 } }],
+        groups: [
+          {
+            id: 'g',
+            name: 'danger_signs',
+            ui: { x: 10, y: 20, width: 300, height: 200, color: 'pink' },
+          },
+        ],
+        nodes: [
+          { id: 'q', type: 'select_yesno', name: 'convulsions', group: 'g', ui: { x: 5, y: 6 } },
+        ],
       },
       'en',
     )
-    expect(activity.groups?.[0]).toEqual({ id: 'g', name: 'danger_signs', color: 'pink', x: 10, y: 20, width: 300, height: 200 })
+    expect(activity.groups?.[0]).toEqual({
+      id: 'g',
+      name: 'danger_signs',
+      color: 'pink',
+      x: 10,
+      y: 20,
+      width: 300,
+      height: 200,
+    })
     const yaml = toYaml(encodeActivity(activity, 'en', '1.0.0'))
     expect(yaml).toContain('group: g')
     expect(decodeActivity(fromYaml(yaml), 'en')).toEqual(activity)
@@ -571,10 +597,15 @@ describe('page groups', () => {
   it('moves a group title into the concept its name stands for', () => {
     const files = writeProject(sampleProject())
     const path = 'activities/triage-danger-signs.activity.yaml'
-    files[path] = files[path]!.replace(/^nodes:/m, 'groups:\n  - id: g\n    name: danger_signs\n    label: Danger signs\nnodes:')
+    files[path] = files[path]!.replace(
+      /^nodes:/m,
+      'groups:\n  - id: g\n    name: danger_signs\n    label: Danger signs\nnodes:',
+    )
     const { project } = readProject(files)
     expect(project.activities['triage-danger-signs']!.groups?.[0]).not.toHaveProperty('label')
-    expect(Object.values(project.codeSystems)[0]!.concepts['danger_signs']?.display).toBe('Danger signs')
+    expect(Object.values(project.codeSystems)[0]!.concepts['danger_signs']?.display).toBe(
+      'Danger signs',
+    )
   })
 })
 

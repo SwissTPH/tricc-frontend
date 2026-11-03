@@ -8,7 +8,6 @@ import { expect, test, type Page } from '@playwright/test'
  * rest of that list downward, and an expression that is already CQL is shown and checked.
  */
 
-
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await page.evaluate(async () => {
@@ -57,7 +56,9 @@ test('search and expand reach an activity or process that does not fit', async (
   const collapsed = await nav.evaluate((el) => el.getBoundingClientRect().height)
   await page.getByTestId('nav-expand').click()
   await expect(nav).toHaveAttribute('data-expanded', 'true')
-  await expect.poll(() => nav.evaluate((el) => el.getBoundingClientRect().height)).toBeGreaterThan(collapsed + 16)
+  await expect
+    .poll(() => nav.evaluate((el) => el.getBoundingClientRect().height))
+    .toBeGreaterThan(collapsed + 16)
 
   await page.getByTestId('activity-search').fill('activity-15')
   await expect(page.getByTestId('nav-activity-activity-15')).toBeVisible()
@@ -109,10 +110,14 @@ test('the same controls still reach an entry on a narrow window', async ({ page 
 
   await expectInsideViewport(page, 'activity-navigator')
   await expect(page.getByTestId('nav-expand')).toBeEnabled()
-  const collapsed = await page.getByTestId('activity-navigator').evaluate((el) => el.getBoundingClientRect().height)
+  const collapsed = await page
+    .getByTestId('activity-navigator')
+    .evaluate((el) => el.getBoundingClientRect().height)
   await page.getByTestId('nav-expand').click()
   await expect
-    .poll(() => page.getByTestId('activity-navigator').evaluate((el) => el.getBoundingClientRect().height))
+    .poll(() =>
+      page.getByTestId('activity-navigator').evaluate((el) => el.getBoundingClientRect().height),
+    )
     .toBeGreaterThan(collapsed + 16)
   await expectInsideViewport(page, 'activity-navigator')
   await page.getByTestId('nav-expand').click()
@@ -144,7 +149,9 @@ test('a plus opens a dialog and nothing is created until it is confirmed', async
   await expect(page.getByTestId('new-activity-id')).toHaveText('weight-measurement')
   await page.getByTestId('create-activity').click()
   await expect(modal).toHaveCount(0)
-  await expect(page.getByTestId('nav-activity-weight-measurement')).toContainText('Weight measurement')
+  await expect(page.getByTestId('nav-activity-weight-measurement')).toContainText(
+    'Weight measurement',
+  )
   await expect(page.getByTestId('activity-editor')).toBeVisible()
 
   await page.getByTestId('tab-processes').click()
@@ -269,7 +276,12 @@ function registrationDrawing(): string {
       'Page-1',
       [
         cell('rs', 'odk_type="start" process="registration"', 'Registration', 20),
-        cell('go', 'odk_type="goto" link="data:page/id,wm" name="weight"', 'Weight measurement', 120),
+        cell(
+          'go',
+          'odk_type="goto" link="data:page/id,wm" name="weight"',
+          'Weight measurement',
+          120,
+        ),
         cell('re', 'odk_type="end"', 'End', 220),
         edge('e1', 'rs', 'go'),
         edge('e2', 'go', 're'),

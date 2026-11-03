@@ -40,7 +40,9 @@ async function newConcept(page: Page, name: string, display: string): Promise<vo
   await expect(page.getByTestId('concept-dialog')).toHaveCount(0)
 }
 
-test('a calculation concept goes to the calculate dictionary, listed next to the default one', async ({ page }) => {
+test('a calculation concept goes to the calculate dictionary, listed next to the default one', async ({
+  page,
+}) => {
   await page.getByTestId('new-project-name').fill('Dictionaries')
   await page.getByTestId('create-project').click()
   await page.getByTestId('add-activity').click()
@@ -101,7 +103,9 @@ test('the project search shows hits by source and opens a node', async ({ page }
   await expect(page.getByTestId('project-search-results')).toHaveCount(0)
 })
 
-test('one answer of a select can be "none of these", from the question or the answer', async ({ page }) => {
+test('one answer of a select can be "none of these", from the question or the answer', async ({
+  page,
+}) => {
   await page.getByTestId('new-project-name').fill('None answer')
   await page.getByTestId('create-project').click()
   await page.getByTestId('add-activity').click()
@@ -138,7 +142,9 @@ test('one answer of a select can be "none of these", from the question or the an
   await expect(page.locator('.tricc-node__answer-none')).toHaveCount(0)
 })
 
-test('repeat and instance are offered on every node holding a value, and on the activity', async ({ page }) => {
+test('repeat and instance are offered on every node holding a value, and on the activity', async ({
+  page,
+}) => {
   await page.getByTestId('new-project-name').fill('Repeats')
   await page.getByTestId('create-project').click()
   await page.getByTestId('add-activity').click()

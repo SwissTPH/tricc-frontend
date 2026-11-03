@@ -1,13 +1,13 @@
 # Calculate dictionary filled on import
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft |
-| **Repo** | `tricc_frontend` — `@tricc/core` (`terminology/texts-to-concepts.ts`), `@tricc/editor` (navigator import); `tricc_oo` for phase 2 |
-| **Source** | Patrick, 2026-10-14: "the calculate DD is not populated upon import; should at least be the case for diag and proposed diag" |
-| **Related** | `20261014-project-search-and-dictionaries.md` (the two dictionaries), `20261008-data-dictionary-and-concept-texts.md` (the text move) |
-| **Decisions** | — |
-| **Approval** | — |
+| Field         | Value                                                                                                                                 |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**    | Draft                                                                                                                                 |
+| **Repo**      | `tricc_frontend` — `@tricc/core` (`terminology/texts-to-concepts.ts`), `@tricc/editor` (navigator import); `tricc_oo` for phase 2     |
+| **Source**    | Patrick, 2026-10-14: "the calculate DD is not populated upon import; should at least be the case for diag and proposed diag"          |
+| **Related**   | `20261014-project-search-and-dictionaries.md` (the two dictionaries), `20261008-data-dictionary-and-concept-texts.md` (the text move) |
+| **Decisions** | —                                                                                                                                     |
+| **Approval**  | —                                                                                                                                     |
 
 ## Part I — What the author sees
 

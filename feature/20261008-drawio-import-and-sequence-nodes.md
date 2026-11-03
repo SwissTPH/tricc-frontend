@@ -1,12 +1,12 @@
 # Draw.io import fixes and nameless sequence nodes
 
-| Field | Value |
-|-------|-------|
-| **Status** | Frontend implemented 2026-10-08, not committed. `tricc_oo` part sent to that session. See "Implementation notes" at the end. |
-| **Repo** | `tricc_frontend` + **`tricc_oo`** (§2.1 and §2.3, Python side) |
-| **Related** | `20261008-authoring-continuation.md` (§3 Draw.io, §4 Navigator), `20261008-not-available-node.md` (edges into `not_available`), `20260825-tricc-oo-interop.md` |
-| **Source** | Review remarks, 2026-10-08 |
-| **Approval** | — |
+| Field        | Value                                                                                                                                                          |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**   | Frontend implemented 2026-10-08, not committed. `tricc_oo` part sent to that session. See "Implementation notes" at the end.                                   |
+| **Repo**     | `tricc_frontend` + **`tricc_oo`** (§2.1 and §2.3, Python side)                                                                                                 |
+| **Related**  | `20261008-authoring-continuation.md` (§3 Draw.io, §4 Navigator), `20261008-not-available-node.md` (edges into `not_available`), `20260825-tricc-oo-interop.md` |
+| **Source**   | Review remarks, 2026-10-08                                                                                                                                     |
+| **Approval** | —                                                                                                                                                              |
 
 ---
 
@@ -69,17 +69,17 @@ node asks for a name.
 
 **Principle (Patrick, 2026-10-08).** The root node of a page is the activity. That holds for
 `activity_start` and for the process `start`. The root carries no attributes of its own that
-repeat the activity's. It *shares* the activity attributes from the YAML.
+repeat the activity's. It _shares_ the activity attributes from the YAML.
 
 **YAML shape.** Activity-level keys are the single copy. The root node keeps only `id`, `type`
 and `ui`, plus its edges.
 
 ```yaml
 id: weight-measurement
-name: weight_measurement            # see 20261008-names-and-activity-settings.md
-title: { en: Weight measurement }   # shown on the root node
-process: registration               # process pages only (was on the start node)
-applicability: "AgeInMonths() < 60" # was the root node's relevance
+name: weight_measurement # see 20261008-names-and-activity-settings.md
+title: { en: Weight measurement } # shown on the root node
+process: registration # process pages only (was on the start node)
+applicability: 'AgeInMonths() < 60' # was the root node's relevance
 nodes:
   - { id: root, type: start, ui: { x: 80, y: 40 } }
 ```
@@ -93,6 +93,7 @@ nodes:
   If both exist and differ, keep the activity value and emit info
   `activity.root-attribute-dropped`.
   - `activity-kind.ts:43-47` `processOf` becomes `activity.process`.
+
 - **Write.** Never write these keys on the root node.
 - **`form_id`** is retired. It is read only to set the intervention `name`
   (`20261008-names-and-activity-settings.md` §2.2).
@@ -148,7 +149,7 @@ not follow from that alone. Reproduce it with `combacal-L2/bp_int/bp_int.drawio`
 
 Suspects, in order:
 
-- `rootNode` takes the *first* `start` or `activity_start` in `nodeOrder`. A process page that
+- `rootNode` takes the _first_ `start` or `activity_start` in `nodeOrder`. A process page that
   also holds an `activity_start`, or a `start` that is not first, is read as an activity.
   - Fix: a page with any `start` node is a process.
   - Two `start` nodes on one page is a validation error. That rule already exists for roots.
@@ -207,18 +208,18 @@ Add `isExtensionTarget(type)` in `node-types.ts`, next to `isSequenceNode`.
 
 ### 2.6 Open questions
 
-| # | Question | Recommendation |
-|---|----------|----------------|
-| 1 | Should the activity **id** also follow the start label, or stay on the page name? | Stay on the page name. Ids are file names and `goto` targets. |
+| #   | Question                                                                          | Recommendation                                                |
+| --- | --------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| 1   | Should the activity **id** also follow the start label, or stay on the page name? | Stay on the page name. Ids are file names and `goto` targets. |
 
 ### 2.7 Settled on 2026-10-08
 
-| Question | Answer |
-|----------|--------|
-| Do the root node and the activity share attributes? | Yes. The start node is the activity, and both kinds of root read the activity attributes from the YAML (§2.2). |
-| Process page title | Taken from the `start` label like any root, falling back to the page name. |
-| Existing `name` on a draw.io root | Lifted to the activity as its `name`. It is not shown as the title. |
-| `form_id` | Retired. Replaced by the intervention `name`. It is read only for legacy projects without interventions (`20261008-names-and-activity-settings.md`). |
+| Question                                            | Answer                                                                                                                                               |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Do the root node and the activity share attributes? | Yes. The start node is the activity, and both kinds of root read the activity attributes from the YAML (§2.2).                                       |
+| Process page title                                  | Taken from the `start` label like any root, falling back to the page name.                                                                           |
+| Existing `name` on a draw.io root                   | Lifted to the activity as its `name`. It is not shown as the title.                                                                                  |
+| `form_id`                                           | Retired. Replaced by the intervention `name`. It is read only for legacy projects without interventions (`20261008-names-and-activity-settings.md`). |
 
 ## Implementation notes (frontend, 2026-10-08)
 
@@ -309,4 +310,3 @@ import it from the Processes tab.
   the node, with the text on hover (`node-<id>-hint`, `node-<id>-help`). They are read from the
   concept, or from the node while it has no concept. They replace the "Hint" and "Help" text
   badges.
-

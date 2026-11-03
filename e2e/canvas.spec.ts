@@ -83,9 +83,7 @@ function editorPanes(): {
 
 /** Nodes and edges React Flow has measured and not hidden. A visibility of `hidden` is the blank canvas. */
 async function expectDiagramPainted(page: Page): Promise<void> {
-  await expect
-    .poll(async () => page.evaluate(hiddenDiagramIds))
-    .toEqual([])
+  await expect.poll(async () => page.evaluate(hiddenDiagramIds)).toEqual([])
 }
 
 function hiddenDiagramIds(): string[] {
@@ -93,7 +91,11 @@ function hiddenDiagramIds(): string[] {
     .filter((el) => {
       const style = getComputedStyle(el)
       const box = el.getBoundingClientRect()
-      return style.visibility === 'hidden' || style.display === 'none' || (box.width === 0 && box.height === 0)
+      return (
+        style.visibility === 'hidden' ||
+        style.display === 'none' ||
+        (box.width === 0 && box.height === 0)
+      )
     })
     .map((el) => el.getAttribute('data-id') ?? 'edge')
 }
@@ -105,10 +107,16 @@ async function watchDiagram(page: Page): Promise<void> {
     ;(window as unknown as { __diagramWatch: typeof state }).__diagramWatch = state
     const tick = () => {
       if (state.stop) return
-      const hidden = Array.from(document.querySelectorAll('.react-flow__node, .react-flow__edge')).some((el) => {
+      const hidden = Array.from(
+        document.querySelectorAll('.react-flow__node, .react-flow__edge'),
+      ).some((el) => {
         const style = getComputedStyle(el)
         const box = el.getBoundingClientRect()
-        return style.visibility === 'hidden' || style.display === 'none' || (box.width === 0 && box.height === 0)
+        return (
+          style.visibility === 'hidden' ||
+          style.display === 'none' ||
+          (box.width === 0 && box.height === 0)
+        )
       })
       if (hidden) state.frames += 1
       requestAnimationFrame(tick)
@@ -119,7 +127,8 @@ async function watchDiagram(page: Page): Promise<void> {
 
 async function hiddenFrames(page: Page): Promise<number> {
   return page.evaluate(() => {
-    const state = (window as unknown as { __diagramWatch?: { frames: number; stop: boolean } }).__diagramWatch
+    const state = (window as unknown as { __diagramWatch?: { frames: number; stop: boolean } })
+      .__diagramWatch
     if (state) state.stop = true
     return state?.frames ?? 0
   })
@@ -357,7 +366,9 @@ test('a select shows each answer, and a link from an answer follows it', async (
   })
   await page.reload()
   await page.getByTestId('nav-activity-activity').click()
-  await expect(page.getByTestId('edge-label-e-n-select_one-n-note')).toHaveText('Fever and a rash tod…')
+  await expect(page.getByTestId('edge-label-e-n-select_one-n-note')).toHaveText(
+    'Fever and a rash tod…',
+  )
   await expect(page.getByTestId('edge-label-e-n-select_one-n-note')).toHaveAttribute(
     'title',
     'Fever and a rash today',
@@ -518,7 +529,9 @@ test('branch semantics are chosen, never typed', async ({ page }) => {
   await expect(page.getByTestId('field-branch-condition')).toBeVisible()
 })
 
-test('an edge from a yes/no or a rhombus asks for the branch before it is created', async ({ page }) => {
+test('an edge from a yes/no or a rhombus asks for the branch before it is created', async ({
+  page,
+}) => {
   await newActivity(page, 'Branch on connect')
   await placeNode(page, 'select_yesno')
   await placeNode(page, 'note')
@@ -696,7 +709,9 @@ test('a palette drag released off the diagram adds nothing', async ({ page }) =>
   if (!source) throw new Error('palette missing')
   await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2)
   await page.mouse.down()
-  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2 + 48, { steps: 8 })
+  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2 + 48, {
+    steps: 8,
+  })
   await page.mouse.up()
   await expect(page.getByTestId('node-n-note')).toHaveCount(0)
   await expect(page.getByTestId('palette-drag-ghost')).toHaveCount(0)
@@ -823,7 +838,9 @@ async function visibleLines(page: Page, testId: string): Promise<number> {
   })
 }
 
-test('node text wraps to three lines by default, and the full text is on hover', async ({ page }) => {
+test('node text wraps to three lines by default, and the full text is on hover', async ({
+  page,
+}) => {
   await newActivity(page, 'Wrap guideline')
   await placeNode(page, 'integer')
   await page.getByTestId('field-label').fill(LONG_LABEL)
@@ -860,11 +877,16 @@ test('tidy layout spaces tall nodes without overlap', async ({ page }) => {
   const [a, b] = boxes
   expect(a && b).toBeTruthy()
   const overlap =
-    a!.x < b!.x + b!.width && b!.x < a!.x + a!.width && a!.y < b!.y + b!.height && b!.y < a!.y + a!.height
+    a!.x < b!.x + b!.width &&
+    b!.x < a!.x + a!.width &&
+    a!.y < b!.y + b!.height &&
+    b!.y < a!.y + a!.height
   expect(overlap).toBe(false)
 })
 
-test('a goto opens its activity from the details and from the button on the node', async ({ page }) => {
+test('a goto opens its activity from the details and from the button on the node', async ({
+  page,
+}) => {
   await newActivity(page, 'Jump guideline')
   await page.getByTestId('nav-overview').click()
   await page.getByTestId('add-activity').click()
@@ -877,10 +899,16 @@ test('a goto opens its activity from the details and from the button on the node
   await page.getByTestId('field-repeat').fill('2')
 
   await page.getByTestId('goto-open').click()
-  await expect(page.getByTestId('nav-activity-activity-2')).toHaveAttribute('aria-current', /true|page/)
+  await expect(page.getByTestId('nav-activity-activity-2')).toHaveAttribute(
+    'aria-current',
+    /true|page/,
+  )
   await page.getByTestId(`nav-activity-${FIRST_ACTIVITY}`).click()
   await page.getByTestId('goto-follow-n-goto').click()
-  await expect(page.getByTestId('nav-activity-activity-2')).toHaveAttribute('aria-current', /true|page/)
+  await expect(page.getByTestId('nav-activity-activity-2')).toHaveAttribute(
+    'aria-current',
+    /true|page/,
+  )
 })
 
 test('a comment says what it is about with a dashed line, never an edge', async ({ page }) => {
@@ -908,7 +936,9 @@ test('a comment says what it is about with a dashed line, never an edge', async 
   await page.mouse.down()
   await page.mouse.move(before!.x + 120, before!.y + 60, { steps: 8 })
   await page.mouse.up()
-  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 })
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', {
+    timeout: 10_000,
+  })
   await page.reload()
   await page.getByTestId(`nav-activity-${FIRST_ACTIVITY}`).click()
   await expect(page.getByTestId('comment-comment')).toBeVisible()
@@ -916,7 +946,12 @@ test('a comment says what it is about with a dashed line, never an edge', async 
 })
 
 /** Drag a canvas element by its centre to a point. */
-async function dragTo(page: Page, locator: ReturnType<Page['getByTestId']>, x: number, y: number): Promise<void> {
+async function dragTo(
+  page: Page,
+  locator: ReturnType<Page['getByTestId']>,
+  x: number,
+  y: number,
+): Promise<void> {
   const box = await locator.boundingBox()
   if (!box) throw new Error('nothing to drag')
   await page.mouse.move(box.x + box.width / 2, box.y + Math.min(12, box.height / 2))
@@ -925,7 +960,9 @@ async function dragTo(page: Page, locator: ReturnType<Page['getByTestId']>, x: n
   await page.mouse.up()
 }
 
-test('a node dropped into a group joins it, moves with it, and leaves when dragged out', async ({ page }) => {
+test('a node dropped into a group joins it, moves with it, and leaves when dragged out', async ({
+  page,
+}) => {
   await newActivity(page, 'Group guideline')
   await placeNode(page, 'select_yesno')
   await page.getByTestId('tab-nodes').click()
@@ -945,7 +982,12 @@ test('a node dropped into a group joins it, moves with it, and leaves when dragg
   // Moving the frame by its title moves the question with it.
   const before = (await page.getByTestId('node-n-select_yesno').boundingBox())!
   const title = (await page.getByTestId('group-group-title').boundingBox())!
-  await dragTo(page, page.getByTestId('group-group-title'), title.x + title.width / 2 + 80, title.y + 6 + 40)
+  await dragTo(
+    page,
+    page.getByTestId('group-group-title'),
+    title.x + title.width / 2 + 80,
+    title.y + 6 + 40,
+  )
   const after = (await page.getByTestId('node-n-select_yesno').boundingBox())!
   expect(after.x - before.x).toBeGreaterThan(40)
 
@@ -961,7 +1003,9 @@ test('a node dropped into a group joins it, moves with it, and leaves when dragg
   await page.locator('.react-flow__controls-fitview').click()
   await page.getByTestId('group-group-title').click()
   await expect(page.getByTestId('group-members')).toContainText('0 nodes')
-  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 })
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', {
+    timeout: 10_000,
+  })
 })
 
 // --- Refresh and palette drag (2026-10-11): reproductions first --------------------------
@@ -1001,7 +1045,9 @@ test('editing a concept updates the node text and its marks at once', async ({ p
   await expect(page.getByTestId('node-n-decimal-help')).toBeVisible()
 })
 
-test('comments, their line, and groups stay on screen while another node is dragged', async ({ page }) => {
+test('comments, their line, and groups stay on screen while another node is dragged', async ({
+  page,
+}) => {
   await newActivity(page, 'Refresh drag')
   await placeNode(page, 'decimal')
   await placeNode(page, 'note')
@@ -1057,12 +1103,17 @@ test('a link on an answer follows its row when an answer above it is removed', a
     page.getByTestId('node-n-select_one-answer-option-2').locator('.react-flow__handle'),
     'node-n-note',
   )
-  const edge = page.locator('[data-testid^="rf__edge-e-n-select_one-n-note"] path.react-flow__edge-path')
+  const edge = page.locator(
+    '[data-testid^="rf__edge-e-n-select_one-n-note"] path.react-flow__edge-path',
+  )
   await expect(edge).toHaveCount(1)
 
   await page.getByTestId('node-n-select_one').click()
   await page.getByTestId('remove-option-option').click()
-  const row = (await page.getByTestId('node-n-select_one-answer-option-2').locator('.react-flow__handle').boundingBox())!
+  const row = (await page
+    .getByTestId('node-n-select_one-answer-option-2')
+    .locator('.react-flow__handle')
+    .boundingBox())!
   // The edge must start at the handle of its (now first) answer row, not where it used to be.
   const start = await edge.evaluate((path) => {
     const p = (path as SVGPathElement).getPointAtLength(0)
@@ -1087,7 +1138,9 @@ test('comment and group can be dragged from the palette onto the diagram', async
   expect(Math.abs(group.y - groupAt.y)).toBeLessThan(40)
 })
 
-test('a validation issue links to its node, in the activity and from the overview', async ({ page }) => {
+test('a validation issue links to its node, in the activity and from the overview', async ({
+  page,
+}) => {
   await newActivity(page, 'Issue link guideline')
   await placeNode(page, 'select_one')
   const node = page.locator('.react-flow__node[data-id="n-select_one"]')
@@ -1113,7 +1166,12 @@ test('a validation issue links to its node, in the activity and from the overvie
     .poll(async () => {
       const n = (await node.boundingBox())!
       const c = (await page.getByTestId('activity-canvas').boundingBox())!
-      return n.x >= c.x && n.y >= c.y && n.x + n.width <= c.x + c.width && n.y + n.height <= c.y + c.height
+      return (
+        n.x >= c.x &&
+        n.y >= c.y &&
+        n.x + n.width <= c.x + c.width &&
+        n.y + n.height <= c.y + c.height
+      )
     })
     .toBe(true)
 
@@ -1190,7 +1248,11 @@ test('Ctrl+click adds an element to the selection', async ({ page }) => {
   const b = (await note.boundingBox())!
   await page.mouse.move(Math.min(a.x, b.x) - 12, Math.min(a.y, b.y) - 12)
   await page.mouse.down({ button: 'right' })
-  await page.mouse.move(Math.max(a.x + a.width, b.x + b.width) + 12, Math.max(a.y + a.height, b.y + b.height) + 12, { steps: 10 })
+  await page.mouse.move(
+    Math.max(a.x + a.width, b.x + b.width) + 12,
+    Math.max(a.y + a.height, b.y + b.height) + 12,
+    { steps: 10 },
+  )
   await page.mouse.up({ button: 'right' })
   await expect(integer).toHaveClass(/selected/)
   await expect(note).toHaveClass(/selected/)
@@ -1228,7 +1290,11 @@ test('copy, cut and paste keep concepts and put a cut back with the same ids', a
   const b = (await note.boundingBox())!
   await page.mouse.move(Math.min(a.x, b.x) - 16, Math.min(a.y, b.y) - 16)
   await page.mouse.down({ button: 'right' })
-  await page.mouse.move(Math.max(a.x + a.width, b.x + b.width) + 16, Math.max(a.y + a.height, b.y + b.height) + 16, { steps: 12 })
+  await page.mouse.move(
+    Math.max(a.x + a.width, b.x + b.width) + 16,
+    Math.max(a.y + a.height, b.y + b.height) + 16,
+    { steps: 12 },
+  )
   await page.mouse.up({ button: 'right' })
   await expect(page.getByTestId('multi-selection')).toBeVisible()
 

@@ -44,16 +44,16 @@ The WHO authoring material TRICC follows describes three layers — segment, act
 right for drawing a guideline and stops one level too low. Two more sit above it that authors
 reason about constantly and no tool shows them:
 
-| Layer | What it answers |
-|-------|-----------------|
-| **-1 Project** | Which interventions are carried together, and when each one starts |
-| **0 Intervention** | Which activities make up this package, and which suit this patient |
-| 1 Segment / process | What should happen, and in what order |
-| 2 Activity | How a segment executes |
-| 3 Node | The specific action or logic |
+| Layer               | What it answers                                                    |
+| ------------------- | ------------------------------------------------------------------ |
+| **-1 Project**      | Which interventions are carried together, and when each one starts |
+| **0 Intervention**  | Which activities make up this package, and which suit this patient |
+| 1 Segment / process | What should happen, and in what order                              |
+| 2 Activity          | How a segment executes                                             |
+| 3 Node              | The specific action or logic                                       |
 
 The navigator, the overview screen and every explanation use these five words. Planning — deciding
-*when* an intervention starts — is designed in
+_when_ an intervention starts — is designed in
 [`tricc_oo/feature/careplan.md`](../tricc_oo/feature/careplan.md) and reserved here rather than
 redesigned.
 
@@ -67,7 +67,7 @@ specialist for the genuinely technical parts rather than for all of it.**
 
 So the editor knows what a node is — a weight question offers minimum, maximum, unit and concept
 binding and nothing else; branch conditions are chosen, not typed; `goto` targets are picked from
-activities that exist. And it explains what a node is *for*, in clinical language, where the
+activities that exist. And it explains what a node is _for_, in clinical language, where the
 decision is being made. Roles let a clinician and an IT specialist see the parts they each care
 about without either being locked out of the other's. Every expression carries a plain-language
 **intent** beside it, so a clinician can say what logic should do and an IT specialist can write
@@ -138,20 +138,20 @@ the targets at risk.
 Read in dependency order. Each has a plain-language Part I and a technical Part II, following
 `tricc_oo`'s [feature workflow](../tricc_oo/AGENTS.md).
 
-| # | Spec | Covers |
-|---|------|--------|
-| 1 | [library-architecture](./feature/20260825-library-architecture.md) | Packages, ports, capabilities, publishing |
-| 2 | [document-model](./feature/20260825-document-model.md) | CRDT document, undo, presence, file projection |
-| 3 | [project-format](./feature/20260825-project-format.md) | `project.json`, activity YAML, node types, edge semantics |
-| 4 | [cql-authoring](./feature/20260825-cql-authoring.md) | Parser, portable profile, editor, concept picker |
-| 5 | [terminology](./feature/20260825-terminology.md) | CodeSystem authoring, concept pages, usage tracking |
-| 6 | [activity-editor](./feature/20260825-activity-editor.md) | Palette, properties, modifiers, validation |
-| 7 | [guided-authoring](./feature/20260825-guided-authoring.md) | Roles, explanation in place, narrative intent, snippet palette, `.po` translation |
-| 8 | [project-and-interventions](./feature/20260826-project-and-interventions.md) | Project bundling, intervention applicability, planning overview |
-| 9 | [preview](./feature/20260825-preview.md) | Running a guideline to see what it does |
-| 10 | [assisted-authoring](./feature/20260825-assisted-authoring.md) | Post-v1: LLM help turning narrative into CQL |
-| 11 | [local-app](./feature/20260825-local-app.md) | Vite app, local adapters, saving, e2e, CI |
-| 12 | [tricc-oo-interop](./feature/20260825-tricc-oo-interop.md) | What `tricc_oo` must absorb |
+| #   | Spec                                                                         | Covers                                                                            |
+| --- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| 1   | [library-architecture](./feature/20260825-library-architecture.md)           | Packages, ports, capabilities, publishing                                         |
+| 2   | [document-model](./feature/20260825-document-model.md)                       | CRDT document, undo, presence, file projection                                    |
+| 3   | [project-format](./feature/20260825-project-format.md)                       | `project.json`, activity YAML, node types, edge semantics                         |
+| 4   | [cql-authoring](./feature/20260825-cql-authoring.md)                         | Parser, portable profile, editor, concept picker                                  |
+| 5   | [terminology](./feature/20260825-terminology.md)                             | CodeSystem authoring, concept pages, usage tracking                               |
+| 6   | [activity-editor](./feature/20260825-activity-editor.md)                     | Palette, properties, modifiers, validation                                        |
+| 7   | [guided-authoring](./feature/20260825-guided-authoring.md)                   | Roles, explanation in place, narrative intent, snippet palette, `.po` translation |
+| 8   | [project-and-interventions](./feature/20260826-project-and-interventions.md) | Project bundling, intervention applicability, planning overview                   |
+| 9   | [preview](./feature/20260825-preview.md)                                     | Running a guideline to see what it does                                           |
+| 10  | [assisted-authoring](./feature/20260825-assisted-authoring.md)               | Post-v1: LLM help turning narrative into CQL                                      |
+| 11  | [local-app](./feature/20260825-local-app.md)                                 | Vite app, local adapters, saving, e2e, CI                                         |
+| 12  | [tricc-oo-interop](./feature/20260825-tricc-oo-interop.md)                   | What `tricc_oo` must absorb                                                       |
 
 One companion spec lives in the other repository:
 [`tricc_oo/feature/20260825-snippet-params-and-start-node.md`](../tricc_oo/feature/20260825-snippet-params-and-start-node.md)

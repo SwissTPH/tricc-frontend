@@ -59,7 +59,12 @@ describe('colour in the editor document', () => {
           type: 'mark' as const,
           kind: 'strong' as const,
           children: [
-            { type: 'mark' as const, kind: 'color' as const, color: '#d32f2f', children: [{ type: 'text' as const, value: 'Danger' }] },
+            {
+              type: 'mark' as const,
+              kind: 'color' as const,
+              color: '#d32f2f',
+              children: [{ type: 'text' as const, value: 'Danger' }],
+            },
           ],
         },
         { type: 'text' as const, value: ' sign' },

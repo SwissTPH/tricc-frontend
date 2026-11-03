@@ -1,12 +1,12 @@
 # Project-level activities, referenced by interventions, with an optional external `source`
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft |
-| **Repo** | `tricc_frontend` + **`tricc_oo`** (project config, §2.4) |
-| **Related** | `20261008-authoring-continuation.md` §3 (Shared activities), `20260826-project-and-interventions.md`, `20260825-project-format.md`, `../../tricc_oo/feature/20260907-project-config.md` (the `activity` glob list this extends), `20261008-data-dictionary-and-concept-texts.md` (codes-only YAML: an external activity needs its concepts) |
-| **Source** | Patrick, 2026-10-08: "sharing is a must; that is why activities are referred to in interventions but not defined. They should live at project level. We might support a `source` URI for activities defined by another project." |
-| **Approval** | — |
+| Field        | Value                                                                                                                                                                                                                                                                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**   | Draft                                                                                                                                                                                                                                                                                                                                       |
+| **Repo**     | `tricc_frontend` + **`tricc_oo`** (project config, §2.4)                                                                                                                                                                                                                                                                                    |
+| **Related**  | `20261008-authoring-continuation.md` §3 (Shared activities), `20260826-project-and-interventions.md`, `20260825-project-format.md`, `../../tricc_oo/feature/20260907-project-config.md` (the `activity` glob list this extends), `20261008-data-dictionary-and-concept-texts.md` (codes-only YAML: an external activity needs its concepts) |
+| **Source**   | Patrick, 2026-10-08: "sharing is a must; that is why activities are referred to in interventions but not defined. They should live at project level. We might support a `source` URI for activities defined by another project."                                                                                                            |
+| **Approval** | —                                                                                                                                                                                                                                                                                                                                           |
 
 ---
 
@@ -37,27 +37,27 @@ refresh it from its source, or make a local copy to change it.
 ### 2.1 `tricc.yaml` shape
 
 ```yaml
-activities:                         # project level: every activity, used or not
+activities: # project level: every activity, used or not
   - id: weight-measurement
     path: activities/weight-measurement.activity.yaml
   - id: urine-test
     path: activities/urine-test.activity.yaml
-  - id: vital-signs                 # defined by another project
+  - id: vital-signs # defined by another project
     source: https://example.org/tricc/global/activities/vital-signs.activity.yaml
-    path: external/vital-signs.activity.yaml   # local snapshot, what builds use
-    sha256: 9f2c…                   # snapshot hash at last refresh
-    version: "2026-09-30"           # optional, from the source project
-  - activities/legacy/*.drawio      # a plain glob is still allowed; ids come from the files
+    path: external/vital-signs.activity.yaml # local snapshot, what builds use
+    sha256: 9f2c… # snapshot hash at last refresh
+    version: '2026-09-30' # optional, from the source project
+  - activities/legacy/*.drawio # a plain glob is still allowed; ids come from the files
 
 interventions:
   - id: young-infant
     title: Young infant
-    activities: [vital-signs, weight-measurement, yi-tests]   # ids, in process order
-    start: { on: demand, condition: "AgeInDays() < 60" }
+    activities: [vital-signs, weight-measurement, yi-tests] # ids, in process order
+    start: { on: demand, condition: 'AgeInDays() < 60' }
 ```
 
 - `activities[]` entries take one of three forms: `{id, path}`, `{id, source, path, sha256,
-  version?}`, or a plain glob string. The glob form exists for draw.io-era projects.
+version?}`, or a plain glob string. The glob form exists for draw.io-era projects.
 - `interventions[].activities` is a list of **ids**. It replaces the `activity` glob list for
   projects the app writes.
   - The order is the process order (continuation §3: reorder swaps neighbouring process indexes).
@@ -82,7 +82,7 @@ interventions:
 **Read**
 
 - Accept the new form, the current per-intervention `activity` path list, and `{InputStrategy:
-  [globs]}` mappings.
+[globs]}` mappings.
 - A path in an intervention's `activity` list resolves to the id of the activity at that path,
   through `activityIdByPath`, which already exists (`tricc-yaml.ts:15`).
 - The regex scan of `activities/` stays as a last fallback for activities that are listed nowhere.
@@ -132,13 +132,13 @@ snapshot, which makes them reproducible and work offline.
 
 **Validation summary**
 
-| Code | Severity |
-|------|----------|
-| `project.duplicate-activity-id` | error |
-| `activity.external-snapshot-missing` (the `path` file is absent) | error |
-| `activity.external-hash-mismatch` (snapshot edited outside the app) | warning |
-| `activity.external-missing-concept` | error |
-| `activity.external-unresolved-goto` | warning |
+| Code                                                                | Severity |
+| ------------------------------------------------------------------- | -------- |
+| `project.duplicate-activity-id`                                     | error    |
+| `activity.external-snapshot-missing` (the `path` file is absent)    | error    |
+| `activity.external-hash-mismatch` (snapshot edited outside the app) | warning  |
+| `activity.external-missing-concept`                                 | error    |
+| `activity.external-unresolved-goto`                                 | warning  |
 
 ### 2.4 `tricc_oo` changes
 
@@ -196,10 +196,10 @@ These extend `20260907-project-config.md`. Mirror them into `../../tricc_oo/feat
 
 ### 2.7 Open questions
 
-| # | Question | Recommendation |
-|---|----------|----------------|
-| 1 | Builds read the snapshot (`path`), not the live `source`? | Yes. It is reproducible and offline. Refresh is an explicit author action. |
-| 2 | Which `source` URI schemes in v1? | https (including Google Drive, which `tricc_oo` already supports) and relative file paths. Leave git URIs for later. |
-| 3 | May a local id differ from the source project's id (an alias)? | No in v1. The same id avoids rewriting `goto` targets. |
-| 4 | Should external concepts merge into the project CodeSystem, or stay a separate CodeSystem? | Separate snapshot CodeSystem, read-only. Merging would hide ownership. |
-| 5 | Key name on interventions: `activities` (ids) beside the legacy `activity` (globs)? | Yes. The plural signals the new meaning, and both are accepted on read. |
+| #   | Question                                                                                   | Recommendation                                                                                                       |
+| --- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| 1   | Builds read the snapshot (`path`), not the live `source`?                                  | Yes. It is reproducible and offline. Refresh is an explicit author action.                                           |
+| 2   | Which `source` URI schemes in v1?                                                          | https (including Google Drive, which `tricc_oo` already supports) and relative file paths. Leave git URIs for later. |
+| 3   | May a local id differ from the source project's id (an alias)?                             | No in v1. The same id avoids rewriting `goto` targets.                                                               |
+| 4   | Should external concepts merge into the project CodeSystem, or stay a separate CodeSystem? | Separate snapshot CodeSystem, read-only. Merging would hide ownership.                                               |
+| 5   | Key name on interventions: `activities` (ids) beside the legacy `activity` (globs)?        | Yes. The plural signals the new meaning, and both are accepted on read.                                              |

@@ -135,7 +135,8 @@ export function Typeahead({
   return (
     <div className="tricc-typeahead" ref={rootRef}>
       <label htmlFor={inputId}>{label}</label>
-      <Input size="sm"
+      <Input
+        size="sm"
         id={inputId}
         data-testid={testId}
         role="combobox"

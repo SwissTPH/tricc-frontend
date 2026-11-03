@@ -220,7 +220,10 @@ export function BinIcon() {
 export function HomeIcon() {
   return (
     <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-      <path fill="currentColor" d="M8 1.5 1 7.6l.7.8L3 7.3V14.5h4v-4h2v4h4V7.3l1.3 1.1.7-.8L8 1.5zM12 13.5h-2v-4H6v4H4V6.4l4-3.5 4 3.5v7.1z" />
+      <path
+        fill="currentColor"
+        d="M8 1.5 1 7.6l.7.8L3 7.3V14.5h4v-4h2v4h4V7.3l1.3 1.1.7-.8L8 1.5zM12 13.5h-2v-4H6v4H4V6.4l4-3.5 4 3.5v7.1z"
+      />
     </svg>
   )
 }

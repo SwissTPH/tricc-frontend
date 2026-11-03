@@ -46,7 +46,9 @@ describe('preparing a picture file', () => {
   })
 
   it('refuses a file that is not a picture', async () => {
-    await expect(prepareImage(file([1], 'application/pdf'), 100)).rejects.toBeInstanceOf(ImageFileError)
+    await expect(prepareImage(file([1], 'application/pdf'), 100)).rejects.toBeInstanceOf(
+      ImageFileError,
+    )
     expect(imageFiles([file([1], 'application/pdf'), file([1], 'image/png')])).toHaveLength(1)
   })
 })
@@ -64,9 +66,8 @@ describe('a picture first in the questionnaire text', () => {
     const text = designationText(once.designations[0]!)
     expect(toMarkdown(text)).toBe('![](Binary/rash)\nRash')
     expect(withPictureFirst(once, 'rash', 'en')).toBe(once)
-    expect(imageRefs(designationText(withPictureFirst(once, 'other', 'en').designations[0]!))).toEqual([
-      'other',
-      'rash',
-    ])
+    expect(
+      imageRefs(designationText(withPictureFirst(once, 'other', 'en').designations[0]!)),
+    ).toEqual(['other', 'rash'])
   })
 })

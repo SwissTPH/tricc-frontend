@@ -1,12 +1,12 @@
 # Canvas comments and node groups
 
-| Field | Value |
-|-------|-------|
-| **Status** | Comments and page groups implemented 2026-10-09, not committed. Groups need the `tricc_oo` YAML change in `../../tricc_oo/feature/20261009-yaml-page-groups.md` (Draft) to reach the form. |
-| **Repo** | `tricc_frontend`. Comments never reach `tricc_oo`; groups do, as `container_page` groups. |
-| **Related** | `20261008-authoring-continuation.md`, `20260825-project-format.md` (the semantics-free `ui:` block), `20261008-drawio-import-and-sequence-nodes.md` |
-| **Source** | Patrick, 2026-10-09: "comments that live only on the drawing and are not managed by tricc_oo; ideally colour coded; may relate to a node but not with a normal edge, because that would mess up the conversion. Also a way to group nodes; propose a way that works with this lib." |
-| **Approval** | — |
+| Field        | Value                                                                                                                                                                                                                                                                               |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**   | Comments and page groups implemented 2026-10-09, not committed. Groups need the `tricc_oo` YAML change in `../../tricc_oo/feature/20261009-yaml-page-groups.md` (Draft) to reach the form.                                                                                          |
+| **Repo**     | `tricc_frontend`. Comments never reach `tricc_oo`; groups do, as `container_page` groups.                                                                                                                                                                                           |
+| **Related**  | `20261008-authoring-continuation.md`, `20260825-project-format.md` (the semantics-free `ui:` block), `20261008-drawio-import-and-sequence-nodes.md`                                                                                                                                 |
+| **Source**   | Patrick, 2026-10-09: "comments that live only on the drawing and are not managed by tricc_oo; ideally colour coded; may relate to a node but not with a normal edge, because that would mess up the conversion. Also a way to group nodes; propose a way that works with this lib." |
+| **Approval** | —                                                                                                                                                                                                                                                                                   |
 
 ---
 
@@ -48,10 +48,10 @@ ui:
   comments:
     - id: comment
       text: Check the 9 kg threshold with the clinician
-      color: blue          # yellow | blue | green | pink | grey
+      color: blue # yellow | blue | green | pink | grey
       x: 420
       y: 140
-      node: n-weight       # optional: what the comment is about
+      node: n-weight # optional: what the comment is about
 ```
 
 **Model**
@@ -163,15 +163,15 @@ a group, a section of the form.
 **Format**
 
 ```yaml
-groups:                       # activity level, read by tricc_oo once 20261009-yaml-page-groups lands
+groups: # activity level, read by tricc_oo once 20261009-yaml-page-groups lands
   - id: group
-    name: danger_signs        # concept code; the title is that concept's display
-    parent: outer             # optional, nested groups
-    ui: { x: 300, y: 100, width: 400, height: 300, color: pink }   # frontend only
+    name: danger_signs # concept code; the title is that concept's display
+    parent: outer # optional, nested groups
+    ui: { x: 300, y: 100, width: 400, height: 300, color: pink } # frontend only
 nodes:
   - id: q
-    group: group              # membership, read by tricc_oo
-    ui: { x: 20, y: 40 }      # relative to the group: React Flow's model, frontend only
+    group: group # membership, read by tricc_oo
+    ui: { x: 20, y: 40 } # relative to the group: React Flow's model, frontend only
 ```
 
 **Model and mutations**
@@ -215,4 +215,3 @@ nodes:
 
 **Tests:** core 202, editor 119, e2e 150. The e2e test drops a question into a frame, moves the
 frame by its title (the question follows), then drags the question out.
-

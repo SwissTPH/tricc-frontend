@@ -1,10 +1,10 @@
 # Navigation: breadcrumb, following gotos, callers, project list actions
 
-| Field | Value |
-|-------|-------|
-| **Status** | Implemented |
-| **Repo** | `tricc_frontend` — `@tricc/editor`, `apps/local` |
-| **Source** | Patrick, 2026-10-14 |
+| Field      | Value                                            |
+| ---------- | ------------------------------------------------ |
+| **Status** | Implemented                                      |
+| **Repo**   | `tricc_frontend` — `@tricc/editor`, `apps/local` |
+| **Source** | Patrick, 2026-10-14                              |
 
 ## What the author sees
 

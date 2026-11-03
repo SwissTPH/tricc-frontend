@@ -20,7 +20,10 @@ const select: TriccNode = {
 describe('the "none of these" answer', () => {
   it('is written as is_none on the answer and read back', () => {
     const yaml = encodeNode(select, 'en')
-    expect((yaml['options'] as Record<string, unknown>[])[1]).toMatchObject({ id: 'o2', is_none: true })
+    expect((yaml['options'] as Record<string, unknown>[])[1]).toMatchObject({
+      id: 'o2',
+      is_none: true,
+    })
     expect((yaml['options'] as Record<string, unknown>[])[0]).not.toHaveProperty('is_none')
     expect(decodeNode(yaml as never, 'en').options).toEqual(select.options)
   })
@@ -50,7 +53,10 @@ describe('the "none of these" answer', () => {
 
   it('warns when a question has more than one', () => {
     const activity = minimalActivity('a')
-    const two: TriccNode = { ...select, options: select.options!.map((o) => ({ ...o, is_none: true })) }
+    const two: TriccNode = {
+      ...select,
+      options: select.options!.map((o) => ({ ...o, is_none: true })),
+    }
     activity.nodes[two.id] = two
     activity.nodeOrder.push(two.id)
     const rules = (a: typeof activity) => validateActivity(a).map((i) => i.rule)

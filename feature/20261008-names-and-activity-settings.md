@@ -1,13 +1,13 @@
 # Names instead of `form_id`, and an activity settings dialog
 
-| Field | Value |
-|-------|-------|
-| **Status** | Implemented on both sides, 2026-10-08, not committed. `tricc_oo`: see §2.3. Frontend: see "Implementation notes" at the end. |
-| **Repo** | `tricc_frontend` + `tricc_oo` |
-| **Related** | `20261008-authoring-continuation.md` §3 (`form_id` row, Q21), `20261008-drawio-import-and-sequence-nodes.md` §2.2 (the start node is the activity), `20261008-canvas-display-and-activity-removal.md` §2.2 (activity delete), `20261008-project-level-activities.md`, `../../tricc_oo/feature/20261008-intervention-name-replaces-form-id.md` (Implemented) |
-| **Source** | Patrick, 2026-10-08:<br>"`form_id` is a remnant of previous approaches. I would rather have an activity code, a process, and an intervention code."<br>"The notion of intervention is new in `tricc_oo`; `form_id` should have been removed when it was added."<br>"The name in tricc is what I meant by code."<br>"There is no config for an activity to set display, condition/applicability, and code. A gear icon and a dialog, like the intervention one, are needed, beside the delete already specified." |
-| **Replaces** | `20261008-codes-and-activity-settings.md` (same day; the key is `name`, not `code`) |
-| **Approval** | — |
+| Field        | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**   | Implemented on both sides, 2026-10-08, not committed. `tricc_oo`: see §2.3. Frontend: see "Implementation notes" at the end.                                                                                                                                                                                                                                                                                                                                                                                     |
+| **Repo**     | `tricc_frontend` + `tricc_oo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| **Related**  | `20261008-authoring-continuation.md` §3 (`form_id` row, Q21), `20261008-drawio-import-and-sequence-nodes.md` §2.2 (the start node is the activity), `20261008-canvas-display-and-activity-removal.md` §2.2 (activity delete), `20261008-project-level-activities.md`, `../../tricc_oo/feature/20261008-intervention-name-replaces-form-id.md` (Implemented)                                                                                                                                                      |
+| **Source**   | Patrick, 2026-10-08:<br>"`form_id` is a remnant of previous approaches. I would rather have an activity code, a process, and an intervention code."<br>"The notion of intervention is new in `tricc_oo`; `form_id` should have been removed when it was added."<br>"The name in tricc is what I meant by code."<br>"There is no config for an activity to set display, condition/applicability, and code. A gear icon and a dialog, like the intervention one, are needed, beside the delete already specified." |
+| **Replaces** | `20261008-codes-and-activity-settings.md` (same day; the key is `name`, not `code`)                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **Approval** | —                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 This plan answers Q21 from the continuation file. `form_id` does not move to the intervention:
 it is **replaced** by the intervention `name`.
@@ -23,11 +23,11 @@ intervention.
 
 ### Three identifiers, each at its own level
 
-| Level | Key | Example | Used for |
-|-------|-----|---------|----------|
-| Intervention | `name` | `pediatrics` | The form: XLSForm file and `form_id` setting, CHT form, DHIS2 program, FHIR Questionnaire and StructureMap ids |
-| Process | `process` (already exists) | `registration` | Which part of the encounter (CPG process) a process page starts |
-| Activity | `name` | `weight_measurement` | The activity's stable machine name in outputs (groups, PlanDefinition actions) |
+| Level        | Key                        | Example              | Used for                                                                                                       |
+| ------------ | -------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Intervention | `name`                     | `pediatrics`         | The form: XLSForm file and `form_id` setting, CHT form, DHIS2 program, FHIR Questionnaire and StructureMap ids |
+| Process      | `process` (already exists) | `registration`       | Which part of the encounter (CPG process) a process page starts                                                |
+| Activity     | `name`                     | `weight_measurement` | The activity's stable machine name in outputs (groups, PlanDefinition actions)                                 |
 
 `name` is the machine identifier, which is what TRICC has always called a name. `title` stays the
 human-readable display.
@@ -66,10 +66,10 @@ specifies. The gear opens a settings dialog shaped like the intervention one.
 
 ```yaml
 id: weight-measurement
-name: weight_measurement            # optional; tricc_oo falls back to the title slug
+name: weight_measurement # optional; tricc_oo falls back to the title slug
 title: { en: Weight measurement }
-process: registration               # process pages only
-applicability: "AgeInMonths() < 60" # read by tricc_oo YamlStrategy (yaml.py:516)
+process: registration # process pages only
+applicability: 'AgeInMonths() < 60' # read by tricc_oo YamlStrategy (yaml.py:516)
 intent: { en: Children under five } # plain-language twin of applicability (spec 7 handoff)
 nodes: [...]
 ```
@@ -200,13 +200,13 @@ twice in `_build_activity`. Check all of this before committing.
 - Fields apply as they are edited, and there is no draft to revert. The top bar still autosaves.
 - Read-only shows the fields disabled and keeps Close.
 
-| Field | Test id | Notes |
-|-------|---------|-------|
-| Title | `act-title` | Localized, in the current UI language. The root node shows it. |
-| Name | `act-name` | Placeholder = title slug. Validated live for pattern and uniqueness. |
-| Process | `act-process` | Process pages only. The CPG datalist, as in the Processes-tab create dialog. |
-| Applicability — intent | `act-intent` | Localized plain text. |
-| Applicability — CQL | `act-cql` | `CqlExpressionField` with chips, as on the intervention (`iv-cql`). |
+| Field                  | Test id       | Notes                                                                        |
+| ---------------------- | ------------- | ---------------------------------------------------------------------------- |
+| Title                  | `act-title`   | Localized, in the current UI language. The root node shows it.               |
+| Name                   | `act-name`    | Placeholder = title slug. Validated live for pattern and uniqueness.         |
+| Process                | `act-process` | Process pages only. The CPG datalist, as in the Processes-tab create dialog. |
+| Applicability — intent | `act-intent`  | Localized plain text.                                                        |
+| Applicability — CQL    | `act-cql`     | `CqlExpressionField` with chips, as on the intervention (`iv-cql`).          |
 
 **Root node.** Selecting the root node shows, in Details:
 
@@ -228,12 +228,12 @@ node's relevance (`xml_to_tricc.py:327`). The frontend's draw.io read does the s
 
 **Validation**
 
-| Rule | Severity |
-|------|----------|
-| `activity.duplicate-name` | error |
-| `activity.name-pattern` | error |
-| `activity.intent-without-cql` (intent set, no CQL; the spec 7 handoff rule) | warning |
-| CQL issues on `applicability` | as for `iv-cql` |
+| Rule                                                                        | Severity        |
+| --------------------------------------------------------------------------- | --------------- |
+| `activity.duplicate-name`                                                   | error           |
+| `activity.name-pattern`                                                     | error           |
+| `activity.intent-without-cql` (intent set, no CQL; the spec 7 handoff rule) | warning         |
+| CQL issues on `applicability`                                               | as for `iv-cql` |
 
 ### 2.5 Tests (frontend)
 
@@ -273,10 +273,10 @@ node's relevance (`xml_to_tricc.py:327`). The frontend's draw.io read does the s
 
 ### 2.7 Open questions
 
-| # | Question | Recommendation |
-|---|----------|----------------|
-| 1 | When an intervention exports one form per process, is the XLSForm `form_id` setting the intervention name alone, or `<name>_<process>`? | The name alone for one form. `<name>_<process>` when the strategy splits forms by process, as the StructureMap ids already do. Confirm with `tricc_oo`. |
-| 2 | Should the intervention `id` and `name` be merged, now that both are machine identifiers? | Keep both for now. The `id` is the app's stable key and the output folder; `name` names the form and may follow a country convention. |
+| #   | Question                                                                                                                                | Recommendation                                                                                                                                          |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | When an intervention exports one form per process, is the XLSForm `form_id` setting the intervention name alone, or `<name>_<process>`? | The name alone for one form. `<name>_<process>` when the strategy splits forms by process, as the StructureMap ids already do. Confirm with `tricc_oo`. |
+| 2   | Should the intervention `id` and `name` be merged, now that both are machine identifiers?                                               | Keep both for now. The `id` is the app's stable key and the output folder; `name` names the form and may follow a country convention.                   |
 
 ## Implementation notes (frontend, 2026-10-08)
 
@@ -313,4 +313,3 @@ node's relevance (`xml_to_tricc.py:327`). The frontend's draw.io read does the s
 - `ActivityEditor` kept two hooks below its early return. That crashed the editor when the open
   activity disappeared, on delete and also on undo of its creation. It was the cause of the
   failing e2e "undo and redo arrows sit in the single top bar". Fixed.
-

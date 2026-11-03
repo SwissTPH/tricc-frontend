@@ -56,7 +56,8 @@ export function edgePan(
 ): { x: number; y: number } {
   const along = (value: number, limit: number) => {
     if (value < margin) return Math.min(margin, Math.max(1, margin - value)) / margin
-    if (value > limit - margin) return -Math.min(margin, Math.max(1, value - (limit - margin))) / margin
+    if (value > limit - margin)
+      return -Math.min(margin, Math.max(1, value - (limit - margin))) / margin
     return 0
   }
   return { x: along(pointer.x, size.width) * speed, y: along(pointer.y, size.height) * speed }

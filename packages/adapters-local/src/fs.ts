@@ -21,8 +21,15 @@ export interface DirHandle {
 export interface FileHandle {
   readonly name: string
   readonly kind: 'file'
-  getFile(): Promise<{ text(): Promise<string>; arrayBuffer(): Promise<ArrayBuffer>; lastModified: number }>
-  createWritable(): Promise<{ write(data: string | Uint8Array): Promise<void>; close(): Promise<void> }>
+  getFile(): Promise<{
+    text(): Promise<string>
+    arrayBuffer(): Promise<ArrayBuffer>
+    lastModified: number
+  }>
+  createWritable(): Promise<{
+    write(data: string | Uint8Array): Promise<void>
+    close(): Promise<void>
+  }>
 }
 
 export function isDir(h: DirHandle | FileHandle): h is DirHandle {

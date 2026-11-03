@@ -10,7 +10,10 @@ import {
 
 /** The project's default CodeSystem, created on first use. */
 export function ensureDefaultCodeSystem(project: Project, tx: Mutations): CodeSystem {
-  return defaultCodeSystem(project) ?? ensureDictionary(project, tx, projectDictionaries(project)[0]!.url)
+  return (
+    defaultCodeSystem(project) ??
+    ensureDictionary(project, tx, projectDictionaries(project)[0]!.url)
+  )
 }
 
 /**

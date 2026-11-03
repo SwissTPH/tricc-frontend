@@ -1,11 +1,11 @@
 # Activity Editor — graph authoring, node modifiers, branch semantics
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft |
-| **Repo** | `tricc_frontend` — `@tricc/editor` |
-| **Related** | `20260825-guided-authoring.md` (roles, explanation, disclosure — shapes this surface), `20260825-document-model.md` (state, undo, subscriptions), `20260825-library-architecture.md` (capabilities), `20260825-project-format.md` (§4 node types, §5 edge semantics), `20260825-cql-authoring.md` (expression fields), `20260825-terminology.md` (concept binding) |
-| **Approval** | — |
+| Field        | Value                                                                                                                                                                                                                                                                                                                                                              |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Status**   | Draft                                                                                                                                                                                                                                                                                                                                                              |
+| **Repo**     | `tricc_frontend` — `@tricc/editor`                                                                                                                                                                                                                                                                                                                                 |
+| **Related**  | `20260825-guided-authoring.md` (roles, explanation, disclosure — shapes this surface), `20260825-document-model.md` (state, undo, subscriptions), `20260825-library-architecture.md` (capabilities), `20260825-project-format.md` (§4 node types, §5 edge semantics), `20260825-cql-authoring.md` (expression fields), `20260825-terminology.md` (concept binding) |
+| **Approval** | —                                                                                                                                                                                                                                                                                                                                                                  |
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
@@ -39,7 +39,7 @@ choices rather than a text box. A `goto` offers the list of activities that exis
 are currently found by a failed conversion are prevented at the point of drawing.
 
 That is a necessary foundation and not, on its own, sufficient: knowing that a rhombus needs a
-`reference` does not tell an author what a rhombus is *for*. Explaining the model — and supporting
+`reference` does not tell an author what a rhombus is _for_. Explaining the model — and supporting
 the clinician/IT collaboration that authoring actually requires — is
 `20260825-guided-authoring.md`. This spec builds the surface that one shapes.
 
@@ -124,8 +124,16 @@ Driven by a per-type field descriptor rather than one branching component — th
 ```ts
 interface FieldDescriptor {
   key: string
-  kind: 'text' | 'localized' | 'number' | 'boolean' | 'select' | 'cql' | 'concept'
-       | 'activityRef' | 'nodeRef'
+  kind:
+    | 'text'
+    | 'localized'
+    | 'number'
+    | 'boolean'
+    | 'select'
+    | 'cql'
+    | 'concept'
+    | 'activityRef'
+    | 'nodeRef'
   label: string
   help?: string
   visibleWhen?: (node: Node, project: Project) => boolean
@@ -155,12 +163,12 @@ making it editable per node is what created the problem.
 
 Rendered in a "Modifiers" section of the properties panel and as badges on the node.
 
-| Modifier | Effect |
-|----------|--------|
-| Hint | `hint` attribute; localized |
-| Help | `help` attribute; localized |
-| Image | `media.image`; file picked into `media/` |
-| **Not available** | Generates a `not_available` node (§5.1) |
+| Modifier          | Effect                                   |
+| ----------------- | ---------------------------------------- |
+| Hint              | `hint` attribute; localized              |
+| Help              | `help` attribute; localized              |
+| Image             | `media.image`; file picked into `media/` |
+| **Not available** | Generates a `not_available` node (§5.1)  |
 
 #### 5.1 Not-available
 
@@ -184,14 +192,14 @@ badge, since its `name` and concept are addressable.
 
 Creation by dragging between handles. On connect, the branch type is chosen from a typed control:
 
-| Choice | Serialized `value` |
-|--------|--------------------|
-| Unconditional (default) | absent |
-| Yes | `yes` |
-| No | `no` |
-| Continue | `continue` |
-| Score | the integer |
-| Condition | the CQL text |
+| Choice                  | Serialized `value` |
+| ----------------------- | ------------------ |
+| Unconditional (default) | absent             |
+| Yes                     | `yes`              |
+| No                      | `no`               |
+| Continue                | `continue`         |
+| Score                   | the integer        |
+| Condition               | the CQL text       |
 
 "Unconditional" and "Continue" are distinct and both are offered: an absent value is plain flow,
 while `continue` is an explicit "proceed regardless of the answer" on a node that branches. The
@@ -225,7 +233,7 @@ A second edge kind, alongside sequence edges, expressing `wait` (`20260825-proje
 waits are detected and reported with the cycle named.
 
 The plain-language rendering (`20260825-guided-authoring.md` §5) states the semantics explicitly —
-"waits for *Malaria test result*, but does not depend on it" — because the distinction between
+"waits for _Malaria test result_, but does not depend on it" — because the distinction between
 ordering and relevance is exactly the thing authors get wrong, and the whole reason `wait` has
 both `path` and `reference`.
 
@@ -282,19 +290,19 @@ Real guidelines reach several hundred nodes per activity.
 
 ### 10. Code checklist
 
-| Path | Change |
-|------|--------|
-| `packages/editor/src/activity/Canvas.tsx` | React Flow surface, store-projected |
-| `packages/editor/src/activity/nodes/` | Per-type node components (ported from `flow-nodes/`) |
-| `packages/editor/src/activity/edges/` | Sequence + order-constraint edge components, branch-type control |
-| `packages/editor/src/activity/bridge/` | Bridge junction, route-through, dissolve |
-| `packages/editor/src/activity/wait/` | Wait node, edge⇄node collapse/expand |
-| `packages/editor/src/activity/palette/` | Context-aware palette |
-| `packages/editor/src/activity/properties/` | Descriptor-driven panel + field kinds |
-| `packages/editor/src/activity/modifiers/` | Modifier UI + not-available expansion/collapse |
-| `packages/editor/src/activity/layout/` | dagre auto-layout, align/distribute |
-| `packages/editor/src/activity/validation/` | Incremental runner + worker |
-| `src/pages/ActivityEditor.tsx` | **Deleted.** Replaced; the 739-line prototype mixes canvas, palette, properties and persistence in one component. |
+| Path                                       | Change                                                                                                            |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `packages/editor/src/activity/Canvas.tsx`  | React Flow surface, store-projected                                                                               |
+| `packages/editor/src/activity/nodes/`      | Per-type node components (ported from `flow-nodes/`)                                                              |
+| `packages/editor/src/activity/edges/`      | Sequence + order-constraint edge components, branch-type control                                                  |
+| `packages/editor/src/activity/bridge/`     | Bridge junction, route-through, dissolve                                                                          |
+| `packages/editor/src/activity/wait/`       | Wait node, edge⇄node collapse/expand                                                                              |
+| `packages/editor/src/activity/palette/`    | Context-aware palette                                                                                             |
+| `packages/editor/src/activity/properties/` | Descriptor-driven panel + field kinds                                                                             |
+| `packages/editor/src/activity/modifiers/`  | Modifier UI + not-available expansion/collapse                                                                    |
+| `packages/editor/src/activity/layout/`     | dagre auto-layout, align/distribute                                                                               |
+| `packages/editor/src/activity/validation/` | Incremental runner + worker                                                                                       |
+| `src/pages/ActivityEditor.tsx`             | **Deleted.** Replaced; the 739-line prototype mixes canvas, palette, properties and persistence in one component. |
 
 ### 11. Tests
 

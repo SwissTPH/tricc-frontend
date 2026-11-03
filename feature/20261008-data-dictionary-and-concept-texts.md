@@ -1,12 +1,12 @@
 # Data dictionary tab and concept texts (codes-only YAML, display, q-display, rich text)
 
-| Field | Value |
-|-------|-------|
-| **Status** | Frontend implemented (phases 0–5), 2026-10-08, not committed. `tricc_oo` side specified in `../../tricc_oo/feature/20261008-concept-texts-q-display-and-message-tree.md` (Draft). See "Implementation notes" at the end. |
-| **Repo** | `tricc_frontend` + **`tricc_oo`** (§2.5, §2.6) |
-| **Related** | `20260825-terminology.md` (spec 5, not built; this is its first slice), `20260825-cql-authoring.md` (chips), `20261008-not-available-node.md` (depends on this), `../../tricc_oo/feature/20260909-display-message-ast.md` and `display-text-injection.md` (Implemented in `tricc_oo`), `../../tricc_oo/tricc_oo/converters/datadictionnary.py` (`DESIGNATION_USES`) |
-| **Source** | Review remarks, 2026-10-08, and Patrick's ruling on the same day: the frontend YAML holds codes only |
-| **Approval** | — |
+| Field        | Value                                                                                                                                                                                                                                                                                                                                                               |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**   | Frontend implemented (phases 0–5), 2026-10-08, not committed. `tricc_oo` side specified in `../../tricc_oo/feature/20261008-concept-texts-q-display-and-message-tree.md` (Draft). See "Implementation notes" at the end.                                                                                                                                            |
+| **Repo**     | `tricc_frontend` + **`tricc_oo`** (§2.5, §2.6)                                                                                                                                                                                                                                                                                                                      |
+| **Related**  | `20260825-terminology.md` (spec 5, not built; this is its first slice), `20260825-cql-authoring.md` (chips), `20261008-not-available-node.md` (depends on this), `../../tricc_oo/feature/20260909-display-message-ast.md` and `display-text-injection.md` (Implemented in `tricc_oo`), `../../tricc_oo/tricc_oo/converters/datadictionnary.py` (`DESIGNATION_USES`) |
+| **Source**   | Review remarks, 2026-10-08, and Patrick's ruling on the same day: the frontend YAML holds codes only                                                                                                                                                                                                                                                                |
+| **Approval** | —                                                                                                                                                                                                                                                                                                                                                                   |
 
 This plan comes **before** any feature that adds texted nodes. `20261008-not-available-node.md`
 is one of them.
@@ -90,17 +90,17 @@ stays.
 ```yaml
 - id: weight
   type: decimal
-  name: CHE.B6.DE07                 # = concept code in default_code_system
+  name: CHE.B6.DE07 # = concept code in default_code_system
 - id: q-cough
   type: select_one
   name: cough
   options:
-    - { id: q-cough-yes, name: "yes" }   # option name = answer concept code
-    - { id: q-cough-no,  name: "no" }
+    - { id: q-cough-yes, name: 'yes' } # option name = answer concept code
+    - { id: q-cough-no, name: 'no' }
 - id: q-temp
   type: decimal
   name: temp
-  concept: { system: https://who.int/CodeSystem/dak, code: DE.123 }   # exception only
+  concept: { system: https://who.int/CodeSystem/dak, code: DE.123 } # exception only
 ```
 
 - **`concept:` is the exception.** It is written only when the concept is in another CodeSystem
@@ -131,7 +131,7 @@ stays.
    its `name`. For an option, it is the option `name`.
 2. A node or option with inline `label`/`hint`/`help`:
    - Make sure the concept exists in `defaultCodeSystem`, creating it if needed.
-   - If that code already exists with *different* text, keep the existing text and emit warning
+   - If that code already exists with _different_ text, keep the existing text and emit warning
      `concept.migrated-collision` with the dropped text. Do not invent a suffixed code, because
      the name is the variable.
 3. Move the inline texts onto the concept:
@@ -201,6 +201,7 @@ This blocks everything else in this plan.
 
   - Known uses map to the `tricc_oo` `DESIGNATION_USES` URIs.
   - Unknown uses round-trip as `{system, code}`.
+
 - Add helper `conceptText(concept, use, lang, interventionId?)` in
   `packages/core/src/terminology/`, mirroring `tricc_oo` `concept_text`. Order of preference:
   1. the intervention-specific value
@@ -263,7 +264,7 @@ option carries a concept. The concept page lists which select nodes use the conc
 Label, Hint, and Help fields for text-bearing types.
 
 - **Picker** (`field-concept`): a typeahead over `ConceptIndex`. It replaces the separate Name
-  field for text-bearing types, because the name *is* the code.
+  field for text-bearing types, because the name _is_ the code.
   - Picking a concept in `default_code_system` sets the node `name` to its code.
   - Picking a concept from another CodeSystem keeps the name and writes the `concept:` override.
   - The last option is "Create concept {typed text}". It creates the concept and sets the name in
@@ -304,16 +305,23 @@ never q-display. Drop the `node.label` fallback (l.91-98), because nodes no long
 - Per-intervention scope is an extension on the designation:
 
   ```json
-  { "language": "en",
+  {
+    "language": "en",
     "use": { "system": "https://tricc.org/CodeSystem/designation-use", "code": "q-display" },
     "value": "Weigh the child and enter the weight",
-    "extension": [{ "url": "https://tricc.org/StructureDefinition/designation-intervention",
-                    "valueCode": "community" }] }
+    "extension": [
+      {
+        "url": "https://tricc.org/StructureDefinition/designation-intervention",
+        "valueCode": "community"
+      }
+    ]
+  }
   ```
 
   - One extension per intervention id. Several extensions on one designation mean it applies to
     each listed intervention.
   - A designation with no extension is the default.
+
 - The same scoping applies to `hint` and `help`. It is cheap, and the same need will come up.
 - Validation:
   - `concept.unknown-intervention` (warning): an extension names an intervention that is not in
@@ -360,7 +368,7 @@ This is not expected to need code, but each case must be confirmed with a fixtur
 - `TriccMessageParagraph`
 - `TriccMessageList` / `TriccMessageListItem`
 
-Today the tree is only built *inside* `tricc_oo`, by parsing an HTML string
+Today the tree is only built _inside_ `tricc_oo`, by parsing an HTML string
 (`visitors/text_injection.py:195` `parse_html_to_message`). Its exports render from the tree:
 Markdown for ODK/CHT, and a concatenate at serialize time for FHIR.
 
@@ -373,16 +381,29 @@ That is the purpose of the AST:
   is used as is, and `${}` in it is not remapped (commit a3ad036).
 
 **Interchange JSON (canonical).** This is the `tricc_oo` wrapper shape with a `type`
-discriminator. It is *not* ProseMirror's marks-on-leaves shape, which stays inside the editor.
+discriminator. It is _not_ ProseMirror's marks-on-leaves shape, which stays inside the editor.
 
 ```json
-{ "type": "message", "children": [
-  { "type": "text", "value": "Give " },
-  { "type": "mark", "kind": "strong", "children": [
-      { "type": "interp", "name": "dose" }, { "type": "text", "value": " mg" } ] },
-  { "type": "break" },
-  { "type": "list", "ordered": false, "items": [
-      { "type": "item", "children": [ { "type": "text", "value": "with food" } ] } ] } ] }
+{
+  "type": "message",
+  "children": [
+    { "type": "text", "value": "Give " },
+    {
+      "type": "mark",
+      "kind": "strong",
+      "children": [
+        { "type": "interp", "name": "dose" },
+        { "type": "text", "value": " mg" }
+      ]
+    },
+    { "type": "break" },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [{ "type": "item", "children": [{ "type": "text", "value": "with food" }] }]
+    }
+  ]
+}
 ```
 
 The JSON holds unresolved names only (`interp.name`), as `20260909-display-message-ast.md` §2.9
@@ -398,8 +419,10 @@ resource should not grow for nothing.
 - Only when the tree has a mark, an interpolation, a break, or a list, add one extension:
 
   ```json
-  { "url": "https://tricc.org/StructureDefinition/designation-message",
-    "valueString": "<compact JSON of the tree>" }
+  {
+    "url": "https://tricc.org/StructureDefinition/designation-message",
+    "valueString": "<compact JSON of the tree>"
+  }
   ```
 
   - This mirrors `_simplify_message`, which keeps `str` when there is no structure. Plain texts,
@@ -435,7 +458,7 @@ resource should not grow for nothing.
     (data-dictionary §2.0 migration);
   - `references()`, for validation and usage.
 - **Shared fixtures.** `tricc_oo/tests/fixtures/messages/*.json` are triples of `{html, tree,
-  markdown}`. vitest runs `fromHtml`/`toMarkdown` against them and pytest runs
+markdown}`. vitest runs `fromHtml`/`toMarkdown` against them and pytest runs
   `parse_html_to_message`/`message_to_markdown`. The frontend keeps a copy under
   `packages/core/test/fixtures/messages/`, with a check script that diffs the two copies.
   Parity is tested, not assumed.
@@ -463,14 +486,14 @@ extension.
 
 ### 2.8 Phasing
 
-| Phase | Content | Ships alone? |
-|-------|---------|--------------|
-| 0 | Select `filter` is ignored on read and never written (§2.0) | **Done 2026-10-08, uncommitted.** The `select.filter-ignored` info is not added yet. |
-| 1 | §2.1 designation `use` fix | Yes. It stops data loss now. |
-| 2 | §2.2 Data dictionary tab + §2.3 concept card (plain-text fields) | Yes |
-| 3 | §2.0 codes-only YAML, with the migration on read + §2.6 check | Needs phase 2, so authors can still edit texts |
-| 4 | §2.4 q-display + §2.5 `tricc_oo` | Both repos |
-| 5 | §2.7 rich text (AST) + its `tricc_oo` input change | Both repos |
+| Phase | Content                                                          | Ships alone?                                                                         |
+| ----- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| 0     | Select `filter` is ignored on read and never written (§2.0)      | **Done 2026-10-08, uncommitted.** The `select.filter-ignored` info is not added yet. |
+| 1     | §2.1 designation `use` fix                                       | Yes. It stops data loss now.                                                         |
+| 2     | §2.2 Data dictionary tab + §2.3 concept card (plain-text fields) | Yes                                                                                  |
+| 3     | §2.0 codes-only YAML, with the migration on read + §2.6 check    | Needs phase 2, so authors can still edit texts                                       |
+| 4     | §2.4 q-display + §2.5 `tricc_oo`                                 | Both repos                                                                           |
+| 5     | §2.7 rich text (AST) + its `tricc_oo` input change               | Both repos                                                                           |
 
 `20261008-not-available-node.md` can start after phase 3.
 
@@ -515,21 +538,21 @@ extension.
 
 ### 2.10 Open questions
 
-| # | Question | Recommendation |
-|---|----------|----------------|
-| 1 | Should select answers share global concepts (one `yes` for the project) or be per question? | Shared by default. The picker offers existing answer concepts first. |
-| 2 | Should the canvas follow the intervention context for q-display? | Not in v1. It always shows the default. |
-| 3 | Do activity and intervention `title`, and canvas `note` text, also move out of the YAML? | Not in this plan. They are not form texts. Revisit together with `.po` export (spec 7). |
-| 4 | Should the interchange JSON keep the `type` discriminator in the `tricc_oo` Pydantic models, or only in the JSON codec? | Codec only. The models stay as they are. |
+| #   | Question                                                                                                                | Recommendation                                                                          |
+| --- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| 1   | Should select answers share global concepts (one `yes` for the project) or be per question?                             | Shared by default. The picker offers existing answer concepts first.                    |
+| 2   | Should the canvas follow the intervention context for q-display?                                                        | Not in v1. It always shows the default.                                                 |
+| 3   | Do activity and intervention `title`, and canvas `note` text, also move out of the YAML?                                | Not in this plan. They are not form texts. Revisit together with `.po` export (spec 7). |
+| 4   | Should the interchange JSON keep the `type` discriminator in the `tricc_oo` Pydantic models, or only in the JSON codec? | Codec only. The models stay as they are.                                                |
 
 ### 2.11 Settled on 2026-10-08
 
-| Question | Answer |
-|----------|--------|
-| Use code for questionnaire text | `q-display`, kept short so FHIR resources stay small. The UI label is "Questionnaire text". |
-| Rich text format | The `tricc_oo` `TriccMessage` AST, carried as JSON in a designation extension, with Markdown in `value`. The `tricc_oo` input strategy reads the tree directly (§2.7). |
-| Concept reference in YAML | The node or option `name` is the concept code in `default_code_system`. `concept:` is written only as an override. `filter` is unused and dropped (§2.0). |
-| Shared activity per intervention | `tricc_oo` converts each intervention separately, so per-intervention q-display needs no node copy (§2.5). |
+| Question                         | Answer                                                                                                                                                                 |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Use code for questionnaire text  | `q-display`, kept short so FHIR resources stay small. The UI label is "Questionnaire text".                                                                            |
+| Rich text format                 | The `tricc_oo` `TriccMessage` AST, carried as JSON in a designation extension, with Markdown in `value`. The `tricc_oo` input strategy reads the tree directly (§2.7). |
+| Concept reference in YAML        | The node or option `name` is the concept code in `default_code_system`. `concept:` is written only as an override. `filter` is unused and dropped (§2.0).              |
+| Shared activity per intervention | `tricc_oo` converts each intervention separately, so per-intervention q-display needs no node copy (§2.5).                                                             |
 
 ## Implementation notes (2026-10-08)
 
@@ -873,4 +896,3 @@ under full parallel load; that spec passes 30/30 on its own.
   range 5–80.
 - The answer-link caption on the canvas uses the same preference; it was the hard-coded 20
   before.
-

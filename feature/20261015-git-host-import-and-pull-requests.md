@@ -1,11 +1,11 @@
 # Import from GitHub / GitLab, and propose changes as a pull request
 
-| Field | Value |
-|-------|-------|
-| **Status** | Implemented (local app), not committed |
-| **Repo** | `tricc_frontend`: `apps/local/src/git/` (hosts, rules, dialogs); `@tricc/core` (`tricc.yaml` `repository`); `@tricc/editor` exports `Dialog` |
-| **Source** | Patrick, 2026-10-15: "import from github/gitlab, and for export create a PR on the repo if one is selected. This should be on the local wrapper: the platform will have a similar feature." |
-| **Related** | `20260825-local-app.md`, `20261013-hosting-groundwork.md` (the hosted platform lives in `../tricc_platform`) |
+| Field         | Value                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**    | Implemented (local app), not committed                                                                                                                                                                                                                                                                                                                                                                      |
+| **Repo**      | `tricc_frontend`: `apps/local/src/git/` (hosts, rules, dialogs); `@tricc/core` (`tricc.yaml` `repository`); `@tricc/editor` exports `Dialog`                                                                                                                                                                                                                                                                |
+| **Source**    | Patrick, 2026-10-15: "import from github/gitlab, and for export create a PR on the repo if one is selected. This should be on the local wrapper: the platform will have a similar feature."                                                                                                                                                                                                                 |
+| **Related**   | `20260825-local-app.md`, `20261013-hosting-groundwork.md` (the hosted platform lives in `../tricc_platform`)                                                                                                                                                                                                                                                                                                |
 | **Decisions** | 2026-10-15 (Patrick): personal access tokens only, no OAuth proxy. Self-hosted GitLab is in. The hosted copy never stores a token; remembered tokens are for the real platform and the local app. The import sits on the Projects page; reopening a copy asks between its changes and a branch. Where the project lives is kept in `tricc.yaml`. One pull request per copy, updated rather than multiplied. |
 
 ---
@@ -18,14 +18,14 @@ clinicians cannot.
 
 ### Import from a repository
 
-On **Projects**, under *Open an existing project*, **Import from GitHub or GitLab…** asks for a
+On **Projects**, under _Open an existing project_, **Import from GitHub or GitLab…** asks for a
 link to the project folder, for example:
 
 - `https://github.com/SwissTPH/almanach/tree/main/projects/global`
 - `https://gitlab.com/moh/imci/-/tree/develop/guideline`
 - `https://git.moh.example/health/imci`
 
-A self-hosted address that does not say which host it is gets a *GitHub Enterprise / GitLab*
+A self-hosted address that does not say which host it is gets a _GitHub Enterprise / GitLab_
 choice. **Find the project** shows the repository, the number of project files, the branch and
 the folder, and both can be changed. **Import** opens the folder as a new project in this browser.
 The top bar then shows where it lives (`github.com/SwissTPH/almanach · main`).
@@ -36,14 +36,14 @@ A public repository imports without a token. A private one needs an access token
 
 **Propose changes…** in the top bar lists the files that will be added, changed or deleted, with a
 title and a description prefilled from the activities touched. **Create pull request** (on
-GitLab, *merge request*) commits on a new branch `tricc/<project>-<date>-<time>` and opens the
+GitLab, _merge request_) commits on a new branch `tricc/<project>-<date>-<time>` and opens the
 request.
 
 The next proposal from the same copy **updates that request** while it is open, instead of
 opening another. Once it is merged or closed, the next proposal opens a new one.
 
 If someone changed a file on the branch since this copy was loaded, the file is listed as a
-conflict and left out. The author can tick *Propose my version anyway*; reviewers then see both
+conflict and left out. The author can tick _Propose my version anyway_; reviewers then see both
 versions in the request. A file is never overwritten silently.
 
 ### Reopening a copy
@@ -63,8 +63,8 @@ host cannot be reached, it also opens directly; working offline is not interrupt
 ### What it does not do
 
 - It never pushes to the target branch, and never merges.
-- Folder projects keep using git on the disk. The repository badge shows; *Branch…* and *Propose
-  changes…* are for copies kept in the browser.
+- Folder projects keep using git on the disk. The repository badge shows; _Branch…_ and _Propose
+  changes…_ are for copies kept in the browser.
 - Forking a repository the author cannot push to is not done (Part II §8).
 
 ## Part II — Technical specification
@@ -90,10 +90,10 @@ package is a copy.
 
 ```yaml
 repository:
-  host: github            # or gitlab
+  host: github # or gitlab
   url: https://github.com/SwissTPH/almanach
-  branch: main            # where changes are proposed to by default
-  path: projects/global   # absent for the top of the repository
+  branch: main # where changes are proposed to by default
+  path: projects/global # absent for the top of the repository
 ```
 
 - `Project.repository?: ProjectRepository`, read and written by `tricc-yaml.ts`, kept in the Y.Doc
@@ -110,8 +110,8 @@ repository:
 
 ```ts
 interface RepoState {
-  branch: string        // the branch this copy was loaded from
-  baseCommit: string    // the commit it was loaded at
+  branch: string // the branch this copy was loaded from
+  baseCommit: string // the commit it was loaded at
   proposal?: { branch; number; url; target; pushed: Record<path, blobId | null> }
 }
 ```
@@ -129,15 +129,15 @@ There is no server, so there is no OAuth sign-in:
 
 The author pastes a **personal access token**, per host origin:
 
-- GitHub: fine-grained, *Contents* and *Pull requests* read and write.
+- GitHub: fine-grained, _Contents_ and _Pull requests_ read and write.
 - GitLab: `api`, or `read_repository` for import only.
 
 Both are sent as `Authorization: Bearer`. The dialog links to the token page.
 
-| Running at | Kept | "Remember on this computer" |
-|---|---|---|
+| Running at                                             | Kept        | "Remember on this computer"                |
+| ------------------------------------------------------ | ----------- | ------------------------------------------ |
 | `localhost`, `127.0.0.1` (`npx @tricc/app-local`, dev) | for the tab | offered: `localStorage` `tricc.git-tokens` |
-| anywhere else, e.g. `swisstph.github.io` | for the tab | **not offered**, with the reason |
+| anywhere else, e.g. `swisstph.github.io`               | for the tab | **not offered**, with the reason           |
 
 Every `*.github.io` site of an organisation shares one origin, so a stored token could be read by
 any of them.
@@ -168,7 +168,7 @@ All in `changes.ts`, over git blob ids (SHA-1 of `blob <size>\0<bytes>`, compute
    - already the same: skipped (for example merged by an earlier proposal);
    - the target still holds the base version, or what this app pushed there before
      (`proposal.pushed`): applied;
-   - anything else: a **conflict**, left out unless the author ticks *Propose my version anyway*.
+   - anything else: a **conflict**, left out unless the author ticks _Propose my version anyway_.
 4. **Commit**:
    - GitHub: one blob per file, a tree on `base_tree` (deletions as `sha: null`), a commit, then
      `POST git/refs` for a new branch or `PATCH git/refs/heads/<branch>` (`force: false`).
@@ -220,7 +220,7 @@ Loading a branch is two steps:
   - Import from a GitHub folder, without its READMEs.
   - The first proposal opens a pull request on a new branch from main, with the change only in
     the folder and the bearer token on every write. The second updates the same request.
-  - Reopening asks, *Continue* opens, *Load develop* replaces the copy, and an unchanged copy
+  - Reopening asks, _Continue_ opens, _Load develop_ replaces the copy, and an unchanged copy
     opens without asking.
   - A conflict is shown and can be overridden.
   - A self-hosted GitLab import after choosing the host.
