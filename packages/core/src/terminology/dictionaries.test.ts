@@ -4,7 +4,13 @@ import { readProject, writeProject } from '../format/serialize/index.js'
 import * as Y from 'yjs'
 import { projectFromDoc, projectToDoc } from '../document/codec.js'
 import type { Project, TriccNode } from '../model/types.js'
-import { calculateCodeSystem, dictionaryForType, emptyCodeSystem, projectDictionaries } from './dictionaries.js'
+import {
+  CALCULATE_ROLE_TAG,
+  calculateCodeSystem,
+  dictionaryForType,
+  emptyCodeSystem,
+  projectDictionaries,
+} from './dictionaries.js'
 import { searchProject } from './project-search.js'
 import { nodeConceptKey } from './usage.js'
 
@@ -52,6 +58,31 @@ describe('data dictionaries', () => {
     const doc = new Y.Doc()
     projectToDoc(project, doc)
     expect(projectFromDoc(doc).calculateCodeSystem).toBe(`${DEFAULT}-calculate`)
+  })
+
+  it('tags the calculate dictionary, keeps the tag, and finds it by the tag first', () => {
+    const project = withCalculate()
+    const url = `${DEFAULT}-calculate`
+    expect(project.codeSystems[url]!.meta?.tag).toEqual([CALCULATE_ROLE_TAG])
+    const json = (files: Record<string, unknown>) =>
+      JSON.parse(String(files['terminology/tricc-calculate.codesystem.json']))
+
+    // An existing calculate dictionary without the tag gets it when saved.
+    delete project.codeSystems[url]!.meta
+    const files = writeProject(project)
+    expect(json(files).meta).toEqual({ tag: [CALCULATE_ROLE_TAG] })
+    const back = readProject(files).project
+    expect(back.codeSystems[url]!.meta?.tag).toEqual([CALCULATE_ROLE_TAG])
+    const doc = new Y.Doc()
+    projectToDoc(back, doc)
+    expect(projectFromDoc(doc).codeSystems[url]!.meta?.tag).toEqual([CALCULATE_ROLE_TAG])
+
+    // The tag wins over the name tricc.yaml gives and over the -calculate guess.
+    const other = emptyCodeSystem({ url: 'http://x/dx', id: 'dx', kind: 'other' })
+    other.meta = { tag: [{ ...CALCULATE_ROLE_TAG }] }
+    back.codeSystems[other.url] = other
+    delete back.codeSystems[url]!.meta
+    expect(calculateCodeSystem(back)?.id).toBe('dx')
   })
 })
 

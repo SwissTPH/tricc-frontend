@@ -32,6 +32,7 @@ export const NODE_FIELDS = {
   constraintMessage: 'localized',
   reference: 'scalar',
   link: 'scalar',
+  args: 'json',
   repeat: 'scalar',
   instance: 'scalar',
   severity: 'scalar',

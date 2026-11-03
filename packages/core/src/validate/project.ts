@@ -3,6 +3,7 @@ import { activityKind, calledActivities } from '../model/activity-kind.js'
 import { IMPLEMENTED_TRIGGER_MODES } from '../format/schema/project.js'
 import { isOpenHandoff } from '../format/schema/expression.js'
 import { validateActivity, MACHINE_NAME } from './activity.js'
+import { validateParams } from './params.js'
 import { issue, type Issue } from './types.js'
 import { designationInterventions, designationUse } from '../terminology/designation.js'
 import { designationText, imageRefs, references } from '../text/message.js'
@@ -23,6 +24,7 @@ export function validateProject(project: Project): Issue[] {
   issues.push(...validateCrossActivity(project))
   issues.push(...validateInterventions(project))
   issues.push(...validateTerminology(project))
+  issues.push(...validateParams(project))
   return issues
 }
 
@@ -295,7 +297,8 @@ function validateInterventions(project: Project): Issue[] {
     for (const id of calledActivities(activity)) called.add(id)
   }
   for (const id of Object.keys(project.activities).sort()) {
-    if (usedActivities.has(id) || called.has(id)) continue
+    // A building block is used, never listed: an unused one is reported as such.
+    if (usedActivities.has(id) || called.has(id) || activityKind(project.activities[id]!) === 'block') continue
     issues.push(
       issue(
         'activity.unassigned',

@@ -79,6 +79,17 @@ export const NODE_TYPE_SPECS: Record<NodeType, NodeTypeSpec> = {
   activity_end: { label: 'Activity end', group: 'flow', drawable: true, sequence: true, internalName: true },
   end: { label: 'End', group: 'flow', drawable: true, sequence: true, internalName: true },
   goto: { label: 'Go to activity', group: 'flow', drawable: true, internalName: true },
+  // A building block's entry: the block itself, never placed by the author.
+  block_start: {
+    label: 'Block start',
+    group: 'flow',
+    drawable: true,
+    offered: false,
+    root: true,
+    sequence: true,
+    internalName: true,
+  },
+  block: { label: 'Use block', group: 'flow', drawable: true, internalName: true },
   link_in: { label: 'Link in', group: 'flow', drawable: true },
   link_out: { label: 'Link out', group: 'flow', drawable: true },
   bridge: { label: 'Bridge', group: 'flow', drawable: true },

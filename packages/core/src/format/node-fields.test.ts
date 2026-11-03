@@ -30,6 +30,7 @@ const FULL: TriccNode = {
   constraintMessage: { en: 'Must be positive' },
   reference: 'Weight > 9',
   link: 'other-activity',
+  args: { site: 'axillary', threshold: 37.5, rectal: false, setting: '{{care_setting}}' },
   repeat: 2,
   instance: 1,
   severity: 'severe',

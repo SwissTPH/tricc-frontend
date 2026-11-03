@@ -1,5 +1,6 @@
 import type { Activity, Intervention, Project, ProjectImage, ProjectRepository } from '../../model/types.js'
-import { activityPath, codeSystemPath, libraryPath, PATHS } from '../../model/types.js'
+import { activityPath, blockPath, codeSystemPath, libraryPath, PATHS } from '../../model/types.js'
+import { isBlock } from '../../model/activity-kind.js'
 import { resolve, type LocalizedText } from '../schema/localized.js'
 import { activitiesFromDrawio } from '../drawio.js'
 import { parseDocument } from 'yaml'
@@ -57,6 +58,12 @@ export function encodeTriccYaml(project: Project): Record<string, unknown> {
   put(o, 'calculate_code_system', project.calculateCodeSystem)
   put(o, 'media_path', project.mediaPath)
   if (project.repository) o['repository'] = encodeRepository(project.repository)
+  // Building blocks are listed like activities; interventions never list them.
+  const blocks = Object.keys(project.activities)
+    .sort()
+    .filter((id) => isBlock(project.activities[id]!))
+    .map((id) => ({ id, path: blockPath(id) }))
+  if (blocks.length > 0) o['blocks'] = blocks
 
   const interventions: Record<string, unknown>[] = []
   const drafts: Record<string, unknown>[] = []
@@ -102,6 +109,8 @@ function encodeIntervention(
   if (iv.applicability?.expression) start['condition'] = iv.applicability.expression
   item['start'] = start
   if (iv.trigger && iv.trigger.mode !== 'on-demand') item['trigger'] = { ...iv.trigger }
+  if (iv.args && Object.keys(iv.args).length > 0) item['args'] = structuredClone(iv.args)
+  if (iv.requires?.length) item['requires'] = [...iv.requires]
 
   const draft: Record<string, unknown> = { ...item, activities: iv.activities.map((r) => r.ref) }
   delete draft['activity']
@@ -370,6 +379,10 @@ function finishIntervention(
   const start = firstStart(rec['start'])
   const trigger = readTrigger(rec['trigger'])
   iv.trigger = trigger ?? { mode: 'on-demand' }
+  const args = readArgs(rec['args'])
+  if (args) iv.args = args
+  const requires = asList(rec['requires']).filter((v): v is string => typeof v === 'string' && v !== '')
+  if (requires.length > 0) iv.requires = requires
   if (intent || start?.condition) {
     iv.applicability = {}
     if (intent) iv.applicability.intent = intent
@@ -387,6 +400,22 @@ function finishIntervention(
     iv.description = { [lang]: note }
   }
   return iv
+}
+
+/** `args`: parameter values by name. Literals, concepts (`{system, code}`) and `{{name}}`. */
+export function readArgs(value: unknown): Intervention['args'] | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const out: NonNullable<Intervention['args']> = {}
+  for (const [key, v] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') out[key] = v
+    else if (v && typeof v === 'object') {
+      const r = v as Record<string, unknown>
+      if (typeof r['system'] === 'string' && typeof r['code'] === 'string') {
+        out[key] = { system: r['system'], code: r['code'] }
+      }
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 function readTrigger(value: unknown): Intervention['trigger'] | undefined {

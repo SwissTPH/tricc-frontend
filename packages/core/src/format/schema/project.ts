@@ -60,6 +60,8 @@ export const interventionSchema = z
     applicability: expressionSchema.optional(),
     trigger: triggerSchema.optional(),
     activities: z.array(activityRefSchema).default([]),
+    args: z.record(z.string(), z.unknown()).optional(),
+    requires: z.array(z.string()).optional(),
   })
   .strict()
 

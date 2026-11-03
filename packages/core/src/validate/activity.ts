@@ -54,7 +54,9 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
 
   // --- structure ---------------------------------------------------------
 
-  const starts = nodes.filter((n) => n.type === 'start' || n.type === 'activity_start')
+  const starts = nodes.filter(
+    (n) => n.type === 'start' || n.type === 'activity_start' || n.type === 'block_start',
+  )
   if (starts.length === 0) {
     issues.push(
       issue(

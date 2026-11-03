@@ -236,6 +236,7 @@ export function activityToY(a: Activity): Y.Map<unknown> {
   setScalar(m, 'process', a.process)
   if (a.title) m.set('title', localizedToY(a.title))
   if (a.applicability) m.set('applicability', expressionToY(a.applicability))
+  setPlain(m, 'params', a.params?.length ? a.params : undefined)
   setPlain(m, 'ui', a.ui)
   setPlain(m, 'groups', a.groups)
   const nodes = new Y.Map<Y.Map<unknown>>()
@@ -282,6 +283,8 @@ export function activityFromY(m: Y.Map<unknown>): Activity {
   if (process !== undefined) a.process = process
   const app = expressionFromY(m.get('applicability') as Y.Map<unknown> | undefined)
   if (app) a.applicability = app
+  const params = m.get('params') as Activity['params']
+  if (params?.length) a.params = structuredClone(params)
   const ui = m.get('ui') as Activity['ui']
   if (ui) a.ui = structuredClone(ui)
   const groups = m.get('groups') as Activity['groups']
@@ -310,6 +313,8 @@ export function interventionToY(i: Intervention): Y.Map<unknown> {
   if (i.description) m.set('description', localizedToY(i.description))
   if (i.applicability) m.set('applicability', expressionToY(i.applicability))
   setPlain(m, 'trigger', i.trigger)
+  setPlain(m, 'args', i.args && Object.keys(i.args).length ? i.args : undefined)
+  setPlain(m, 'requires', i.requires?.length ? i.requires : undefined)
   const activities = new Y.Array<Y.Map<unknown>>()
   activities.insert(
     0,
@@ -342,6 +347,10 @@ export function interventionFromY(m: Y.Map<unknown>): Intervention {
   if (app) i.applicability = app
   const trigger = m.get('trigger') as Intervention['trigger']
   if (trigger) i.trigger = structuredClone(trigger)
+  const args = m.get('args') as Intervention['args']
+  if (args && Object.keys(args).length) i.args = structuredClone(args)
+  const requires = m.get('requires') as Intervention['requires']
+  if (requires?.length) i.requires = [...requires]
   return i
 }
 
@@ -361,6 +370,7 @@ export function codeSystemToY(cs: CodeSystem): Y.Map<unknown> {
   ] as const) {
     setScalar(m, k, cs[k])
   }
+  setPlain(m, 'meta', cs.meta)
   const concepts = new Y.Map<Y.Map<unknown>>()
   for (const code of cs.conceptOrder) {
     const c = cs.concepts[code]
@@ -381,6 +391,8 @@ const CONCEPT_PLAIN = [
   'sourceVersion',
   'targetResource',
   'targetPath',
+  'kind',
+  'paramDefault',
 ] as const
 
 /** Designations are a plain list. An older document stored a map of text by language. */
@@ -399,6 +411,7 @@ export function conceptToY(c: Concept): Y.Map<unknown> {
   setPlain(m, 'designations', c.designations)
   setPlain(m, 'extra', c.extra)
   setPlain(m, 'stringProperties', c.stringProperties)
+  setPlain(m, 'paramOptions', c.paramOptions)
   for (const k of CONCEPT_PLAIN) setScalar(m, k, c[k])
   return m
 }
@@ -411,6 +424,8 @@ export function conceptFromY(m: Y.Map<unknown>): Concept {
   }
   const extra = m.get('extra') as Concept['extra']
   if (extra) c.extra = structuredClone(extra)
+  const paramOptions = m.get('paramOptions') as Concept['paramOptions']
+  if (paramOptions?.length) c.paramOptions = [...paramOptions]
   const stringProperties = m.get('stringProperties') as Concept['stringProperties']
   if (stringProperties) c.stringProperties = [...stringProperties]
   const display = m.get('display') as string | undefined
@@ -443,6 +458,8 @@ export function codeSystemFromY(m: Y.Map<unknown>): CodeSystem {
     const v = m.get(k)
     if (v !== undefined) assign(cs, k, v)
   }
+  const meta = m.get('meta')
+  if (meta !== undefined) cs.meta = structuredClone(meta) as NonNullable<CodeSystem['meta']>
   return cs
 }
 

@@ -19,6 +19,8 @@ export {
   createProject,
   createActivity,
   createProcessActivity,
+  createBlock,
+  pagePath,
   FormatVersionError,
   toYaml,
   fromYaml,
@@ -69,6 +71,9 @@ export {
   parseVersion,
   type Migration,
 } from './format/migrations/index.js'
+
+// Parameters and building blocks
+export * from './params/index.js'
 
 // Document
 export {

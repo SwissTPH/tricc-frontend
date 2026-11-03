@@ -26,7 +26,7 @@ describe('node type table', () => {
 
   it('derives the same lists the code had before', () => {
     expect(SELECT_TYPES).toEqual(['select_one', 'select_multiple', 'select_yesno'])
-    expect(SEQUENCE_TYPES).toEqual(['start', 'activity_start', 'activity_end', 'end'])
+    expect(SEQUENCE_TYPES).toEqual(['start', 'activity_start', 'activity_end', 'end', 'block_start'])
     expect(CAPTURE_TYPES).toEqual([
       'select_one', 'select_multiple', 'select_yesno', 'integer', 'decimal', 'quantity', 'text', 'date', 'acknowledge',
     ])
@@ -46,6 +46,6 @@ describe('node type table', () => {
     expect(NODE_TYPES.filter(canBranchFrom)).toEqual([
       'select_one', 'select_multiple', 'select_yesno', 'calculate', 'rhombus', 'count', 'add', 'not', 'not_available',
     ])
-    expect(NODE_TYPES.filter(hasInternalName)).toEqual(['start', 'activity_start', 'activity_end', 'end', 'goto', 'rhombus'])
+    expect(NODE_TYPES.filter(hasInternalName)).toEqual(['start', 'activity_start', 'activity_end', 'end', 'goto', 'block_start', 'block', 'rhombus'])
   })
 })

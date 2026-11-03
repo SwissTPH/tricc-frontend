@@ -12,9 +12,10 @@ import {
   type TriccEdge,
   type TriccNode,
 } from '../model/types.js'
-import { NODE_TYPES, isExtensionTarget, isSelect, type NodeType } from './schema/node-types.js'
+import { NODE_TYPES, canonicalNodeType, isExtensionTarget, isSelect, type NodeType } from './schema/node-types.js'
 import { liftRootAttributes } from '../model/activity-kind.js'
 import { fromHtml, isStructured } from '../text/message.js'
+import { parseParamArg, parseParamShorthand } from '../params/drawio.js'
 
 /**
  * Open a draw.io file whose pages are either inline `mxGraphModel` XML or the
@@ -179,9 +180,22 @@ function pageToActivity(
   const groups = new Map<string, CanvasGroup>()
   // Embedded pictures, waiting for the edge that names their question or answer.
   const pictures = new Map<string, { contentType: ImageContentType; data: Uint8Array }>()
+  // The `parameters` shape declares the page's parameters; it is not a node of the flow.
+  const params: Activity['params'] = []
 
   for (const shape of shapes) {
     if (shape.edge || !shape.id || shape.id === '0' || shape.id === '1') continue
+    if (typeOf(shape) === 'parameters') {
+      for (const [key, raw] of Object.entries(shape.attrs)) {
+        if (!key.startsWith('param.')) continue
+        const name = key.slice('param.'.length)
+        if (params.some((p) => p.name === name)) {
+          throw new Error(`The page "${page.name}" declares the parameter "${name}" twice.`)
+        }
+        params.push(parseParamShorthand(name, raw, lang))
+      }
+      continue
+    }
     if (typeOf(shape) === 'container_page') {
       const group: CanvasGroup = {
         id: shape.id,
@@ -327,6 +341,7 @@ function pageToActivity(
   }
   if (comments.size > 0) activity.ui = { comments: [...comments.values()] }
   if (groups.size > 0) activity.groups = [...groups.values()]
+  if (params.length > 0) activity.params = params
   // The start node is the activity: its label is the title, its name, process and
   // relevance are the activity's. The page name is only the fallback title.
   liftRootAttributes(activity)
@@ -384,6 +399,14 @@ function shapeToNode(
     node.reference = reference
   }
   if (shape.attrs['link']) node.link = resolveLink(shape.attrs['link'], pageActivity, labelText)
+  // Values set for this call: one `param.<name>` attribute each, a literal or `{{name}}`.
+  if (kind.type === 'block' || kind.type === 'goto') {
+    const args: NonNullable<TriccNode['args']> = {}
+    for (const [key, raw] of Object.entries(shape.attrs)) {
+      if (key.startsWith('param.')) args[key.slice('param.'.length)] = parseParamArg(raw)
+    }
+    if (Object.keys(args).length > 0) node.args = args
+  }
   const min = num(shape.attrs['min'])
   const max = num(shape.attrs['max'])
   if (min !== undefined) node.min = min
@@ -434,7 +457,7 @@ function classify(
   // ODK acknowledge: a message the health worker must confirm they have read.
   // Drawings sometimes spell the type "aknowledge".
   if (rawType === 'acknowledge' || rawType === 'aknowledge') return { type: 'acknowledge' }
-  if (KNOWN.has(rawType)) return { type: rawType as NodeType }
+  if (KNOWN.has(canonicalNodeType(rawType))) return { type: canonicalNodeType(rawType) as NodeType }
   return { type: 'note', unmapped: rawType }
 }
 
@@ -585,7 +608,7 @@ function parseXml(source: string): XmlNode {
   }
   const readName = () => {
     const start = i
-    while (i < xml.length && /[A-Za-z0-9_:-]/.test(xml[i]!)) i += 1
+    while (i < xml.length && /[A-Za-z0-9_.:-]/.test(xml[i]!)) i += 1
     return xml.slice(start, i)
   }
   const parseNode = (): XmlNode | undefined => {

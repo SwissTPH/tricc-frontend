@@ -1,6 +1,8 @@
 import * as Y from 'yjs'
 import type {
   Activity,
+  ActivityParam,
+  Project,
   ActivityUi,
   CanvasComment,
   CanvasGroup,
@@ -23,8 +25,12 @@ import {
   edgeToY,
   interventionToY,
   nodeToY,
+  projectFromDoc,
   updateNodeY,
 } from './codec.js'
+import { syncedParamConcepts, syncedParams, paramConceptCode } from '../params/sync.js'
+import { coerceArg, planParamRename } from '../params/rename.js'
+import { calculateCodeSystem } from '../terminology/dictionaries.js'
 import { expressionToY, localizedToY, newText, setPlain, setScalar, updateLocalized } from './ytypes.js'
 import type { Expression } from '../format/schema/expression.js'
 import { designationText, retargetImage, withDesignationText } from '../text/message.js'
@@ -56,6 +62,7 @@ export class Mutations {
     if (this.activities().has(activity.id))
       throw new Error(`activity already exists: ${activity.id}`)
     this.activities().set(activity.id, activityToY(activity))
+    if (activity.params?.length || Object.values(activity.nodes).some(isCall)) this.syncParams()
   }
 
   removeActivity(activityId: string): void {
@@ -67,6 +74,7 @@ export class Mutations {
    * from other activities stay, so they show as missing and an undo restores them.
    */
   deleteActivity(activityId: string): void {
+    const before = projectFromDoc(this.doc)
     for (const iv of this.doc.getMap<Y.Map<unknown>>('interventions').values()) {
       const refs = iv.get('activities') as Y.Array<Y.Map<unknown>> | undefined
       if (!refs) continue
@@ -75,6 +83,7 @@ export class Mutations {
       }
     }
     this.removeActivity(activityId)
+    this.syncParams(before)
   }
 
   setActivityTitle(activityId: string, title: LocalizedText): void {
@@ -88,8 +97,109 @@ export class Mutations {
     setScalar(this.activity(activityId), 'process', process)
   }
 
+  /** The name is part of each parameter concept's code: those concepts move with it. */
   setActivityName(activityId: string, name: string | undefined): void {
+    const before = projectFromDoc(this.doc).activities[activityId]
     setScalar(this.activity(activityId), 'name', name)
+    if (!before?.params?.length) return
+    for (const p of before.params) {
+      this.moveParamConcept(paramConceptCode(before, p.name), paramConceptCode({ id: activityId, name }, p.name))
+    }
+    this.syncParams()
+  }
+
+  // ------------------------------------------------------------- parameters
+
+  /** Replace a page's parameter rows, then bring computed rows and concepts up to date. */
+  setActivityParams(activityId: string, params: ActivityParam[] | undefined): void {
+    setPlain(this.activity(activityId), 'params', params?.length ? params : undefined)
+    this.syncParams()
+  }
+
+  /**
+   * Change one declared parameter. A new name follows through the call chain (§5.3); a new type
+   * keeps the values set at calls where nothing is lost, and clears the others.
+   */
+  updateParam(activityId: string, name: string, next: ActivityParam): void {
+    let project = projectFromDoc(this.doc)
+    const before = project
+    const activity = project.activities[activityId]
+    const current = activity?.params?.find((p) => p.name === name)
+    if (!activity || !current) throw new Error(`no such parameter: ${activityId}.${name}`)
+    if (next.name !== name) {
+      this.moveParamConcept(paramConceptCode(activity, name), paramConceptCode(activity, next.name))
+      const plan = planParamRename(project, activityId, name, next.name)
+      for (const page of plan.activities) {
+        if (page.params) setPlain(this.activity(page.id), 'params', page.params)
+        for (const node of page.nodes) this.updateNodeOnly(page.id, node)
+        for (const edge of page.edges) this.updateEdge(page.id, edge)
+      }
+      for (const iv of plan.interventions) this.updateIntervention(iv)
+      project = projectFromDoc(this.doc)
+    }
+    const rows = (project.activities[activityId]!.params ?? []).map((p) => (p.name === next.name ? next : p))
+    setPlain(this.activity(activityId), 'params', rows)
+    if (next.type !== current.type) {
+      for (const caller of Object.values(project.activities)) {
+        for (const node of Object.values(caller.nodes)) {
+          if (!isCall(node) || node.link !== activityId || node.args?.[next.name] === undefined) continue
+          const args = { ...node.args }
+          const value = coerceArg(args[next.name]!, next.type)
+          if (value === undefined) delete args[next.name]
+          else args[next.name] = value
+          this.updateNodeOnly(caller.id, { ...node, args: Object.keys(args).length ? args : undefined } as TriccNode)
+        }
+      }
+    }
+    this.syncParams(before)
+  }
+
+  /** Remove a parameter row. Values set for it at calls stay and are flagged until cleared. */
+  removeParam(activityId: string, name: string): void {
+    const before = projectFromDoc(this.doc)
+    const activity = before.activities[activityId]
+    if (!activity) throw new Error(`no such activity: ${activityId}`)
+    const rows = (activity.params ?? []).filter((p) => p.name !== name)
+    setPlain(this.activity(activityId), 'params', rows.length ? rows : undefined)
+    this.syncParams(before)
+  }
+
+  /**
+   * Bring every page's computed parameter rows, and the calculate dictionary's parameter
+   * concepts, in line with the call graph. Runs inside the transaction that changed it.
+   */
+  syncParams(before?: Project): void {
+    let project = projectFromDoc(this.doc)
+    const rows = syncedParams(project, before)
+    for (const [id, params] of rows) setPlain(this.activity(id), 'params', params)
+    if (rows.size > 0) project = projectFromDoc(this.doc)
+    const concepts = syncedParamConcepts(project)
+    if (concepts.createDefault) {
+      this.addCodeSystem(concepts.createDefault)
+      this.setMeta('defaultCodeSystem', concepts.createDefault.url)
+    }
+    if (concepts.create) this.addCodeSystem(concepts.create)
+    for (const concept of concepts.upserts) this.upsertConcept(concepts.system, concept)
+    for (const code of concepts.removes) this.removeConcept(concepts.system, code)
+    // Texts from a drawing are on the concepts now: the rows keep codes only.
+    for (const activity of Object.values(project.activities)) {
+      if (!activity.params?.some((p) => p.label || p.description)) continue
+      setPlain(
+        this.activity(activity.id),
+        'params',
+        activity.params.map(({ label: _l, description: _d, ...rest }) => rest),
+      )
+    }
+  }
+
+  /** Give a parameter concept a new code, keeping its texts. */
+  private moveParamConcept(from: string, to: string): void {
+    if (from === to) return
+    const cs = calculateCodeSystem(projectFromDoc(this.doc))
+    const concept = cs?.concepts[from]
+    if (!cs || !concept || cs.concepts[to]) return
+    this.removeConcept(cs.url, from)
+    this.upsertConcept(cs.url, { ...concept, code: to })
   }
 
   setActivityApplicability(activityId: string, applicability: Expression | undefined): void {
@@ -178,9 +288,22 @@ export class Mutations {
     if (nodes.has(node.id)) throw new Error(`node already exists: ${node.id}`)
     nodes.set(node.id, nodeToY(node))
     ;(a.get('nodeOrder') as Y.Array<string>).push([node.id])
+    if (isCall(node)) this.syncParams()
   }
 
   updateNode(activityId: string, node: TriccNode): void {
+    const nodes = this.activity(activityId).get('nodes') as Y.Map<Y.Map<unknown>>
+    const existing = nodes.get(node.id)
+    if (!existing) throw new Error(`no such node: ${node.id}`)
+    const wasCall = isCallType(existing.get('type'))
+    const before = wasCall || isCall(node) ? projectFromDoc(this.doc) : undefined
+    updateNodeY(existing, node)
+    // What a call sets, or where it goes, changes the parameters of the page holding it.
+    if (before) this.syncParams(before)
+  }
+
+  /** `updateNode` without the parameter sync: for a caller that syncs once at the end. */
+  private updateNodeOnly(activityId: string, node: TriccNode): void {
     const nodes = this.activity(activityId).get('nodes') as Y.Map<Y.Map<unknown>>
     const existing = nodes.get(node.id)
     if (!existing) throw new Error(`no such node: ${node.id}`)
@@ -199,8 +322,10 @@ export class Mutations {
   removeNode(activityId: string, nodeId: string): void {
     const a = this.activity(activityId)
     const nodes = a.get('nodes') as Y.Map<Y.Map<unknown>>
+    const before = isCallType(nodes.get(nodeId)?.get('type')) ? projectFromDoc(this.doc) : undefined
     nodes.delete(nodeId)
     removeFromOrder(a.get('nodeOrder') as Y.Array<string>, nodeId)
+    if (before) this.syncParams(before)
 
     // Edges referencing a deleted node cannot survive — a dangling endpoint is not a
     // state the format permits, so removal is atomic with the node.
@@ -395,6 +520,14 @@ export class Mutations {
   setRepository(repository: ProjectRepository | undefined): void {
     setPlain(this.doc.getMap<unknown>('meta'), 'repository', repository)
   }
+}
+
+function isCallType(type: unknown): boolean {
+  return type === 'goto' || type === 'block'
+}
+
+function isCall(node: TriccNode): boolean {
+  return isCallType(node.type)
 }
 
 function removeFromOrder(arr: Y.Array<string>, id: string): void {

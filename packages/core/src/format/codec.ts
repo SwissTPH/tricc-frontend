@@ -1,5 +1,6 @@
 import type {
   Activity,
+  ActivityParam,
   CodeSystem,
   Concept,
   Intervention,
@@ -14,6 +15,7 @@ import {
   type ActivityInput,
   type NodeInput,
   type EdgeInput,
+  type ParamInput,
 } from './schema/activity.js'
 import {
   projectSchema,
@@ -188,6 +190,7 @@ export function decodeActivity(input: unknown, lang: string): Activity {
   const intent = loc(raw.intent, lang)
   if (intent) app.intent = { ...app.intent, ...intent }
   if (app.intent || app.expression) a.applicability = app
+  if (raw.params?.length) a.params = raw.params.map((p) => decodeParam(p, lang))
   if (raw.form_id) {
     const start = nodeOrder.map((id) => nodes[id]).find((n) => n?.type === 'start')
     if (start && start.form_id === undefined) start.form_id = raw.form_id
@@ -214,6 +217,27 @@ export function decodeActivity(input: unknown, lang: string): Activity {
   return a
 }
 
+export function decodeParam(raw: ParamInput, lang: string): ActivityParam {
+  const p: ActivityParam = { name: raw.name, type: raw.type }
+  if (raw.options?.length) p.options = [...raw.options]
+  if (raw.default !== undefined) p.default = structuredClone(raw.default)
+  if (raw.required) p.required = true
+  const label = loc(raw.label, lang)
+  if (label) p.label = label
+  const description = loc(raw.description, lang)
+  if (description) p.description = description
+  return p
+}
+
+/** Codes only: a parameter's texts live on its concept, so `label` and `description` are not written. */
+export function encodeParam(p: ActivityParam): Record<string, unknown> {
+  const o: Record<string, unknown> = { name: p.name, type: p.type }
+  put(o, 'options', p.options && [...p.options])
+  put(o, 'default', p.default === undefined ? undefined : structuredClone(p.default))
+  put(o, 'required', p.required || undefined)
+  return o
+}
+
 function decodeIntervention(raw: InterventionInput, lang: string): Intervention {
   const i: Intervention = {
     id: raw.id,
@@ -233,7 +257,7 @@ function decodeIntervention(raw: InterventionInput, lang: string): Intervention 
 
 const CONCEPT_KEYS = new Set(['code', 'display', 'definition', 'designation', 'property'])
 /** TRICC properties written as `valueCode` unless the file had `valueString`. */
-const CODE_PROPERTIES = new Set(['dataType', 'conceptType', 'targetResource'])
+const CODE_PROPERTIES = new Set(['dataType', 'conceptType', 'targetResource', 'kind'])
 
 export function decodeCodeSystem(input: unknown): CodeSystem {
   const raw: CodeSystemInput = codeSystemSchema.parse(input)
@@ -271,6 +295,15 @@ export function decodeCodeSystem(input: unknown): CodeSystem {
     if (tr !== undefined) concept.targetResource = String(tr)
     const tp = readProperty(c, 'targetPath')
     if (tp !== undefined) concept.targetPath = String(tp)
+    const kind = readProperty(c, 'kind')
+    if (kind !== undefined) concept.kind = String(kind)
+    const options = (c.property ?? [])
+      .filter((p) => p.code === 'option')
+      .map((p) => p.valueCode ?? p.valueString)
+      .filter((v): v is string => typeof v === 'string')
+    if (options.length > 0) concept.paramOptions = options
+    const def = readProperty(c, 'default')
+    if (def !== undefined) concept.paramDefault = String(def)
     concepts[c.code] = concept
     conceptOrder.push(c.code)
   }
@@ -282,6 +315,7 @@ export function decodeCodeSystem(input: unknown): CodeSystem {
     concepts,
     conceptOrder,
   }
+  if (raw.meta !== undefined) cs.meta = structuredClone(raw.meta)
   if (raw.version !== undefined) cs.version = raw.version
   if (raw.name !== undefined) cs.name = raw.name
   if (raw.title !== undefined) cs.title = raw.title
@@ -394,6 +428,7 @@ export function encodeActivity(
   if (a.applicability?.expression) put(o, 'applicability', a.applicability.expression)
   const intent = a.applicability?.intent
   if (intent && Object.keys(intent).length > 0) put(o, 'intent', fromLocalized(intent, lang))
+  put(o, 'params', a.params?.map(encodeParam))
   if (a.ui) {
     const ui: Record<string, unknown> = {}
     if (a.ui.viewport) ui['viewport'] = { ...a.ui.viewport }
@@ -479,6 +514,7 @@ export function encodeProjectMeta(p: Project): Record<string, unknown> {
 export function encodeCodeSystem(cs: CodeSystem): Record<string, unknown> {
   const o: Record<string, unknown> = { resourceType: 'CodeSystem' }
   put(o, 'id', cs.id)
+  if (cs.meta) o['meta'] = structuredClone(cs.meta)
   put(o, 'url', cs.url)
   put(o, 'version', cs.version)
   put(o, 'name', cs.name)
@@ -519,6 +555,9 @@ export function encodeCodeSystem(cs: CodeSystem): Record<string, unknown> {
       strProp('sourceVersion', c.sourceVersion)
       codeProp('targetResource', c.targetResource)
       strProp('targetPath', c.targetPath)
+      codeProp('kind', c.kind)
+      for (const option of c.paramOptions ?? []) props.push({ code: 'option', valueCode: option })
+      strProp('default', c.paramDefault)
       put(co, 'property', props)
       return co
     })

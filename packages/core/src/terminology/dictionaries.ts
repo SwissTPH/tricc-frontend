@@ -20,12 +20,37 @@ export interface Dictionary {
   codeSystem?: CodeSystem
 }
 
-/** The calculate dictionary: the one `tricc.yaml` names, or `<default id>-calculate`. */
+/** `meta.tag` system marking what a CodeSystem is for (tricc_oo block-params §5). */
+export const CODESYSTEM_ROLE = 'http://tricc.org/fhir/CodeSystem/codesystem-role'
+
+/** The role tag of the calculate dictionary. */
+export const CALCULATE_ROLE_TAG = { system: CODESYSTEM_ROLE, code: 'calculate' } as const
+
+export function hasRoleTag(cs: CodeSystem, code: string): boolean {
+  return (cs.meta?.tag ?? []).some((t) => t.system === CODESYSTEM_ROLE && t.code === code)
+}
+
+/** The CodeSystem with the calculate role tag added, or itself when it has it. */
+export function withCalculateTag(cs: CodeSystem): CodeSystem {
+  if (hasRoleTag(cs, 'calculate')) return cs
+  return { ...cs, meta: { ...cs.meta, tag: [...(cs.meta?.tag ?? []), { ...CALCULATE_ROLE_TAG }] } }
+}
+
+/**
+ * The calculate dictionary, found as tricc_oo finds it: the CodeSystem tagged with the
+ * calculate role, then the one `tricc.yaml` names, then one called `calculate` or
+ * `<default id>-calculate`.
+ */
 export function calculateCodeSystem(project: Project): CodeSystem | undefined {
+  const tagged = Object.keys(project.codeSystems)
+    .sort()
+    .map((url) => project.codeSystems[url]!)
+    .find((cs) => hasRoleTag(cs, 'calculate'))
+  if (tagged) return tagged
   const named = findCodeSystem(project, project.calculateCodeSystem)
   if (named) return named
   const base = defaultCodeSystem(project)
-  return base ? findCodeSystem(project, `${base.id}-calculate`) : undefined
+  return (base ? findCodeSystem(project, `${base.id}-calculate`) : undefined) ?? findCodeSystem(project, 'calculate')
 }
 
 /** Default first, then calculate, then the others by id. */
@@ -62,7 +87,9 @@ export function emptyCodeSystem(dictionary: Dictionary): CodeSystem {
     id: dictionary.id,
     url: dictionary.url,
     name: dictionary.id,
-    ...(dictionary.kind === 'calculate' ? { title: 'Calculations and diagnoses' } : {}),
+    ...(dictionary.kind === 'calculate'
+      ? { title: 'Calculations and diagnoses', meta: { tag: [{ ...CALCULATE_ROLE_TAG }] } }
+      : {}),
     status: 'draft',
     content: 'complete',
     concepts: {},
