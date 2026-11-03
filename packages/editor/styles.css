@@ -302,6 +302,21 @@
   font-size: 15px;
 }
 
+.tricc-intervention-card__title {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tricc-intervention-card__title:hover,
+.tricc-intervention-card__title:focus-visible {
+  text-decoration: underline;
+}
+
 .tricc-intervention-card > p {
   margin: 0;
   font-size: 12px;
@@ -630,6 +645,17 @@
   overflow: hidden;
   overflow-wrap: anywhere;
   white-space: normal;
+}
+
+.tricc-rich__block {
+  display: block;
+}
+.tricc-node__label ul,
+.tricc-node__label ol,
+.tricc-node__answer-label ul,
+.tricc-node__answer-label ol {
+  margin: 0;
+  padding-left: 1.2em;
 }
 
 .tricc-node__code {

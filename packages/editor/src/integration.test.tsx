@@ -253,6 +253,20 @@ describe('adding nodes', () => {
 })
 
 describe('validation surfaces in the UI', () => {
+  it("lists a node's errors in its hover card", async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+
+    await user.click(screen.getByTestId('add-select_one'))
+    const node = document.querySelector<HTMLElement>('[data-node-type="select_one"]')!
+    expect(node).toHaveAttribute('data-severity', 'error')
+
+    await user.hover(node)
+    const issues = await screen.findByTestId(`${node.dataset.testid}-issues`, {}, { timeout: 2000 })
+    expect(issues.querySelector('[data-severity="error"]')).toHaveTextContent(/^Error: .*nothing to choose/)
+  })
+
   it('shows an error for a select with no options, without blocking editing', async () => {
     const user = userEvent.setup()
     const h = await harness()
@@ -1046,6 +1060,24 @@ describe('process activities versus activities', () => {
     ])
   })
 
+  it('opens the first process from the intervention title', async () => {
+    const user = userEvent.setup()
+    const project = seed()
+    project.activities['a-process'] = createProcessActivity({ id: 'a-process', process: 'triage' })
+    project.activities['b-process'] = createProcessActivity({ id: 'b-process', process: 'triage' })
+    project.interventions = [
+      { id: 'iv', name: 'iv', activities: [{ ref: 'a-process' }, { ref: 'b-process' }] },
+      { id: 'empty', name: 'empty', activities: [] },
+    ]
+    const h = await harness(project)
+    const opened: string[] = []
+    renderWith(h, <ProjectOverview onSelect={(id) => opened.push(id)} />)
+
+    await user.click(screen.getByTestId('open-intervention-iv'))
+    expect(opened).toEqual(['a-process'])
+    expect(screen.queryByTestId('open-intervention-empty')).not.toBeInTheDocument()
+  })
+
   it('cannot move the first activity earlier or the last later', async () => {
     const project = seed()
     project.activities['a-process'] = createProcessActivity({ id: 'a-process', process: 'triage' })
@@ -1452,6 +1484,18 @@ describe('data dictionary', () => {
     await user.click(screen.getByTestId('concept-dialog-save'))
     expect(screen.getByTestId('concept-card-q-display')).toHaveTextContent('Weigh the child')
     expect(screen.getByTestId('node-w-label')).toHaveTextContent('Weigh the child')
+  })
+
+  it('shows the HTML of a concept text formatted on the node', async () => {
+    const project = withWeight()
+    project.codeSystems[URL]!.concepts['weight']!.display =
+      '<span style="color:red; font-weight:bold">Weigh</span> the <b>child</b>'
+    const h = await harness(project)
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    const label = screen.getByTestId('node-w-label')
+    expect(label).toHaveTextContent('Weigh the child')
+    expect(label.querySelector('strong')).toHaveTextContent('child')
+    expect(label.querySelector('span[style]')).toHaveStyle({ color: 'rgb(255, 0, 0)', fontWeight: 'bold' })
   })
 })
 
