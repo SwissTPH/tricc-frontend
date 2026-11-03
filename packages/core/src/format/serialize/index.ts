@@ -22,6 +22,12 @@ import {
   triccConfigText,
   triccTerminologyGlobs,
 } from './tricc-yaml.js'
+import {
+  discussionFromFile,
+  discussionToFile,
+  labelsFromFile,
+  labelsToFile,
+} from '../../discussion/files.js'
 import { FORMAT_VERSION } from '../schema/project.js'
 import { FormatVersionError } from '../migrations/index.js'
 
@@ -89,7 +95,59 @@ export function writeProject(project: Project): ProjectFiles {
     const image = project.images?.[id]
     if (image) files[imagePath(project, image)] = image.data
   }
+  writeDiscussions(project, files)
   return files
+}
+
+/** Discussions are their own files. A project with none writes no `discussions/` folder. */
+function writeDiscussions(project: Project, files: ProjectFiles): void {
+  for (const [path, text] of Object.entries(project.discussionKeep ?? {}).sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    files[path] = text
+  }
+  for (const id of Object.keys(project.discussions ?? {}).sort()) {
+    const discussion = project.discussions?.[id]
+    if (!discussion) continue
+    files[`${PATHS.discussions}/${id}.discussion.yaml`] = toYaml(discussionToFile(discussion))
+  }
+  if (project.discussionLabels && project.discussionLabels.length > 0) {
+    files[`${PATHS.discussions}/labels.yaml`] = toYaml(labelsToFile(project.discussionLabels))
+  }
+}
+
+function readDiscussionsInto(project: Project, files: ProjectFiles): void {
+  const discussions: NonNullable<Project['discussions']> = {}
+  const keep: Record<string, string> = {}
+  for (const path of Object.keys(files).sort()) {
+    if (!path.startsWith(`${PATHS.discussions}/`)) continue
+    const text = fileText(files[path]) ?? ''
+    if (path === `${PATHS.discussions}/labels.yaml`) {
+      let labels
+      try {
+        labels = labelsFromFile(fromYaml(text))
+      } catch {
+        labels = undefined
+      }
+      if (labels) project.discussionLabels = labels
+      else keep[path] = text
+      continue
+    }
+    if (!path.endsWith('.discussion.yaml')) {
+      keep[path] = text
+      continue
+    }
+    let discussion
+    try {
+      discussion = discussionFromFile(fromYaml(text))
+    } catch {
+      discussion = undefined
+    }
+    if (discussion) discussions[discussion.id] = discussion
+    else keep[path] = text
+  }
+  if (Object.keys(discussions).length > 0) project.discussions = discussions
+  if (Object.keys(keep).length > 0) project.discussionKeep = keep
 }
 
 /** Serialize only what changed, given the previous file set. */
@@ -110,7 +168,8 @@ export function writeChanged(
   // when it was part of the baseline, because it is no longer the document.
   const images = `${imagesDir(project)}/`
   const removed = Object.keys(previous).filter(
-    (p) => !(p in files) && (isManaged(p) || (p.startsWith(images) && imageTypeOf(p) !== undefined)),
+    (p) =>
+      !(p in files) && (isManaged(p) || (p.startsWith(images) && imageTypeOf(p) !== undefined)),
   )
   return { files, changed, removed }
 }
@@ -123,7 +182,8 @@ function isManaged(path: string): boolean {
     path === 'tricc.yml' ||
     path.startsWith(`${PATHS.activities}/`) ||
     path.startsWith(`${PATHS.terminology}/`) ||
-    path.startsWith(`${PATHS.cql}/`)
+    path.startsWith(`${PATHS.cql}/`) ||
+    path.startsWith(`${PATHS.discussions}/`)
   )
 }
 
@@ -262,7 +322,6 @@ function readImages(project: Project, files: ProjectFiles): boolean {
   return renamed
 }
 
-
 /**
  * `form_id` is a remnant of the time one drawing was one form. The intervention names
  * the form now. An intervention with no name takes the `form_id` of the first process
@@ -360,6 +419,7 @@ function attachFiles(
     const lm = LIBRARY_RE.exec(path)
     if (lm) project.libraries[lm[1] as string] = content
   }
+  readDiscussionsInto(project, files)
   return { project, idByPath }
 }
 
@@ -455,6 +515,5 @@ export function createProcessActivity(opts: {
 
   return activity
 }
-
 
 export { FormatVersionError, toYaml, fromYaml, toJson, fromJson }

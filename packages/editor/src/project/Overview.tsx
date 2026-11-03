@@ -13,8 +13,10 @@ import {
 import { useCanWrite, useMutate, useProjectSnapshot } from '../runtime/context.js'
 import { InterventionEditor } from './InterventionEditor.js'
 import { BinIcon, ConfirmDelete, GearIcon } from '../components/Dialog.js'
+import { LabelSettings } from '../discussion/LabelSettings.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
+import { ActivityDiscussMarks } from '../discussion/DiscussionMark.js'
 
 /**
  * The layer -1 surface: which interventions are carried together, which activities make
@@ -182,6 +184,7 @@ export function ProjectOverview({
             .map((id) => (
               <li key={id} data-testid={`unassigned-${id}`}>
                 {id}
+                <ActivityDiscussMarks activityId={id} />
               </li>
             ))}
         </ul>
@@ -233,7 +236,11 @@ export function ValidationSummary({
           .map((i, idx) => {
             const target = links ? issueTarget(project, i.location, links) : undefined
             return (
-              <li key={`${i.rule}-${idx}`} data-testid={`issue-${i.rule}`} data-severity={i.severity}>
+              <li
+                key={`${i.rule}-${idx}`}
+                data-testid={`issue-${i.rule}`}
+                data-severity={i.severity}
+              >
                 {i.message}
                 {target && (
                   <button
@@ -263,7 +270,11 @@ interface IssueTarget {
 }
 
 /** The most specific element an issue is about that the host can show, named for the author. */
-function issueTarget(project: Project, at: IssueLocation, links: IssueLinks): IssueTarget | undefined {
+function issueTarget(
+  project: Project,
+  at: IssueLocation,
+  links: IssueLinks,
+): IssueTarget | undefined {
   const lang = project.languages.default
   const activity = at.activityId ? project.activities[at.activityId] : undefined
   const nodeName = (id: string): string => {
@@ -303,7 +314,9 @@ function issueTarget(project: Project, at: IssueLocation, links: IssueLinks): Is
       go: () => links.concept?.(key),
     }
   }
-  const iv = at.interventionId ? project.interventions.find((i) => i.id === at.interventionId) : undefined
+  const iv = at.interventionId
+    ? project.interventions.find((i) => i.id === at.interventionId)
+    : undefined
   if (iv && links.intervention) {
     return {
       kind: 'intervention',
@@ -419,6 +432,7 @@ function ProjectSettings({
           onChange={(e) => setTitle(e.target.value)}
         />
         <p>Shown in your project list and saved as the project title in tricc.yaml.</p>
+        <LabelSettings />
         <div className="tricc-library-modal__actions">
           {!readOnly && (
             <Button size="sm" type="submit" data-testid="project-settings-save" disabled={!name}>
@@ -440,4 +454,3 @@ function ProjectSettings({
     document.body,
   )
 }
-

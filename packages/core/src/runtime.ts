@@ -9,6 +9,7 @@ import type {
 } from './ports/index.js'
 import { noopTelemetry } from './ports/telemetry.js'
 import { ProjectDocument } from './document/doc.js'
+import { LocalDiscussions, type DiscussionPort } from './discussion/port.js'
 import {
   readProject,
   writeProject,
@@ -45,6 +46,7 @@ export class TriccRuntime {
   readonly identity: IdentityPort
   readonly collaboration: CollaborationPort | undefined
   readonly telemetry: TelemetryPort
+  readonly discussion: DiscussionPort
 
   constructor(config: TriccRuntimeConfig) {
     this.persistence = config.persistence
@@ -52,6 +54,7 @@ export class TriccRuntime {
     this.identity = config.identity
     this.collaboration = config.collaboration
     this.telemetry = config.telemetry ?? noopTelemetry
+    this.discussion = new LocalDiscussions(this)
   }
 
   async open(ref: ProjectRef): Promise<OpenProject> {

@@ -1,7 +1,11 @@
 import { NodeResizer, type Node, type NodeProps } from '@xyflow/react'
 import type { CanvasGroup } from '@tricc/core'
+import { ElementMark } from '../../discussion/ElementMark.js'
 
-export type GroupFlowNode = Node<{ group: CanvasGroup; title: string; canWrite: boolean }, 'group-frame'>
+export type GroupFlowNode = Node<
+  { group: CanvasGroup; title: string; canWrite: boolean },
+  'group-frame'
+>
 
 export const GROUP_PREFIX = 'group:'
 export const groupFlowId = (id: string) => `${GROUP_PREFIX}${id}`
@@ -24,6 +28,7 @@ export function GroupNodeView({ data, selected }: NodeProps<GroupFlowNode>) {
       <div className="tricc-group__title" data-testid={`group-${group.id}-title`}>
         {title || 'Group'}
       </div>
+      <ElementMark kind="group" id={group.id} />
     </div>
   )
 }

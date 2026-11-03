@@ -1,5 +1,5 @@
 import type { Capability, CapabilitySet, Identity, IdentityPort } from '@tricc/core'
-import { ALL_CAPABILITIES, READ_ONLY_CAPABILITIES } from '@tricc/core'
+import { ALL_CAPABILITIES, REVIEW_CAPABILITIES } from '@tricc/core'
 
 export interface PreferenceStore {
   get(key: string): string | null
@@ -25,8 +25,8 @@ const KEY = 'tricc.identity'
  *
  * Every capability is granted except `project.share`, which is hosted-only. The read-only
  * toggle drops `project.write` for the session: it costs nothing, makes
- * review-without-touching real, and keeps the capability path exercised continuously
- * rather than untested until a hosted shell needs it.
+ * review-without-touching real, and discussions stay available. The capability path stays
+ * exercised continuously rather than untested until a hosted shell needs it.
  */
 export class LocalIdentity implements IdentityPort {
   private listeners = new Set<() => void>()
@@ -68,7 +68,7 @@ export class LocalIdentity implements IdentityPort {
   }
 
   capabilities(): CapabilitySet {
-    return this.readOnly ? READ_ONLY_CAPABILITIES : LOCAL_CAPABILITIES
+    return this.readOnly ? REVIEW_CAPABILITIES : LOCAL_CAPABILITIES
   }
 
   isReadOnly(): boolean {

@@ -27,6 +27,7 @@ import {
   type ProjectFiles,
   type ProjectRef,
   type ConceptKey,
+  type Anchor,
   type DiagramStyle,
   type ProjectSummary,
 } from '@tricc/core'
@@ -38,6 +39,7 @@ import {
   Button,
   ConfirmDelete,
   DictionaryView,
+  DiscussionsButton,
   GearIcon,
   HomeIcon,
   Input,
@@ -130,7 +132,7 @@ function Shell({
             tab, not after. */}
         <span data-testid="storage-mode">{storageLabel}</span>
         <div className="tricc-topbar__project">{tools}</div>
-        <label>
+        <label title="You can still start and answer discussions">
           <input
             type="checkbox"
             data-testid="read-only-toggle"
@@ -163,7 +165,10 @@ function ProjectList({ local }: { local: LocalRuntime }) {
   useEffect(() => void refresh(), [refresh])
 
   /** Adopt an imported file set as a new browser-backed project. */
-  const importFiles = async (files: ProjectFiles, fallbackName: string): Promise<ProjectRef | undefined> => {
+  const importFiles = async (
+    files: ProjectFiles,
+    fallbackName: string,
+  ): Promise<ProjectRef | undefined> => {
     setError(undefined)
     const normalized = normalizeImport(files)
     try {
@@ -321,7 +326,9 @@ function ProjectList({ local }: { local: LocalRuntime }) {
               const path =
                 (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name
               // Pictures stay bytes; everything else in a project is text.
-              files[path] = isBinaryPath(path) ? new Uint8Array(await f.arrayBuffer()) : await f.text()
+              files[path] = isBinaryPath(path)
+                ? new Uint8Array(await f.arrayBuffer())
+                : await f.text()
             }
             await importFiles(files, 'Imported project')
             e.target.value = ''
@@ -373,7 +380,11 @@ function deleteNote(local: LocalRuntime, ref: ProjectRef): string {
  * Off the list first, so a list shown next no longer has it; then `removed` (leave the
  * project, so no autosave writes it back); then delete what the browser kept.
  */
-async function deleteProject(local: LocalRuntime, ref: ProjectRef, removed?: () => void): Promise<void> {
+async function deleteProject(
+  local: LocalRuntime,
+  ref: ProjectRef,
+  removed?: () => void,
+): Promise<void> {
   await local.catalog.remove(ref)
   removed?.()
   await local.persistence.forget(ref)
@@ -446,7 +457,17 @@ function ProjectWorkspace({
   /** Activities reached, outermost first; the last one is open. Empty: the overview. */
   const [trail, setTrail] = useState<string[]>([])
   const activityId = trail[trail.length - 1]
-  const [focus, setFocus] = useState<{ activityId: string; nodeId?: string; edgeId?: string } | null>(null)
+  const [focus, setFocus] = useState<{
+    activityId: string
+    nodeId?: string
+    edgeId?: string
+  } | null>(null)
+  const [discussJump, setDiscussJump] = useState<{
+    seq: number
+    kind: 'node' | 'edge' | 'group' | 'comment' | 'activity'
+    id: string
+    discussionId: string
+  } | null>(null)
   const navigate = useNavigate()
   const [dictionary, setDictionary] = useState(false)
   const [media, setMedia] = useState(false)
@@ -480,6 +501,28 @@ function ProjectWorkspace({
     setFocus(null)
     setTrail(id ? [id] : [])
   }, [])
+  const showDiscussion = useCallback(
+    (anchor: Anchor, discussionId: string) => {
+      const seq = Date.now()
+      if (anchor.kind === 'node') {
+        openNode(anchor.activityId, anchor.nodeId)
+        setDiscussJump({ seq, kind: 'node', id: anchor.nodeId, discussionId })
+      } else if (anchor.kind === 'edge') {
+        openEdge(anchor.activityId, anchor.edgeId)
+        setDiscussJump({ seq, kind: 'edge', id: anchor.edgeId, discussionId })
+      } else if (anchor.kind === 'group') {
+        openActivity(anchor.activityId)
+        setDiscussJump({ seq, kind: 'group', id: anchor.groupId, discussionId })
+      } else if (anchor.kind === 'comment') {
+        openActivity(anchor.activityId)
+        setDiscussJump({ seq, kind: 'comment', id: anchor.commentId, discussionId })
+      } else if (anchor.kind === 'activity') {
+        openActivity(anchor.activityId)
+        setDiscussJump({ seq, kind: 'activity', id: anchor.activityId, discussionId })
+      }
+    },
+    [openActivity, openEdge, openNode],
+  )
   /** Through a goto: the activity is added to the breadcrumb. */
   const followActivity = useCallback((next: string) => {
     setFocus(null)
@@ -615,8 +658,13 @@ function ProjectWorkspace({
           <>
             <SaveIndicator />
             <HistoryButtons />
+            <DiscussionsButton onShow={showDiscussion} />
             <ExportButton open={open} />
-            <RepoTools local={local} open={open} onReplace={(fetched) => void replaceWith(open.ref, fetched)} />
+            <RepoTools
+              local={local}
+              open={open}
+              onReplace={(fetched) => void replaceWith(open.ref, fetched)}
+            />
           </>
         }
       >
@@ -642,7 +690,12 @@ function ProjectWorkspace({
         {media ? (
           <MediaView onOpenConcept={openConcept} />
         ) : dictionary ? (
-          <DictionaryView system={dictionarySystem} open={concept} onOpen={setConcept} onOpenNode={openNode} />
+          <DictionaryView
+            system={dictionarySystem}
+            open={concept}
+            onOpen={setConcept}
+            onOpenNode={openNode}
+          />
         ) : activityId ? (
           <ActivityEditor
             activityId={activityId}
@@ -652,6 +705,7 @@ function ProjectWorkspace({
             onOpenEdge={openEdge}
             onOpenActivity={followActivity}
             onOpenCaller={openCaller}
+            focusDiscussion={discussJump ?? undefined}
             onDeleted={() => {
               const gone = activityId
               setFocus(null)
@@ -722,10 +776,14 @@ function Preferences({ local }: { local: LocalRuntime }) {
         value={lines}
         onChange={(e) => {
           setLines(e.target.value)
-          if (e.target.value !== '') local.preferences.update({ labelLines: Number(e.target.value) })
+          if (e.target.value !== '')
+            local.preferences.update({ labelLines: Number(e.target.value) })
         }}
       />
-      <p>Longer text is cut after this many lines. The full text shows when you hover the node. This is your setting; it is not saved in the project.</p>
+      <p>
+        Longer text is cut after this many lines. The full text shows when you hover the node. This
+        is your setting; it is not saved in the project.
+      </p>
       <label id="pref-diagram-style-label">Diagram style</label>
       <div
         role="radiogroup"
@@ -755,7 +813,10 @@ function Preferences({ local }: { local: LocalRuntime }) {
           </label>
         ))}
       </div>
-      <p>Flowchart draws a Decision as a rhombus; BPMN draws it as a rectangle. This is your setting; it is not saved in the project.</p>
+      <p>
+        Flowchart draws a Decision as a rhombus; BPMN draws it as a rectangle. This is your setting;
+        it is not saved in the project.
+      </p>
       <label htmlFor="pref-label-chars">Characters of a label in short lists</label>
       <Input
         id="pref-label-chars"
@@ -766,10 +827,14 @@ function Preferences({ local }: { local: LocalRuntime }) {
         value={chars}
         onChange={(e) => {
           setChars(e.target.value)
-          if (e.target.value !== '') local.preferences.update({ labelChars: Number(e.target.value) })
+          if (e.target.value !== '')
+            local.preferences.update({ labelChars: Number(e.target.value) })
         }}
       />
-      <p>How much of a label shows on an answer link and in the Insert data list. The full text is on hover.</p>
+      <p>
+        How much of a label shows on an answer link and in the Insert data list. The full text is on
+        hover.
+      </p>
       <label htmlFor="pref-concept-types">Concept types</label>
       <Textarea
         id="pref-concept-types"
@@ -781,7 +846,10 @@ function Preferences({ local }: { local: LocalRuntime }) {
           local.preferences.update({ conceptTypes: e.target.value.split('\n') })
         }}
       />
-      <p>One per line. The data dictionary offers these as a concept's type; tricc_oo maps them to a FHIR resource.</p>
+      <p>
+        One per line. The data dictionary offers these as a concept's type; tricc_oo maps them to a
+        FHIR resource.
+      </p>
       <label htmlFor="pref-image-width">Maximum image width (pixels)</label>
       <Input
         id="pref-image-width"
@@ -793,10 +861,14 @@ function Preferences({ local }: { local: LocalRuntime }) {
         value={imageWidth}
         onChange={(e) => {
           setImageWidth(e.target.value)
-          if (e.target.value !== '') local.preferences.update({ imageMaxWidth: Number(e.target.value) })
+          if (e.target.value !== '')
+            local.preferences.update({ imageMaxWidth: Number(e.target.value) })
         }}
       />
-      <p>A wider picture is made smaller when it is added, so forms stay light on a health worker's device. Drawings (SVG) are kept as they are.</p>
+      <p>
+        A wider picture is made smaller when it is added, so forms stay light on a health worker's
+        device. Drawings (SVG) are kept as they are.
+      </p>
       <p data-testid="storage-explanation">
         {local.canUseFolders
           ? 'A project can be bound to a folder on disk; until then it is kept in this browser.'
