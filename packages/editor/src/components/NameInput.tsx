@@ -23,7 +23,8 @@ export function NameInput({ id, testId, value, onChange, readOnly }: NameInputPr
   const invalid = draft !== '' && !validName(draft)
   return (
     <>
-      <Input size="sm"
+      <Input
+        size="sm"
         id={id}
         data-testid={testId}
         value={draft}

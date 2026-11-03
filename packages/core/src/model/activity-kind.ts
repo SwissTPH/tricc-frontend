@@ -49,8 +49,8 @@ export function isBlock(activity: Activity): boolean {
 export function callsOf(activity: Activity): TriccNode[] {
   return activity.nodeOrder
     .map((id) => activity.nodes[id])
-    .filter(
-      (n): n is TriccNode => Boolean(n && n.link && (n.type === 'goto' || n.type === 'block')),
+    .filter((n): n is TriccNode =>
+      Boolean(n && n.link && (n.type === 'goto' || n.type === 'block')),
     )
 }
 

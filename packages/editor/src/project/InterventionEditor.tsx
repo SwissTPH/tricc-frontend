@@ -449,7 +449,9 @@ function InterventionSettings({
           const needed = `Needed by ${(row?.activities ?? []).map(title).join(', ')}`
           return {
             from:
-              row?.param.default !== undefined ? `${needed}. Default: ${showParamValue(row.param.default)}` : needed,
+              row?.param.default !== undefined
+                ? `${needed}. Default: ${showParamValue(row.param.default)}`
+                : needed,
           }
         }}
       />
@@ -488,7 +490,11 @@ function InterventionScope({
               const next = new Set(chosen)
               if (e.target.checked) next.add(iv.id)
               else next.delete(iv.id)
-              onChange(next.size > 0 ? project.interventions.map((i) => i.id).filter((id) => next.has(id)) : undefined)
+              onChange(
+                next.size > 0
+                  ? project.interventions.map((i) => i.id).filter((id) => next.has(id))
+                  : undefined,
+              )
             }}
           />
           {resolve(iv.title, lang, lang) ?? iv.id}
@@ -500,7 +506,12 @@ function InterventionScope({
           <p key={id} className="tricc-field-error">
             “{id}” is not another intervention of this project.{' '}
             {!readOnly && (
-              <Button variant="outline" size="sm" type="button" onClick={() => onChange((intervention.requires ?? []).filter((r) => r !== id))}>
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                onClick={() => onChange((intervention.requires ?? []).filter((r) => r !== id))}
+              >
                 Remove
               </Button>
             )}

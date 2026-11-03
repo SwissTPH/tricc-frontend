@@ -1,4 +1,10 @@
-import type { Activity, Intervention, Project, ProjectImage, ProjectRepository } from '../../model/types.js'
+import type {
+  Activity,
+  Intervention,
+  Project,
+  ProjectImage,
+  ProjectRepository,
+} from '../../model/types.js'
 import { activityPath, blockPath, codeSystemPath, libraryPath, PATHS } from '../../model/types.js'
 import { isBlock } from '../../model/activity-kind.js'
 import { resolve, type LocalizedText } from '../schema/localized.js'
@@ -175,7 +181,9 @@ export function readTriccYamlMeta(
   const interventions: Intervention[] = []
   const list = doc['interventions']
   if (list !== undefined && !Array.isArray(list)) {
-    throw new Error('tricc.yaml interventions must be a list. Each entry needs an id and an activity list.')
+    throw new Error(
+      'tricc.yaml interventions must be a list. Each entry needs an id and an activity list.',
+    )
   }
   const seenIds = new Set<string>()
   for (const entry of list ?? []) {
@@ -202,7 +210,10 @@ export function readTriccYamlMeta(
   }
 
   const result: TriccYamlRead = {
-    id: typeof doc['id'] === 'string' && doc['id'].trim() ? doc['id'].trim() : slug(plain(title) ?? 'project'),
+    id:
+      typeof doc['id'] === 'string' && doc['id'].trim()
+        ? doc['id'].trim()
+        : slug(plain(title) ?? 'project'),
     languages,
     interventions,
     contexts: readContexts(doc['contexts']),
@@ -215,8 +226,10 @@ export function readTriccYamlMeta(
   if (typeof doc['system'] === 'string') result.system = doc['system']
   if (typeof doc['code'] === 'string') result.code = doc['code']
   if (typeof doc['version'] === 'string') result.version = doc['version']
-  if (typeof doc['default_code_system'] === 'string') result.defaultCodeSystem = doc['default_code_system']
-  if (typeof doc['calculate_code_system'] === 'string') result.calculateCodeSystem = doc['calculate_code_system']
+  if (typeof doc['default_code_system'] === 'string')
+    result.defaultCodeSystem = doc['default_code_system']
+  if (typeof doc['calculate_code_system'] === 'string')
+    result.calculateCodeSystem = doc['calculate_code_system']
   if (typeof doc['media_path'] === 'string') result.mediaPath = doc['media_path']
   const repository = readRepository(doc['repository'])
   if (repository) result.repository = repository
@@ -256,7 +269,9 @@ export function setTriccYamlRepository(text: string, repository: ProjectReposito
 export function repositoryOfTriccYaml(text: string): ProjectRepository | undefined {
   try {
     const raw = fromYaml(text)
-    return raw && typeof raw === 'object' ? readRepository((raw as Record<string, unknown>)['repository']) : undefined
+    return raw && typeof raw === 'object'
+      ? readRepository((raw as Record<string, unknown>)['repository'])
+      : undefined
   } catch {
     return undefined
   }
@@ -274,12 +289,16 @@ function readIntervention(
   onDrawio: () => void,
 ): Intervention {
   if (!entry || typeof entry !== 'object') {
-    throw new Error('An intervention in tricc.yaml is not a mapping. Give it an id and an activity list.')
+    throw new Error(
+      'An intervention in tricc.yaml is not a mapping. Give it an id and an activity list.',
+    )
   }
   const rec = entry as Record<string, unknown>
   const id = typeof rec['id'] === 'string' ? rec['id'].trim() : ''
   if (!id) {
-    throw new Error('An intervention in tricc.yaml has no id. Add an id so it can be told apart from the others.')
+    throw new Error(
+      'An intervention in tricc.yaml has no id. Add an id so it can be told apart from the others.',
+    )
   }
   const groups = activityGroups(rec['activity'])
   const refs: string[] = []
@@ -288,7 +307,16 @@ function readIntervention(
     const paths = resolveGlobs(group, Object.keys(files))
     for (const path of paths) {
       const activityIds = DRAWIO_EXT.test(path)
-        ? drawioPages(path, files, takenActivityIds, drawioActivities, drawioIdsByPath, drawioImages, lang, onDrawio)
+        ? drawioPages(
+            path,
+            files,
+            takenActivityIds,
+            drawioActivities,
+            drawioIdsByPath,
+            drawioImages,
+            lang,
+            onDrawio,
+          )
         : activityIdByPath.get(path)
           ? [activityIdByPath.get(path) as string]
           : []
@@ -309,7 +337,12 @@ function readIntervention(
       `Intervention "${id}" has no activity files. In tricc.yaml, point activity at an existing activities/<id>.activity.yaml path or a .drawio file.`,
     )
   }
-  return finishIntervention(rec, id, refs.map((ref) => ({ ref })), lang)
+  return finishIntervention(
+    rec,
+    id,
+    refs.map((ref) => ({ ref })),
+    lang,
+  )
 }
 
 function drawioPages(
@@ -373,7 +406,9 @@ function finishIntervention(
   const description = readText(rec['description'], rec['descriptions'], lang)
   if (description) iv.description = description
   // `code` is what this app wrote before `tricc_oo` named the key `name` (2026-10-08).
-  const name = [rec['name'], rec['code']].find((v): v is string => typeof v === 'string' && v.trim() !== '')
+  const name = [rec['name'], rec['code']].find(
+    (v): v is string => typeof v === 'string' && v.trim() !== '',
+  )
   if (name) iv.name = name.trim()
   const intent = readText(rec['intent'], rec['intents'], lang)
   const start = firstStart(rec['start'])
@@ -381,7 +416,9 @@ function finishIntervention(
   iv.trigger = trigger ?? { mode: 'on-demand' }
   const args = readArgs(rec['args'])
   if (args) iv.args = args
-  const requires = asList(rec['requires']).filter((v): v is string => typeof v === 'string' && v !== '')
+  const requires = asList(rec['requires']).filter(
+    (v): v is string => typeof v === 'string' && v !== '',
+  )
   if (requires.length > 0) iv.requires = requires
   if (intent || start?.condition) {
     iv.applicability = {}
@@ -442,7 +479,8 @@ function firstStart(start: unknown): StartView | undefined {
   const rec = first as Record<string, unknown>
   const on = typeof rec['on'] === 'string' ? rec['on'] : 'demand'
   const view: StartView = { on }
-  if (typeof rec['condition'] === 'string' && rec['condition'].trim()) view.condition = rec['condition'].trim()
+  if (typeof rec['condition'] === 'string' && rec['condition'].trim())
+    view.condition = rec['condition'].trim()
   if (typeof rec['intervention'] === 'string') view.intervention = rec['intervention']
   if (rec['due'] !== undefined && rec['due'] !== null) view.due = String(rec['due'])
   return view
@@ -513,7 +551,8 @@ function readLanguages(parameters: unknown): { default: string; available: strin
     const available = Array.isArray(rec['available'])
       ? rec['available'].map(String).filter(Boolean)
       : []
-    const def = typeof rec['default'] === 'string' && rec['default'] ? rec['default'] : (available[0] ?? 'en')
+    const def =
+      typeof rec['default'] === 'string' && rec['default'] ? rec['default'] : (available[0] ?? 'en')
     if (!available.includes(def)) available.unshift(def)
     return { default: def, available }
   }

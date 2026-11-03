@@ -47,7 +47,15 @@ export interface SelectOption {
  * editor offers by default; each declared one is a concept in the calculate dictionary. `name`,
  * `concept` and `expression` are substitution-only advanced types and have no concept.
  */
-export const PARAM_TYPES = ['boolean', 'number', 'string', 'choice', 'name', 'concept', 'expression'] as const
+export const PARAM_TYPES = [
+  'boolean',
+  'number',
+  'string',
+  'choice',
+  'name',
+  'concept',
+  'expression',
+] as const
 export type ParamType = (typeof PARAM_TYPES)[number]
 export const PRIMITIVE_PARAM_TYPES: readonly ParamType[] = ['boolean', 'number', 'string', 'choice']
 

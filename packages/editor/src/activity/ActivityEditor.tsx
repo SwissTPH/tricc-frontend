@@ -399,7 +399,8 @@ export function ActivityEditor({
     const position = at ?? { x: 80, y: lowest + 96 }
     const node: TriccNode = { id, type, ui: { x: position.x, y: position.y } }
     // A goto gets a generated name too: not shown, but stable in exports that want one.
-    if (needsName(type) || type === 'goto' || type === 'block') node.name = uniqueId(type, names, '_')
+    if (needsName(type) || type === 'goto' || type === 'block')
+      node.name = uniqueId(type, names, '_')
     if (isSelect(type) && type !== 'select_yesno') node.options = []
     if (type === 'acknowledge') node.required = true
     mutate((tx) => tx.addNode(activityId, node))
@@ -1339,7 +1340,12 @@ export function NodeProperties({
             </Button>
           )}
           {node.link && project.activities[node.link] && rowsFor(project, node.link).length > 0 && (
-            <CallArguments activityId={activityId} node={node} readOnly={readOnly} onChange={(args) => update({ args })} />
+            <CallArguments
+              activityId={activityId}
+              node={node}
+              readOnly={readOnly}
+              onChange={(args) => update({ args })}
+            />
           )}
         </>
       )}
@@ -1378,7 +1384,12 @@ export function NodeProperties({
             </Button>
           )}
           {node.link && project.activities[node.link] && (
-            <CallArguments activityId={activityId} node={node} readOnly={readOnly} onChange={(args) => update({ args })} />
+            <CallArguments
+              activityId={activityId}
+              node={node}
+              readOnly={readOnly}
+              onChange={(args) => update({ args })}
+            />
           )}
         </>
       )}
@@ -1569,7 +1580,8 @@ function canOffer(type: NodeType, nodes: Record<string, TriccNode>, kind?: strin
   const spec = NODE_TYPE_SPECS[type]
   if (!spec.drawable || spec.offered === false) return false
   // A block is entered and left like an activity: no process start or end.
-  if (kind === 'block' && (type === 'start' || type === 'end' || type === 'activity_start')) return false
+  if (kind === 'block' && (type === 'start' || type === 'end' || type === 'activity_start'))
+    return false
   // An activity has exactly one root, and which root it has decides its kind. Neither is
   // offered once one exists, and both are offered only to repair an activity that has none.
   // An activity may finish in several places, so Activity end stays on the palette.

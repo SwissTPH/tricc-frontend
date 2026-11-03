@@ -174,28 +174,35 @@ export function ActivitySettings({
       >
         <div className="tricc-intervention">
           <label htmlFor="act-title">Title</label>
-          <Input size="sm"
+          <Input
+            size="sm"
             id="act-title"
             data-testid="act-title"
             value={resolve(activity.title, lang, lang) ?? ''}
             disabled={readOnly}
-            onChange={(e) => mutate((tx) => tx.setActivityTitle(activity.id, { [lang]: e.target.value }))}
+            onChange={(e) =>
+              mutate((tx) => tx.setActivityTitle(activity.id, { [lang]: e.target.value }))
+            }
           />
 
           <label htmlFor="act-name">Name</label>
-          <Input size="sm"
+          <Input
+            size="sm"
             id="act-name"
             data-testid="act-name"
             value={activity.name ?? ''}
             placeholder={titleSlug(activity, lang)}
             disabled={readOnly}
-            onChange={(e) => mutate((tx) => tx.setActivityName(activity.id, e.target.value || undefined))}
+            onChange={(e) =>
+              mutate((tx) => tx.setActivityName(activity.id, e.target.value || undefined))
+            }
           />
 
           {kind === 'process' && (
             <>
               <label htmlFor="act-process">Process</label>
-              <Input size="sm"
+              <Input
+                size="sm"
                 id="act-process"
                 data-testid="act-process"
                 list="cpg-processes"
@@ -210,7 +217,8 @@ export function ActivitySettings({
           )}
 
           <label htmlFor="act-intent">Applies when — in words</label>
-          <Input size="sm"
+          <Input
+            size="sm"
             id="act-intent"
             data-testid="act-intent"
             value={resolve(activity.applicability?.intent, lang, lang) ?? ''}
@@ -231,14 +239,18 @@ export function ActivitySettings({
             onReveal={onReveal}
             onChange={(expression) => setApplicability({ expression: expression || undefined })}
           />
-          <p>Applies on top of the start condition of every intervention that lists this activity.</p>
+          <p>
+            Applies on top of the start condition of every intervention that lists this activity.
+          </p>
 
           {root?.type === 'activity_start' && (
             <RepeatFields
               node={root}
               readOnly={readOnly}
               idPrefix="act"
-              onChange={(patch) => mutate((tx) => tx.updateNode(activity.id, { ...root, ...patch }))}
+              onChange={(patch) =>
+                mutate((tx) => tx.updateNode(activity.id, { ...root, ...patch }))
+              }
             />
           )}
 
@@ -303,9 +315,15 @@ export function ConfirmActivityDelete({
   const uses = activityKind(activity) === 'block' ? goToCallers(project, activity.id) : []
   if (uses.length > 0) {
     return (
-      <Dialog testId="delete-block-blocked" titleId="delete-block-blocked-title" title="This block is in use" onClose={onCancel}>
+      <Dialog
+        testId="delete-block-blocked"
+        titleId="delete-block-blocked-title"
+        title="This block is in use"
+        onClose={onCancel}
+      >
         <p>
-          {title} is used in {uses.length} place{uses.length === 1 ? '' : 's'}. Remove those uses first, then delete it.
+          {title} is used in {uses.length} place{uses.length === 1 ? '' : 's'}. Remove those uses
+          first, then delete it.
         </p>
         <ul data-testid="delete-block-uses">
           {uses.map((u) => (

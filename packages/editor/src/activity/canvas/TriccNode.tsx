@@ -59,7 +59,17 @@ export type TriccFlowNode = Node<
  * (feature/20260825-activity-editor.md §3).
  */
 export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
-  const { model, lang, severity, conceptDisplay, activityTitle, missing, callLabel, callSummary, needsValue } = data
+  const {
+    model,
+    lang,
+    severity,
+    conceptDisplay,
+    activityTitle,
+    missing,
+    callLabel,
+    callSummary,
+    needsValue,
+  } = data
   const visual = visualFor(model.type as NodeType)
   const { diagramStyle } = useEditorPreferences()
   const follow = useContext(FollowContext)
@@ -111,8 +121,12 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
             // Not a drag or pan handle: a click here opens the activity, nothing else.
             className="tricc-node__follow nodrag nopan"
             data-testid={`goto-follow-${model.id}`}
-            aria-label={model.type === 'block' ? 'Open the block this uses' : 'Open the activity this goes to'}
-            title={model.type === 'block' ? 'Open the block this uses' : 'Open the activity this goes to'}
+            aria-label={
+              model.type === 'block' ? 'Open the block this uses' : 'Open the activity this goes to'
+            }
+            title={
+              model.type === 'block' ? 'Open the block this uses' : 'Open the activity this goes to'
+            }
             onClick={(event) => {
               event.stopPropagation()
               follow(model.link!)
@@ -128,7 +142,11 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
           </span>
         )}
         {needsValue && (
-          <span className="tricc-badge tricc-badge--warning" data-testid={`node-${model.id}-needs-value`} title="A required setting has no value">
+          <span
+            className="tricc-badge tricc-badge--warning"
+            data-testid={`node-${model.id}-needs-value`}
+            title="A required setting has no value"
+          >
             <span aria-hidden="true">⚠ </span>
             Needs a value
           </span>

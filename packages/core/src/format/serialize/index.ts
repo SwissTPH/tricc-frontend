@@ -92,7 +92,9 @@ export function writeProject(project: Project): ProjectFiles {
   for (const url of Object.keys(project.codeSystems).sort()) {
     const cs = project.codeSystems[url]
     if (!cs) continue
-    files[cs.path ?? codeSystemPath(cs.id)] = toJson(encodeCodeSystem(cs === calculate ? withCalculateTag(cs) : cs))
+    files[cs.path ?? codeSystemPath(cs.id)] = toJson(
+      encodeCodeSystem(cs === calculate ? withCalculateTag(cs) : cs),
+    )
   }
   for (const name of Object.keys(project.libraries).sort()) {
     files[libraryPath(name)] = project.libraries[name] as string
@@ -259,7 +261,9 @@ function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
   }
   // A drawing lists its pages on the intervention; a building block is used, never listed.
   for (const iv of loaded.interventions) {
-    iv.activities = iv.activities.filter((r) => !loaded.activities[r.ref] || !isBlock(loaded.activities[r.ref]!))
+    iv.activities = iv.activities.filter(
+      (r) => !loaded.activities[r.ref] || !isBlock(loaded.activities[r.ref]!),
+    )
   }
   migrateFormIds(loaded)
   // Texts move from the activity files to the concepts they stand for.
@@ -274,7 +278,9 @@ function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
   // the next save. Treating it as a migration keeps the baseline equal to the folder, so
   // the save renames it and rewrites tricc.yaml, instead of leaving two copies of one id.
   else if (
-    [...idByPath].some(([path, id]) => loaded.activities[id] && path !== pagePath(loaded.activities[id]!))
+    [...idByPath].some(
+      ([path, id]) => loaded.activities[id] && path !== pagePath(loaded.activities[id]!),
+    )
   ) {
     result.migratedFrom = 'activity-paths'
   }

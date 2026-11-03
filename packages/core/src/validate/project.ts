@@ -240,7 +240,11 @@ function validateInterventions(project: Project): Issue[] {
       usedActivities.add(ref.ref)
 
       const referenced = project.activities[ref.ref]
-      if (referenced && activityKind(referenced) === 'process' && calledActivities(referenced).length === 0) {
+      if (
+        referenced &&
+        activityKind(referenced) === 'process' &&
+        calledActivities(referenced).length === 0
+      ) {
         issues.push(
           issue(
             'process-activity.no-calls',
@@ -298,7 +302,12 @@ function validateInterventions(project: Project): Issue[] {
   }
   for (const id of Object.keys(project.activities).sort()) {
     // A building block is used, never listed: an unused one is reported as such.
-    if (usedActivities.has(id) || called.has(id) || activityKind(project.activities[id]!) === 'block') continue
+    if (
+      usedActivities.has(id) ||
+      called.has(id) ||
+      activityKind(project.activities[id]!) === 'block'
+    )
+      continue
     issues.push(
       issue(
         'activity.unassigned',
@@ -415,7 +424,9 @@ function validateTerminology(project: Project): Issue[] {
   for (const id of Object.keys(project.images ?? {}).sort()) {
     if (!shown.has(id)) {
       issues.push(
-        issue('image.unused', 'info', `The image "${id}" is not shown by any text.`, { imageId: id }),
+        issue('image.unused', 'info', `The image "${id}" is not shown by any text.`, {
+          imageId: id,
+        }),
       )
     }
   }

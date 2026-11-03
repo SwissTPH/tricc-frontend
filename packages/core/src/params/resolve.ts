@@ -10,13 +10,20 @@ import { NAME_RE } from '../format/schema/activity.js'
  */
 
 /** Why a value does not fit a parameter, or undefined when it does. A `{{name}}` binding fits. */
-export function argProblem(param: ActivityParam, value: ParamValue, label = param.name): string | undefined {
+export function argProblem(
+  param: ActivityParam,
+  value: ParamValue,
+  label = param.name,
+): string | undefined {
   if (argRef(value)) return undefined
   switch (param.type) {
     case 'boolean':
-      return typeof value === 'boolean' ? undefined : `“${label}” is yes or no, not “${show(value)}”.`
+      return typeof value === 'boolean'
+        ? undefined
+        : `“${label}” is yes or no, not “${show(value)}”.`
     case 'number':
-      return typeof value === 'number' || (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value)))
+      return typeof value === 'number' ||
+        (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value)))
         ? undefined
         : `“${label}” is a number, not “${show(value)}”.`
     case 'choice':
@@ -28,7 +35,8 @@ export function argProblem(param: ActivityParam, value: ParamValue, label = para
         ? undefined
         : `“${show(value)}” is not a valid name fragment for “${label}” (letters, digits and _).`
     case 'concept':
-      return (typeof value === 'object' && value !== null) || (typeof value === 'string' && NAME_RE.test(value))
+      return (typeof value === 'object' && value !== null) ||
+        (typeof value === 'string' && NAME_RE.test(value))
         ? undefined
         : `“${label}” needs a concept of the data dictionary.`
     case 'string':
@@ -103,7 +111,11 @@ export function paramEnvironments(project: Project): Map<string, ParamEnvironmen
           }
         }
       }
-      visit(target, { interventionId: env.interventionId, chain: [...env.chain, target], values, sources }, stack)
+      visit(
+        target,
+        { interventionId: env.interventionId, chain: [...env.chain, target], values, sources },
+        stack,
+      )
     }
     stack.delete(id)
   }
@@ -142,13 +154,22 @@ export function interventionParams(
 ): { name: string; param: ActivityParam; declaredIn: string; activities: string[] }[] {
   const iv = project.interventions.find((i) => i.id === interventionId)
   if (!iv) return []
-  const byName = new Map<string, { name: string; param: ActivityParam; declaredIn: string; activities: string[] }>()
+  const byName = new Map<
+    string,
+    { name: string; param: ActivityParam; declaredIn: string; activities: string[] }
+  >()
   for (const ref of iv.activities) {
     if (!project.activities[ref.ref]) continue
     for (const p of effectiveParams(project, ref.ref)) {
       const entry = byName.get(p.name)
       if (entry) entry.activities.push(ref.ref)
-      else byName.set(p.name, { name: p.name, param: p.param, declaredIn: p.declaredIn, activities: [ref.ref] })
+      else
+        byName.set(p.name, {
+          name: p.name,
+          param: p.param,
+          declaredIn: p.declaredIn,
+          activities: [ref.ref],
+        })
     }
   }
   return [...byName.values()]

@@ -12,7 +12,13 @@ import {
   type TriccEdge,
   type TriccNode,
 } from '../model/types.js'
-import { NODE_TYPES, canonicalNodeType, isExtensionTarget, isSelect, type NodeType } from './schema/node-types.js'
+import {
+  NODE_TYPES,
+  canonicalNodeType,
+  isExtensionTarget,
+  isSelect,
+  type NodeType,
+} from './schema/node-types.js'
 import { liftRootAttributes } from '../model/activity-kind.js'
 import { fromHtml, isStructured } from '../text/message.js'
 import { parseParamArg, parseParamShorthand } from '../params/drawio.js'
@@ -105,7 +111,8 @@ function graphOf(diagram: XmlNode): XmlNode {
   const inline = diagram.children.find((c) => c.tag.toLowerCase() === 'mxgraphmodel')
   if (inline) return inline
   const payload = diagram.text.trim()
-  if (!payload) throw new Error(`Draw.io page "${diagram.attrs['name'] ?? diagram.attrs['id']}" is empty.`)
+  if (!payload)
+    throw new Error(`Draw.io page "${diagram.attrs['name'] ?? diagram.attrs['id']}" is empty.`)
   if (payload.startsWith('<')) return parseXml(payload)
   const xml = inflateDiagram(payload)
   return parseXml(xml)
@@ -238,7 +245,12 @@ function pageToActivity(
       folded.add(shape.id)
       continue
     }
-    if (kind.type === 'select_option' && shape.parent && nodes[shape.parent] && isSelectNode(nodes[shape.parent]!)) {
+    if (
+      kind.type === 'select_option' &&
+      shape.parent &&
+      nodes[shape.parent] &&
+      isSelectNode(nodes[shape.parent]!)
+    ) {
       const parent = nodes[shape.parent]!
       const optionLabel = plain(shape.attrs['label'] ?? shape.value)
       const optionName = validName(shape.attrs['name'])
@@ -286,10 +298,14 @@ function pageToActivity(
     if (!picture) continue
     const answer = optionOf.get(shape.target)
     const node = nodes[answer ? answer.nodeId : shape.target]
-    const option: SelectOption | undefined = answer ? node?.options?.find((o) => o.id === shape.target) : undefined
+    const option: SelectOption | undefined = answer
+      ? node?.options?.find((o) => o.id === shape.target)
+      : undefined
     const item: TriccNode | SelectOption | undefined = option ?? node
     if (!item) continue
-    const base = option ? `${node?.name ?? 'answer'}-${option.name ?? option.id}` : (node?.name ?? 'image')
+    const base = option
+      ? `${node?.name ?? 'answer'}-${option.name ?? option.id}`
+      : (node?.name ?? 'image')
     const id = uniqueImageId(imageIdFrom(base), images)
     images[id] = { id, ...picture }
     item.media = { image: id }
@@ -307,7 +323,9 @@ function pageToActivity(
     const toComment = comments.get(shape.target)
     if (fromComment || toComment) {
       const comment = (fromComment ?? toComment)!
-      const other = optionOf.get(fromComment ? shape.target : shape.source)?.nodeId ?? (fromComment ? shape.target : shape.source)
+      const other =
+        optionOf.get(fromComment ? shape.target : shape.source)?.nodeId ??
+        (fromComment ? shape.target : shape.source)
       if (!comment.node && nodes[other]) comment.node = other
       continue
     }
@@ -388,7 +406,12 @@ function shapeToNode(
     node.context = context
   }
   const severity = shape.attrs['severity']
-  if (severity === 'light' || severity === 'mild' || severity === 'moderate' || severity === 'severe') {
+  if (
+    severity === 'light' ||
+    severity === 'mild' ||
+    severity === 'moderate' ||
+    severity === 'severe'
+  ) {
     node.severity = severity
   }
   if (shape.attrs['save']) node.save = shape.attrs['save']
@@ -445,7 +468,6 @@ function commentOf(shape: Shape, text: string, color: CanvasComment['color']): C
   return comment
 }
 
-
 function classify(
   rawType: string,
 ): 'skip' | 'hint' | 'help' | { type: NodeType; unmapped?: string; populateDefault?: boolean } {
@@ -460,7 +482,6 @@ function classify(
   if (KNOWN.has(canonicalNodeType(rawType))) return { type: canonicalNodeType(rawType) as NodeType }
   return { type: 'note', unmapped: rawType }
 }
-
 
 function isSelectNode(node: TriccNode): boolean {
   return isSelect(node.type)
@@ -525,7 +546,9 @@ function shapeFrom(
 }
 
 /** The picture of an image shape: `image=data:image/<type>[;base64],<payload>` in its style. */
-function embeddedImage(style: string | undefined): { contentType: ImageContentType; data: Uint8Array } | undefined {
+function embeddedImage(
+  style: string | undefined,
+): { contentType: ImageContentType; data: Uint8Array } | undefined {
   const match = /(?:^|;)image=data:(image\/[a-z+.-]+)(;base64)?,([^;]*)/i.exec(style ?? '')
   if (!match) return undefined
   const contentType = match[1]!.toLowerCase() as ImageContentType
@@ -601,7 +624,10 @@ function b64ToBytes(data: string): Uint8Array {
 }
 
 function parseXml(source: string): XmlNode {
-  const xml = source.replace(/<\?xml[\s\S]*?\?>/g, '').replace(/<!--[\s\S]*?-->/g, '').trim()
+  const xml = source
+    .replace(/<\?xml[\s\S]*?\?>/g, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .trim()
   let i = 0
   const skip = () => {
     while (i < xml.length && /\s/.test(xml[i]!)) i += 1

@@ -33,7 +33,8 @@ export function parseParamShorthand(name: string, raw: string, lang = 'en'): Act
     else if (label && typeof label === 'object') p.label = label as Record<string, string>
     const description = json['description']
     if (typeof description === 'string') p.description = { [lang]: description }
-    else if (description && typeof description === 'object') p.description = description as Record<string, string>
+    else if (description && typeof description === 'object')
+      p.description = description as Record<string, string>
     return p
   }
   const m = SHORTHAND.exec(text)
@@ -41,7 +42,11 @@ export function parseParamShorthand(name: string, raw: string, lang = 'en'): Act
     throw new Error(`The parameter "${name}" reads "${raw}", which is not type(options)!=default.`)
   }
   const p: ActivityParam = { name, type: m[1] as ActivityParam['type'] }
-  if (m[2] !== undefined) p.options = m[2].split('|').map((o) => o.trim()).filter(Boolean)
+  if (m[2] !== undefined)
+    p.options = m[2]
+      .split('|')
+      .map((o) => o.trim())
+      .filter(Boolean)
   if (m[3]) p.required = true
   if (m[4] !== undefined) p.default = typed(p.type, m[4].trim())
   return p

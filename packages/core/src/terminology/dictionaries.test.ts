@@ -20,7 +20,12 @@ function withCalculate(): Project {
   const project = sampleProject()
   const [, calc] = projectDictionaries(project)
   const cs = emptyCodeSystem(calc!)
-  cs.concepts['severe_pneumonia'] = { system: cs.url, code: 'severe_pneumonia', display: 'Severe pneumonia', designations: [] }
+  cs.concepts['severe_pneumonia'] = {
+    system: cs.url,
+    code: 'severe_pneumonia',
+    display: 'Severe pneumonia',
+    designations: [],
+  }
   cs.conceptOrder.push('severe_pneumonia')
   project.codeSystems[cs.url] = cs
   project.calculateCodeSystem = cs.url
@@ -45,7 +50,10 @@ describe('data dictionaries', () => {
     const project = withCalculate()
     expect(calculateCodeSystem(project)?.id).toBe('tricc-calculate')
     const node = { id: 'd', type: 'diagnosis', name: 'severe_pneumonia' } as TriccNode
-    expect(nodeConceptKey(project, node)).toEqual({ system: `${DEFAULT}-calculate`, code: 'severe_pneumonia' })
+    expect(nodeConceptKey(project, node)).toEqual({
+      system: `${DEFAULT}-calculate`,
+      code: 'severe_pneumonia',
+    })
     // A question of the same name does not look there.
     expect(nodeConceptKey(project, { ...node, type: 'select_yesno' } as TriccNode)).toBeUndefined()
   })
@@ -90,7 +98,10 @@ describe('project search', () => {
   it('finds concepts, activities and nodes, ignoring case', () => {
     const project = withCalculate()
     const result = searchProject(project, 'PNEUMONIA')
-    expect(result.concepts.map((c) => [c.dictionary, c.concept.code])).toContainEqual(['tricc-calculate', 'severe_pneumonia'])
+    expect(result.concepts.map((c) => [c.dictionary, c.concept.code])).toContainEqual([
+      'tricc-calculate',
+      'severe_pneumonia',
+    ])
     expect(searchProject(project, '').concepts).toEqual([])
   })
 })

@@ -651,7 +651,9 @@ function ProjectWorkspace({
         crumbs={
           <Breadcrumbs
             trail={dictionary || media || blocks ? [] : trail}
-            extra={dictionary ? 'Data dictionary' : media ? 'Media' : blocks ? TERMS.blocks : undefined}
+            extra={
+              dictionary ? 'Data dictionary' : media ? 'Media' : blocks ? TERMS.blocks : undefined
+            }
             onHome={() => navigate('/')}
             onProject={() => {
               showView(null)

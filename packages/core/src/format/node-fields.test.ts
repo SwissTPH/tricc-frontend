@@ -22,7 +22,15 @@ const FULL: TriccNode = {
   default: 'no',
   listName: 'cough_list',
   group: 'g1',
-  options: [{ id: 'o1', name: 'yes', label: { en: 'Yes' }, concept: { system: 'http://x', code: 'yes' }, relevance: { expression: 'true' } }],
+  options: [
+    {
+      id: 'o1',
+      name: 'yes',
+      label: { en: 'Yes' },
+      concept: { system: 'http://x', code: 'yes' },
+      relevance: { expression: 'true' },
+    },
+  ],
   relevance: { intent: { en: 'When coughing' }, expression: 'Fever' },
   calculate: { expression: '1 + 1' },
   expression: { expression: 'x' },
@@ -44,7 +52,11 @@ const FULL: TriccNode = {
   hint: { en: 'Ask the mother' },
   help: { en: 'More detail' },
   media: { image: 'cough.png' },
-  notAvailable: { name: 'cough_na', label: { en: 'Not asked' }, concept: { system: 'http://x', code: 'na' } },
+  notAvailable: {
+    name: 'cough_na',
+    label: { en: 'Not asked' },
+    concept: { system: 'http://x', code: 'na' },
+  },
   save: 'obs',
   ui: { x: 10, y: 20, width: 200, height: 64, color: 'red', collapsed: false },
 }
@@ -53,7 +65,9 @@ const NEVER_STORED: NodeField[] = ['form_id', 'labelMessage']
 
 describe('every node field round-trips', () => {
   it('the sample sets every field the table stores (add a value here for a new field)', () => {
-    const stored = (Object.keys(NODE_FIELDS) as NodeField[]).filter((f) => !NEVER_STORED.includes(f))
+    const stored = (Object.keys(NODE_FIELDS) as NodeField[]).filter(
+      (f) => !NEVER_STORED.includes(f),
+    )
     expect(stored.filter((f) => !(f in FULL))).toEqual([])
   })
 

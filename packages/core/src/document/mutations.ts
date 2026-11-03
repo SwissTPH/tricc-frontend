@@ -31,7 +31,14 @@ import {
 import { syncedParamConcepts, syncedParams, paramConceptCode } from '../params/sync.js'
 import { coerceArg, planParamRename } from '../params/rename.js'
 import { calculateCodeSystem } from '../terminology/dictionaries.js'
-import { expressionToY, localizedToY, newText, setPlain, setScalar, updateLocalized } from './ytypes.js'
+import {
+  expressionToY,
+  localizedToY,
+  newText,
+  setPlain,
+  setScalar,
+  updateLocalized,
+} from './ytypes.js'
 import type { Expression } from '../format/schema/expression.js'
 import { designationText, retargetImage, withDesignationText } from '../text/message.js'
 import type { LocalizedText } from '../format/schema/localized.js'
@@ -103,7 +110,10 @@ export class Mutations {
     setScalar(this.activity(activityId), 'name', name)
     if (!before?.params?.length) return
     for (const p of before.params) {
-      this.moveParamConcept(paramConceptCode(before, p.name), paramConceptCode({ id: activityId, name }, p.name))
+      this.moveParamConcept(
+        paramConceptCode(before, p.name),
+        paramConceptCode({ id: activityId, name }, p.name),
+      )
     }
     this.syncParams()
   }
@@ -137,17 +147,23 @@ export class Mutations {
       for (const iv of plan.interventions) this.updateIntervention(iv)
       project = projectFromDoc(this.doc)
     }
-    const rows = (project.activities[activityId]!.params ?? []).map((p) => (p.name === next.name ? next : p))
+    const rows = (project.activities[activityId]!.params ?? []).map((p) =>
+      p.name === next.name ? next : p,
+    )
     setPlain(this.activity(activityId), 'params', rows)
     if (next.type !== current.type) {
       for (const caller of Object.values(project.activities)) {
         for (const node of Object.values(caller.nodes)) {
-          if (!isCall(node) || node.link !== activityId || node.args?.[next.name] === undefined) continue
+          if (!isCall(node) || node.link !== activityId || node.args?.[next.name] === undefined)
+            continue
           const args = { ...node.args }
           const value = coerceArg(args[next.name]!, next.type)
           if (value === undefined) delete args[next.name]
           else args[next.name] = value
-          this.updateNodeOnly(caller.id, { ...node, args: Object.keys(args).length ? args : undefined } as TriccNode)
+          this.updateNodeOnly(caller.id, {
+            ...node,
+            args: Object.keys(args).length ? args : undefined,
+          } as TriccNode)
         }
       }
     }
@@ -263,7 +279,13 @@ export class Mutations {
   }
 
   /** Put a node in a group (or none), at a position relative to it. */
-  setNodeGroup(activityId: string, nodeId: string, group: string | undefined, x: number, y: number): void {
+  setNodeGroup(
+    activityId: string,
+    nodeId: string,
+    group: string | undefined,
+    x: number,
+    y: number,
+  ): void {
     const nodes = this.activity(activityId).get('nodes') as Y.Map<Y.Map<unknown>>
     const n = nodes.get(nodeId)
     if (!n) throw new Error(`no such node: ${nodeId}`)

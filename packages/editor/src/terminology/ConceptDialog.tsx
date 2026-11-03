@@ -24,7 +24,12 @@ import {
   type DisplayText,
   type Project,
 } from '@tricc/core'
-import { useCanWrite, useEditorPreferences, useMutate, useProjectSnapshot } from '../runtime/context.js'
+import {
+  useCanWrite,
+  useEditorPreferences,
+  useMutate,
+  useProjectSnapshot,
+} from '../runtime/context.js'
 import { RichTextField } from '../text/RichTextField.js'
 import { ensureDictionary } from './codeSystems.js'
 import { draggingFiles, imageFiles, useAddImages } from '../media/images.js'
@@ -82,12 +87,12 @@ export function ConceptDialog({
   const [draft, setDraft] = useState<Concept>(() =>
     existing
       ? structuredClone(existing)
-      : {
+      : ({
           code: '',
           designations: [],
           ...(isNew ? structuredClone(target.draft) : {}),
           system,
-        } as Concept,
+        } as Concept),
   )
   const cardRef = useRef<HTMLDivElement>(null)
   const addImages = useAddImages()
@@ -126,18 +131,18 @@ export function ConceptDialog({
   const error = missingLanguage
     ? 'Give each text a language (en, fr, …).'
     : !isNew
-    ? !draft.display?.trim()
-      ? 'Give the concept a display.'
-      : undefined
-    : !code
-      ? 'Give the concept a code.'
-      : !CODE.test(code)
-        ? 'A code uses letters, digits, ".", "_" and "-".'
-        : existingCs?.concepts[code]
-          ? 'The dictionary already has this code.'
-          : !draft.display?.trim()
-            ? 'Give the concept a display.'
-            : undefined
+      ? !draft.display?.trim()
+        ? 'Give the concept a display.'
+        : undefined
+      : !code
+        ? 'Give the concept a code.'
+        : !CODE.test(code)
+          ? 'A code uses letters, digits, ".", "_" and "-".'
+          : existingCs?.concepts[code]
+            ? 'The dictionary already has this code.'
+            : !draft.display?.trim()
+              ? 'Give the concept a display.'
+              : undefined
 
   const set = (patch: Partial<Concept>) => {
     const next = { ...draft, ...patch } as Concept
@@ -147,7 +152,9 @@ export function ConceptDialog({
     setDraft(next)
   }
   const ownText = (use: DesignationUse): DisplayText => {
-    const d = draft.designations.find((x) => x.language === lang && isUnscoped(x) && designationUse(x) === use)
+    const d = draft.designations.find(
+      (x) => x.language === lang && isUnscoped(x) && designationUse(x) === use,
+    )
     return d ? designationText(d) : ''
   }
   const setText = (use: DesignationUse, text: DisplayText) =>
@@ -157,11 +164,14 @@ export function ConceptDialog({
   const main = new Set(
     RICH.map((use) =>
       draft.designations.findIndex(
-        (d, i) => i < opened.current && d.language === lang && isUnscoped(d) && designationUse(d) === use,
+        (d, i) =>
+          i < opened.current && d.language === lang && isUnscoped(d) && designationUse(d) === use,
       ),
     ).filter((i) => i >= 0),
   )
-  const others = draft.designations.map((d, index) => ({ d, index })).filter(({ index }) => !main.has(index))
+  const others = draft.designations
+    .map((d, index) => ({ d, index }))
+    .filter(({ index }) => !main.has(index))
   const updateAt = (index: number, d: Designation) =>
     setDraft({ ...draft, designations: draft.designations.map((x, i) => (i === index ? d : x)) })
 
@@ -198,7 +208,8 @@ export function ConceptDialog({
           setPictureOver(true)
         }}
         onDragLeave={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPictureOver(false)
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+            setPictureOver(false)
         }}
         onDrop={(event) => {
           if (!canWrite || !draggingFiles(event)) return
@@ -221,8 +232,12 @@ export function ConceptDialog({
         </h2>
         {isParam && (
           <p className="tricc-import-note" data-testid="concept-parameter-note">
-            A parameter of {owner ? (resolve(project.activities[owner]?.title, lang, lang) ?? owner) : 'a page that no longer has it'}.
-            Its type, options and default are edited in that page's settings; only its texts are edited here.{' '}
+            A parameter of{' '}
+            {owner
+              ? (resolve(project.activities[owner]?.title, lang, lang) ?? owner)
+              : 'a page that no longer has it'}
+            . Its type, options and default are edited in that page's settings; only its texts are
+            edited here.{' '}
             {owner && onOpenActivity && (
               <Button
                 variant="outline"
@@ -408,7 +423,10 @@ export function ConceptDialog({
                           value={use ?? 'other'}
                           disabled={readOnly || use === undefined}
                           onChange={(e) =>
-                            updateAt(index, { ...d, use: { ...DESIGNATION_USES[e.target.value as DesignationUse] } })
+                            updateAt(index, {
+                              ...d,
+                              use: { ...DESIGNATION_USES[e.target.value as DesignationUse] },
+                            })
                           }
                         >
                           {(Object.keys(USE_LABELS) as DesignationUse[]).map((u) => (
@@ -416,7 +434,9 @@ export function ConceptDialog({
                               {USE_LABELS[u]}
                             </option>
                           ))}
-                          {use === undefined && <option value="other">{d.use?.code ?? 'Other'}</option>}
+                          {use === undefined && (
+                            <option value="other">{d.use?.code ?? 'Other'}</option>
+                          )}
                         </select>
                       </td>
                       <td>
@@ -444,7 +464,10 @@ export function ConceptDialog({
                               const kept = (d.extension ?? []).filter(
                                 (x) => (x as { url?: string }).url !== INTERVENTION_SCOPE_URL,
                               )
-                              const extension = [...kept, ...scopeExtension(e.target.value ? [e.target.value] : [])]
+                              const extension = [
+                                ...kept,
+                                ...scopeExtension(e.target.value ? [e.target.value] : []),
+                              ]
                               const next: Designation = { ...d }
                               if (extension.length) next.extension = extension
                               else delete next.extension
@@ -489,7 +512,10 @@ export function ConceptDialog({
                             data-testid={`concept-text-${index}-remove`}
                             onClick={() => {
                               if (index < opened.current) opened.current -= 1
-                              setDraft({ ...draft, designations: draft.designations.filter((_, i) => i !== index) })
+                              setDraft({
+                                ...draft,
+                                designations: draft.designations.filter((_, i) => i !== index),
+                              })
                             }}
                           >
                             Remove
@@ -550,7 +576,8 @@ export function ConceptDialog({
                             onOpenNode?.(u.activityId, u.nodeId)
                           }}
                         >
-                          {resolve(activity?.title, lang, lang) ?? u.activityId} — {node?.name ?? u.nodeId}
+                          {resolve(activity?.title, lang, lang) ?? u.activityId} —{' '}
+                          {node?.name ?? u.nodeId}
                           {u.optionId ? ' (answer)' : ''}
                         </Button>
                       </li>
@@ -574,7 +601,11 @@ export function ConceptDialog({
                 type="button"
                 data-testid="concept-delete"
                 disabled={uses.length > 0}
-                title={uses.length > 0 ? `Used by ${uses.length}. Remove those uses first.` : 'Delete this concept'}
+                title={
+                  uses.length > 0
+                    ? `Used by ${uses.length}. Remove those uses first.`
+                    : 'Delete this concept'
+                }
                 onClick={() => {
                   mutate((tx) => tx.removeConcept(key.system, key.code))
                   onClose()
@@ -611,11 +642,16 @@ export function ConceptDialog({
 }
 
 function withCurrent(list: readonly string[], current: string | undefined): string[] {
-  return current && !list.some((t) => t.toLowerCase() === current.toLowerCase()) ? [...list, current] : [...list]
+  return current && !list.some((t) => t.toLowerCase() === current.toLowerCase())
+    ? [...list, current]
+    : [...list]
 }
 
 /** A dictionary as the author sees it: its id, with what it is for. */
-export function dictionaryLabel(d: { id: string; kind: 'default' | 'calculate' | 'other' }): string {
+export function dictionaryLabel(d: {
+  id: string
+  kind: 'default' | 'calculate' | 'other'
+}): string {
   if (d.kind === 'default') return `${d.id} (default)`
   if (d.kind === 'calculate') return `${d.id} (calculations and diagnoses)`
   return d.id

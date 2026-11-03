@@ -855,7 +855,10 @@
   border-radius: 999px;
   background: #fff;
   color: inherit;
-  font: italic 11px/16px ui-sans-serif, system-ui, sans-serif;
+  font:
+    italic 11px/16px ui-sans-serif,
+    system-ui,
+    sans-serif;
   cursor: pointer;
 }
 
@@ -1446,11 +1449,21 @@
   outline: 2px solid #1565c0;
   outline-offset: 1px;
 }
-.tricc-comment--yellow { background: #fff6b3; }
-.tricc-comment--blue { background: #d6e8fb; }
-.tricc-comment--green { background: #d8f0d4; }
-.tricc-comment--pink { background: #fbd9e3; }
-.tricc-comment--grey { background: #e6e9ed; }
+.tricc-comment--yellow {
+  background: #fff6b3;
+}
+.tricc-comment--blue {
+  background: #d6e8fb;
+}
+.tricc-comment--green {
+  background: #d8f0d4;
+}
+.tricc-comment--pink {
+  background: #fbd9e3;
+}
+.tricc-comment--grey {
+  background: #e6e9ed;
+}
 .tricc-comment__text:empty::before {
   content: 'Sticky note';
   opacity: 0.5;
@@ -1473,10 +1486,22 @@
   border-style: solid;
   border-color: #1565c0;
 }
-.tricc-group--yellow { background: rgb(255 246 179 / 0.35); border-color: #c9b33b; }
-.tricc-group--blue { background: rgb(214 232 251 / 0.4); border-color: #5b8cc4; }
-.tricc-group--green { background: rgb(216 240 212 / 0.4); border-color: #5f9a56; }
-.tricc-group--pink { background: rgb(251 217 227 / 0.4); border-color: #c46b86; }
+.tricc-group--yellow {
+  background: rgb(255 246 179 / 0.35);
+  border-color: #c9b33b;
+}
+.tricc-group--blue {
+  background: rgb(214 232 251 / 0.4);
+  border-color: #5b8cc4;
+}
+.tricc-group--green {
+  background: rgb(216 240 212 / 0.4);
+  border-color: #5f9a56;
+}
+.tricc-group--pink {
+  background: rgb(251 217 227 / 0.4);
+  border-color: #c46b86;
+}
 .tricc-group__title {
   padding: 4px 8px;
   font-size: 12px;
@@ -1879,16 +1904,51 @@
   font-size: 12px;
   cursor: pointer;
 }
-.tricc-discuss-chip--blue.is-selected { background: #2563eb; border-color: #2563eb; color: #fff; }
-.tricc-discuss-chip--green.is-selected { background: #16a34a; border-color: #16a34a; color: #fff; }
-.tricc-discuss-chip--pink.is-selected { background: #db2777; border-color: #db2777; color: #fff; }
-.tricc-discuss-chip--yellow.is-selected { background: #d97706; border-color: #d97706; color: #fff; }
-.tricc-discuss-chip--grey.is-selected { background: #64748b; border-color: #64748b; color: #fff; }
-.tricc-discuss-chip--blue:not(.is-selected) { color: #2563eb; border-color: #2563eb; }
-.tricc-discuss-chip--green:not(.is-selected) { color: #16a34a; border-color: #16a34a; }
-.tricc-discuss-chip--pink:not(.is-selected) { color: #db2777; border-color: #db2777; }
-.tricc-discuss-chip--yellow:not(.is-selected) { color: #d97706; border-color: #d97706; }
-.tricc-discuss-chip--grey:not(.is-selected) { color: #64748b; border-color: #64748b; }
+.tricc-discuss-chip--blue.is-selected {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+.tricc-discuss-chip--green.is-selected {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+}
+.tricc-discuss-chip--pink.is-selected {
+  background: #db2777;
+  border-color: #db2777;
+  color: #fff;
+}
+.tricc-discuss-chip--yellow.is-selected {
+  background: #d97706;
+  border-color: #d97706;
+  color: #fff;
+}
+.tricc-discuss-chip--grey.is-selected {
+  background: #64748b;
+  border-color: #64748b;
+  color: #fff;
+}
+.tricc-discuss-chip--blue:not(.is-selected) {
+  color: #2563eb;
+  border-color: #2563eb;
+}
+.tricc-discuss-chip--green:not(.is-selected) {
+  color: #16a34a;
+  border-color: #16a34a;
+}
+.tricc-discuss-chip--pink:not(.is-selected) {
+  color: #db2777;
+  border-color: #db2777;
+}
+.tricc-discuss-chip--yellow:not(.is-selected) {
+  color: #d97706;
+  border-color: #d97706;
+}
+.tricc-discuss-chip--grey:not(.is-selected) {
+  color: #64748b;
+  border-color: #64748b;
+}
 .tricc-discuss-button {
   border: 1px solid #cbd5e1;
   background: #fff;
@@ -1897,8 +1957,12 @@
   font-size: 12px;
   cursor: pointer;
 }
-.tricc-discuss-button__open { color: #2563eb; }
-.tricc-discuss-button__pending { color: #d97706; }
+.tricc-discuss-button__open {
+  color: #2563eb;
+}
+.tricc-discuss-button__pending {
+  color: #d97706;
+}
 .tricc-process-row__marks,
 .tricc-unassigned__marks {
   display: inline-flex;

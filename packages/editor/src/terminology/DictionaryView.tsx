@@ -65,12 +65,18 @@ export function DictionaryView({
   }
 
   return (
-    <section className="tricc-dictionary" data-testid="dictionary-view" aria-labelledby="dictionary-heading">
+    <section
+      className="tricc-dictionary"
+      data-testid="dictionary-view"
+      aria-labelledby="dictionary-heading"
+    >
       <header className="tricc-editor__header">
         <h1 id="dictionary-heading">
-          Data dictionary{dictionary ? <span data-testid="dictionary-id"> — {dictionary.id}</span> : null}
+          Data dictionary
+          {dictionary ? <span data-testid="dictionary-id"> — {dictionary.id}</span> : null}
         </h1>
-        <Input size="sm"
+        <Input
+          size="sm"
           type="search"
           data-testid="concept-search"
           aria-label="Find a concept"
@@ -146,13 +152,18 @@ export function DictionaryView({
                     {(() => {
                       const text = conceptRichText(concept, 'q-display', lang, lang)
                       const id = text === undefined ? undefined : imageRefs(text)[0]
-                      return id ? <TextImage src={imageSrc(id)} className="tricc-dictionary__thumb" /> : null
+                      return id ? (
+                        <TextImage src={imageSrc(id)} className="tricc-dictionary__thumb" />
+                      ) : null
                     })()}
                   </td>
                   <td className="tricc-dictionary__code">
                     {concept.code}
                     {concept.kind === 'parameter' && (
-                      <span className="tricc-badge" data-testid={`concept-row-${concept.code}-parameter`}>
+                      <span
+                        className="tricc-badge"
+                        data-testid={`concept-row-${concept.code}-parameter`}
+                      >
                         {' '}
                         Parameter
                       </span>
@@ -190,10 +201,16 @@ function questionnaire(concept: Concept, lang: string): string {
 
 function listed(project: Project, index: ConceptIndex, query: string, system: string | undefined) {
   const concepts = query.trim()
-    ? index.search(query.trim(), { limit: 500, ...(system ? { codeSystem: system } : {}) }).map((m) => m.concept)
-    : Object.values(project.codeSystems).filter((cs) => !system || cs.url === system).flatMap((cs) =>
-        cs.conceptOrder.map((code) => cs.concepts[code]).filter((c): c is Concept => c !== undefined),
-      )
+    ? index
+        .search(query.trim(), { limit: 500, ...(system ? { codeSystem: system } : {}) })
+        .map((m) => m.concept)
+    : Object.values(project.codeSystems)
+        .filter((cs) => !system || cs.url === system)
+        .flatMap((cs) =>
+          cs.conceptOrder
+            .map((code) => cs.concepts[code])
+            .filter((c): c is Concept => c !== undefined),
+        )
   return concepts.map((concept) => ({
     concept,
     uses: conceptUsage(project, { system: concept.system, code: concept.code }).length,

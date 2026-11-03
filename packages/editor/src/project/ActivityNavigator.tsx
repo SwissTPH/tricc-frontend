@@ -114,9 +114,14 @@ export function ActivityNavigator({
     }
   }
   const usage = activityUsage(project)
-  const conceptCount = Object.values(project.codeSystems).reduce((n, cs) => n + cs.conceptOrder.length, 0)
+  const conceptCount = Object.values(project.codeSystems).reduce(
+    (n, cs) => n + cs.conceptOrder.length,
+    0,
+  )
   const selectedActivity = selected ? project.activities[selected] : undefined
-  const selectedKind: LibraryTab | undefined = selectedActivity ? activityKind(selectedActivity) : undefined
+  const selectedKind: LibraryTab | undefined = selectedActivity
+    ? activityKind(selectedActivity)
+    : undefined
 
   // Opening an entry shows the tab it belongs to. A manual tab click stays until the
   // open entry changes, so looking at the other list does not jump back.
@@ -225,7 +230,10 @@ export function ActivityNavigator({
       try {
         parsed = readActivityFile(file.name, text, new Set(reserved), lang)
       } catch (error) {
-        errors.push({ filename: file.name, message: error instanceof Error ? error.message : String(error) })
+        errors.push({
+          filename: file.name,
+          message: error instanceof Error ? error.message : String(error),
+        })
         continue
       }
       // A page with a main start is a process, any other page an activity. One import
@@ -275,8 +283,10 @@ export function ActivityNavigator({
   }
 
   const query = tab === 'activity' ? activityQuery : tab === 'block' ? blockQuery : processQuery
-  const setQuery = tab === 'activity' ? setActivityQuery : tab === 'block' ? setBlockQuery : setProcessQuery
-  const addLabel = tab === 'activity' ? 'Add an activity' : tab === 'block' ? TERMS.newBlock : 'Add a process'
+  const setQuery =
+    tab === 'activity' ? setActivityQuery : tab === 'block' ? setBlockQuery : setProcessQuery
+  const addLabel =
+    tab === 'activity' ? 'Add an activity' : tab === 'block' ? TERMS.newBlock : 'Add a process'
 
   return (
     <nav data-testid="activity-navigator" data-expanded={expanded ? 'true' : 'false'}>
@@ -356,7 +366,8 @@ export function ActivityNavigator({
             </button>
           )}
         </div>
-        <Input size="sm"
+        <Input
+          size="sm"
           type="search"
           className="tricc-nav__project-search"
           data-testid="project-search"
@@ -372,58 +383,64 @@ export function ActivityNavigator({
           }}
         />
         {tab !== 'dictionary' && tab !== 'media' && (
-        <>
-        <Button
-          variant="outline"
-          size="sm"
-          type="button"
-          data-testid="nav-expand"
-          aria-expanded={expanded}
-          aria-controls={`${tab}-panel`}
-          disabled={!expanded && !overflows}
-          onClick={() => setExpanded((open) => !open)}
-        >
-          {expanded ? 'Collapse' : 'Expand'}
-        </Button>
-        {canWrite && (
-          <span className="tricc-nav__create">
-            <Button
-              variant="outline"
-              size="icon-sm"
-              type="button"
-              data-testid={tab === 'activity' ? 'add-activity' : tab === 'block' ? 'add-building-block' : 'add-process'}
-              aria-label={addLabel}
-              title={addLabel}
-              onClick={() => {
-                setPreview(null)
-                openDraft(tab)
-              }}
-            >
-              +
-            </Button>
+          <>
             <Button
               variant="outline"
               size="sm"
               type="button"
-              data-testid={`import-${tab}`}
-              aria-label={`Import ${tab === 'activity' ? 'an activity' : `a ${tab}`}`}
-              title={`Import ${tab === 'activity' ? 'an activity' : `a ${tab}`}`}
-              onClick={openImport}
+              data-testid="nav-expand"
+              aria-expanded={expanded}
+              aria-controls={`${tab}-panel`}
+              disabled={!expanded && !overflows}
+              onClick={() => setExpanded((open) => !open)}
             >
-              Import
+              {expanded ? 'Collapse' : 'Expand'}
             </Button>
-            <input
-              ref={fileRef}
-              type="file"
-              multiple
-              hidden
-              accept=".yaml,.yml,.drawio,.xml"
-              data-testid={`import-${tab}-file`}
-              onChange={(event) => void onImportFiles(event.target.files)}
-            />
-          </span>
-        )}
-        </>
+            {canWrite && (
+              <span className="tricc-nav__create">
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  type="button"
+                  data-testid={
+                    tab === 'activity'
+                      ? 'add-activity'
+                      : tab === 'block'
+                        ? 'add-building-block'
+                        : 'add-process'
+                  }
+                  aria-label={addLabel}
+                  title={addLabel}
+                  onClick={() => {
+                    setPreview(null)
+                    openDraft(tab)
+                  }}
+                >
+                  +
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  data-testid={`import-${tab}`}
+                  aria-label={`Import ${tab === 'activity' ? 'an activity' : `a ${tab}`}`}
+                  title={`Import ${tab === 'activity' ? 'an activity' : `a ${tab}`}`}
+                  onClick={openImport}
+                >
+                  Import
+                </Button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  multiple
+                  hidden
+                  accept=".yaml,.yml,.drawio,.xml"
+                  data-testid={`import-${tab}-file`}
+                  onChange={(event) => void onImportFiles(event.target.files)}
+                />
+              </span>
+            )}
+          </>
         )}
       </div>
       <datalist id="cpg-processes">
@@ -452,7 +469,9 @@ export function ActivityNavigator({
                   onClick={() => onOpenDictionary?.(d.url)}
                 >
                   {d.id}
-                  <span className="tricc-nav__process">{d.codeSystem?.conceptOrder.length ?? 0}</span>
+                  <span className="tricc-nav__process">
+                    {d.codeSystem?.conceptOrder.length ?? 0}
+                  </span>
                 </button>
               </li>
             ))}
@@ -467,7 +486,8 @@ export function ActivityNavigator({
           selected={selected}
           query={blockQuery}
           filter={
-            <Input size="sm"
+            <Input
+              size="sm"
               type="search"
               data-testid="block-search"
               aria-label="Find a block"
@@ -514,7 +534,8 @@ export function ActivityNavigator({
           selected={selected}
           query={processQuery}
           filter={
-            <Input size="sm"
+            <Input
+              size="sm"
               type="search"
               data-testid="process-search"
               aria-label="Find a process"
@@ -561,7 +582,8 @@ export function ActivityNavigator({
           selected={selected}
           query={activityQuery}
           filter={
-            <Input size="sm"
+            <Input
+              size="sm"
               type="search"
               data-testid="activity-search"
               aria-label="Find an activity"
@@ -655,7 +677,9 @@ function LibraryPanel({
   const listRef = useRef<HTMLUListElement>(null)
   const needle = query.trim().toLowerCase()
   const shown = needle
-    ? ids.filter((id) => itemLabel(id).toLowerCase().includes(needle) || id.toLowerCase().includes(needle))
+    ? ids.filter(
+        (id) => itemLabel(id).toLowerCase().includes(needle) || id.toLowerCase().includes(needle),
+      )
     : ids
   const signature = `${shown.join('|')}|${expanded ? 'open' : 'closed'}`
 
@@ -795,7 +819,11 @@ function LibraryDraftDialog({
         }}
       >
         <h2 id="library-modal-title">
-          {draft.kind === 'activity' ? 'New activity' : draft.kind === 'block' ? TERMS.newBlock : 'New process'}
+          {draft.kind === 'activity'
+            ? 'New activity'
+            : draft.kind === 'block'
+              ? TERMS.newBlock
+              : 'New process'}
         </h2>
         {draft.kind === 'block' && <p className="tricc-import-note">{TERMS.blockOrGoto}</p>}
         {draft.kind !== 'process' ? (
@@ -836,7 +864,13 @@ function LibraryDraftDialog({
           <Button
             size="sm"
             type="submit"
-            data-testid={draft.kind === 'activity' ? 'create-activity' : draft.kind === 'block' ? 'create-block' : 'add-process-activity'}
+            data-testid={
+              draft.kind === 'activity'
+                ? 'create-activity'
+                : draft.kind === 'block'
+                  ? 'create-block'
+                  : 'add-process-activity'
+            }
             disabled={!savedAs}
           >
             Create
@@ -927,9 +961,7 @@ function ImportDialog({
         }}
       >
         <h2 id="import-modal-title">{title}</h2>
-        {canImport && (
-          <p className="tricc-import-note">Nothing is added until you import.</p>
-        )}
+        {canImport && <p className="tricc-import-note">Nothing is added until you import.</p>}
         {preview.rows.length > 0 && (
           <div data-testid="import-preview">
             {(['process', 'activity', 'block'] as const).map((group) => {
@@ -938,7 +970,12 @@ function ImportDialog({
               return (
                 <section key={group} data-testid={`import-group-${group}`}>
                   <h3>
-                    {group === 'process' ? 'Processes' : group === 'block' ? TERMS.blocks : 'Activities'} ({rows.length})
+                    {group === 'process'
+                      ? 'Processes'
+                      : group === 'block'
+                        ? TERMS.blocks
+                        : 'Activities'}{' '}
+                    ({rows.length})
                   </h3>
                   <ul className="tricc-import-list">
                     {rows.map((row) => {
@@ -946,7 +983,9 @@ function ImportDialog({
                       return (
                         <li key={row.activity.id} data-testid={`import-item-${row.activity.id}`}>
                           {label}
-                          <span data-testid={`import-id-${row.activity.id}`}>{importDetail(row)}</span>
+                          <span data-testid={`import-id-${row.activity.id}`}>
+                            {importDetail(row)}
+                          </span>
                           <span>{row.filename}</span>
                         </li>
                       )
@@ -958,7 +997,11 @@ function ImportDialog({
           </div>
         )}
         {preview.errors.map((error) => (
-          <p key={`${error.filename}-${error.message}`} className="tricc-import-note" data-testid="import-error">
+          <p
+            key={`${error.filename}-${error.message}`}
+            className="tricc-import-note"
+            data-testid="import-error"
+          >
             {error.filename}: {error.message}
           </p>
         ))}

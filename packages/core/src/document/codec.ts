@@ -332,9 +332,7 @@ export function interventionFromY(m: Y.Map<unknown>): Intervention {
   const stored = m.get('activities') as Y.Array<Y.Map<unknown>> | undefined
   const i: Intervention = {
     id: m.get('id') as string,
-    activities: stored
-      ? stored.toArray().map((am) => ({ ref: am.get('ref') as string }))
-      : [],
+    activities: stored ? stored.toArray().map((am) => ({ ref: am.get('ref') as string })) : [],
   }
   // `code` is the key before it was renamed to `name` (2026-10-08), still read for recovered drafts.
   const name = (m.get('name') ?? m.get('code')) as string | undefined
@@ -590,7 +588,14 @@ export function projectFromDoc(doc: Y.Doc): Project {
     libraries,
     activities,
   }
-  for (const k of ['system', 'code', 'version', 'mediaPath', 'defaultCodeSystem', 'calculateCodeSystem'] as const) {
+  for (const k of [
+    'system',
+    'code',
+    'version',
+    'mediaPath',
+    'defaultCodeSystem',
+    'calculateCodeSystem',
+  ] as const) {
     const v = meta.get(k)
     if (v !== undefined) assign(project, k, v)
   }
@@ -601,7 +606,8 @@ export function projectFromDoc(doc: Y.Doc): Project {
   const imagesY = doc.getMap<Y.Map<unknown>>('images')
   if (imagesY.size > 0) {
     const images: Record<string, ProjectImage> = {}
-    for (const id of [...imagesY.keys()].sort()) images[id] = imageFromY(imagesY.get(id) as Y.Map<unknown>)
+    for (const id of [...imagesY.keys()].sort())
+      images[id] = imageFromY(imagesY.get(id) as Y.Map<unknown>)
     project.images = images
   }
   const title = localizedFromY(doc.getMap<Y.Text>('title'))

@@ -1,4 +1,12 @@
-import type { Activity, Intervention, ParamType, ParamValue, Project, TriccEdge, TriccNode } from '../model/types.js'
+import type {
+  Activity,
+  Intervention,
+  ParamType,
+  ParamValue,
+  Project,
+  TriccEdge,
+  TriccNode,
+} from '../model/types.js'
 import { callsOf } from '../model/activity-kind.js'
 import { argRef } from './effective.js'
 
@@ -20,7 +28,12 @@ export interface ParamRenamePlan {
   interventions: Intervention[]
 }
 
-export function planParamRename(project: Project, ownerId: string, from: string, to: string): ParamRenamePlan {
+export function planParamRename(
+  project: Project,
+  ownerId: string,
+  from: string,
+  to: string,
+): ParamRenamePlan {
   const pages = new Map<string, Activity>()
   const changedNodes = new Map<string, Set<string>>()
   const changedEdges = new Map<string, Set<string>>()
@@ -115,7 +128,10 @@ export function renamePlaceholder(value: unknown, from: string, to: string): unk
   if (Array.isArray(value)) return value.map((v) => renamePlaceholder(v, from, to))
   if (value && typeof value === 'object') {
     return Object.fromEntries(
-      Object.entries(value).map(([k, v]) => [k, k === 'id' || k === 'type' || k === 'ui' ? v : renamePlaceholder(v, from, to)]),
+      Object.entries(value).map(([k, v]) => [
+        k,
+        k === 'id' || k === 'type' || k === 'ui' ? v : renamePlaceholder(v, from, to),
+      ]),
     )
   }
   return value

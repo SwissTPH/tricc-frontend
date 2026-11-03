@@ -435,6 +435,3 @@ function validateEdges(activity: Activity): Issue[] {
 
   return issues
 }
-
-
-

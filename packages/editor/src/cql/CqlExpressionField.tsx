@@ -51,7 +51,8 @@ export function CqlExpressionField({
   return (
     <div className="tricc-cql">
       <label htmlFor={id}>{label}</label>
-      <Textarea size="sm"
+      <Textarea
+        size="sm"
         id={id}
         rows={rows}
         className="tricc-cql__input"
@@ -107,10 +108,18 @@ export function CqlExpressionField({
               return (
                 <span
                   key={index}
-                  className={p ? 'tricc-cql__name tricc-cql__param' : 'tricc-cql__name tricc-cql__name--unknown'}
+                  className={
+                    p
+                      ? 'tricc-cql__name tricc-cql__param'
+                      : 'tricc-cql__name tricc-cql__name--unknown'
+                  }
                   data-testid={`${testId}-param-${index}`}
                   data-param={token.label}
-                  title={p ? `Setting ${shown} — {{${token.label}}}, set where the page is used` : `{{${token.label}}} — this page has no such setting`}
+                  title={
+                    p
+                      ? `Setting ${shown} — {{${token.label}}}, set where the page is used`
+                      : `{{${token.label}}} — this page has no such setting`
+                  }
                 >
                   {shown}
                 </span>

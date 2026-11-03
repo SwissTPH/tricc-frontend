@@ -98,7 +98,12 @@ function bubbled(
       if (!name) continue
       const entry = out.get(name)
       if (entry) entry.from.add(target)
-      else out.set(name, { param: { ...p.param, name }, declaredIn: p.declaredIn, from: new Set([target]) })
+      else
+        out.set(name, {
+          param: { ...p.param, name },
+          declaredIn: p.declaredIn,
+          from: new Set([target]),
+        })
     }
   }
   return out
@@ -128,13 +133,37 @@ function compute(
     const b = below.get(saved.name)
     out.push(
       b
-        ? { name: saved.name, param: b.param, declaredIn: b.declaredIn, computed: true, from: [...b.from], saved: true, unused: false }
-        : { name: saved.name, param: saved, declaredIn: id, computed: false, from: [], saved: true, unused: !used.has(saved.name) },
+        ? {
+            name: saved.name,
+            param: b.param,
+            declaredIn: b.declaredIn,
+            computed: true,
+            from: [...b.from],
+            saved: true,
+            unused: false,
+          }
+        : {
+            name: saved.name,
+            param: saved,
+            declaredIn: id,
+            computed: false,
+            from: [],
+            saved: true,
+            unused: !used.has(saved.name),
+          },
     )
   }
   for (const [name, b] of below) {
     if (seen.has(name)) continue
-    out.push({ name, param: b.param, declaredIn: b.declaredIn, computed: true, from: [...b.from], saved: false, unused: false })
+    out.push({
+      name,
+      param: b.param,
+      declaredIn: b.declaredIn,
+      computed: true,
+      from: [...b.from],
+      saved: false,
+      unused: false,
+    })
   }
   memo.set(id, out)
   return out
@@ -173,7 +202,11 @@ export function paramConflicts(project: Project): ParamConflict[] {
     }
     for (const [name, list] of byName) {
       if (new Set(list.map((l) => l.shape)).size < 2) continue
-      out.push({ activityId: id, name, declaredIn: [...new Set(list.map((l) => l.declaredIn))].sort() })
+      out.push({
+        activityId: id,
+        name,
+        declaredIn: [...new Set(list.map((l) => l.declaredIn))].sort(),
+      })
     }
   }
   return out

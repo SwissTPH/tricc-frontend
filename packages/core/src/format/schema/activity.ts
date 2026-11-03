@@ -16,7 +16,8 @@ export const NAME_RE = /^[A-Za-z_][A-Za-z0-9_.-]*$/
  * A name in a building block or a parameterized page may hold `{{param}}`, substituted when the
  * page is built (tricc_oo block-params §4, §10): `fever_{{site}}` becomes `fever_axillary`.
  */
-export const TEMPLATE_NAME_RE = /^(?:[A-Za-z0-9_.-]|\{\{\s*[a-z][a-z0-9_]*\s*(?:\|\s*raw\s*)?\}\})+$/
+export const TEMPLATE_NAME_RE =
+  /^(?:[A-Za-z0-9_.-]|\{\{\s*[a-z][a-z0-9_]*\s*(?:\|\s*raw\s*)?\}\})+$/
 
 /** `text` made into a valid name: each other character becomes `_`, a leading digit gets a `_`. */
 export function toName(text: string): string {
@@ -61,12 +62,7 @@ export const optionSchema = z
 export const PARAM_NAME_RE = /^[a-z][a-z0-9_]*$/
 
 /** A literal parameter value, a concept, or `{{name}}` (a string) bound to a setting of the caller. */
-export const paramValueSchema = z.union([
-  z.string(),
-  z.number(),
-  z.boolean(),
-  conceptRefSchema,
-])
+export const paramValueSchema = z.union([z.string(), z.number(), z.boolean(), conceptRefSchema])
 
 /**
  * One `params` entry (tricc_oo block-params §2). Labels and help texts are on the parameter's
@@ -110,7 +106,10 @@ export const waitReferenceSchema = z.union([
 export const nodeSchema = z
   .object({
     id: z.string().min(1),
-    type: z.preprocess((v) => (typeof v === 'string' ? canonicalNodeType(v) : v), z.enum(NODE_TYPES)),
+    type: z.preprocess(
+      (v) => (typeof v === 'string' ? canonicalNodeType(v) : v),
+      z.enum(NODE_TYPES),
+    ),
     name: z.string().regex(TEMPLATE_NAME_RE, 'invalid node name').optional(),
     label: localizedTextSchema.optional(),
     hint: localizedTextSchema.optional(),

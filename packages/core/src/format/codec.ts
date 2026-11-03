@@ -271,9 +271,7 @@ export function decodeCodeSystem(input: unknown): CodeSystem {
       return out
     })
     const concept: Concept = { system: raw.url, code: c.code, designations }
-    const extra = Object.fromEntries(
-      Object.entries(c).filter(([key]) => !CONCEPT_KEYS.has(key)),
-    )
+    const extra = Object.fromEntries(Object.entries(c).filter(([key]) => !CONCEPT_KEYS.has(key)))
     if (Object.keys(extra).length > 0) concept.extra = structuredClone(extra)
     const asString = (c.property ?? [])
       .filter((p) => p.valueString !== undefined && CODE_PROPERTIES.has(p.code))
@@ -543,7 +541,9 @@ export function encodeCodeSystem(cs: CodeSystem): Record<string, unknown> {
       const props: Record<string, unknown>[] = []
       const codeProp = (k: string, v: string | undefined) => {
         if (v === undefined) return
-        props.push(c.stringProperties?.includes(k) ? { code: k, valueString: v } : { code: k, valueCode: v })
+        props.push(
+          c.stringProperties?.includes(k) ? { code: k, valueString: v } : { code: k, valueCode: v },
+        )
       }
       const strProp = (k: string, v: string | undefined) => {
         if (v !== undefined) props.push({ code: k, valueString: v })

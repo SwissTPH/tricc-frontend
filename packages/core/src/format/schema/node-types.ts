@@ -4,7 +4,12 @@
  * Values match `TriccNodeType` in tricc_oo/models/base.py exactly — they are written to
  * the activity YAML and read by the Python side.
  */
-import { NODE_TYPE_SPECS, PALETTE_GROUPS, type NodeTypeSpec, type PaletteGroup } from './node-spec.js'
+import {
+  NODE_TYPE_SPECS,
+  PALETTE_GROUPS,
+  type NodeTypeSpec,
+  type PaletteGroup,
+} from './node-spec.js'
 
 export const NODE_TYPES = [
   // Flow
@@ -121,7 +126,8 @@ export const isSelect = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.se
 /** Sequence anchors keep their own label; everything else inherits its concept's display. */
 export const isSequenceNode = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.sequence)
 export const needsName = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.named)
-export const isExtensionTarget = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.extensionTarget)
+export const isExtensionTarget = (t: NodeType): boolean =>
+  Boolean(NODE_TYPE_SPECS[t]?.extensionTarget)
 export const isCapture = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.capture)
 /** Its name is an internal id: never shown, never edited, never checked. */
 export const hasInternalName = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.internalName)

@@ -1,6 +1,17 @@
-import type { Activity, ActivityParam, CodeSystem, Concept, ParamValue, Project } from '../model/types.js'
+import type {
+  Activity,
+  ActivityParam,
+  CodeSystem,
+  Concept,
+  ParamValue,
+  Project,
+} from '../model/types.js'
 import { PRIMITIVE_PARAM_TYPES } from '../model/types.js'
-import { calculateCodeSystem, emptyCodeSystem, projectDictionaries } from '../terminology/dictionaries.js'
+import {
+  calculateCodeSystem,
+  emptyCodeSystem,
+  projectDictionaries,
+} from '../terminology/dictionaries.js'
 import { conceptText, withConceptText } from '../terminology/designation.js'
 import { effectiveParams, forgetParams } from './effective.js'
 
@@ -39,7 +50,11 @@ export function paramLabel(project: Project, ownerId: string, param: ActivityPar
 }
 
 /** A parameter's help text, from its concept's definition. */
-export function paramDescription(project: Project, ownerId: string, name: string): string | undefined {
+export function paramDescription(
+  project: Project,
+  ownerId: string,
+  name: string,
+): string | undefined {
   return paramConcept(project, ownerId, name)?.definition
 }
 
@@ -59,20 +74,30 @@ function bare(p: ActivityParam, name = p.name): ActivityParam {
  * declared on purpose. Given the project `before` the change being synced, a row that was only
  * computed there and that nothing uses now (a value is now set at the call) goes away with it.
  */
-export function syncedParams(project: Project, before?: Project): Map<string, ActivityParam[] | undefined> {
+export function syncedParams(
+  project: Project,
+  before?: Project,
+): Map<string, ActivityParam[] | undefined> {
   const out = new Map<string, ActivityParam[] | undefined>()
   for (const id of Object.keys(project.activities).sort()) {
     const activity = project.activities[id]!
     const wasComputed = new Set(
-      before?.activities[id] ? effectiveParams(before, id).filter((e) => e.computed).map((e) => e.name) : [],
+      before?.activities[id]
+        ? effectiveParams(before, id)
+            .filter((e) => e.computed)
+            .map((e) => e.name)
+        : [],
     )
     const next = effectiveParams(project, id)
       .filter((e) => e.computed || !e.unused || !wasComputed.has(e.name))
       .map((e) =>
-      e.computed ? bare(e.param, e.name) : (activity.params?.find((p) => p.name === e.name) ?? e.param),
-    )
+        e.computed
+          ? bare(e.param, e.name)
+          : (activity.params?.find((p) => p.name === e.name) ?? e.param),
+      )
     const current = activity.params ?? []
-    if (JSON.stringify(next.map((p) => bare(p))) === JSON.stringify(current.map((p) => bare(p)))) continue
+    if (JSON.stringify(next.map((p) => bare(p))) === JSON.stringify(current.map((p) => bare(p))))
+      continue
     out.set(id, next.length > 0 ? next : undefined)
   }
   return out
@@ -129,7 +154,8 @@ export function syncedParamConcepts(project: Project): ParamConceptSync {
         : { system: dictionary.url, code, designations: [] }
       next.kind = PARAMETER_KIND
       next.dataType = DATA_TYPES[e.param.type]!
-      if (e.param.type === 'choice' && e.param.options?.length) next.paramOptions = [...e.param.options]
+      if (e.param.type === 'choice' && e.param.options?.length)
+        next.paramOptions = [...e.param.options]
       else delete next.paramOptions
       const def = textOf(e.param.default)
       if (def !== undefined) next.paramDefault = def

@@ -50,7 +50,10 @@ export function calculateCodeSystem(project: Project): CodeSystem | undefined {
   const named = findCodeSystem(project, project.calculateCodeSystem)
   if (named) return named
   const base = defaultCodeSystem(project)
-  return (base ? findCodeSystem(project, `${base.id}-calculate`) : undefined) ?? findCodeSystem(project, 'calculate')
+  return (
+    (base ? findCodeSystem(project, `${base.id}-calculate`) : undefined) ??
+    findCodeSystem(project, 'calculate')
+  )
 }
 
 /** Default first, then calculate, then the others by id. */
