@@ -35,6 +35,7 @@ export default defineConfig({
         items: [
           { text: 'Getting started', link: '/guide/getting-started' },
           { text: 'Authoring a guideline', link: '/guide/authoring' },
+          { text: 'Building blocks', link: '/guide/blocks' },
           { text: 'Saving and sharing', link: '/guide/saving' },
           { text: 'Project format', link: '/guide/project-format' },
           { text: 'Converting with tricc_oo', link: '/guide/tricc-oo' },

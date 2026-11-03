@@ -4,7 +4,7 @@
 |-------|-------|
 | **Status** | Draft |
 | **Repo** | `tricc_frontend` — `@tricc/editor`, `@tricc/core` |
-| **Related** | `20260825-activity-editor.md` (the surface this shapes), `20260825-cql-authoring.md` (expression intent), `20260825-preview.md` (learning by running), `../../tricc_oo/docs/visual-authoring-concepts.md` (the WHO layered model and roles this adopts), `../../tricc_oo/feature/20260825-snippet-params-and-start-node.md` (parameterized snippets) |
+| **Related** | `20260825-activity-editor.md` (the surface this shapes), `20260825-cql-authoring.md` (expression intent), `20260825-preview.md` (learning by running), `../../tricc_oo/docs/visual-authoring-concepts.md` (the WHO layered model and roles this adopts), `../../tricc_oo/feature/20261102-block-params-and-start-node.md` (parameterized blocks) |
 | **Approval** | — |
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
@@ -88,7 +88,7 @@ vital with its plausible range — should be picked from a list, not redrawn.
 
 TRICC already has the mechanism: a snippet is a module copied into the flow. What it lacks is the
 ability to vary — every copy is identical. A companion change to `tricc_oo`
-([`20260825-snippet-params-and-start-node.md`](../../tricc_oo/feature/20260825-snippet-params-and-start-node.md))
+([`20261102-block-params-and-start-node.md`](../../tricc_oo/feature/20261102-block-params-and-start-node.md))
 gives snippets **named parameters**, so one temperature module serves every measurement site.
 
 The editor then shows available snippets **beside the node palette, as though they were node
@@ -296,7 +296,7 @@ the mapping is learned by observation rather than instruction.
 
 ### 6. Snippet palette
 
-Depends on `../../tricc_oo/feature/20260825-snippet-params-and-start-node.md`.
+Depends on `../../tricc_oo/feature/20261102-block-params-and-start-node.md`.
 
 - Project snippets appear as a **second palette section**, below the node types, as insertable
   blocks with their authored description.
@@ -310,7 +310,7 @@ Depends on `../../tricc_oo/feature/20260825-snippet-params-and-start-node.md`.
   values that look variable (literals in expressions, name fragments). Proposals are suggestions
   only; each is one click to reject.
 - **Template linting:** a snippet template's expressions are parsed only when instantiated
-  (`snippet-params` §5). The editor lints templates by binding each placeholder to a synthetic value
+  (`block-params` §5). The editor lints templates by binding each placeholder to a synthetic value
   of its declared type, so an author editing a module gets diagnostics without instantiating it.
 
 Authors can save selections as project snippets. Sharing snippets *across* projects is out of scope

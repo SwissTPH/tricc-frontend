@@ -73,6 +73,12 @@ Drafts written from the 2026-10-08 review remarks. Suggested order:
 | [20261014-calculate-dictionary-on-import.md](./20261014-calculate-dictionary-on-import.md) | `@tricc/core`, `@tricc/editor`, `tricc_oo` | **Draft.** Imported diagnoses and proposed diagnoses get their concepts in the calculate dictionary; phase 2 does calculations, counts and sums once `tricc_oo` refills calculate labels. |
 | [20261015-git-host-import-and-pull-requests.md](./20261015-git-host-import-and-pull-requests.md) | `apps/local`, `@tricc/core` | **Implemented (local app).** Import a project folder from GitHub or GitLab (self-hosted too); propose changes as one pull / merge request per copy, applied file by file so nobody else's change is overwritten; reopening asks between the copy's changes and a branch. `tricc.yaml` `repository` says where the project lives. Personal access tokens, never stored by the hosted copy. |
 
+### Building blocks and parameters (2026-10-28)
+
+| Spec | Package | What it covers |
+|------|---------|----------------|
+| [20261028-snippets-tab-and-params.md](./20261028-snippets-tab-and-params.md) | `@tricc/core`, `@tricc/editor`, `apps/local` | **Phases 1–5 implemented (frontend), not committed; 6–8 Draft.** Building blocks tab (node types `block_start` / `block`; `snippet_start` / `snippet` still read), parameters in block and activity settings (declared and computed, dictionary concepts), Use block and Go to activity values, intervention Settings and Scope, draw.io `parameters` / `param.*`. Library side: `../../tricc_oo/feature/20261102-block-params-and-start-node.md` rev 2. |
+
 ### Discussions and the hosted platform (2026-10-21)
 
 The **app** is built first. The **platform** is a separate repository (`tricc_platform`) and is
@@ -85,7 +91,7 @@ specified here until that repo exists, then mirrored, as with `tricc_oo`.
 
 ### Companion spec in `tricc_oo`
 
-[`../../tricc_oo/feature/20260825-snippet-params-and-start-node.md`](../../tricc_oo/feature/20260825-snippet-params-and-start-node.md)
+[`../../tricc_oo/feature/20261102-block-params-and-start-node.md`](../../tricc_oo/feature/20261102-block-params-and-start-node.md)
 — named parameters on snippets and a dedicated snippet start node replacing `instance = -1`.
 The snippet palette (spec 7 §6) depends on it.
 
