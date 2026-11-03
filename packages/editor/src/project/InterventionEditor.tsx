@@ -3,9 +3,11 @@ import {
   CPG_PROCESSES,
   IMPLEMENTED_TRIGGER_MODES,
   createProcessActivity,
+  interventionParams,
   isProcessActivity,
   processOf,
   resolve,
+  showParamValue,
   TRIGGER_MODES,
   type Intervention,
   type Project,
@@ -17,6 +19,7 @@ import { BinIcon, ConfirmDelete, Dialog, GearIcon, mergeExpression } from '../co
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
 import { ActivityDiscussMarks } from '../discussion/DiscussionMark.js'
+import { ArgumentForm } from '../blocks/ArgumentForm.js'
 
 /**
  * An intervention card.
@@ -306,6 +309,19 @@ export function InterventionEditor({
                 })
               }
             />
+
+            <InterventionSettings
+              intervention={intervention}
+              project={project}
+              readOnly={readOnly}
+              onChange={(args) => update({ args })}
+            />
+            <InterventionScope
+              intervention={intervention}
+              project={project}
+              readOnly={readOnly}
+              onChange={(requires) => update({ requires })}
+            />
           </div>
         </Dialog>
       )}
@@ -392,6 +408,105 @@ export function InterventionEditor({
         </Dialog>
       )}
     </li>
+  )
+}
+
+/**
+ * The values this intervention gives the settings of its activities, and of everything they call
+ * (feature/20261028-snippets-tab-and-params.md §6). A setting several activities share is asked once.
+ */
+function InterventionSettings({
+  intervention,
+  project,
+  readOnly,
+  onChange,
+}: {
+  intervention: Intervention
+  project: Project
+  readOnly: boolean
+  onChange: (args: Intervention['args']) => void
+}) {
+  const lang = project.languages.default
+  const rows = interventionParams(project, intervention.id)
+  const title = (id: string) => resolve(project.activities[id]?.title, lang, lang) ?? id
+  return (
+    <fieldset className="tricc-iv-settings" data-testid={`iv-settings-${intervention.id}`}>
+      <legend>Settings</legend>
+      <p>
+        Values for the settings of the activities this intervention lists, and of what they call. A
+        value set on a call inside an activity applies below that call only.
+      </p>
+      <ArgumentForm
+        project={project}
+        rows={rows}
+        values={intervention.args}
+        onChange={onChange}
+        readOnly={readOnly}
+        testId={`iv-arg-${intervention.id}`}
+        unsetLabel="Not set"
+        inherited={(name) => {
+          const row = rows.find((r) => r.name === name)
+          const needed = `Needed by ${(row?.activities ?? []).map(title).join(', ')}`
+          return {
+            from:
+              row?.param.default !== undefined ? `${needed}. Default: ${showParamValue(row.param.default)}` : needed,
+          }
+        }}
+      />
+    </fieldset>
+  )
+}
+
+/** Scope: the interventions this one works with; what they record is not asked again. */
+function InterventionScope({
+  intervention,
+  project,
+  readOnly,
+  onChange,
+}: {
+  intervention: Intervention
+  project: Project
+  readOnly: boolean
+  onChange: (requires: Intervention['requires']) => void
+}) {
+  const lang = project.languages.default
+  const others = project.interventions.filter((iv) => iv.id !== intervention.id)
+  const chosen = new Set(intervention.requires ?? [])
+  return (
+    <fieldset className="tricc-iv-scope" data-testid={`iv-scope-${intervention.id}`}>
+      <legend>Scope</legend>
+      <p>The other interventions this one works with. What they record is in scope here.</p>
+      {others.length === 0 && <p>This project has no other intervention.</p>}
+      {others.map((iv) => (
+        <label key={iv.id} className="tricc-check">
+          <input
+            type="checkbox"
+            data-testid={`iv-scope-${intervention.id}-${iv.id}`}
+            checked={chosen.has(iv.id)}
+            disabled={readOnly}
+            onChange={(e) => {
+              const next = new Set(chosen)
+              if (e.target.checked) next.add(iv.id)
+              else next.delete(iv.id)
+              onChange(next.size > 0 ? project.interventions.map((i) => i.id).filter((id) => next.has(id)) : undefined)
+            }}
+          />
+          {resolve(iv.title, lang, lang) ?? iv.id}
+        </label>
+      ))}
+      {[...chosen]
+        .filter((id) => !others.some((iv) => iv.id === id))
+        .map((id) => (
+          <p key={id} className="tricc-field-error">
+            “{id}” is not another intervention of this project.{' '}
+            {!readOnly && (
+              <Button variant="outline" size="sm" type="button" onClick={() => onChange((intervention.requires ?? []).filter((r) => r !== id))}>
+                Remove
+              </Button>
+            )}
+          </p>
+        ))}
+    </fieldset>
   )
 }
 

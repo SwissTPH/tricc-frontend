@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import {
   DATA_TYPES,
   DESIGNATION_USES,
+  PARAMETER_KIND,
+  paramConceptCode,
   INTERVENTION_SCOPE_URL,
   conceptUsage,
   designationInterventions,
@@ -20,6 +22,7 @@ import {
   type Designation,
   type DesignationUse,
   type DisplayText,
+  type Project,
 } from '@tricc/core'
 import { useCanWrite, useEditorPreferences, useMutate, useProjectSnapshot } from '../runtime/context.js'
 import { RichTextField } from '../text/RichTextField.js'
@@ -51,12 +54,15 @@ export function ConceptDialog({
   onClose,
   onSaved,
   onOpenNode,
+  onOpenActivity,
 }: {
   target: ConceptTarget
   onClose: () => void
   /** Called after Save with the saved concept. */
   onSaved?: (key: ConceptKey) => void
   onOpenNode?: (activityId: string, nodeId: string) => void
+  /** Open the page a parameter concept belongs to. */
+  onOpenActivity?: (activityId: string) => void
 }) {
   const project = useProjectSnapshot()
   const canWrite = useCanWrite()
@@ -89,6 +95,10 @@ export function ConceptDialog({
   // Rows added in this dialog stay in the table, whatever language they get.
   const opened = useRef(draft.designations.length)
   const readOnly = !canWrite
+  // A parameter's concept is its declaration: edited in its page's settings, except its texts.
+  const owner = existing?.kind === PARAMETER_KIND ? paramOwner(project, existing.code) : undefined
+  const isParam = existing?.kind === PARAMETER_KIND
+  const locked = readOnly || isParam
 
   useEffect(() => {
     cardRef.current?.querySelector<HTMLElement>('input:not([disabled]), textarea, select')?.focus()
@@ -202,7 +212,33 @@ export function ConceptDialog({
       >
         <h2 id="concept-dialog-title">
           {isNew ? 'New concept' : (existing?.display ?? existing?.code)}
+          {isParam && (
+            <span className="tricc-badge" data-testid="concept-parameter-badge">
+              {' '}
+              Parameter
+            </span>
+          )}
         </h2>
+        {isParam && (
+          <p className="tricc-import-note" data-testid="concept-parameter-note">
+            A parameter of {owner ? (resolve(project.activities[owner]?.title, lang, lang) ?? owner) : 'a page that no longer has it'}.
+            Its type, options and default are edited in that page's settings; only its texts are edited here.{' '}
+            {owner && onOpenActivity && (
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                data-testid="concept-parameter-owner"
+                onClick={() => {
+                  onClose()
+                  onOpenActivity(owner)
+                }}
+              >
+                Open {resolve(project.activities[owner]?.title, lang, lang) ?? owner}
+              </Button>
+            )}
+          </p>
+        )}
         <form
           className="tricc-concept__body"
           onSubmit={(e) => {
@@ -281,7 +317,7 @@ export function ConceptDialog({
             data-testid="concept-definition"
             rows={2}
             value={draft.definition ?? ''}
-            disabled={readOnly}
+            disabled={locked}
             onChange={(e) => set({ definition: e.target.value })}
           />
 
@@ -290,7 +326,7 @@ export function ConceptDialog({
             id="concept-data-type"
             data-testid="concept-data-type"
             value={draft.dataType ?? ''}
-            disabled={readOnly}
+            disabled={locked}
             onChange={(e) => set({ dataType: e.target.value })}
           >
             <option value="">—</option>
@@ -306,7 +342,7 @@ export function ConceptDialog({
             id="concept-type"
             data-testid="concept-type"
             value={draft.conceptType ?? ''}
-            disabled={readOnly}
+            disabled={locked}
             onChange={(e) => set({ conceptType: e.target.value })}
           >
             <option value="">—</option>
@@ -322,7 +358,7 @@ export function ConceptDialog({
             id="concept-unit"
             data-testid="concept-unit"
             value={draft.unit ?? ''}
-            disabled={readOnly}
+            disabled={locked}
             onChange={(e) => set({ unit: e.target.value })}
           />
           <label htmlFor="concept-target-resource">Stored in — resource</label>
@@ -330,7 +366,7 @@ export function ConceptDialog({
             id="concept-target-resource"
             data-testid="concept-target-resource"
             value={draft.targetResource ?? ''}
-            disabled={readOnly}
+            disabled={locked}
             onChange={(e) => set({ targetResource: e.target.value })}
           />
           <label htmlFor="concept-target-path">Stored in — path</label>
@@ -338,7 +374,7 @@ export function ConceptDialog({
             id="concept-target-path"
             data-testid="concept-target-path"
             value={draft.targetPath ?? ''}
-            disabled={readOnly}
+            disabled={locked}
             onChange={(e) => set({ targetPath: e.target.value })}
           />
 
@@ -531,7 +567,7 @@ export function ConceptDialog({
             </p>
           )}
           <div className="tricc-library-modal__actions">
-            {!isNew && canWrite && (
+            {!isNew && canWrite && !isParam && (
               <Button
                 variant="destructive"
                 size="sm"
@@ -583,4 +619,13 @@ export function dictionaryLabel(d: { id: string; kind: 'default' | 'calculate' |
   if (d.kind === 'default') return `${d.id} (default)`
   if (d.kind === 'calculate') return `${d.id} (calculations and diagnoses)`
   return d.id
+}
+
+/** The page declaring the parameter whose concept has this code. */
+function paramOwner(project: Project, code: string): string | undefined {
+  for (const id of Object.keys(project.activities).sort()) {
+    const activity = project.activities[id]!
+    if ((activity.params ?? []).some((p) => paramConceptCode(activity, p.name) === code)) return id
+  }
+  return undefined
 }

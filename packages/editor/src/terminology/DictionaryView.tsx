@@ -29,6 +29,7 @@ export function DictionaryView({
   open,
   onOpen,
   onOpenNode,
+  onOpenActivity,
 }: {
   /** The dictionary shown (canonical url). It may not exist yet: its first concept creates it. */
   system?: string
@@ -36,6 +37,8 @@ export function DictionaryView({
   open?: ConceptKey
   onOpen: (key: ConceptKey | undefined) => void
   onOpenNode?: (activityId: string, nodeId: string) => void
+  /** Open the page a parameter concept belongs to. */
+  onOpenActivity?: (activityId: string) => void
 }) {
   const project = useProjectSnapshot()
   const canWrite = useCanWrite()
@@ -146,7 +149,15 @@ export function DictionaryView({
                       return id ? <TextImage src={imageSrc(id)} className="tricc-dictionary__thumb" /> : null
                     })()}
                   </td>
-                  <td className="tricc-dictionary__code">{concept.code}</td>
+                  <td className="tricc-dictionary__code">
+                    {concept.code}
+                    {concept.kind === 'parameter' && (
+                      <span className="tricc-badge" data-testid={`concept-row-${concept.code}-parameter`}>
+                        {' '}
+                        Parameter
+                      </span>
+                    )}
+                  </td>
                   <td>{concept.display ?? ''}</td>
                   <td>{questionnaire(concept, lang)}</td>
                   <td>{uses === 0 ? '—' : uses}</td>
@@ -164,6 +175,7 @@ export function DictionaryView({
             onOpen(undefined)
           }}
           onOpenNode={onOpenNode}
+          onOpenActivity={onOpenActivity}
         />
       )}
     </section>

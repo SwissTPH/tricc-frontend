@@ -13,6 +13,7 @@ import { RepeatFields } from './RepeatFields.js'
 import { ConfirmDelete, Dialog, mergeExpression } from '../components/Dialog.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
+import { ParamsSection } from '../blocks/ParamsSection.js'
 
 /** The fallback `tricc_oo` uses when an activity has no name. */
 export function titleSlug(activity: Activity, lang: string): string {
@@ -63,8 +64,9 @@ export function goToCallers(project: Project, activityId: string): GotoCaller[] 
   const lang = project.languages.default
   const callers: GotoCaller[] = []
   for (const activity of Object.values(project.activities)) {
+    // A Go to activity, or a Use block: both call the page.
     const gotos = Object.values(activity.nodes).filter(
-      (n) => n.type === 'goto' && n.link === activityId,
+      (n) => (n.type === 'goto' || n.type === 'block') && n.link === activityId,
     )
     const title = resolve(activity.title, lang, lang) ?? activity.id
     gotos.forEach((n, i) =>
@@ -133,6 +135,7 @@ export function ActivitySettings({
   onDeleted,
   onReveal,
   onOpenCaller,
+  onOpenActivity,
 }: {
   activity: Activity
   project: Project
@@ -142,6 +145,8 @@ export function ActivitySettings({
   onReveal?: (activityId: string, nodeId: string) => void
   /** Open a goto that leads to this activity. */
   onOpenCaller?: (activityId: string, nodeId: string) => void
+  /** Open another page: where a computed parameter comes from. */
+  onOpenActivity?: (activityId: string) => void
 }) {
   const mutate = useMutate()
   const lang = project.languages.default
@@ -161,7 +166,7 @@ export function ActivitySettings({
       <Dialog
         testId="activity-settings"
         titleId="activity-settings-title"
-        title={title}
+        title={kind === 'block' ? `Block settings — ${title}` : title}
         onClose={onClose}
         onSave={readOnly ? undefined : onClose}
         onDelete={readOnly ? undefined : () => setConfirming(true)}
@@ -237,6 +242,19 @@ export function ActivitySettings({
             />
           )}
 
+          <ParamsSection
+            project={project}
+            activityId={activity.id}
+            readOnly={readOnly}
+            onOpenActivity={
+              onOpenActivity &&
+              ((id) => {
+                onClose()
+                onOpenActivity(id)
+              })
+            }
+          />
+
           <CalledBy
             project={project}
             activityId={activity.id}
@@ -281,10 +299,26 @@ export function ConfirmActivityDelete({
   const lang = project.languages.default
   const title = resolve(activity.title, lang, lang) ?? activity.id
   const { interventions, linkedFrom } = activityReferences(project, activity.id)
+  // A block in use cannot be deleted: its uses would have nothing to build (§2).
+  const uses = activityKind(activity) === 'block' ? goToCallers(project, activity.id) : []
+  if (uses.length > 0) {
+    return (
+      <Dialog testId="delete-block-blocked" titleId="delete-block-blocked-title" title="This block is in use" onClose={onCancel}>
+        <p>
+          {title} is used in {uses.length} place{uses.length === 1 ? '' : 's'}. Remove those uses first, then delete it.
+        </p>
+        <ul data-testid="delete-block-uses">
+          {uses.map((u) => (
+            <li key={`${u.activityId}/${u.nodeId}`}>{u.label}</li>
+          ))}
+        </ul>
+      </Dialog>
+    )
+  }
   return (
     <ConfirmDelete
       testId="delete-activity"
-      heading="Delete this activity?"
+      heading={activityKind(activity) === 'block' ? 'Delete this block?' : 'Delete this activity?'}
       onCancel={onCancel}
       onConfirm={() => {
         mutate((tx) => tx.deleteActivity(activity.id))

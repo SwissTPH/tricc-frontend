@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { effectiveParams, paramLabel } from '@tricc/core'
 import { useProjectSnapshot } from '../runtime/context.js'
 import { expressionNames, truncateLabel, type ExpressionName } from './names.js'
 import { presentCql } from './present.js'
@@ -41,6 +42,10 @@ export function CqlExpressionField({
     [project, lang, activityId],
   )
   const { tokens, diagnostics } = presentCql(value)
+  const params = useMemo(
+    () => (activityId ? effectiveParams(project, activityId) : []),
+    [project, activityId],
+  )
   const [openIndex, setOpenIndex] = useState<number | null>(null)
 
   return (
@@ -57,6 +62,28 @@ export function CqlExpressionField({
         spellCheck={false}
         onChange={(e) => onChange(e.target.value)}
       />
+      {params.length > 0 && !readOnly && (
+        <select
+          className="tricc-cql__insert"
+          aria-label="Insert a setting"
+          data-testid={`${testId}-insert-param`}
+          value=""
+          onChange={(e) => {
+            if (!e.target.value) return
+            const sep = value === '' || /\s$/.test(value) ? '' : ' '
+            onChange(`${value}${sep}{{${e.target.value}}}`)
+          }}
+        >
+          <option value="">Insert a setting…</option>
+          <optgroup label="Parameters">
+            {params.map((p) => (
+              <option key={p.name} value={p.name}>
+                {paramLabel(project, p.declaredIn, p.param)}
+              </option>
+            ))}
+          </optgroup>
+        </select>
+      )}
       {tokens.length > 0 && (
         <p className="tricc-cql__read" data-testid={`${testId}-display`}>
           {tokens.map((token, index) => {
@@ -72,6 +99,21 @@ export function CqlExpressionField({
                   onToggle={() => setOpenIndex((current) => (current === index ? null : index))}
                   onReveal={onReveal}
                 />
+              )
+            }
+            if (token.kind === 'param') {
+              const p = params.find((e) => e.name === token.label)
+              const shown = p ? paramLabel(project, p.declaredIn, p.param) : token.label!
+              return (
+                <span
+                  key={index}
+                  className={p ? 'tricc-cql__name tricc-cql__param' : 'tricc-cql__name tricc-cql__name--unknown'}
+                  data-testid={`${testId}-param-${index}`}
+                  data-param={token.label}
+                  title={p ? `Setting ${shown} — {{${token.label}}}, set where the page is used` : `{{${token.label}}} — this page has no such setting`}
+                >
+                  {shown}
+                </span>
               )
             }
             if (token.kind === 'text') return <span key={index}>{token.text}</span>

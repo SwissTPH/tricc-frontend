@@ -1,4 +1,6 @@
 import {
+  effectiveParams,
+  paramEnvironments,
   conceptRichText,
   conceptText,
   defaultCodeSystem,
@@ -15,6 +17,7 @@ import {
   type Project,
 } from '@tricc/core'
 import { uniqueId } from '../../project/Overview.js'
+import { argSummary } from '../../blocks/ArgumentForm.js'
 import { answerLabel } from './answer.js'
 import { visualFor } from './node-visuals.js'
 import type { TriccFlowNode } from './TriccNode.js'
@@ -150,6 +153,15 @@ function firstPicture(text: DisplayText | undefined): string | undefined {
   return text === undefined ? undefined : imageRefs(text)[0]
 }
 
+/**
+ * Whether a value left unset at a call on `callerId` arrives from above: every way an intervention
+ * reaches the caller gives it one. A page no intervention reaches yet is not flagged.
+ */
+function inheritsValue(project: Project, callerId: string, name: string): boolean {
+  const envs = paramEnvironments(project).get(callerId) ?? []
+  return envs.every((env) => env.values[name] !== undefined)
+}
+
 const tricc: CanvasKind = {
   owns: (id) => !id.startsWith(GROUP_PREFIX) && !id.startsWith(COMMENT_PREFIX),
   project(ctx) {
@@ -181,7 +193,19 @@ const tricc: CanvasKind = {
           }),
         )
         const severity = ctx.severityByNode.get(model.id)
-        const missing = model.type === 'goto' && Boolean(model.link) && project.activities[model.link!] === undefined
+        const isCall = model.type === 'goto' || model.type === 'block'
+        const missing = isCall && Boolean(model.link) && project.activities[model.link!] === undefined
+        // A Use block shows the block it uses and the values set on it ("Axillary · 37.5").
+        const target = isCall && model.link ? project.activities[model.link] : undefined
+        const callLabel =
+          model.type !== 'block' ? undefined : target ? (resolve(target.title, lang, lang) ?? target.id) : (model.link ?? 'Use block')
+        const callSummary = isCall ? argSummary(model.args) || undefined : undefined
+        const needsValue =
+          isCall && target
+            ? effectiveParams(project, target.id).some(
+                (p) => p.param.required && p.param.default === undefined && model.args?.[p.name] === undefined && !inheritsValue(project, activity.id, p.name),
+              )
+            : false
         const drag = ctx.drag(model.id)
         const measured = ctx.measured(model.id)
         return {
@@ -206,6 +230,9 @@ const tricc: CanvasKind = {
             ...(Object.keys(answerPictures).length > 0 ? { answerPictures } : {}),
             ...(model.id === rootId ? { activityTitle } : {}),
             ...(missing ? { missing: true } : {}),
+            ...(callLabel ? { callLabel } : {}),
+            ...(callSummary ? { callSummary } : {}),
+            ...(needsValue ? { needsValue: true } : {}),
           },
         }
       })

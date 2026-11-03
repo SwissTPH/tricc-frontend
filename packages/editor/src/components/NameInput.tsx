@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NAME_RE } from '@tricc/core'
+import { NAME_RE, TEMPLATE_NAME_RE } from '@tricc/core'
 import { Input } from './ui/input.js'
 
 export interface NameInputProps {
@@ -20,7 +20,7 @@ export interface NameInputProps {
 export function NameInput({ id, testId, value, onChange, readOnly }: NameInputProps) {
   const [draft, setDraft] = useState(value ?? '')
   useEffect(() => setDraft(value ?? ''), [value])
-  const invalid = draft !== '' && !NAME_RE.test(draft)
+  const invalid = draft !== '' && !validName(draft)
   return (
     <>
       <Input size="sm"
@@ -34,7 +34,7 @@ export function NameInput({ id, testId, value, onChange, readOnly }: NameInputPr
         onChange={(e) => {
           const next = e.target.value
           setDraft(next)
-          if (next === '' || NAME_RE.test(next)) onChange(next || undefined)
+          if (next === '' || validName(next)) onChange(next || undefined)
         }}
         onBlur={() => setDraft(value ?? '')}
       />
@@ -50,4 +50,9 @@ export function NameInput({ id, testId, value, onChange, readOnly }: NameInputPr
       )}
     </>
   )
+}
+
+/** A name, or one holding `{{setting}}` that becomes a name when a block is used (`fever_{{site}}`). */
+function validName(name: string): boolean {
+  return NAME_RE.test(name) || (name.includes('{{') && TEMPLATE_NAME_RE.test(name))
 }
