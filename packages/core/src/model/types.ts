@@ -42,6 +42,46 @@ export interface SelectOption {
   media?: { image: string }
 }
 
+/**
+ * Parameter types (tricc_oo block-params spec §2). The first four are the primitive ones the
+ * editor offers by default; each declared one is a concept in the calculate dictionary. `name`,
+ * `concept` and `expression` are substitution-only advanced types and have no concept.
+ */
+export const PARAM_TYPES = [
+  'boolean',
+  'number',
+  'string',
+  'choice',
+  'name',
+  'concept',
+  'expression',
+] as const
+export type ParamType = (typeof PARAM_TYPES)[number]
+export const PRIMITIVE_PARAM_TYPES: readonly ParamType[] = ['boolean', 'number', 'string', 'choice']
+
+/** A literal argument, or `{{name}}` (a string) binding it to a setting of the calling page. */
+export type ParamValue = string | number | boolean | ConceptRef
+
+/**
+ * One entry of a page's `params`: declared by the author, or computed from what the page calls
+ * (saved the same way; which it is, is recomputed from the call graph). Labels and help texts
+ * live on the parameter's concept, not here: the activity YAML holds codes only.
+ */
+export interface ActivityParam {
+  name: string
+  type: ParamType
+  /** Choice: the option codes, in order. */
+  options?: string[]
+  default?: ParamValue
+  required?: boolean
+  /**
+   * Texts read from a draw.io `parameters` shape. Transient: moved to the parameter's concept
+   * when the page joins a project, never written to the activity YAML.
+   */
+  label?: LocalizedText
+  description?: LocalizedText
+}
+
 export interface NotAvailable {
   name?: string
   label?: LocalizedText
@@ -87,7 +127,13 @@ export interface TriccNode {
   instance?: number
 
   reference?: string | WaitReference
+  /** Goto: the activity it goes to. Use block (`block`): the block it uses. */
   link?: string
+  /**
+   * Values set for this call (Use block, Go to activity), by parameter name. A parameter not
+   * listed is inherited from the calling page, then takes its default.
+   */
+  args?: Record<string, ParamValue>
 
   listName?: string
   options?: SelectOption[]
@@ -187,6 +233,8 @@ export interface Activity {
   title?: LocalizedText
   process?: string
   applicability?: Expression
+  /** Parameters, declared and computed alike (feature/20261028-snippets-tab-and-params.md §3). */
+  params?: ActivityParam[]
   ui?: ActivityUi
   /** Keyed by node id. */
   nodes: Record<string, TriccNode>
@@ -218,6 +266,10 @@ export interface Intervention {
   trigger?: Trigger
   /** Flat list. A process page is itself an activity in this list, not a group of pages. */
   activities: ActivityRef[]
+  /** Parameter values for everything the intervention lists: the top of every call chain. */
+  args?: Record<string, ParamValue>
+  /** Scope: the other interventions (ids) this one works with. */
+  requires?: string[]
 }
 
 export interface TriccContext {
@@ -255,11 +307,26 @@ export interface Concept {
   sourceVersion?: string
   targetResource?: string
   targetPath?: string
+  /** `parameter` for the concept of a page parameter (it holds no value, only the declaration). */
+  kind?: string
+  /** A parameter concept: its option codes (choice). */
+  paramOptions?: string[]
+  /** A parameter concept: its default, as text. */
+  paramDefault?: string
+}
+
+/** A FHIR Coding as found in `meta.tag`. */
+export interface Coding {
+  system?: string
+  code?: string
+  display?: string
 }
 
 export interface CodeSystem {
   id: string
   url: string
+  /** FHIR `meta`, kept as read. `tag` marks a dictionary's role (`codesystem-role`). */
+  meta?: { tag?: Coding[]; [key: string]: unknown }
   version?: string
   name?: string
   title?: string
@@ -469,6 +536,8 @@ export const PATHS = {
   /** The project file. Activity bodies live beside it under `activities/`. */
   tricc: 'tricc.yaml',
   activities: 'activities',
+  /** Building blocks: `blocks/<id>.block.yaml`, listed in `tricc.yaml` `blocks`. */
+  blocks: 'blocks',
   terminology: 'terminology',
   cql: 'cql',
   media: 'media',
@@ -477,6 +546,9 @@ export const PATHS = {
 
 export function activityPath(id: string): string {
   return `${PATHS.activities}/${id}.activity.yaml`
+}
+export function blockPath(id: string): string {
+  return `${PATHS.blocks}/${id}.block.yaml`
 }
 export function codeSystemPath(id: string): string {
   return `${PATHS.terminology}/${id}.codesystem.json`

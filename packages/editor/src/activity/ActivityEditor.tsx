@@ -35,6 +35,8 @@ import {
   type TriccEdge,
   type SelectOption,
   type TriccNode,
+  effectiveParams,
+  paramLabel,
 } from '@tricc/core'
 import {
   useCanWrite,
@@ -78,6 +80,8 @@ import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
 import { Textarea } from '../components/ui/textarea.js'
 import { DiscussionSection } from '../discussion/Discussion.js'
+import { ArgumentForm, inheritedAtCall, rowsFor } from '../blocks/ArgumentForm.js'
+import { TERMS } from '../blocks/terms.js'
 import { DiagramDiscussContext } from '../discussion/context.js'
 import { discussionsAbout } from '../discussion/marks.js'
 
@@ -382,7 +386,7 @@ export function ActivityEditor({
   }
 
   const addNode = (type: NodeType, at?: { x: number; y: number }) => {
-    if (!canOffer(type, activity.nodes)) return
+    if (!canOffer(type, activity.nodes, kind)) return
     const taken = new Set(Object.keys(activity.nodes))
     const id = uniqueId(`n-${type}`, taken)
     const names = new Set(
@@ -395,7 +399,8 @@ export function ActivityEditor({
     const position = at ?? { x: 80, y: lowest + 96 }
     const node: TriccNode = { id, type, ui: { x: position.x, y: position.y } }
     // A goto gets a generated name too: not shown, but stable in exports that want one.
-    if (needsName(type) || type === 'goto') node.name = uniqueId(type, names, '_')
+    if (needsName(type) || type === 'goto' || type === 'block')
+      node.name = uniqueId(type, names, '_')
     if (isSelect(type) && type !== 'select_yesno') node.options = []
     if (type === 'acknowledge') node.required = true
     mutate((tx) => tx.addNode(activityId, node))
@@ -436,8 +441,9 @@ export function ActivityEditor({
           </Button>
         )}
         <span className="tricc-editor__kind" data-testid="activity-kind" data-kind={kind}>
-          {kind === 'process' ? 'Process activity' : 'Activity'}
+          {kind === 'process' ? 'Process activity' : kind === 'block' ? TERMS.block : 'Activity'}
         </span>
+        <ParamsChip activityId={activityId} onOpen={() => setSettingsOpen(true)} />
         {kind === 'process' && (
           <label className="tricc-editor__process">
             Starts
@@ -489,6 +495,7 @@ export function ActivityEditor({
           onDeleted={deleted}
           onReveal={revealNode}
           onOpenCaller={onOpenCaller}
+          onOpenActivity={onOpenActivity}
         />
       )}
       {confirmingDelete && canWrite && (
@@ -669,6 +676,7 @@ export function ActivityEditor({
               {canWrite && (
                 <NodePalette
                   nodes={activity.nodes}
+                  kind={kind}
                   onAdd={addNode}
                   onAddKind={addKind}
                   clientToFlow={(clientX, clientY) =>
@@ -1331,6 +1339,58 @@ export function NodeProperties({
               Open activity
             </Button>
           )}
+          {node.link && project.activities[node.link] && rowsFor(project, node.link).length > 0 && (
+            <CallArguments
+              activityId={activityId}
+              node={node}
+              readOnly={readOnly}
+              onChange={(args) => update({ args })}
+            />
+          )}
+        </>
+      )}
+
+      {node.type === 'block' && (
+        <>
+          <p className="tricc-palette__hint">{TERMS.blockOrGoto}</p>
+          <details className="tricc-blocks__naming" data-testid="block-naming">
+            <summary>Using this block several times</summary>
+            <ul>
+              {TERMS.naming.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </details>
+          <ActivityRefField
+            testId="field-block"
+            label="Uses the block"
+            value={node.link}
+            project={project}
+            readOnly={readOnly}
+            kind="block"
+            exclude={[activityId]}
+            onChange={(link) => update({ link })}
+          />
+          {onOpenActivity && (
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              data-testid="block-open"
+              disabled={!node.link || !project.activities[node.link]}
+              onClick={() => node.link && onOpenActivity(node.link)}
+            >
+              Open block
+            </Button>
+          )}
+          {node.link && project.activities[node.link] && (
+            <CallArguments
+              activityId={activityId}
+              node={node}
+              readOnly={readOnly}
+              onChange={(args) => update({ args })}
+            />
+          )}
         </>
       )}
 
@@ -1516,9 +1576,12 @@ function mergeExpression(
  * Context-aware palette: offering a node that will immediately fail validation is a worse
  * experience than not offering it (feature/20260825-activity-editor.md §2).
  */
-function canOffer(type: NodeType, nodes: Record<string, TriccNode>): boolean {
+function canOffer(type: NodeType, nodes: Record<string, TriccNode>, kind?: string): boolean {
   const spec = NODE_TYPE_SPECS[type]
   if (!spec.drawable || spec.offered === false) return false
+  // A block is entered and left like an activity: no process start or end.
+  if (kind === 'block' && (type === 'start' || type === 'end' || type === 'activity_start'))
+    return false
   // An activity has exactly one root, and which root it has decides its kind. Neither is
   // offered once one exists, and both are offered only to repair an activity that has none.
   // An activity may finish in several places, so Activity end stays on the palette.
@@ -1542,12 +1605,15 @@ const DRAG_THRESHOLD_PX = 4
  */
 function NodePalette({
   nodes,
+  kind,
   onAdd,
   onAddKind,
   clientToFlow,
   onDraggingChange,
 }: {
   nodes: Record<string, TriccNode>
+  /** The page's kind: a block offers no process start or end. */
+  kind?: string
   onAdd: (type: NodeType, at?: { x: number; y: number }) => void
   /** Add a group (a section of the form) or a comment (drawing only), dragged or clicked. */
   onAddKind?: (kind: 'comment' | 'group', at?: { x: number; y: number }) => void
@@ -1648,7 +1714,7 @@ function NodePalette({
         <fieldset key={group} data-testid={`palette-${group}`} className="tricc-palette__group">
           <legend>{PALETTE_GROUP_LABELS[group as PaletteGroup] ?? group}</legend>
           {types
-            .filter((t) => canOffer(t, nodes))
+            .filter((t) => canOffer(t, nodes, kind))
             .map((type) => (
               <button
                 key={type}
@@ -1715,6 +1781,56 @@ function NodePalette({
           document.body,
         )}
     </div>
+  )
+}
+
+/** The values of a call (Use block, Go to activity), as a form built from the target's parameters. */
+function CallArguments({
+  activityId,
+  node,
+  readOnly,
+  onChange,
+}: {
+  activityId: string
+  node: TriccNode
+  readOnly: boolean
+  onChange: (args: TriccNode['args']) => void
+}) {
+  const project = useProjectSnapshot()
+  const bindable = effectiveParams(project, activityId).map((e) => e.name)
+  return (
+    <fieldset className="tricc-call-args" data-testid="call-args">
+      <legend>Settings for this use</legend>
+      <ArgumentForm
+        project={project}
+        rows={rowsFor(project, node.link!)}
+        values={node.args}
+        onChange={onChange}
+        readOnly={readOnly}
+        testId="call-arg"
+        inherited={inheritedAtCall(project, activityId)}
+        bindable={bindable}
+      />
+    </fieldset>
+  )
+}
+
+/** The page's parameters, at a glance, in the header; a click opens the settings. */
+function ParamsChip({ activityId, onOpen }: { activityId: string; onOpen: () => void }) {
+  const project = useProjectSnapshot()
+  const rows = effectiveParams(project, activityId)
+  if (rows.length === 0) return null
+  const names = rows.map((r) => paramLabel(project, r.declaredIn, r.param))
+  return (
+    <button
+      type="button"
+      className="tricc-badge tricc-editor__params"
+      data-testid="activity-params"
+      title={`${TERMS.settings}: ${names.join(', ')}. Click to edit.`}
+      onClick={onOpen}
+    >
+      {TERMS.settings}: {names.join(', ')}
+    </button>
   )
 }
 

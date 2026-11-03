@@ -2,7 +2,8 @@ import { z } from 'zod'
 import { localizedTextSchema } from './localized.js'
 import { expressionSchema } from './expression.js'
 import { conceptRefSchema } from './concept.js'
-import { NODE_TYPES } from './node-types.js'
+import { NODE_TYPES, canonicalNodeType } from './node-types.js'
+import { PARAM_TYPES } from '../../model/types.js'
 
 /**
  * Identifier fragment used for node `name` — what CQL references and what exports mangle.
@@ -10,6 +11,13 @@ import { NODE_TYPES } from './node-types.js'
  * exports a `-` as `_`.
  */
 export const NAME_RE = /^[A-Za-z_][A-Za-z0-9_.-]*$/
+
+/**
+ * A name in a building block or a parameterized page may hold `{{param}}`, substituted when the
+ * page is built (tricc_oo block-params §4, §10): `fever_{{site}}` becomes `fever_axillary`.
+ */
+export const TEMPLATE_NAME_RE =
+  /^(?:[A-Za-z0-9_.-]|\{\{\s*[a-z][a-z0-9_]*\s*(?:\|\s*raw\s*)?\}\})+$/
 
 /** `text` made into a valid name: each other character becomes `_`, a leading digit gets a `_`. */
 export function toName(text: string): string {
@@ -42,13 +50,37 @@ export const edgeUiSchema = z
 export const optionSchema = z
   .object({
     id: z.string().min(1),
-    name: z.string().regex(NAME_RE).optional(),
+    name: z.string().regex(TEMPLATE_NAME_RE).optional(),
     label: localizedTextSchema.optional(),
     concept: conceptRefSchema.optional(),
     relevance: expressionSchema.optional(),
     is_none: z.boolean().optional(),
   })
   .strict()
+
+/** A parameter name: what `{{name}}` and call-site `args` refer to. */
+export const PARAM_NAME_RE = /^[a-z][a-z0-9_]*$/
+
+/** A literal parameter value, a concept, or `{{name}}` (a string) bound to a setting of the caller. */
+export const paramValueSchema = z.union([z.string(), z.number(), z.boolean(), conceptRefSchema])
+
+/**
+ * One `params` entry (tricc_oo block-params §2). Labels and help texts are on the parameter's
+ * concept; `label` / `description` are read for draw.io and moved there.
+ */
+export const paramSchema = z
+  .object({
+    name: z.string().min(1),
+    type: z.enum(PARAM_TYPES),
+    options: z.array(z.string().min(1)).optional(),
+    default: paramValueSchema.optional(),
+    required: z.boolean().optional(),
+    label: localizedTextSchema.optional(),
+    description: localizedTextSchema.optional(),
+  })
+  .strict()
+
+export const argsSchema = z.record(z.string().min(1), paramValueSchema)
 
 export const notAvailableSchema = z
   .object({
@@ -74,8 +106,11 @@ export const waitReferenceSchema = z.union([
 export const nodeSchema = z
   .object({
     id: z.string().min(1),
-    type: z.enum(NODE_TYPES),
-    name: z.string().regex(NAME_RE, 'invalid node name').optional(),
+    type: z.preprocess(
+      (v) => (typeof v === 'string' ? canonicalNodeType(v) : v),
+      z.enum(NODE_TYPES),
+    ),
+    name: z.string().regex(TEMPLATE_NAME_RE, 'invalid node name').optional(),
     label: localizedTextSchema.optional(),
     hint: localizedTextSchema.optional(),
     help: localizedTextSchema.optional(),
@@ -102,8 +137,9 @@ export const nodeSchema = z
     // rhombus / wait
     reference: z.union([z.string().min(1), waitReferenceSchema]).optional(),
 
-    // goto / link
+    // goto / link / block (Use block)
     link: z.string().min(1).optional(),
+    args: argsSchema.optional(),
 
     // selects
     listName: z.string().min(1).optional(),
@@ -179,6 +215,8 @@ export const activitySchema = z
     applicability: expressionSchema.optional(),
     /** Plain-language twin of `applicability`. */
     intent: localizedTextSchema.optional(),
+    /** Parameters, declared and computed alike. */
+    params: z.array(paramSchema).optional(),
     /** Legacy. Read and moved to the root `start`, then to the intervention name. */
     form_id: z.string().optional(),
     ui: z
@@ -234,3 +272,4 @@ export type ActivityInput = z.infer<typeof activitySchema>
 export type NodeInput = z.infer<typeof nodeSchema>
 export type EdgeInput = z.infer<typeof edgeSchema>
 export type OptionInput = z.infer<typeof optionSchema>
+export type ParamInput = z.infer<typeof paramSchema>

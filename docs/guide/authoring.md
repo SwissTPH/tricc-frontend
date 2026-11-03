@@ -20,9 +20,10 @@ Opening a project shows one card per intervention. A card lists its processes as
 to open that process. The gear on a card holds its title, code, when it starts, and who it applies
 to.
 
-Above the overview, the navigator has two tabs, **Processes** and **Activities**, each with a
-search box. Use **+** to create one, or the import button to bring in an activity file or a
-draw.io drawing.
+Above the overview, the navigator has three tabs, **Processes**, **Activities** and **Building
+blocks**, each with a search box. Use **+** to create one, or the import button to bring in an
+activity file or a draw.io drawing. Building blocks are reusable pieces of flow with settings; see
+[Building blocks](./blocks).
 
 ## The activity editor
 

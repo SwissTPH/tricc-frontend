@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import {
   DATA_TYPES,
   DESIGNATION_USES,
+  PARAMETER_KIND,
+  paramConceptCode,
   INTERVENTION_SCOPE_URL,
   conceptUsage,
   designationInterventions,
@@ -20,8 +22,14 @@ import {
   type Designation,
   type DesignationUse,
   type DisplayText,
+  type Project,
 } from '@tricc/core'
-import { useCanWrite, useEditorPreferences, useMutate, useProjectSnapshot } from '../runtime/context.js'
+import {
+  useCanWrite,
+  useEditorPreferences,
+  useMutate,
+  useProjectSnapshot,
+} from '../runtime/context.js'
 import { RichTextField } from '../text/RichTextField.js'
 import { ensureDictionary } from './codeSystems.js'
 import { draggingFiles, imageFiles, useAddImages } from '../media/images.js'
@@ -51,12 +59,15 @@ export function ConceptDialog({
   onClose,
   onSaved,
   onOpenNode,
+  onOpenActivity,
 }: {
   target: ConceptTarget
   onClose: () => void
   /** Called after Save with the saved concept. */
   onSaved?: (key: ConceptKey) => void
   onOpenNode?: (activityId: string, nodeId: string) => void
+  /** Open the page a parameter concept belongs to. */
+  onOpenActivity?: (activityId: string) => void
 }) {
   const project = useProjectSnapshot()
   const canWrite = useCanWrite()
@@ -76,12 +87,12 @@ export function ConceptDialog({
   const [draft, setDraft] = useState<Concept>(() =>
     existing
       ? structuredClone(existing)
-      : {
+      : ({
           code: '',
           designations: [],
           ...(isNew ? structuredClone(target.draft) : {}),
           system,
-        } as Concept,
+        } as Concept),
   )
   const cardRef = useRef<HTMLDivElement>(null)
   const addImages = useAddImages()
@@ -89,6 +100,10 @@ export function ConceptDialog({
   // Rows added in this dialog stay in the table, whatever language they get.
   const opened = useRef(draft.designations.length)
   const readOnly = !canWrite
+  // A parameter's concept is its declaration: edited in its page's settings, except its texts.
+  const owner = existing?.kind === PARAMETER_KIND ? paramOwner(project, existing.code) : undefined
+  const isParam = existing?.kind === PARAMETER_KIND
+  const locked = readOnly || isParam
 
   useEffect(() => {
     cardRef.current?.querySelector<HTMLElement>('input:not([disabled]), textarea, select')?.focus()
@@ -116,18 +131,18 @@ export function ConceptDialog({
   const error = missingLanguage
     ? 'Give each text a language (en, fr, …).'
     : !isNew
-    ? !draft.display?.trim()
-      ? 'Give the concept a display.'
-      : undefined
-    : !code
-      ? 'Give the concept a code.'
-      : !CODE.test(code)
-        ? 'A code uses letters, digits, ".", "_" and "-".'
-        : existingCs?.concepts[code]
-          ? 'The dictionary already has this code.'
-          : !draft.display?.trim()
-            ? 'Give the concept a display.'
-            : undefined
+      ? !draft.display?.trim()
+        ? 'Give the concept a display.'
+        : undefined
+      : !code
+        ? 'Give the concept a code.'
+        : !CODE.test(code)
+          ? 'A code uses letters, digits, ".", "_" and "-".'
+          : existingCs?.concepts[code]
+            ? 'The dictionary already has this code.'
+            : !draft.display?.trim()
+              ? 'Give the concept a display.'
+              : undefined
 
   const set = (patch: Partial<Concept>) => {
     const next = { ...draft, ...patch } as Concept
@@ -137,7 +152,9 @@ export function ConceptDialog({
     setDraft(next)
   }
   const ownText = (use: DesignationUse): DisplayText => {
-    const d = draft.designations.find((x) => x.language === lang && isUnscoped(x) && designationUse(x) === use)
+    const d = draft.designations.find(
+      (x) => x.language === lang && isUnscoped(x) && designationUse(x) === use,
+    )
     return d ? designationText(d) : ''
   }
   const setText = (use: DesignationUse, text: DisplayText) =>
@@ -147,11 +164,14 @@ export function ConceptDialog({
   const main = new Set(
     RICH.map((use) =>
       draft.designations.findIndex(
-        (d, i) => i < opened.current && d.language === lang && isUnscoped(d) && designationUse(d) === use,
+        (d, i) =>
+          i < opened.current && d.language === lang && isUnscoped(d) && designationUse(d) === use,
       ),
     ).filter((i) => i >= 0),
   )
-  const others = draft.designations.map((d, index) => ({ d, index })).filter(({ index }) => !main.has(index))
+  const others = draft.designations
+    .map((d, index) => ({ d, index }))
+    .filter(({ index }) => !main.has(index))
   const updateAt = (index: number, d: Designation) =>
     setDraft({ ...draft, designations: draft.designations.map((x, i) => (i === index ? d : x)) })
 
@@ -188,7 +208,8 @@ export function ConceptDialog({
           setPictureOver(true)
         }}
         onDragLeave={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPictureOver(false)
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+            setPictureOver(false)
         }}
         onDrop={(event) => {
           if (!canWrite || !draggingFiles(event)) return
@@ -202,7 +223,37 @@ export function ConceptDialog({
       >
         <h2 id="concept-dialog-title">
           {isNew ? 'New concept' : (existing?.display ?? existing?.code)}
+          {isParam && (
+            <span className="tricc-badge" data-testid="concept-parameter-badge">
+              {' '}
+              Parameter
+            </span>
+          )}
         </h2>
+        {isParam && (
+          <p className="tricc-import-note" data-testid="concept-parameter-note">
+            A parameter of{' '}
+            {owner
+              ? (resolve(project.activities[owner]?.title, lang, lang) ?? owner)
+              : 'a page that no longer has it'}
+            . Its type, options and default are edited in that page's settings; only its texts are
+            edited here.{' '}
+            {owner && onOpenActivity && (
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                data-testid="concept-parameter-owner"
+                onClick={() => {
+                  onClose()
+                  onOpenActivity(owner)
+                }}
+              >
+                Open {resolve(project.activities[owner]?.title, lang, lang) ?? owner}
+              </Button>
+            )}
+          </p>
+        )}
         <form
           className="tricc-concept__body"
           onSubmit={(e) => {
@@ -281,7 +332,7 @@ export function ConceptDialog({
             data-testid="concept-definition"
             rows={2}
             value={draft.definition ?? ''}
-            disabled={readOnly}
+            disabled={locked}
             onChange={(e) => set({ definition: e.target.value })}
           />
 
@@ -290,7 +341,7 @@ export function ConceptDialog({
             id="concept-data-type"
             data-testid="concept-data-type"
             value={draft.dataType ?? ''}
-            disabled={readOnly}
+            disabled={locked}
             onChange={(e) => set({ dataType: e.target.value })}
           >
             <option value="">—</option>
@@ -306,7 +357,7 @@ export function ConceptDialog({
             id="concept-type"
             data-testid="concept-type"
             value={draft.conceptType ?? ''}
-            disabled={readOnly}
+            disabled={locked}
             onChange={(e) => set({ conceptType: e.target.value })}
           >
             <option value="">—</option>
@@ -322,7 +373,7 @@ export function ConceptDialog({
             id="concept-unit"
             data-testid="concept-unit"
             value={draft.unit ?? ''}
-            disabled={readOnly}
+            disabled={locked}
             onChange={(e) => set({ unit: e.target.value })}
           />
           <label htmlFor="concept-target-resource">Stored in — resource</label>
@@ -330,7 +381,7 @@ export function ConceptDialog({
             id="concept-target-resource"
             data-testid="concept-target-resource"
             value={draft.targetResource ?? ''}
-            disabled={readOnly}
+            disabled={locked}
             onChange={(e) => set({ targetResource: e.target.value })}
           />
           <label htmlFor="concept-target-path">Stored in — path</label>
@@ -338,7 +389,7 @@ export function ConceptDialog({
             id="concept-target-path"
             data-testid="concept-target-path"
             value={draft.targetPath ?? ''}
-            disabled={readOnly}
+            disabled={locked}
             onChange={(e) => set({ targetPath: e.target.value })}
           />
 
@@ -372,7 +423,10 @@ export function ConceptDialog({
                           value={use ?? 'other'}
                           disabled={readOnly || use === undefined}
                           onChange={(e) =>
-                            updateAt(index, { ...d, use: { ...DESIGNATION_USES[e.target.value as DesignationUse] } })
+                            updateAt(index, {
+                              ...d,
+                              use: { ...DESIGNATION_USES[e.target.value as DesignationUse] },
+                            })
                           }
                         >
                           {(Object.keys(USE_LABELS) as DesignationUse[]).map((u) => (
@@ -380,7 +434,9 @@ export function ConceptDialog({
                               {USE_LABELS[u]}
                             </option>
                           ))}
-                          {use === undefined && <option value="other">{d.use?.code ?? 'Other'}</option>}
+                          {use === undefined && (
+                            <option value="other">{d.use?.code ?? 'Other'}</option>
+                          )}
                         </select>
                       </td>
                       <td>
@@ -408,7 +464,10 @@ export function ConceptDialog({
                               const kept = (d.extension ?? []).filter(
                                 (x) => (x as { url?: string }).url !== INTERVENTION_SCOPE_URL,
                               )
-                              const extension = [...kept, ...scopeExtension(e.target.value ? [e.target.value] : [])]
+                              const extension = [
+                                ...kept,
+                                ...scopeExtension(e.target.value ? [e.target.value] : []),
+                              ]
                               const next: Designation = { ...d }
                               if (extension.length) next.extension = extension
                               else delete next.extension
@@ -453,7 +512,10 @@ export function ConceptDialog({
                             data-testid={`concept-text-${index}-remove`}
                             onClick={() => {
                               if (index < opened.current) opened.current -= 1
-                              setDraft({ ...draft, designations: draft.designations.filter((_, i) => i !== index) })
+                              setDraft({
+                                ...draft,
+                                designations: draft.designations.filter((_, i) => i !== index),
+                              })
                             }}
                           >
                             Remove
@@ -514,7 +576,8 @@ export function ConceptDialog({
                             onOpenNode?.(u.activityId, u.nodeId)
                           }}
                         >
-                          {resolve(activity?.title, lang, lang) ?? u.activityId} — {node?.name ?? u.nodeId}
+                          {resolve(activity?.title, lang, lang) ?? u.activityId} —{' '}
+                          {node?.name ?? u.nodeId}
                           {u.optionId ? ' (answer)' : ''}
                         </Button>
                       </li>
@@ -531,14 +594,18 @@ export function ConceptDialog({
             </p>
           )}
           <div className="tricc-library-modal__actions">
-            {!isNew && canWrite && (
+            {!isNew && canWrite && !isParam && (
               <Button
                 variant="destructive"
                 size="sm"
                 type="button"
                 data-testid="concept-delete"
                 disabled={uses.length > 0}
-                title={uses.length > 0 ? `Used by ${uses.length}. Remove those uses first.` : 'Delete this concept'}
+                title={
+                  uses.length > 0
+                    ? `Used by ${uses.length}. Remove those uses first.`
+                    : 'Delete this concept'
+                }
                 onClick={() => {
                   mutate((tx) => tx.removeConcept(key.system, key.code))
                   onClose()
@@ -575,12 +642,26 @@ export function ConceptDialog({
 }
 
 function withCurrent(list: readonly string[], current: string | undefined): string[] {
-  return current && !list.some((t) => t.toLowerCase() === current.toLowerCase()) ? [...list, current] : [...list]
+  return current && !list.some((t) => t.toLowerCase() === current.toLowerCase())
+    ? [...list, current]
+    : [...list]
 }
 
 /** A dictionary as the author sees it: its id, with what it is for. */
-export function dictionaryLabel(d: { id: string; kind: 'default' | 'calculate' | 'other' }): string {
+export function dictionaryLabel(d: {
+  id: string
+  kind: 'default' | 'calculate' | 'other'
+}): string {
   if (d.kind === 'default') return `${d.id} (default)`
   if (d.kind === 'calculate') return `${d.id} (calculations and diagnoses)`
   return d.id
+}
+
+/** The page declaring the parameter whose concept has this code. */
+function paramOwner(project: Project, code: string): string | undefined {
+  for (const id of Object.keys(project.activities).sort()) {
+    const activity = project.activities[id]!
+    if ((activity.params ?? []).some((p) => paramConceptCode(activity, p.name) === code)) return id
+  }
+  return undefined
 }

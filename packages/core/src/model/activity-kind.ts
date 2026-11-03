@@ -14,7 +14,7 @@ import type { Activity, TriccNode } from './types.js'
  * cannot be both a process entry and a nested instance — which is why assigning a process
  * directly to a normal activity would break the moment anything else called it.
  */
-export type ActivityKind = 'process' | 'activity'
+export type ActivityKind = 'process' | 'activity' | 'block'
 
 /**
  * The page's entry node. A main `start` anywhere on the page wins, so a process page that
@@ -26,12 +26,32 @@ export function rootNode(activity: Activity): TriccNode | undefined {
     ...Object.values(activity.nodes),
   ].filter((n): n is TriccNode => n !== undefined)
   return (
-    ordered.find((n) => n.type === 'start') ?? ordered.find((n) => n.type === 'activity_start')
+    ordered.find((n) => n.type === 'start') ??
+    ordered.find((n) => n.type === 'block_start') ??
+    ordered.find((n) => n.type === 'activity_start')
   )
 }
 
+/**
+ * A **building block** is rooted by `block_start`: a reusable piece used with
+ * different settings, each use an independent copy (feature/20261028-snippets-tab-and-params.md).
+ */
 export function activityKind(activity: Activity): ActivityKind {
-  return rootNode(activity)?.type === 'start' ? 'process' : 'activity'
+  const type = rootNode(activity)?.type
+  return type === 'start' ? 'process' : type === 'block_start' ? 'block' : 'activity'
+}
+
+export function isBlock(activity: Activity): boolean {
+  return activityKind(activity) === 'block'
+}
+
+/** Nodes that call another page: Go to activity (`goto`) and Use block (`block`), with a target. */
+export function callsOf(activity: Activity): TriccNode[] {
+  return activity.nodeOrder
+    .map((id) => activity.nodes[id])
+    .filter((n): n is TriccNode =>
+      Boolean(n && n.link && (n.type === 'goto' || n.type === 'block')),
+    )
 }
 
 export function isProcessActivity(activity: Activity): boolean {
@@ -92,7 +112,7 @@ export function calledActivities(activity: Activity): string[] {
   const out: string[] = []
   for (const id of activity.nodeOrder) {
     const node = activity.nodes[id]
-    if (node?.type === 'goto' && node.link) out.push(node.link)
+    if ((node?.type === 'goto' || node?.type === 'block') && node.link) out.push(node.link)
   }
   return out
 }

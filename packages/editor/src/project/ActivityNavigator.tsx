@@ -5,7 +5,9 @@ import {
   activityKind,
   moveTextsToConcepts,
   createActivity,
+  createBlock,
   createProcessActivity,
+  effectiveParams,
   mergeImages,
   processOf,
   projectDictionaries,
@@ -21,10 +23,14 @@ import { ProjectSearchDialog } from './ProjectSearch.js'
 import { dictionaryLabel } from '../terminology/ConceptDialog.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
+import { TERMS } from '../blocks/terms.js'
 
-type LibraryTab = 'process' | 'activity'
+type LibraryTab = 'process' | 'activity' | 'block'
 
-type LibraryDraft = { kind: 'activity'; name: string } | { kind: 'process'; process: string }
+type LibraryDraft =
+  | { kind: 'activity'; name: string }
+  | { kind: 'block'; name: string }
+  | { kind: 'process'; process: string }
 
 type ImportRow = ParsedActivity & { filename: string; kind: LibraryTab }
 
@@ -52,6 +58,8 @@ export function ActivityNavigator({
   onOpenMedia,
   onOpenConcept,
   onOpenNode,
+  blocksOpen,
+  onOpenBlocks,
 }: {
   selected: string | undefined
   onSelect: (id: string | undefined) => void
@@ -72,6 +80,10 @@ export function ActivityNavigator({
   onOpenConcept?: (key: ConceptKey) => void
   /** A node found by the project search. */
   onOpenNode?: (activityId: string, nodeId: string) => void
+  /** Whether the building blocks list fills the main area. */
+  blocksOpen?: boolean
+  /** Shows the Building blocks list in the main area, from its tab. */
+  onOpenBlocks?: () => void
 }) {
   const project = useProjectSnapshot()
   const canWrite = useCanWrite()
@@ -84,6 +96,7 @@ export function ActivityNavigator({
   const [expanded, setExpanded] = useState(false)
   const [activityQuery, setActivityQuery] = useState('')
   const [processQuery, setProcessQuery] = useState('')
+  const [blockQuery, setBlockQuery] = useState('')
   const [overflows, setOverflows] = useState(false)
   const [projectQuery, setProjectQuery] = useState('')
   const [searching, setSearching] = useState<string | null>(null)
@@ -92,14 +105,22 @@ export function ActivityNavigator({
 
   const ids = Object.keys(project.activities).sort()
   const processActivities = ids.filter((id) => activityKind(project.activities[id]!) === 'process')
-  const normalActivities = ids.filter((id) => activityKind(project.activities[id]!) !== 'process')
+  const normalActivities = ids.filter((id) => activityKind(project.activities[id]!) === 'activity')
+  const blocks = ids.filter((id) => activityKind(project.activities[id]!) === 'block')
+  const blockUses = new Map<string, number>()
+  for (const a of Object.values(project.activities)) {
+    for (const n of Object.values(a.nodes)) {
+      if (n.type === 'block' && n.link) blockUses.set(n.link, (blockUses.get(n.link) ?? 0) + 1)
+    }
+  }
   const usage = activityUsage(project)
-  const conceptCount = Object.values(project.codeSystems).reduce((n, cs) => n + cs.conceptOrder.length, 0)
+  const conceptCount = Object.values(project.codeSystems).reduce(
+    (n, cs) => n + cs.conceptOrder.length,
+    0,
+  )
   const selectedActivity = selected ? project.activities[selected] : undefined
   const selectedKind: LibraryTab | undefined = selectedActivity
-    ? activityKind(selectedActivity) === 'process'
-      ? 'process'
-      : 'activity'
+    ? activityKind(selectedActivity)
     : undefined
 
   // Opening an entry shows the tab it belongs to. A manual tab click stays until the
@@ -112,11 +133,12 @@ export function ActivityNavigator({
   useEffect(() => {
     if (dictionaryOpen) setTab('dictionary')
     else if (mediaOpen) setTab('media')
+    else if (blocksOpen) setTab('block')
     else
       setTab((current) =>
         current === 'dictionary' || current === 'media' ? (selectedKind ?? 'activity') : current,
       )
-  }, [dictionaryOpen, mediaOpen, selectedKind])
+  }, [dictionaryOpen, mediaOpen, blocksOpen, selectedKind])
 
   const label = (id: string) => resolve(project.activities[id]?.title, lang, lang) ?? id
   const usedBy = (id: string) => {
@@ -133,6 +155,7 @@ export function ActivityNavigator({
 
   const openDraft = (kind: LibraryTab) => {
     if (kind === 'activity') setDraft({ kind, name: uniqueId('activity', taken) })
+    else if (kind === 'block') setDraft({ kind, name: uniqueId('block', taken) })
     else setDraft({ kind, process: '' })
   }
 
@@ -144,6 +167,16 @@ export function ActivityNavigator({
       if (!base) return
       const id = uniqueId(base, taken)
       mutate((tx) => tx.addActivity(createActivity({ id, title, language: lang })))
+      setDraft(null)
+      onSelect(id)
+      return
+    }
+    if (draft.kind === 'block') {
+      const title = draft.name.trim()
+      const base = slugId(title)
+      if (!base) return
+      const id = uniqueId(base, taken)
+      mutate((tx) => tx.addActivity(createBlock({ id, title, language: lang })))
       setDraft(null)
       onSelect(id)
       return
@@ -178,7 +211,7 @@ export function ActivityNavigator({
     const files = list ? [...list] : []
     if (fileRef.current) fileRef.current.value = ''
     if (files.length === 0) return
-    const kind: LibraryTab = tab === 'process' ? 'process' : 'activity'
+    const kind: LibraryTab = tab === 'process' ? 'process' : tab === 'block' ? 'block' : 'activity'
     const reserved = new Set(Object.keys(project.activities))
     const rows: ImportRow[] = []
     const errors: ImportPreview['errors'] = []
@@ -197,13 +230,16 @@ export function ActivityNavigator({
       try {
         parsed = readActivityFile(file.name, text, new Set(reserved), lang)
       } catch (error) {
-        errors.push({ filename: file.name, message: error instanceof Error ? error.message : String(error) })
+        errors.push({
+          filename: file.name,
+          message: error instanceof Error ? error.message : String(error),
+        })
         continue
       }
       // A page with a main start is a process, any other page an activity. One import
       // takes both, whichever tab it was started from.
       for (const item of parsed) {
-        const itemKind: LibraryTab = activityKind(item.activity) === 'process' ? 'process' : 'activity'
+        const itemKind: LibraryTab = activityKind(item.activity)
         reserved.add(item.activity.id)
         rows.push({ ...item, filename: file.name, kind: itemKind })
       }
@@ -246,8 +282,11 @@ export function ActivityNavigator({
     onSelect(first.activity.id)
   }
 
-  const query = tab === 'activity' ? activityQuery : processQuery
-  const setQuery = tab === 'activity' ? setActivityQuery : setProcessQuery
+  const query = tab === 'activity' ? activityQuery : tab === 'block' ? blockQuery : processQuery
+  const setQuery =
+    tab === 'activity' ? setActivityQuery : tab === 'block' ? setBlockQuery : setProcessQuery
+  const addLabel =
+    tab === 'activity' ? 'Add an activity' : tab === 'block' ? TERMS.newBlock : 'Add a process'
 
   return (
     <nav data-testid="activity-navigator" data-expanded={expanded ? 'true' : 'false'}>
@@ -276,6 +315,21 @@ export function ActivityNavigator({
           >
             Activities
             <span className="tricc-nav__count">{normalActivities.length}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-blocks"
+            aria-selected={tab === 'block'}
+            aria-controls="block-panel"
+            data-testid="tab-blocks"
+            onClick={() => {
+              setTab('block')
+              onOpenBlocks?.()
+            }}
+          >
+            {TERMS.blocks}
+            <span className="tricc-nav__count">{blocks.length}</span>
           </button>
           {onOpenDictionary && (
             <button
@@ -312,7 +366,8 @@ export function ActivityNavigator({
             </button>
           )}
         </div>
-        <Input size="sm"
+        <Input
+          size="sm"
           type="search"
           className="tricc-nav__project-search"
           data-testid="project-search"
@@ -328,58 +383,64 @@ export function ActivityNavigator({
           }}
         />
         {tab !== 'dictionary' && tab !== 'media' && (
-        <>
-        <Button
-          variant="outline"
-          size="sm"
-          type="button"
-          data-testid="nav-expand"
-          aria-expanded={expanded}
-          aria-controls={tab === 'activity' ? 'activity-panel' : 'process-panel'}
-          disabled={!expanded && !overflows}
-          onClick={() => setExpanded((open) => !open)}
-        >
-          {expanded ? 'Collapse' : 'Expand'}
-        </Button>
-        {canWrite && (
-          <span className="tricc-nav__create">
-            <Button
-              variant="outline"
-              size="icon-sm"
-              type="button"
-              data-testid={tab === 'activity' ? 'add-activity' : 'add-process'}
-              aria-label={tab === 'activity' ? 'Add an activity' : 'Add a process'}
-              title={tab === 'activity' ? 'Add an activity' : 'Add a process'}
-              onClick={() => {
-                setPreview(null)
-                openDraft(tab)
-              }}
-            >
-              +
-            </Button>
+          <>
             <Button
               variant="outline"
               size="sm"
               type="button"
-              data-testid={tab === 'activity' ? 'import-activity' : 'import-process'}
-              aria-label={tab === 'activity' ? 'Import an activity' : 'Import a process'}
-              title={tab === 'activity' ? 'Import an activity' : 'Import a process'}
-              onClick={openImport}
+              data-testid="nav-expand"
+              aria-expanded={expanded}
+              aria-controls={`${tab}-panel`}
+              disabled={!expanded && !overflows}
+              onClick={() => setExpanded((open) => !open)}
             >
-              Import
+              {expanded ? 'Collapse' : 'Expand'}
             </Button>
-            <input
-              ref={fileRef}
-              type="file"
-              multiple
-              hidden
-              accept=".yaml,.yml,.drawio,.xml"
-              data-testid={tab === 'activity' ? 'import-activity-file' : 'import-process-file'}
-              onChange={(event) => void onImportFiles(event.target.files)}
-            />
-          </span>
-        )}
-        </>
+            {canWrite && (
+              <span className="tricc-nav__create">
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  type="button"
+                  data-testid={
+                    tab === 'activity'
+                      ? 'add-activity'
+                      : tab === 'block'
+                        ? 'add-building-block'
+                        : 'add-process'
+                  }
+                  aria-label={addLabel}
+                  title={addLabel}
+                  onClick={() => {
+                    setPreview(null)
+                    openDraft(tab)
+                  }}
+                >
+                  +
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  data-testid={`import-${tab}`}
+                  aria-label={`Import ${tab === 'activity' ? 'an activity' : `a ${tab}`}`}
+                  title={`Import ${tab === 'activity' ? 'an activity' : `a ${tab}`}`}
+                  onClick={openImport}
+                >
+                  Import
+                </Button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  multiple
+                  hidden
+                  accept=".yaml,.yml,.drawio,.xml"
+                  data-testid={`import-${tab}-file`}
+                  onChange={(event) => void onImportFiles(event.target.files)}
+                />
+              </span>
+            )}
+          </>
         )}
       </div>
       <datalist id="cpg-processes">
@@ -408,12 +469,62 @@ export function ActivityNavigator({
                   onClick={() => onOpenDictionary?.(d.url)}
                 >
                   {d.id}
-                  <span className="tricc-nav__process">{d.codeSystem?.conceptOrder.length ?? 0}</span>
+                  <span className="tricc-nav__process">
+                    {d.codeSystem?.conceptOrder.length ?? 0}
+                  </span>
                 </button>
               </li>
             ))}
           </ul>
         </section>
+      ) : tab === 'block' ? (
+        <LibraryPanel
+          tab="block"
+          panelLabel={TERMS.blocks}
+          listTestId="block-list"
+          ids={blocks}
+          selected={selected}
+          query={blockQuery}
+          filter={
+            <Input
+              size="sm"
+              type="search"
+              data-testid="block-search"
+              aria-label="Find a block"
+              placeholder="Filter"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          }
+          expanded={expanded}
+          itemLabel={label}
+          onOverflow={setOverflows}
+          empty={
+            <p data-testid="no-blocks">
+              No building blocks yet. Use + to make one. {TERMS.blockOrGoto}
+            </p>
+          }
+          renderItem={(id) => {
+            const count = effectiveParams(project, id).length
+            const uses = blockUses.get(id) ?? 0
+            return (
+              <button
+                type="button"
+                className="tricc-chip"
+                data-testid={`nav-activity-${id}`}
+                data-kind="block"
+                aria-current={selected === id}
+                title={`${count} parameter${count === 1 ? '' : 's'}, used in ${uses} place${uses === 1 ? '' : 's'}`}
+                onClick={() => onSelect(id)}
+              >
+                {label(id)}
+                <span className="tricc-nav__process">
+                  {count} param{count === 1 ? '' : 's'} · {uses} use{uses === 1 ? '' : 's'}
+                </span>
+              </button>
+            )
+          }}
+        />
       ) : tab === 'process' ? (
         <LibraryPanel
           tab="process"
@@ -423,7 +534,8 @@ export function ActivityNavigator({
           selected={selected}
           query={processQuery}
           filter={
-            <Input size="sm"
+            <Input
+              size="sm"
               type="search"
               data-testid="process-search"
               aria-label="Find a process"
@@ -470,7 +582,8 @@ export function ActivityNavigator({
           selected={selected}
           query={activityQuery}
           filter={
-            <Input size="sm"
+            <Input
+              size="sm"
               type="search"
               data-testid="activity-search"
               aria-label="Find an activity"
@@ -564,7 +677,9 @@ function LibraryPanel({
   const listRef = useRef<HTMLUListElement>(null)
   const needle = query.trim().toLowerCase()
   const shown = needle
-    ? ids.filter((id) => itemLabel(id).toLowerCase().includes(needle) || id.toLowerCase().includes(needle))
+    ? ids.filter(
+        (id) => itemLabel(id).toLowerCase().includes(needle) || id.toLowerCase().includes(needle),
+      )
     : ids
   const signature = `${shown.join('|')}|${expanded ? 'open' : 'closed'}`
 
@@ -603,7 +718,7 @@ function LibraryPanel({
       role="tabpanel"
       id={`${tab}-panel`}
       aria-label={panelLabel}
-      aria-labelledby={`tab-${tab === 'process' ? 'processes' : 'activities'}`}
+      aria-labelledby={`tab-${tab === 'process' ? 'processes' : tab === 'block' ? 'blocks' : 'activities'}`}
     >
       <div className="tricc-nav__row">
         {filter}
@@ -615,7 +730,7 @@ function LibraryPanel({
       </div>
       {shown.length === 0 && needle !== '' && (
         <p className="tricc-nav__empty" data-testid={`${tab}-no-match`}>
-          No {tab === 'process' ? 'processes' : 'activities'} match.
+          No {tab === 'process' ? 'processes' : tab === 'block' ? 'blocks' : 'activities'} match.
         </p>
       )}
       {shown.length === 0 && needle === '' ? empty : null}
@@ -641,10 +756,10 @@ function LibraryDraftDialog({
   onConfirm: () => void
 }) {
   const cardRef = useRef<HTMLFormElement>(null)
-  const activityBase = draft.kind === 'activity' ? slugId(draft.name) : ''
+  const activityBase = draft.kind !== 'process' ? slugId(draft.name) : ''
   const processBase = draft.kind === 'process' ? slugId(draft.process) : ''
   const savedAs =
-    draft.kind === 'activity'
+    draft.kind !== 'process'
       ? activityBase
         ? uniqueId(activityBase, taken)
         : ''
@@ -703,15 +818,22 @@ function LibraryDraftDialog({
           if (savedAs) onConfirm()
         }}
       >
-        <h2 id="library-modal-title">{draft.kind === 'activity' ? 'New activity' : 'New process'}</h2>
-        {draft.kind === 'activity' ? (
+        <h2 id="library-modal-title">
+          {draft.kind === 'activity'
+            ? 'New activity'
+            : draft.kind === 'block'
+              ? TERMS.newBlock
+              : 'New process'}
+        </h2>
+        {draft.kind === 'block' && <p className="tricc-import-note">{TERMS.blockOrGoto}</p>}
+        {draft.kind !== 'process' ? (
           <label>
-            Name
+            {draft.kind === 'block' ? 'Label' : 'Name'}
             <Input
-              data-testid="new-activity-name"
+              data-testid={draft.kind === 'block' ? 'new-block-name' : 'new-activity-name'}
               value={draft.name}
               autoComplete="off"
-              onChange={(event) => onChange({ kind: 'activity', name: event.target.value })}
+              onChange={(event) => onChange({ kind: draft.kind, name: event.target.value })}
             />
           </label>
         ) : (
@@ -730,9 +852,9 @@ function LibraryDraftDialog({
         <p className="tricc-library-modal__id">
           {savedAs ? (
             <>
-              Saved as <span data-testid={draft.kind === 'activity' ? 'new-activity-id' : 'new-process-id'}>{savedAs}</span>
+              Saved as <span data-testid={`new-${draft.kind}-id`}>{savedAs}</span>
             </>
-          ) : draft.kind === 'activity' ? (
+          ) : draft.kind !== 'process' ? (
             'Enter a name to continue.'
           ) : (
             'Name the process this starts.'
@@ -742,7 +864,13 @@ function LibraryDraftDialog({
           <Button
             size="sm"
             type="submit"
-            data-testid={draft.kind === 'activity' ? 'create-activity' : 'add-process-activity'}
+            data-testid={
+              draft.kind === 'activity'
+                ? 'create-activity'
+                : draft.kind === 'block'
+                  ? 'create-block'
+                  : 'add-process-activity'
+            }
             disabled={!savedAs}
           >
             Create
@@ -779,7 +907,7 @@ function ImportDialog({
   onConfirm: () => void
 }) {
   const cardRef = useRef<HTMLFormElement>(null)
-  const title = preview.kind === 'activity' ? 'Import an activity' : 'Import a process'
+  const title = preview.kind === 'activity' ? 'Import an activity' : `Import a ${preview.kind}`
   const canImport = preview.rows.length > 0
 
   useEffect(() => {
@@ -833,18 +961,21 @@ function ImportDialog({
         }}
       >
         <h2 id="import-modal-title">{title}</h2>
-        {canImport && (
-          <p className="tricc-import-note">Nothing is added until you import.</p>
-        )}
+        {canImport && <p className="tricc-import-note">Nothing is added until you import.</p>}
         {preview.rows.length > 0 && (
           <div data-testid="import-preview">
-            {(['process', 'activity'] as const).map((group) => {
+            {(['process', 'activity', 'block'] as const).map((group) => {
               const rows = preview.rows.filter((row) => row.kind === group)
               if (rows.length === 0) return null
               return (
                 <section key={group} data-testid={`import-group-${group}`}>
                   <h3>
-                    {group === 'process' ? 'Processes' : 'Activities'} ({rows.length})
+                    {group === 'process'
+                      ? 'Processes'
+                      : group === 'block'
+                        ? TERMS.blocks
+                        : 'Activities'}{' '}
+                    ({rows.length})
                   </h3>
                   <ul className="tricc-import-list">
                     {rows.map((row) => {
@@ -852,7 +983,9 @@ function ImportDialog({
                       return (
                         <li key={row.activity.id} data-testid={`import-item-${row.activity.id}`}>
                           {label}
-                          <span data-testid={`import-id-${row.activity.id}`}>{importDetail(row)}</span>
+                          <span data-testid={`import-id-${row.activity.id}`}>
+                            {importDetail(row)}
+                          </span>
                           <span>{row.filename}</span>
                         </li>
                       )
@@ -864,7 +997,11 @@ function ImportDialog({
           </div>
         )}
         {preview.errors.map((error) => (
-          <p key={`${error.filename}-${error.message}`} className="tricc-import-note" data-testid="import-error">
+          <p
+            key={`${error.filename}-${error.message}`}
+            className="tricc-import-note"
+            data-testid="import-error"
+          >
             {error.filename}: {error.message}
           </p>
         ))}

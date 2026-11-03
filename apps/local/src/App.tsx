@@ -35,6 +35,7 @@ import {
   ActivityEditor,
   ActivityNavigator,
   BinIcon,
+  BlocksView,
   Breadcrumbs,
   Button,
   ConfirmDelete,
@@ -48,6 +49,7 @@ import {
   OpenProjectProvider,
   ProjectOverview,
   Textarea,
+  TERMS,
   TriccRuntimeProvider,
   nextTrail,
   useSave,
@@ -471,12 +473,14 @@ function ProjectWorkspace({
   const navigate = useNavigate()
   const [dictionary, setDictionary] = useState(false)
   const [media, setMedia] = useState(false)
+  const [blocks, setBlocks] = useState(false)
   const [concept, setConcept] = useState<ConceptKey | undefined>(undefined)
   /** The dictionary on screen (canonical url); undefined until one is chosen. */
   const [dictionarySystem, setDictionarySystem] = useState<string | undefined>(undefined)
   const openNode = useCallback((nextActivity: string, nodeId: string) => {
     setDictionary(false)
     setMedia(false)
+    setBlocks(false)
     setConcept(undefined)
     setFocus({ activityId: nextActivity, nodeId })
     setTrail((t) => nextTrail(t, nextActivity, 'reset'))
@@ -484,6 +488,7 @@ function ProjectWorkspace({
   const openEdge = useCallback((nextActivity: string, edgeId: string) => {
     setDictionary(false)
     setMedia(false)
+    setBlocks(false)
     setConcept(undefined)
     setFocus({ activityId: nextActivity, edgeId })
     setTrail((t) => nextTrail(t, nextActivity, 'reset'))
@@ -492,11 +497,13 @@ function ProjectWorkspace({
     setConcept(key)
     setDictionarySystem(key.system)
     setMedia(false)
+    setBlocks(false)
     setDictionary(true)
   }, [])
   const openActivity = useCallback((id: string | undefined) => {
     setDictionary(false)
     setMedia(false)
+    setBlocks(false)
     setConcept(undefined)
     setFocus(null)
     setTrail(id ? [id] : [])
@@ -525,6 +532,9 @@ function ProjectWorkspace({
   )
   /** Through a goto: the activity is added to the breadcrumb. */
   const followActivity = useCallback((next: string) => {
+    setDictionary(false)
+    setMedia(false)
+    setBlocks(false)
     setFocus(null)
     setTrail((t) => nextTrail(t, next, 'follow'))
   }, [])
@@ -533,9 +543,10 @@ function ProjectWorkspace({
     setFocus({ activityId: caller, nodeId })
     setTrail((t) => nextTrail(t, caller, 'return'))
   }, [])
-  const showView = useCallback((view: 'dictionary' | 'media' | null) => {
+  const showView = useCallback((view: 'dictionary' | 'media' | 'blocks' | null) => {
     setDictionary(view === 'dictionary')
     setMedia(view === 'media')
+    setBlocks(view === 'blocks')
     setConcept(undefined)
   }, [])
 
@@ -639,8 +650,10 @@ function ProjectWorkspace({
         storageLabel={storageLabel}
         crumbs={
           <Breadcrumbs
-            trail={dictionary || media ? [] : trail}
-            extra={dictionary ? 'Data dictionary' : media ? 'Media' : undefined}
+            trail={dictionary || media || blocks ? [] : trail}
+            extra={
+              dictionary ? 'Data dictionary' : media ? 'Media' : blocks ? TERMS.blocks : undefined
+            }
             onHome={() => navigate('/')}
             onProject={() => {
               showView(null)
@@ -670,11 +683,12 @@ function ProjectWorkspace({
       >
         <ActivityNavigator
           onSelect={openActivity}
-          selected={dictionary || media ? undefined : activityId}
+          selected={dictionary || media || blocks ? undefined : activityId}
           dictionaryOpen={dictionary}
           dictionarySystem={dictionary ? dictionarySystem : undefined}
           onOpenDictionary={(system) => {
             setMedia(false)
+            setBlocks(false)
             setConcept(undefined)
             setDictionarySystem(system)
             setDictionary(true)
@@ -684,10 +698,15 @@ function ProjectWorkspace({
           mediaOpen={media}
           onOpenMedia={() => {
             setDictionary(false)
+            setBlocks(false)
             setMedia(true)
           }}
+          blocksOpen={blocks}
+          onOpenBlocks={() => showView('blocks')}
         />
-        {media ? (
+        {blocks ? (
+          <BlocksView onOpenBlock={openActivity} onOpenNode={openNode} />
+        ) : media ? (
           <MediaView onOpenConcept={openConcept} />
         ) : dictionary ? (
           <DictionaryView
@@ -695,6 +714,7 @@ function ProjectWorkspace({
             open={concept}
             onOpen={setConcept}
             onOpenNode={openNode}
+            onOpenActivity={openActivity}
           />
         ) : activityId ? (
           <ActivityEditor
