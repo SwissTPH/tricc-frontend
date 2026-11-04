@@ -9,7 +9,7 @@ everywhere: there is one shared copy and no settings.
 
 ## The Building blocks tab
 
-The navigator has a **Building blocks** tab next to Processes and Activities. It lists every block
+The navigator has a **Building blocks** tab next to Segments and Activities. It lists every block
 with its settings and how many times it is used. **New block** creates one. A block opens in the
 activity editor like any activity. It starts at a **Block start** node and ends at an
 **Activity end**.

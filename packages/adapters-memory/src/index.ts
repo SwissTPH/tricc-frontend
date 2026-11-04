@@ -9,6 +9,7 @@ import type {
   PersistenceCapabilities,
   PersistencePort,
   ProjectCatalogPort,
+  ProjectDescription,
   ProjectFiles,
   ProjectRef,
   ProjectSummary,
@@ -105,6 +106,16 @@ export class MemoryCatalog implements ProjectCatalogPort {
   async touch(ref: ProjectRef): Promise<void> {
     const existing = this.projects.get(ref.id)
     if (existing) existing.lastOpened = this.counter
+  }
+
+  async describe(ref: ProjectRef, description: ProjectDescription): Promise<void> {
+    const existing = this.projects.get(ref.id)
+    if (!existing) return
+    const { id, name, handle, lastOpened } = existing
+    const next: ProjectSummary = { id, name, ...structuredClone(description) }
+    if (handle !== undefined) next.handle = handle
+    if (lastOpened !== undefined) next.lastOpened = lastOpened
+    this.projects.set(ref.id, next)
   }
 }
 

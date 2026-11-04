@@ -84,7 +84,7 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
       issue(
         'process-activity.no-process',
         'error',
-        'This activity starts a process but does not say which one. Choose the clinical process it begins.',
+        'This segment does not say which CPG process it starts. Choose the one it begins.',
         { activityId: activity.id, field: 'process' },
       ),
     )

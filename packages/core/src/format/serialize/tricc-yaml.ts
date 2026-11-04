@@ -3,10 +3,12 @@ import type {
   Intervention,
   Project,
   ProjectImage,
+  ProjectOwner,
   ProjectRepository,
 } from '../../model/types.js'
 import { activityPath, blockPath, codeSystemPath, libraryPath, PATHS } from '../../model/types.js'
 import { isBlock } from '../../model/activity-kind.js'
+import { normalizeLabels } from '../../model/labels.js'
 import { resolve, type LocalizedText } from '../schema/localized.js'
 import { activitiesFromDrawio } from '../drawio.js'
 import { parseDocument } from 'yaml'
@@ -42,6 +44,8 @@ export function encodeTriccYaml(project: Project): Record<string, unknown> {
   put(o, 'system', project.system)
   put(o, 'code', project.code)
   put(o, 'version', project.version)
+  if (project.labels?.length) o['labels'] = [...project.labels]
+  if (project.owner) o['owner'] = { id: project.owner.id, name: project.owner.name }
   o['input_strategy'] = 'YamlStrategy'
   o['output_strategies'] = ['XLSFormCHTStrategy']
   o['parameters'] = {
@@ -117,6 +121,7 @@ function encodeIntervention(
   if (iv.trigger && iv.trigger.mode !== 'on-demand') item['trigger'] = { ...iv.trigger }
   if (iv.args && Object.keys(iv.args).length > 0) item['args'] = structuredClone(iv.args)
   if (iv.requires?.length) item['requires'] = [...iv.requires]
+  if (iv.labels?.length) item['labels'] = [...iv.labels]
 
   const draft: Record<string, unknown> = { ...item, activities: iv.activities.map((r) => r.ref) }
   delete draft['activity']
@@ -139,6 +144,8 @@ export interface TriccYamlRead {
   calculateCodeSystem?: string
   mediaPath?: string
   repository?: ProjectRepository
+  labels?: string[]
+  owner?: ProjectOwner
   /** Activities expanded from `.drawio` pages. The source file is left as it was. */
   drawioActivities: Record<string, Activity>
   /** Pictures drawn on those pages, referenced by their nodes' `media.image`. */
@@ -233,7 +240,31 @@ export function readTriccYamlMeta(
   if (typeof doc['media_path'] === 'string') result.mediaPath = doc['media_path']
   const repository = readRepository(doc['repository'])
   if (repository) result.repository = repository
+  const labels = readLabels(doc['labels'])
+  if (labels) result.labels = labels
+  const owner = readOwner(doc['owner'])
+  if (owner) result.owner = owner
   return result
+}
+
+/**
+ * Labels: a list, or one comma-separated string as an author may type it. Trimmed, empty
+ * ones dropped, the first of duplicates kept.
+ */
+export function readLabels(value: unknown): string[] | undefined {
+  const raw = typeof value === 'string' ? value.split(',') : asList(value)
+  const labels = normalizeLabels(raw.filter((v): v is string => typeof v === 'string'))
+  return labels.length > 0 ? labels : undefined
+}
+
+function readOwner(value: unknown): ProjectOwner | undefined {
+  if (typeof value === 'string' && value.trim()) return { id: value.trim(), name: value.trim() }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const rec = value as Record<string, unknown>
+  const id = typeof rec['id'] === 'string' ? rec['id'].trim() : ''
+  const name = typeof rec['name'] === 'string' ? rec['name'].trim() : ''
+  if (!id && !name) return undefined
+  return { id: id || name, name: name || id }
 }
 
 function encodeRepository(repo: ProjectRepository): Record<string, unknown> {
@@ -420,6 +451,8 @@ function finishIntervention(
     (v): v is string => typeof v === 'string' && v !== '',
   )
   if (requires.length > 0) iv.requires = requires
+  const labels = readLabels(rec['labels'])
+  if (labels) iv.labels = labels
   if (intent || start?.condition) {
     iv.applicability = {}
     if (intent) iv.applicability.intent = intent

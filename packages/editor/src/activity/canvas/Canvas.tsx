@@ -47,6 +47,7 @@ import {
 import { autoLayout } from './layout.js'
 import { dragSelection, edgePan, pointerPastMarquee, rectContains, screenRect } from './marquee.js'
 import { draggingFiles, imageFiles } from '../../media/images.js'
+import { useThemeMode } from '../../theme/ThemeProvider.js'
 
 const nodeTypes = { tricc: TriccNodeView, comment: CommentNodeView, 'group-frame': GroupNodeView }
 const edgeTypes = { branch: TriccEdgeView }
@@ -132,6 +133,7 @@ function CanvasInner({
   const canWrite = useCanWrite()
   const { labelChars } = useEditorPreferences()
   const instance = useRef<ReactFlowInstance<FlowNode, TriccFlowEdge> | null>(null)
+  const colorMode = useThemeMode().resolved
   const frameRef = useRef<HTMLDivElement>(null)
   const lang = project.languages.default
   const names = useMemo(
@@ -788,6 +790,7 @@ function CanvasInner({
     >
       <FollowContext.Provider value={onOpenActivity ? follow : undefined}>
         <ReactFlow<FlowNode, TriccFlowEdge>
+          colorMode={colorMode}
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}

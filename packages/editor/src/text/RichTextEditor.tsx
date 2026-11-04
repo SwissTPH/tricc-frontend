@@ -14,6 +14,7 @@ import { fromDoc, toDoc, type PmNode } from './prosemirror.js'
 import { imageFiles, useAddImages } from '../media/images.js'
 import { ImagePicker } from '../media/ImagePicker.js'
 import { TextImage } from './RichTextField.js'
+import { defaultTextColour, textColours } from '../theme/palette.js'
 
 /**
  * The formatted-text editor. Loaded on demand (it is the only TipTap import), so the
@@ -109,13 +110,7 @@ const TextPicture = Node.create({
 })
 
 /** Colours that read well on a form; any other comes from the colour picker. */
-const COLORS: [string, string][] = [
-  ['Red', '#d32f2f'],
-  ['Orange', '#ef6c00'],
-  ['Green', '#2e7d32'],
-  ['Blue', '#1565c0'],
-  ['Grey', '#616161'],
-]
+const COLORS = textColours
 
 export default function RichTextEditor({
   value,
@@ -270,7 +265,9 @@ export default function RichTextEditor({
           data-testid={`${testId}-color-custom`}
           aria-label="Another colour"
           disabled={disabled}
-          value={(editor.getAttributes('textStyle')['color'] as string | undefined) ?? '#000000'}
+          value={
+            (editor.getAttributes('textStyle')['color'] as string | undefined) ?? defaultTextColour
+          }
           onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
         />
         <button

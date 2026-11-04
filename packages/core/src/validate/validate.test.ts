@@ -603,7 +603,7 @@ describe('goto targets', () => {
       'goto.links-to-process-activity',
     )
     expect(issues[0]?.severity).toBe('error')
-    expect(issues[0]?.message).toMatch(/starts a process, so it cannot also be jumped to/)
+    expect(issues[0]?.message).toMatch(/is a segment, so it cannot also be jumped to/)
   })
 
   it('refuses a jump to the activity it is in', () => {

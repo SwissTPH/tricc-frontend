@@ -1,6 +1,6 @@
 # Getting started
 
-TRICC Authoring is a web app that runs entirely on your computer. There are three ways to open it.
+DrawTricc is a web app that runs entirely on your computer. There are three ways to open it.
 All three are the same app.
 
 ## 1. In the browser, with nothing to install
@@ -52,8 +52,9 @@ node bin/tricc-local.js
 ## First steps
 
 1. On **Projects**, type a name under _Start a new project_ and create it.
-2. The overview shows the project's **interventions**. Add one, then add a **process** to it.
-3. Open the process and add nodes from the **Nodes** tab on the right.
+2. The overview shows the project's **interventions**. Add one, then open its gear and add a
+   **segment** to it.
+3. Open the segment and add nodes from the **Nodes** tab on the right.
 4. Changes save automatically. Use **Export** to get a `.tricc` file you can send to someone.
 
 [Authoring a guideline](./authoring) explains each of these.

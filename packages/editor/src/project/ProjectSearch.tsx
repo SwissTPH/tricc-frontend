@@ -87,7 +87,7 @@ export function ProjectSearchDialog({
             </li>
           ))}
         </Hits>
-        <Hits source="processes" title="Processes" count={result.processes.length}>
+        <Hits source="processes" title="Segments" count={result.processes.length}>
           {result.processes.map((hit) => (
             <li key={hit.activityId}>
               <button

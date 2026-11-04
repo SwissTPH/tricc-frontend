@@ -32,26 +32,26 @@ Each guideline, or _track_, takes part only in the segments it needs:
 **In the app:**
 
 - a guideline or track is an **intervention**;
-- its part in one segment is a **process**: a process activity whose **Starts** field names the
-  segment, chosen from the CPG list;
+- its part in one segment is a **segment** in the app (a _process activity_ in the files): its
+  **Starts** field names the CPG common process it implements, chosen from the CPG list;
 - an intervention's **start** condition says for whom and when it opens.
 
 ## Layers: what, then how
 
-Each process is described in three or more levels. The **intent** (what to do) is kept apart from
+Each segment is described in three or more levels. The **intent** (what to do) is kept apart from
 the **details** (how to do it):
 
 ![A segment for one guideline holds activities 1 and 3. Activity 1 holds tasks; activity 3 holds tasks and activity 4, which holds tasks of its own.](/concepts/layers.png){.diagram}
 
 The app names these levels the same way everywhere:
 
-| Layer                   | What it answers                                   | In the app                                     |
-| ----------------------- | ------------------------------------------------- | ---------------------------------------------- |
-| Project                 | Which interventions are carried together          | The project, on the overview                   |
-| Intervention            | Which processes make up the package, and for whom | An intervention card, with its start condition |
-| **1. Segment overview** | _What_ should happen, and in what order           | A process activity                             |
-| **2. Activity**         | _How_ a step is carried out                       | An activity                                    |
-| **3. Node**             | One question, calculation, decision or message    | A node on the diagram                          |
+| Layer                   | What it answers                                  | In the app                                       |
+| ----------------------- | ------------------------------------------------ | ------------------------------------------------ |
+| Project                 | Which interventions are carried together         | The project, on the overview                     |
+| Intervention            | Which segments make up the package, and for whom | A row of the interventions table, with its start |
+| **1. Segment overview** | _What_ should happen, and in what order          | A segment (a process activity in the files)      |
+| **2. Activity**         | _How_ a step is carried out                      | An activity                                      |
+| **3. Node**             | One question, calculation, decision or message   | A node on the diagram                            |
 
 ### Layer 1: the segment overview
 
@@ -61,7 +61,7 @@ reuses existing activities.
 
 ![A segment overview for emergency care: start, basic patient information, then the emergency signs (airway and breathing, circulation, coma and convulsion, dehydration), then prioritisation signs, then end.](/concepts/segment-overview.png){.diagram .diagram--narrow}
 
-In the app, this is a process activity whose boxes are **Go to activity** nodes. Ctrl-click (or
+In the app, this is a segment whose boxes are **Go to activity** nodes. Ctrl-click (or
 **Open activity**) opens the activity behind a box.
 
 ### Layer 2 and below: activities
@@ -71,7 +71,7 @@ An activity defines **how** a step is done. It is a sequential decision tree tha
 - may have an **applicability** expression, so it runs only for the patients it concerns;
 - is **done** when all of its paths have reached an **Activity end**;
 - can contain other activities, through Go to activity;
-- can be used in several processes and several guidelines;
+- can be used in several segments and several guidelines;
 - shows exactly what the health worker will face.
 
 ### Layer 3 and below: nodes

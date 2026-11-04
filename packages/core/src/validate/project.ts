@@ -67,7 +67,7 @@ function validateCrossActivity(project: Project): Issue[] {
             issue(
               'goto.links-to-process-activity',
               'error',
-              `"${node.link}" starts a process, so it cannot also be jumped to. Point this at the activity that process calls.`,
+              `"${node.link}" is a segment, so it cannot also be jumped to. Point this at the activity that segment calls.`,
               { activityId, nodeId: node.id, field: 'link' },
             ),
           )
@@ -249,7 +249,7 @@ function validateInterventions(project: Project): Issue[] {
           issue(
             'process-activity.no-calls',
             'warning',
-            `"${ref.ref}" is a process activity but calls no activity, so opening it would do nothing.`,
+            `"${ref.ref}" is a segment but calls no activity, so opening it would do nothing.`,
             { ...loc, activityId: ref.ref },
           ),
         )

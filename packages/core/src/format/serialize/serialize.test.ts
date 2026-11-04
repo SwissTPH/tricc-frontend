@@ -427,6 +427,38 @@ describe('shorthands', () => {
   })
 })
 
+describe('labels and owner', () => {
+  it('round-trips project labels and owner, and intervention labels', () => {
+    const original = sampleProject()
+    original.labels = ['child', 'triage']
+    original.owner = { id: 'u-1', name: 'Ada Lovelace' }
+    original.interventions[0]!.labels = ['danger signs', 'IMCI']
+    const files = writeProject(original)
+    const yaml = files['tricc.yaml'] ?? ''
+    expect(yaml).toMatch(/^labels:\n {2}- child\n {2}- triage$/m)
+    expect(yaml).toContain('owner:')
+    const { project } = readProject(files)
+    expect(project).toEqual(original)
+  })
+
+  it('writes no labels or owner keys when there are none', () => {
+    const yaml = writeProject(sampleProject())['tricc.yaml'] ?? ''
+    expect(yaml).not.toMatch(/^ *labels:/m)
+    expect(yaml).not.toMatch(/^owner:/m)
+  })
+
+  it('reads labels typed as one comma-separated string, trimmed and without duplicates', () => {
+    const files = writeProject(sampleProject())
+    files['tricc.yaml'] = (files['tricc.yaml'] ?? '').replace(
+      /^id: /m,
+      'labels: " triage, child,, triage "\nowner: Ada\nid: ',
+    )
+    const { project } = readProject(files)
+    expect(project.labels).toEqual(['triage', 'child'])
+    expect(project.owner).toEqual({ id: 'Ada', name: 'Ada' })
+  })
+})
+
 describe('deprecated fields', () => {
   it('round-trips a quantity and its unit', () => {
     const activity = decodeActivity(

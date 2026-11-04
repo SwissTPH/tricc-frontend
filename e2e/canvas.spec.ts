@@ -28,6 +28,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 async function newActivity(page: Page, name: string): Promise<void> {
+  await page.getByTestId('new-project').click()
   await page.getByTestId('new-project-name').fill(name)
   await page.getByTestId('create-project').click()
   await page.getByTestId('add-activity').click()
@@ -641,7 +642,8 @@ test('Ctrl+Z undoes the last change and Ctrl+Shift+Z or Ctrl+Y restores it', asy
   await page.keyboard.press('Control+z')
   await expect(page.getByTestId('node-n-note')).toBeVisible()
 
-  await page.getByTestId('read-only-toggle').check()
+  await page.getByTestId('mode-menu').click()
+  await page.getByTestId('mode-viewing').click()
   await page.keyboard.press('Control+z')
   await expect(page.getByTestId('node-n-note')).toBeVisible()
 })
@@ -727,7 +729,8 @@ test('read-only removes dragging and the palette but keeps the canvas readable',
   expect(writable.palette!.x).toBeGreaterThan(writable.canvas.right - 2)
 
   await placeNode(page, 'note')
-  await page.getByTestId('read-only-toggle').check()
+  await page.getByTestId('mode-menu').click()
+  await page.getByTestId('mode-viewing').click()
   await expect(page.getByTestId('activity-canvas')).toBeVisible()
   await expect(page.getByTestId('node-n-note')).toBeVisible()
   await expect(page.getByTestId('add-note')).toHaveCount(0)
@@ -1177,6 +1180,7 @@ test('a validation issue links to its node, in the activity and from the overvie
 
   // From the project overview, the same issue opens the activity on that node.
   await page.getByTestId('nav-overview').click()
+  await page.getByTestId('tab-validation').click()
   await page.getByTestId('issue-select.no-options').getByTestId('issue-link').click()
   await expect(page.getByTestId('activity-editor')).toBeVisible()
   await expect(node).toHaveClass(/selected/)

@@ -49,6 +49,24 @@ describe('projection', () => {
     expect(docOf(original).snapshot()).toEqual(original)
   })
 
+  it('keeps project labels and owner, and intervention labels', () => {
+    const original = sampleProject()
+    original.labels = ['child']
+    original.owner = { id: 'u-1', name: 'Ada' }
+    original.interventions[0]!.labels = ['triage', 'IMCI']
+    expect(docOf(original).snapshot()).toEqual(original)
+  })
+
+  it('sets project labels normalised, and removes them when empty', () => {
+    const doc = docOf(sampleProject())
+    doc.transact((tx) => tx.setProjectLabels([' child ', 'triage', 'child', '']))
+    expect(doc.snapshot().labels).toEqual(['child', 'triage'])
+    doc.transact((tx) => tx.setProjectLabels([]))
+    expect(doc.snapshot()).not.toHaveProperty('labels')
+    doc.transact((tx) => tx.setProjectOwner({ id: 'u-2', name: 'Grace' }))
+    expect(doc.snapshot().owner).toEqual({ id: 'u-2', name: 'Grace' })
+  })
+
   it('doc → files → doc round-trips', () => {
     const doc = docOf()
     const { project } = readProject(writeProject(doc.snapshot()))

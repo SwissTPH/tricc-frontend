@@ -441,7 +441,7 @@ export function ActivityEditor({
           </Button>
         )}
         <span className="tricc-editor__kind" data-testid="activity-kind" data-kind={kind}>
-          {kind === 'process' ? 'Process activity' : kind === 'block' ? TERMS.block : 'Activity'}
+          {kind === 'process' ? 'Segment' : kind === 'block' ? TERMS.block : 'Activity'}
         </span>
         <ParamsChip activityId={activityId} onOpen={() => setSettingsOpen(true)} />
         {kind === 'process' && (
@@ -1858,7 +1858,7 @@ function ActivitySummary({
         <dd>{activity.name ?? `${titleSlug(activity, lang)} (from the title)`}</dd>
         {process && (
           <>
-            <dt>Process</dt>
+            <dt>CPG process</dt>
             <dd>{process}</dd>
           </>
         )}

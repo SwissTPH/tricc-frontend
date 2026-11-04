@@ -249,6 +249,8 @@ function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
   if (meta.calculateCodeSystem) loaded.calculateCodeSystem = meta.calculateCodeSystem
   if (meta.mediaPath) loaded.mediaPath = meta.mediaPath
   if (meta.repository) loaded.repository = meta.repository
+  if (meta.labels) loaded.labels = meta.labels
+  if (meta.owner) loaded.owner = meta.owner
   const renamedImages = readImages(loaded, files)
   mergeImages(loaded, meta.drawioImages, Object.values(meta.drawioActivities))
   for (const [id, activity] of Object.entries(meta.drawioActivities)) {

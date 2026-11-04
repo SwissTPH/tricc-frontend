@@ -1,6 +1,6 @@
 # Converting with tricc_oo
 
-TRICC Authoring draws the guideline. [`tricc_oo`](https://github.com/SwissTPH/tricc), a Python
+DrawTricc draws the guideline. [`tricc_oo`](https://github.com/SwissTPH/tricc), a Python
 tool, turns the saved project into forms: XLSForm for ODK, CHT, OpenMRS, DHIS2, FHIR SDC and
 OpenSRP. This page takes you from a project in the app to a form file.
 

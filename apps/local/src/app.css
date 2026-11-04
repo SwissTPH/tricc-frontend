@@ -4,7 +4,7 @@
     -apple-system,
     'Segoe UI',
     sans-serif;
-  color: #0f172a;
+  color: var(--tricc-text);
 }
 
 * {
@@ -19,7 +19,7 @@ body,
 }
 
 body {
-  background: #e8eef4;
+  background: var(--tricc-bg);
 }
 
 #root {
@@ -27,36 +27,12 @@ body {
   flex-direction: column;
   /* The whole browser width: the canvas, the dictionary table and the cards use it all. */
   width: 100%;
-  background: #fff;
+  background: var(--tricc-surface);
 }
 
-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-  padding: 8px 16px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #fff;
-  font-size: 13px;
-  flex: 0 0 auto;
-}
-header > a:first-child {
-  font-weight: 600;
-  text-decoration: none;
-  color: #0f172a;
-}
-header label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-header [data-testid='storage-mode'] {
-  color: #64748b;
-}
 .tricc-topbar__project {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
   flex: 1 1 12em;
@@ -74,9 +50,7 @@ main > [data-testid='activity-editor'] {
   min-height: 0;
 }
 
-[data-testid='project-list'],
-[data-testid='preferences'],
-[data-testid='project-overview'] {
+[data-testid='preferences'] {
   padding: 16px 24px;
   overflow-y: auto;
   flex: 1 1 auto;
@@ -85,7 +59,7 @@ main > [data-testid='activity-editor'] {
 
 .pref-diagram-style {
   display: inline-flex;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--tricc-border-strong);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -96,11 +70,11 @@ main > [data-testid='activity-editor'] {
   cursor: pointer;
 }
 .pref-diagram-style label:has(input:checked) {
-  background: #0f172a;
-  color: #fff;
+  background: var(--tricc-primary);
+  color: var(--tricc-on-primary);
 }
 .pref-diagram-style label:has(input:focus-visible) {
-  outline: 2px solid #0f172a;
+  outline: 2px solid var(--tricc-text);
   outline-offset: -4px;
 }
 .pref-diagram-style input {
@@ -109,11 +83,16 @@ main > [data-testid='activity-editor'] {
   pointer-events: none;
 }
 
+@media (max-width: 700px) {
+  .tricc-topbar__project {
+    flex-wrap: wrap;
+  }
+}
 [data-testid='save-status'] {
   margin: 0;
   padding: 0;
   font-size: 12px;
-  color: #64748b;
+  color: var(--tricc-text-muted);
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -121,10 +100,10 @@ main > [data-testid='activity-editor'] {
   white-space: nowrap;
 }
 [data-testid='save-status'][data-state='unsaved'] {
-  color: #b45309;
+  color: var(--tricc-warning-text);
 }
 [data-testid='save-status'][data-state='error'] {
-  color: #b91c1c;
+  color: var(--tricc-error-text);
 }
 
 [data-testid='activity-navigator'] {
@@ -137,8 +116,8 @@ main > [data-testid='activity-editor'] {
   max-width: 100%;
   overflow-x: hidden;
   padding: 6px 16px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #fff;
+  border-bottom: 1px solid var(--tricc-border);
+  background: var(--tricc-surface);
   font-size: 12px;
 }
 .tricc-nav__bar {
@@ -164,18 +143,18 @@ main > [data-testid='activity-editor'] {
   margin-left: -1px;
 }
 .tricc-nav__tabs button[aria-selected='true'] {
-  background: #0f172a;
-  color: #fff;
-  border-color: #0f172a;
+  background: var(--tricc-primary);
+  color: var(--tricc-on-primary);
+  border-color: var(--tricc-primary);
 }
 .tricc-nav__count {
   margin-left: 6px;
   font-weight: 400;
   font-size: 10px;
-  color: #64748b;
+  color: var(--tricc-text-muted);
 }
 .tricc-nav__tabs button[aria-selected='true'] .tricc-nav__count {
-  color: #cbd5e1;
+  color: var(--tricc-border-strong);
 }
 /* The list's own filter sits at the start of its row; the project search stays on the bar. */
 .tricc-nav__row {
@@ -228,9 +207,9 @@ main > [data-testid='activity-editor'] {
 }
 [data-testid='activity-navigator'] button:where(:not([data-slot='button'])) {
   padding: 3px 8px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--tricc-border-strong);
   border-radius: 5px;
-  background: #fff;
+  background: var(--tricc-surface);
   cursor: pointer;
 }
 [data-testid='activity-navigator'] button[data-kind] {
@@ -241,9 +220,9 @@ main > [data-testid='activity-editor'] {
   white-space: nowrap;
 }
 [data-testid='activity-navigator'] button[aria-current='true'] {
-  background: #0f172a;
-  color: #fff;
-  border-color: #0f172a;
+  background: var(--tricc-primary);
+  color: var(--tricc-on-primary);
+  border-color: var(--tricc-primary);
 }
 .tricc-nav__create {
   display: inline-flex;
@@ -265,33 +244,33 @@ input:where(:not([data-slot='input'])) {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
+  color: var(--tricc-text-muted);
 }
 [data-testid='project-list'] label {
   display: block;
   font-size: 12px;
-  color: #64748b;
+  color: var(--tricc-text-muted);
   margin: 10px 0 2px;
 }
 [data-testid='import-error'] {
-  color: #b91c1c;
+  color: var(--tricc-error-text);
 }
 
 .tricc-intervention {
   padding: 0;
 }
-.tricc-intervention label {
+.tricc-intervention label:not(.MuiFormLabel-root) {
   display: block;
   font-size: 11px;
-  color: #64748b;
+  color: var(--tricc-text-muted);
   margin: 8px 0 2px;
 }
-.tricc-intervention input:where(:not([data-slot='input'])),
+.tricc-intervention input:where(:not([data-slot='input'], .MuiInputBase-input)),
 .tricc-intervention select {
   width: 100%;
   box-sizing: border-box;
   padding: 4px 6px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--tricc-border-strong);
   border-radius: 4px;
   font: inherit;
   font-size: 12px;
@@ -313,34 +292,34 @@ input:where(:not([data-slot='input'])) {
 details > summary {
   cursor: pointer;
   font-size: 12px;
-  color: #2563eb;
+  color: var(--tricc-primary);
 }
 
 .tricc-nav__empty {
   margin: 0;
-  color: #64748b;
+  color: var(--tricc-text-muted);
   font-size: 11px;
 }
 [data-testid='activity-navigator'] button[data-kind='process'] {
-  border-color: #0f172a;
+  border-color: var(--tricc-text);
   font-weight: 600;
 }
 [data-testid='activity-navigator'] button[data-kind='process'][aria-current='true'] {
-  background: #0f172a;
-  color: #fff;
+  background: var(--tricc-primary);
+  color: var(--tricc-on-primary);
 }
 .tricc-nav__process {
   margin-left: 6px;
   font-weight: 400;
   font-size: 10px;
-  color: #64748b;
+  color: var(--tricc-text-muted);
 }
 [data-testid='activity-navigator'] button[aria-current='true'] .tricc-nav__process {
-  color: #cbd5e1;
+  color: var(--tricc-border-strong);
 }
 [data-testid='no-process-activities'] {
   font-size: 11px;
-  color: #64748b;
+  color: var(--tricc-text-muted);
   margin: 0;
   flex: 1 1 16em;
   min-width: min(100%, 12em);
@@ -370,7 +349,7 @@ details > summary {
 .tricc-crumbs li + li::before {
   content: '›';
   margin: 0 4px;
-  color: #94a3b8;
+  color: var(--tricc-text-faint);
 }
 .tricc-crumbs button,
 .tricc-crumbs span {
@@ -380,17 +359,17 @@ details > summary {
   border: 0;
   border-radius: 4px;
   background: none;
-  color: #1d4ed8;
+  color: var(--tricc-primary-text);
   font: inherit;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
 }
 .tricc-crumbs button:hover {
-  background: #eff6ff;
+  background: var(--tricc-primary-soft);
 }
 .tricc-crumbs [aria-current='page'] {
-  color: #0f172a;
+  color: var(--tricc-text);
   font-weight: 600;
   cursor: default;
 }
@@ -421,20 +400,20 @@ details > summary {
   width: 100%;
   margin-top: 4px;
   padding: 6px 8px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--tricc-border-strong);
   border-radius: 6px;
   font: inherit;
   font-size: 14px;
-  color: #0f172a;
-  background: #fff;
+  color: var(--tricc-text);
+  background: var(--tricc-surface);
 }
 .tricc-repo__where {
-  color: #475569;
+  color: var(--tricc-text-muted);
   font-size: 13px;
   overflow-wrap: anywhere;
 }
 .tricc-repo__hint {
-  color: #64748b;
+  color: var(--tricc-text-muted);
   font-size: 12px;
 }
 .tricc-repo__token {
@@ -446,7 +425,7 @@ details > summary {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #334155;
+  color: var(--tricc-text);
   font-size: 13px;
 }
 .tricc-repo .tricc-repo__check input {
@@ -460,15 +439,15 @@ details > summary {
   gap: 8px;
   padding: 8px 10px;
   border-radius: 8px;
-  background: #f1f5f9;
+  background: var(--tricc-subtle);
 }
 .tricc-repo__error {
-  color: #b91c1c;
+  color: var(--tricc-error-text);
 }
 .tricc-repo__conflicts {
   padding: 8px 10px;
   border-radius: 8px;
-  background: #fef3c7;
+  background: var(--tricc-warning-soft);
   font-size: 13px;
 }
 .tricc-repo__conflicts ul {
@@ -476,10 +455,10 @@ details > summary {
   padding-left: 18px;
 }
 .tricc-import-list li[data-kind='add'] span {
-  color: #15803d;
+  color: var(--tricc-success-text);
 }
 .tricc-import-list li[data-kind='delete'] span {
-  color: #b91c1c;
+  color: var(--tricc-error-text);
 }
 
 .tricc-repo-tools {
@@ -493,8 +472,8 @@ details > summary {
   max-width: 22em;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #eef2ff;
-  color: #3730a3;
+  background: var(--tricc-primary-soft);
+  color: var(--tricc-primary-text);
   font-size: 12px;
   text-decoration: none;
   text-overflow: ellipsis;

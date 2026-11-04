@@ -56,6 +56,12 @@ export function OpenProjectProvider({
   project: OpenProject
   children: ReactNode
 }) {
+  const runtime = useContext(RuntimeContext)
+  // A port that derives notifications from the files reads the open project live.
+  useEffect(
+    () => runtime?.notifications.attach?.(project.ref.id, project.document),
+    [runtime, project],
+  )
   return (
     <OpenProjectContext.Provider value={project}>
       <UndoKeys />
