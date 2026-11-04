@@ -1,10 +1,12 @@
 import './tailwind.css'
+import 'material-symbols/outlined.css'
 import '@xyflow/react/dist/style.css'
 import '@tricc/editor/styles.css'
 import './app.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, HashRouter } from 'react-router-dom'
+import { DrawTriccThemeProvider } from '@tricc/editor'
 import { App } from './App.js'
 import { createLocalRuntime } from './adapters.js'
 
@@ -16,8 +18,10 @@ const Router = import.meta.env.VITE_HASH_ROUTER === 'true' ? HashRouter : Browse
 
 createRoot(document.getElementById('root') as HTMLElement).render(
   <StrictMode>
-    <Router basename={Router === BrowserRouter ? import.meta.env.BASE_URL : undefined}>
-      <App local={local} />
-    </Router>
+    <DrawTriccThemeProvider>
+      <Router basename={Router === BrowserRouter ? import.meta.env.BASE_URL : undefined}>
+        <App local={local} />
+      </Router>
+    </DrawTriccThemeProvider>
   </StrictMode>,
 )

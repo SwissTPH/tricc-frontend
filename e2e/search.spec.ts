@@ -43,6 +43,7 @@ async function newConcept(page: Page, name: string, display: string): Promise<vo
 test('a calculation concept goes to the calculate dictionary, listed next to the default one', async ({
   page,
 }) => {
+  await page.getByTestId('new-project').click()
   await page.getByTestId('new-project-name').fill('Dictionaries')
   await page.getByTestId('create-project').click()
   await page.getByTestId('add-activity').click()
@@ -75,6 +76,7 @@ test('a calculation concept goes to the calculate dictionary, listed next to the
 })
 
 test('the project search shows hits by source and opens a node', async ({ page }) => {
+  await page.getByTestId('new-project').click()
   await page.getByTestId('new-project-name').fill('Search')
   await page.getByTestId('create-project').click()
   await page.getByTestId('add-activity').click()
@@ -106,6 +108,7 @@ test('the project search shows hits by source and opens a node', async ({ page }
 test('one answer of a select can be "none of these", from the question or the answer', async ({
   page,
 }) => {
+  await page.getByTestId('new-project').click()
   await page.getByTestId('new-project-name').fill('None answer')
   await page.getByTestId('create-project').click()
   await page.getByTestId('add-activity').click()
@@ -145,6 +148,7 @@ test('one answer of a select can be "none of these", from the question or the an
 test('repeat and instance are offered on every node holding a value, and on the activity', async ({
   page,
 }) => {
+  await page.getByTestId('new-project').click()
   await page.getByTestId('new-project-name').fill('Repeats')
   await page.getByTestId('create-project').click()
   await page.getByTestId('add-activity').click()

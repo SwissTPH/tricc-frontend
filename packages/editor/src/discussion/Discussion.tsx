@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   anchorKey,
+  attentionFor,
   anchorKindName,
   decisionLog,
   decisionLogCsv,
@@ -431,15 +432,29 @@ export function DiscussionsPanel({
   onShow: (anchor: Anchor, discussionId: string) => void
 }) {
   const project = useProjectSnapshot()
-  const me = useRuntime().identity.current().id
+  const identity = useRuntime().identity.current()
+  const me = identity.id
   const [status, setStatus] = useState<DiscussionStatus | ''>('')
   const [label, setLabel] = useState('')
   const [removedOnly, setRemovedOnly] = useState(false)
   const [mine, setMine] = useState(false)
+  const [forMe, setForMe] = useState(false)
   const [query, setQuery] = useState('')
   const [since, setSince] = useState('')
   const [openId, setOpenId] = useState<string | undefined>(undefined)
   const labels = project.discussionLabels ?? []
+  // Discussions that tag or are assigned to me: the same rule as the bell.
+  const asking = useMemo(
+    () =>
+      new Set(
+        attentionFor(
+          Object.values(project.discussions ?? {}),
+          { id: me, name: identity.displayName },
+          project.id,
+        ).map((n) => n.discussionId),
+      ),
+    [identity.displayName, me, project],
+  )
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase()
     return Object.values(project.discussions ?? {})
@@ -449,6 +464,7 @@ export function DiscussionsPanel({
         removedOnly ? resolveAnchor(project, discussion.about) === undefined : true,
       )
       .filter((discussion) => (mine ? discussion.comments[0]?.author.id === me : true))
+      .filter((discussion) => (forMe ? asking.has(discussion.id) : true))
       .filter((discussion) =>
         needle
           ? `${discussion.label} ${discussion.comments.map((comment) => comment.text ?? '').join(' ')}`
@@ -457,7 +473,7 @@ export function DiscussionsPanel({
           : true,
       )
       .sort((a, b) => (b.comments.at(-1)?.at ?? '').localeCompare(a.comments.at(-1)?.at ?? ''))
-  }, [label, me, mine, project, query, removedOnly, status])
+  }, [asking, forMe, label, me, mine, project, query, removedOnly, status])
   const openCount = Object.values(project.discussions ?? {}).filter(
     (discussion) => discussion.status === 'open',
   ).length
@@ -537,6 +553,15 @@ export function DiscussionsPanel({
               onChange={(event) => setMine(event.target.checked)}
             />
             Started by me
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              data-testid="discussions-for-me"
+              checked={forMe}
+              onChange={(event) => setForMe(event.target.checked)}
+            />
+            Tagging or assigned to me
           </label>
         </div>
         <ul>

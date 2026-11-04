@@ -13,9 +13,11 @@ import type {
   Concept,
   CodeSystem,
   ProjectImage,
+  ProjectOwner,
   ProjectRepository,
 } from '../model/types.js'
 import { uniqueImageId } from '../model/types.js'
+import { normalizeLabels } from '../model/labels.js'
 import {
   activityToY,
   codeSystemToY,
@@ -541,6 +543,16 @@ export class Mutations {
 
   setRepository(repository: ProjectRepository | undefined): void {
     setPlain(this.doc.getMap<unknown>('meta'), 'repository', repository)
+  }
+
+  /** Project labels; normalised (trimmed, no empties or duplicates). Empty removes them. */
+  setProjectLabels(labels: readonly string[] | undefined): void {
+    const clean = normalizeLabels(labels ?? [])
+    setPlain(this.doc.getMap<unknown>('meta'), 'labels', clean.length ? clean : undefined)
+  }
+
+  setProjectOwner(owner: ProjectOwner | undefined): void {
+    setPlain(this.doc.getMap<unknown>('meta'), 'owner', owner)
   }
 }
 

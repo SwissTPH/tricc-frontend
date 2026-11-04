@@ -192,6 +192,7 @@ const SOURCE = {
 
 async function importDemo(page: Page) {
   await page.goto('/')
+  await page.getByTestId('import-project').click()
   await page.getByTestId('import-repo').click()
   await page.getByTestId('repo-url').fill('https://github.com/o/r/tree/main/projects/demo')
   await page.getByTestId('repo-token').fill('ghp_test')
@@ -370,6 +371,7 @@ test('imports from a self-hosted GitLab after saying which host it is', async ({
   })
 
   await page.goto('/')
+  await page.getByTestId('import-project').click()
   await page.getByTestId('import-repo').click()
   await page.getByTestId('repo-url').fill('https://git.moh.example/health/imci')
   await expect(page.getByTestId('repo-look')).toBeDisabled()
@@ -385,6 +387,7 @@ test('a link to a folder without a project says so', async ({ page }) => {
   const repo = new FakeRepo({ 'README.md': '# Nothing here\n' })
   await fakeGitHub(page, repo)
   await page.goto('/')
+  await page.getByTestId('import-project').click()
   await page.getByTestId('import-repo').click()
   await page.getByTestId('repo-url').fill('github.com/o/r')
   await page.getByTestId('repo-look').click()

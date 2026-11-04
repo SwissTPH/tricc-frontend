@@ -1,5 +1,10 @@
 import { openDB, type IDBPDatabase } from 'idb'
-import type { ProjectCatalogPort, ProjectRef, ProjectSummary } from '@tricc/core'
+import type {
+  ProjectCatalogPort,
+  ProjectDescription,
+  ProjectRef,
+  ProjectSummary,
+} from '@tricc/core'
 
 /**
  * Recently-opened projects, kept in IndexedDB.
@@ -65,7 +70,8 @@ export class LocalProjectCatalog implements ProjectCatalogPort {
     const ref: ProjectRef = existing
       ? { id: existing.id, name: existing.name, handle }
       : { id: this.newId(), name, handle }
-    await db.put(STORE, { id: ref.id, name: ref.name, handle, lastOpened: Date.now() })
+    // Reopening a known folder keeps what the list already shows about it.
+    await db.put(STORE, { ...existing, id: ref.id, name: ref.name, handle, lastOpened: Date.now() })
     return ref
   }
 
@@ -86,6 +92,17 @@ export class LocalProjectCatalog implements ProjectCatalogPort {
     const existing = (await db.get(STORE, ref.id)) as StoredProject | undefined
     if (!existing) return
     await db.put(STORE, { ...existing, lastOpened: Date.now() })
+  }
+
+  async describe(ref: ProjectRef, description: ProjectDescription): Promise<void> {
+    const db = await this.connect()
+    const existing = (await db.get(STORE, ref.id)) as StoredProject | undefined
+    if (!existing) return
+    const { id, name, handle, lastOpened } = existing
+    const next: StoredProject = { id, name, ...structuredClone(description) }
+    if (handle !== undefined) next.handle = handle
+    if (lastOpened !== undefined) next.lastOpened = lastOpened
+    await db.put(STORE, next)
   }
 
   /** Retrieve the stored directory handle, if the browser kept one. */

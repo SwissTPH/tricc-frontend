@@ -31,6 +31,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 async function createProject(page: Page, name: string): Promise<void> {
+  await page.getByTestId('new-project').click()
   await page.getByTestId('new-project-name').fill(name)
   await page.getByTestId('create-project').click()
   await expect(page.getByTestId('save-status')).toBeVisible()
@@ -40,7 +41,8 @@ test('the project list offers a way in besides creating', async ({ page, browser
   await expect(page.getByTestId('import-archive')).toBeAttached()
   await expect(page.getByTestId('import-files')).toBeAttached()
 
-  // Opening a folder is Chromium-only; the button is absent rather than broken elsewhere.
+  // Opening a folder is Chromium-only; the menu item is absent rather than broken elsewhere.
+  await page.getByTestId('import-project').click()
   if (browserName === 'chromium') {
     await expect(page.getByTestId('open-folder')).toBeVisible()
   } else {

@@ -286,12 +286,12 @@ export function ActivityNavigator({
   const setQuery =
     tab === 'activity' ? setActivityQuery : tab === 'block' ? setBlockQuery : setProcessQuery
   const addLabel =
-    tab === 'activity' ? 'Add an activity' : tab === 'block' ? TERMS.newBlock : 'Add a process'
+    tab === 'activity' ? 'Add an activity' : tab === 'block' ? TERMS.newBlock : 'Add a segment'
 
   return (
     <nav data-testid="activity-navigator" data-expanded={expanded ? 'true' : 'false'}>
       <div className="tricc-nav__bar">
-        <div className="tricc-nav__tabs" role="tablist" aria-label="Processes and activities">
+        <div className="tricc-nav__tabs" role="tablist" aria-label="Segments and activities">
           <button
             type="button"
             role="tab"
@@ -301,7 +301,7 @@ export function ActivityNavigator({
             data-testid="tab-processes"
             onClick={() => setTab('process')}
           >
-            Processes
+            Segments
             <span className="tricc-nav__count">{processActivities.length}</span>
           </button>
           <button
@@ -372,7 +372,7 @@ export function ActivityNavigator({
           className="tricc-nav__project-search"
           data-testid="project-search"
           aria-label="Search the project"
-          title="Concepts, processes, activities and nodes. Press Enter to see what matches."
+          title="Concepts, segments, activities and nodes. Press Enter to see what matches."
           placeholder="Search the project"
           value={projectQuery}
           onChange={(e) => setProjectQuery(e.target.value)}
@@ -528,7 +528,7 @@ export function ActivityNavigator({
       ) : tab === 'process' ? (
         <LibraryPanel
           tab="process"
-          panelLabel="Process activities"
+          panelLabel="Segments"
           listTestId="process-activity-list"
           ids={processActivities}
           selected={selected}
@@ -538,7 +538,7 @@ export function ActivityNavigator({
               size="sm"
               type="search"
               data-testid="process-search"
-              aria-label="Find a process"
+              aria-label="Find a segment"
               placeholder="Filter"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -550,7 +550,7 @@ export function ActivityNavigator({
           empty={
             processActivities.length === 0 ? (
               <p data-testid="no-process-activities">
-                No processes yet. Use + to add the entry point for a segment of care, or Import to
+                No segments yet. Use + to add the entry point for a segment of care, or Import to
                 bring one in from a file.
               </p>
             ) : null
@@ -730,7 +730,7 @@ function LibraryPanel({
       </div>
       {shown.length === 0 && needle !== '' && (
         <p className="tricc-nav__empty" data-testid={`${tab}-no-match`}>
-          No {tab === 'process' ? 'processes' : tab === 'block' ? 'blocks' : 'activities'} match.
+          No {tab === 'process' ? 'segments' : tab === 'block' ? 'blocks' : 'activities'} match.
         </p>
       )}
       {shown.length === 0 && needle === '' ? empty : null}
@@ -823,7 +823,7 @@ function LibraryDraftDialog({
             ? 'New activity'
             : draft.kind === 'block'
               ? TERMS.newBlock
-              : 'New process'}
+              : 'New segment'}
         </h2>
         {draft.kind === 'block' && <p className="tricc-import-note">{TERMS.blockOrGoto}</p>}
         {draft.kind !== 'process' ? (
@@ -857,7 +857,7 @@ function LibraryDraftDialog({
           ) : draft.kind !== 'process' ? (
             'Enter a name to continue.'
           ) : (
-            'Name the process this starts.'
+            'Name the CPG process this segment starts.'
           )}
         </p>
         <div className="tricc-library-modal__actions">
@@ -971,7 +971,7 @@ function ImportDialog({
                 <section key={group} data-testid={`import-group-${group}`}>
                   <h3>
                     {group === 'process'
-                      ? 'Processes'
+                      ? 'Segments'
                       : group === 'block'
                         ? TERMS.blocks
                         : 'Activities'}{' '}

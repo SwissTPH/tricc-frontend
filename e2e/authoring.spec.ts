@@ -27,6 +27,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 async function createProject(page: Page, name: string): Promise<void> {
+  await page.getByTestId('new-project').click()
   await page.getByTestId('new-project-name').fill(name)
   await page.getByTestId('create-project').click()
   await expect(page.getByTestId('save-status')).toBeVisible()
@@ -164,13 +165,15 @@ test('read-only removes every mutating affordance and restores them', async ({ p
   await page.getByTestId('create-activity').click()
   await expect(page.getByTestId('add-note')).toBeVisible()
 
-  await page.getByTestId('read-only-toggle').check()
+  await page.getByTestId('mode-menu').click()
+  await page.getByTestId('mode-viewing').click()
   await expect(page.getByTestId('add-activity')).toHaveCount(0)
   await expect(page.getByTestId('import-activity')).toHaveCount(0)
   await expect(page.getByTestId('add-note')).toHaveCount(0)
   await expect(page.getByTestId('add-integer')).toHaveCount(0)
 
-  await page.getByTestId('read-only-toggle').uncheck()
+  await page.getByTestId('mode-menu').click()
+  await page.getByTestId('mode-editing').click()
   await expect(page.getByTestId('add-activity')).toBeVisible()
   await expect(page.getByTestId('import-activity')).toBeVisible()
   await expect(page.getByTestId('add-note')).toBeVisible()
@@ -209,7 +212,8 @@ test('undo and redo arrows sit in the single top bar', async ({ page }) => {
   })
   expect(headerOverflows).toBe(false)
 
-  await page.getByTestId('read-only-toggle').check()
+  await page.getByTestId('mode-menu').click()
+  await page.getByTestId('mode-viewing').click()
   await expect(page.getByTestId('undo')).toBeDisabled()
   await expect(page.getByTestId('redo')).toBeDisabled()
 })
@@ -304,7 +308,8 @@ test('the activity bin is hidden when read-only, and the gear still shows the se
   await createProject(page, 'Read-only settings guideline')
   await page.getByTestId('add-activity').click()
   await page.getByTestId('create-activity').click()
-  await page.getByTestId('read-only-toggle').check()
+  await page.getByTestId('mode-menu').click()
+  await page.getByTestId('mode-viewing').click()
   await expect(page.getByTestId('delete-activity')).toHaveCount(0)
   await page.getByTestId('configure-activity').click()
   await expect(page.getByTestId('act-name')).toBeDisabled()

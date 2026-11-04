@@ -1,11 +1,14 @@
 export * from './runtime/index.js'
+export * from './theme/index.js'
 export {
   ProjectOverview,
   ValidationSummary,
   uniqueId,
   type IssueLinks,
+  type OverviewView,
 } from './project/Overview.js'
-export { InterventionEditor } from './project/InterventionEditor.js'
+export { InterventionDialog, segmentsOf } from './project/InterventionEditor.js'
+export { InterventionTable } from './project/InterventionTable.js'
 export { ActivityNavigator } from './project/ActivityNavigator.js'
 export { ConceptDialog, type ConceptTarget } from './terminology/ConceptDialog.js'
 export { ConceptCard, CONCEPT_NODE_TYPES } from './terminology/ConceptCard.js'
@@ -39,3 +42,6 @@ export { BlocksView, blockUses, type BlockUse } from './blocks/BlocksView.js'
 export { ArgumentForm, argSummary, rowsFor, type ArgumentRow } from './blocks/ArgumentForm.js'
 export { ParamsSection } from './blocks/ParamsSection.js'
 export { TERMS } from './blocks/terms.js'
+export { NotificationBell } from './notifications/NotificationBell.js'
+export { LabelsField } from './components/LabelsField.js'
+export { InspectorPanel, type InspectorTab } from './components/InspectorPanel.js'

@@ -1,7 +1,7 @@
 {
   "name": "@tricc/app-local",
   "version": "0.1.0",
-  "description": "TRICC authoring app: draw clinical decision-support guidelines in the browser and save them as files tricc_oo converts. Runs locally with `npx @tricc/app-local`.",
+  "description": "DrawTricc, the TRICC authoring app: draw clinical decision-support guidelines in the browser and save them as files tricc_oo converts. Runs locally with `npx @tricc/app-local`.",
   "license": "Apache-2.0",
   "type": "module",
   "repository": {
@@ -42,6 +42,9 @@
     "start": "node bin/tricc-local.js"
   },
   "devDependencies": {
+    "@emotion/react": "^11",
+    "@emotion/styled": "^11",
+    "@mui/material": "^7",
     "@tailwindcss/vite": "^4.3.3",
     "@tricc/adapters-local": "workspace:*",
     "@tricc/core": "workspace:*",
@@ -50,6 +53,7 @@
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "@xyflow/react": "^12.3.6",
+    "material-symbols": "^0.48.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",

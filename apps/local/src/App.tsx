@@ -1,50 +1,32 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import {
-  Link,
-  Navigate,
-  Route,
-  Routes,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from 'react-router-dom'
+import { Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ARCHIVE_EXTENSION,
-  isBinaryPath,
   LABEL_CHARS_MAX,
   LABEL_CHARS_MIN,
   IMAGE_WIDTH_MAX,
   IMAGE_WIDTH_MIN,
   LABEL_LINES_MAX,
   LABEL_LINES_MIN,
-  createProject,
-  fromArchive,
-  normalizeImport,
-  readProject,
   toArchive,
   writeProject,
   type OpenProject,
-  type ProjectFiles,
   type ProjectRef,
   type ConceptKey,
   type Anchor,
   type DiagramStyle,
-  type ProjectSummary,
 } from '@tricc/core'
 import {
   ActivityEditor,
   ActivityNavigator,
-  BinIcon,
   BlocksView,
   Breadcrumbs,
   Button,
-  ConfirmDelete,
   DictionaryView,
   DiscussionsButton,
-  GearIcon,
-  HomeIcon,
   Input,
   MediaView,
+  NotificationBell,
   HistoryButtons,
   OpenProjectProvider,
   ProjectOverview,
@@ -53,15 +35,21 @@ import {
   TriccRuntimeProvider,
   nextTrail,
   useSave,
+  useThemeMode,
+  Icon,
+  type ThemeMode,
 } from '@tricc/editor'
+import ToggleButton from '@mui/material/ToggleButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import type { LocalRuntime } from './adapters.js'
+import { TopBar } from './shell/TopBar.js'
+import { HomePage } from './home/HomePage.js'
+import { deleteNote, deleteProject } from './projects.js'
 import {
   ChooseCopyDialog,
-  ImportFromRepoButton,
   RepoTools,
   checkCopy,
   fetchBranch,
-  forgetRepoState,
   needsChoice,
   repositoryOfFiles,
   writeBranch,
@@ -78,7 +66,7 @@ export function App({ local }: { local: LocalRuntime }) {
           path="/"
           element={
             <Shell local={local} storageLabel={storageLabel}>
-              <ProjectList local={local} />
+              <HomePage local={local} />
             </Shell>
           }
         />
@@ -111,6 +99,7 @@ function Shell({
   storageLabel,
   tools,
   crumbs,
+  bell,
   children,
 }: {
   local: LocalRuntime
@@ -118,289 +107,30 @@ function Shell({
   tools?: ReactNode
   /** Where the author is, in place of the app name: inside a project. */
   crumbs?: ReactNode
+  /** The project's own bell; without one, the bell gathers every project. */
+  bell?: ReactNode
   children: ReactNode
 }) {
-  const [readOnly, setReadOnly] = useState(local.identity.isReadOnly())
   return (
     <>
-      <header>
-        {crumbs ?? (
-          <Link to="/" className="tricc-home-link" data-testid="nav-home">
-            <HomeIcon />
-            TRICC Authoring
-          </Link>
-        )}
-        {/* Which store backs the open project. A user must know before they close the
-            tab, not after. */}
-        <span data-testid="storage-mode">{storageLabel}</span>
-        <div className="tricc-topbar__project">{tools}</div>
-        <label title="You can still start and answer discussions">
-          <input
-            type="checkbox"
-            data-testid="read-only-toggle"
-            checked={readOnly}
-            onChange={(e) => {
-              local.identity.setReadOnly(e.target.checked)
-              setReadOnly(e.target.checked)
-            }}
-          />
-          Read-only
-        </label>
-        <Link to="/preferences" data-testid="nav-preferences">
-          Preferences
-        </Link>
-      </header>
+      <TopBar
+        local={local}
+        storageLabel={storageLabel}
+        tools={tools}
+        crumbs={crumbs}
+        bell={bell ?? <AllProjectsBell />}
+      />
       <main>{children}</main>
     </>
   )
 }
 
-function ProjectList({ local }: { local: LocalRuntime }) {
-  const [projects, setProjects] = useState<ProjectSummary[]>([])
-  const [name, setName] = useState('')
-  const [error, setError] = useState<string | undefined>(undefined)
-  const [deleting, setDeleting] = useState<ProjectRef | undefined>(undefined)
-  const cancelDelete = useCallback(() => setDeleting(undefined), [])
+/** Home: notifications from every project; one opens its project. */
+function AllProjectsBell() {
   const navigate = useNavigate()
-
-  const refresh = useCallback(async () => setProjects(await local.catalog.list()), [local])
-  useEffect(() => void refresh(), [refresh])
-
-  /** Adopt an imported file set as a new browser-backed project. */
-  const importFiles = async (
-    files: ProjectFiles,
-    fallbackName: string,
-  ): Promise<ProjectRef | undefined> => {
-    setError(undefined)
-    const normalized = normalizeImport(files)
-    try {
-      // Parse before adopting: importing something unreadable and only discovering it on
-      // open would leave a broken entry in the project list.
-      const { project } = readProject(normalized)
-      const label = resolveName(project.title, project.languages.default) ?? fallbackName
-      const ref = await local.catalog.create(label)
-      await local.persistence.write(ref, {
-        files: normalized,
-        changed: Object.keys(normalized),
-        removed: [],
-      })
-      await refresh()
-      navigate(`/project/${ref.id}`)
-      return ref
-    } catch (e) {
-      setError(
-        e instanceof Error ? `That does not look like a TRICC project: ${e.message}` : String(e),
-      )
-      return undefined
-    }
-  }
-
   return (
-    <div data-testid="project-list">
-      <h1>Projects</h1>
-
-      {error && <p data-testid="import-error">{error}</p>}
-
-      <ul>
-        {projects.map((p) => (
-          <li key={p.id} className="tricc-project-row">
-            <Button
-              variant="link"
-              size="sm"
-              type="button"
-              data-testid={`open-${p.id}`}
-              onClick={() => navigate(`/project/${p.id}`)}
-            >
-              {p.name}
-            </Button>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              type="button"
-              data-testid={`configure-${p.id}`}
-              aria-label={`Settings of ${p.name}`}
-              title="Project settings"
-              onClick={() => navigate(`/project/${p.id}?settings=1`)}
-            >
-              <GearIcon />
-            </Button>
-            {!local.identity.isReadOnly() && (
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="text-destructive hover:text-destructive"
-                type="button"
-                data-testid={`delete-${p.id}`}
-                aria-label={`Delete ${p.name}`}
-                title="Delete project"
-                onClick={async () => setDeleting(await refFor(local, p))}
-              >
-                <BinIcon />
-              </Button>
-            )}
-          </li>
-        ))}
-      </ul>
-      {deleting && (
-        <ConfirmDelete
-          testId="delete-project"
-          heading="Delete this project?"
-          onCancel={cancelDelete}
-          onConfirm={() => {
-            const ref = deleting
-            setDeleting(undefined)
-            void deleteProject(local, ref).then(refresh)
-          }}
-        >
-          <p>This removes {deleting.name} from your projects.</p>
-          <p data-testid="delete-project-note">{deleteNote(local, deleting)}</p>
-        </ConfirmDelete>
-      )}
-      {projects.length === 0 && (
-        <p data-testid="no-projects">
-          No projects yet. Create one below, or import a project folder.
-        </p>
-      )}
-
-      <section aria-labelledby="open-heading">
-        <h2 id="open-heading">Open an existing project</h2>
-
-        {local.canUseFolders && (
-          <Button
-            variant="outline"
-            size="sm"
-            type="button"
-            data-testid="open-folder"
-            onClick={async () => {
-              setError(undefined)
-              const ref = await local.catalog.open()
-              // Undefined means the user cancelled the picker, which is not an error.
-              if (!ref) return
-              await refresh()
-              navigate(`/project/${ref.id}`)
-            }}
-          >
-            Open a project folder…
-          </Button>
-        )}
-
-        <ImportFromRepoButton
-          onImport={async (files, fallbackName) => {
-            // A repository import names its own errors in its dialog, not on the page.
-            const ref = await importFiles(files, fallbackName)
-            if (!ref) setError(undefined)
-            return ref
-          }}
-        />
-        <label htmlFor="import-archive">Import a {ARCHIVE_EXTENSION} file</label>
-        <input
-          id="import-archive"
-          type="file"
-          accept={`${ARCHIVE_EXTENSION},.zip`}
-          data-testid="import-archive"
-          onChange={async (e) => {
-            const file = e.target.files?.[0]
-            if (!file) return
-            const bytes = new Uint8Array(await file.arrayBuffer())
-            try {
-              await importFiles(fromArchive(bytes), stripExtension(file.name))
-            } catch {
-              setError('That file could not be read as an archive.')
-            }
-            e.target.value = ''
-          }}
-        />
-
-        <label htmlFor="import-files">Import a project folder</label>
-        <input
-          id="import-files"
-          type="file"
-          multiple
-          data-testid="import-files"
-          // Reading a directory works in every current browser; only writing back to one
-          // is Chromium-only, so this is the import path that always exists.
-          {...({ webkitdirectory: '' } as Record<string, string>)}
-          onChange={async (e) => {
-            const list = Array.from(e.target.files ?? [])
-            if (list.length === 0) return
-            const files: ProjectFiles = {}
-            for (const f of list) {
-              const path =
-                (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name
-              // Pictures stay bytes; everything else in a project is text.
-              files[path] = isBinaryPath(path)
-                ? new Uint8Array(await f.arrayBuffer())
-                : await f.text()
-            }
-            await importFiles(files, 'Imported project')
-            e.target.value = ''
-          }}
-        />
-      </section>
-
-      <section aria-labelledby="create-heading">
-        <h2 id="create-heading">Start a new project</h2>
-        <label htmlFor="new-project-name">New project name</label>
-        <Input
-          id="new-project-name"
-          data-testid="new-project-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <Button
-          size="sm"
-          type="button"
-          data-testid="create-project"
-          disabled={name.trim() === ''}
-          onClick={async () => {
-            const id = slug(name)
-            const open = await local.runtime.create(name, createProject({ id, title: name }))
-            await refresh()
-            navigate(`/project/${open.ref.id}`)
-          }}
-        >
-          Create project
-        </Button>
-      </section>
-    </div>
+    <NotificationBell onOpen={(n) => navigate(`/project/${encodeURIComponent(n.projectId)}`)} />
   )
-}
-
-/** The catalog entry with its folder handle, if it has one: that decides what a delete does. */
-async function refFor(local: LocalRuntime, summary: ProjectRef): Promise<ProjectRef> {
-  const handle = await local.catalog.handleFor(summary)
-  return handle ? { ...summary, handle } : summary
-}
-
-function deleteNote(local: LocalRuntime, ref: ProjectRef): string {
-  return local.storeFor(ref) === 'folder'
-    ? 'The folder and its files stay on your disk; only this list forgets the project.'
-    : 'Its files are kept only in this browser and are deleted. Export a copy first to keep it.'
-}
-
-/**
- * Off the list first, so a list shown next no longer has it; then `removed` (leave the
- * project, so no autosave writes it back); then delete what the browser kept.
- */
-async function deleteProject(
-  local: LocalRuntime,
-  ref: ProjectRef,
-  removed?: () => void,
-): Promise<void> {
-  await local.catalog.remove(ref)
-  removed?.()
-  await local.persistence.forget(ref)
-  await local.collaboration.forget(ref)
-  forgetRepoState(ref.id)
-}
-
-function resolveName(title: Record<string, string> | undefined, lang: string): string | undefined {
-  if (!title) return undefined
-  return title[lang] ?? Object.values(title)[0]
-}
-
-function stripExtension(fileName: string): string {
-  return fileName.replace(/\.[^.]+$/, '')
 }
 
 /** Download the open project as a single file. */
@@ -654,7 +384,6 @@ function ProjectWorkspace({
             extra={
               dictionary ? 'Data dictionary' : media ? 'Media' : blocks ? TERMS.blocks : undefined
             }
-            onHome={() => navigate('/')}
             onProject={() => {
               showView(null)
               setFocus(null)
@@ -665,6 +394,12 @@ function ProjectWorkspace({
               setFocus(null)
               setTrail((t) => t.slice(0, index + 1))
             }}
+          />
+        }
+        bell={
+          <NotificationBell
+            projectId={open.ref.id}
+            onOpen={(n) => n.anchor && n.discussionId && showDiscussion(n.anchor, n.discussionId)}
           />
         }
         tools={
@@ -739,6 +474,7 @@ function ProjectWorkspace({
             onOpenConcept={openConcept}
             onSelect={openActivity}
             onRename={(name) => void local.catalog.rename(open.ref, name)}
+            onShowView={showView}
             initialSettingsOpen={settingsOnOpen}
             deleteNote={deleteNote(local, open.ref)}
             onDelete={() => void deleteProject(local, open.ref, () => navigate('/'))}
@@ -752,7 +488,11 @@ function ProjectWorkspace({
 function SaveIndicator() {
   const status = useSave()
   return (
-    <p data-testid="save-status" data-state={status.state}>
+    <p
+      data-testid="save-status"
+      data-state={status.state}
+      title={saveLabel(status.state, status.error)}
+    >
       {saveLabel(status.state, status.error)}
     </p>
   )
@@ -775,6 +515,7 @@ function Preferences({ local }: { local: LocalRuntime }) {
   return (
     <div data-testid="preferences">
       <h1>Preferences</h1>
+      <ThemeChoice />
       {/* No accounts and no authentication - a display name, used for authorship. */}
       <label htmlFor="display-name">Display name</label>
       <Input
@@ -898,12 +639,34 @@ function Preferences({ local }: { local: LocalRuntime }) {
   )
 }
 
-function slug(name: string): string {
+/** System / Light / Dark. A per-browser setting, like the others on this page. */
+function ThemeChoice() {
+  const { mode, setMode } = useThemeMode()
   return (
-    name
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '') || 'project'
+    <>
+      <label id="pref-theme-label">Theme</label>
+      <ToggleButtonGroup
+        exclusive
+        size="small"
+        value={mode}
+        aria-labelledby="pref-theme-label"
+        data-testid="pref-theme"
+        onChange={(_, value: ThemeMode | null) => value && setMode(value)}
+      >
+        {(
+          [
+            ['system', 'contrast', 'System'],
+            ['light', 'light_mode', 'Light'],
+            ['dark', 'dark_mode', 'Dark'],
+          ] as const
+        ).map(([value, icon, text]) => (
+          <ToggleButton key={value} value={value} data-testid={`pref-theme-${value}`}>
+            <Icon name={icon} size={18} style={{ marginRight: 6 }} />
+            {text}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
+      <p>System follows your computer's light or dark setting.</p>
+    </>
   )
 }

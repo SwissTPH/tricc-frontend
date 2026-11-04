@@ -4,12 +4,17 @@ import type {
   IdentityPort,
   PersistencePort,
   ProjectCatalogPort,
+  ProjectDescription,
+  NotificationsPort,
   ProjectRef,
   TelemetryPort,
 } from './ports/index.js'
+import { DerivedNotifications } from './notifications/derived.js'
 import { noopTelemetry } from './ports/telemetry.js'
 import { ProjectDocument } from './document/doc.js'
 import { LocalDiscussions, type DiscussionPort } from './discussion/port.js'
+import { attentionFor } from './discussion/attention.js'
+import { resolve } from './format/schema/localized.js'
 import {
   readProject,
   writeProject,
@@ -30,6 +35,8 @@ export interface TriccRuntimeConfig {
   identity: IdentityPort
   collaboration?: CollaborationPort
   telemetry?: TelemetryPort
+  /** The bell. Without one, notifications are worked out from the project files. */
+  notifications?: NotificationsPort
 }
 
 export interface OpenProject {
@@ -47,6 +54,7 @@ export class TriccRuntime {
   readonly collaboration: CollaborationPort | undefined
   readonly telemetry: TelemetryPort
   readonly discussion: DiscussionPort
+  readonly notifications: NotificationsPort
 
   constructor(config: TriccRuntimeConfig) {
     this.persistence = config.persistence
@@ -55,6 +63,8 @@ export class TriccRuntime {
     this.collaboration = config.collaboration
     this.telemetry = config.telemetry ?? noopTelemetry
     this.discussion = new LocalDiscussions(this)
+    this.notifications =
+      config.notifications ?? new DerivedNotifications(this.catalog, this.identity)
   }
 
   async open(ref: ProjectRef): Promise<OpenProject> {
@@ -64,6 +74,7 @@ export class TriccRuntime {
       capabilities: () => this.identity.capabilities({ projectId: ref.id }),
     })
     await this.catalog.touch(ref)
+    await this.catalog.describe(ref, this.describe(ref, project))
     // A migrated project is dirty on arrival: the baseline is what was on disk, so the
     // first save writes the migrated form rather than silently leaving the old one.
     const baseline = migratedFrom ? files : writeProject(project)
@@ -72,13 +83,19 @@ export class TriccRuntime {
     return open
   }
 
-  async create(name: string, project: Project): Promise<OpenProject> {
+  async create(name: string, created: Project): Promise<OpenProject> {
     const ref = await this.catalog.create(name)
+    // The author who starts a project owns it until someone says otherwise.
+    const me = this.identity.current()
+    const project: Project = created.owner
+      ? created
+      : { ...created, owner: { id: me.id, name: me.displayName } }
     const files = writeProject(project)
     await this.persistence.write(ref, { files, changed: Object.keys(files), removed: [] })
     const document = ProjectDocument.fromProject(project, {
       capabilities: () => this.identity.capabilities({ projectId: ref.id }),
     })
+    await this.catalog.describe(ref, this.describe(ref, project))
     return { ref, document, baseline: files }
   }
 
@@ -90,8 +107,29 @@ export class TriccRuntime {
     }
     await this.persistence.write(open.ref, { files, changed, removed })
     open.baseline = files
+    await this.catalog.describe(open.ref, this.describe(open.ref, open.document.snapshot()))
+    this.notifications.refresh?.()
     this.telemetry.event('project.saved', { files: changed.length })
     return { baseline: files, changed }
+  }
+
+  /** What the project list shows about a project, for the current author. */
+  describe(ref: ProjectRef, project: Project): ProjectDescription {
+    const lang = project.languages.default
+    const d: ProjectDescription = {}
+    if (project.code) d.code = project.code
+    const title = resolve(project.title, lang, lang)
+    if (title) d.title = title
+    if (project.labels?.length) d.labels = [...project.labels]
+    if (project.owner) d.owner = { ...project.owner }
+    const me = this.identity.current()
+    const attention = attentionFor(
+      Object.values(project.discussions ?? {}),
+      { id: me.id, name: me.displayName },
+      ref.id,
+    ).map((n) => ({ ...n, projectName: title ?? ref.name }))
+    if (attention.length) d.attention = attention
+    return d
   }
 
   hasUnsavedChanges(open: OpenProject): boolean {

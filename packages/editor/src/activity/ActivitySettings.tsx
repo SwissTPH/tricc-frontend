@@ -200,7 +200,7 @@ export function ActivitySettings({
 
           {kind === 'process' && (
             <>
-              <label htmlFor="act-process">Process</label>
+              <label htmlFor="act-process">CPG process</label>
               <Input
                 size="sm"
                 id="act-process"

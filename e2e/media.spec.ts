@@ -32,6 +32,7 @@ const DOT = Buffer.from(
 )
 
 async function newActivity(page: Page, name: string): Promise<void> {
+  await page.getByTestId('new-project').click()
   await page.getByTestId('new-project-name').fill(name)
   await page.getByTestId('create-project').click()
   await page.getByTestId('add-activity').click()
@@ -221,6 +222,7 @@ test('Escape closes the picture picker only', async ({ page }) => {
 test('a picture drawn on a draw.io page joins the library and shows on its question', async ({
   page,
 }) => {
+  await page.getByTestId('new-project').click()
   await page.getByTestId('new-project-name').fill('Drawn pictures')
   await page.getByTestId('create-project').click()
   const cell = (id: string, attrs: string, label: string, y: number) =>

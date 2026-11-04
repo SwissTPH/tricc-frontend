@@ -26,6 +26,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 async function createProject(page: Page, name: string): Promise<void> {
+  await page.getByTestId('new-project').click()
   await page.getByTestId('new-project-name').fill(name)
   await page.getByTestId('create-project').click()
   await expect(page.getByTestId('save-status')).toBeVisible()
@@ -64,30 +65,30 @@ test('the breadcrumb follows gotos and resets from the activity list', async ({ 
   await addGoto(page, 'activity-3')
 
   await page.getByTestId('nav-activity-activity').click()
-  await expect(crumbs(page)).toHaveCount(3)
+  await expect(crumbs(page)).toHaveCount(2)
   await page.getByTestId('goto-follow-n-goto').click()
   await expect(page.getByTestId('crumb-activity-2')).toHaveAttribute('aria-current', 'page')
   await page.getByTestId('goto-follow-n-goto').click()
-  await expect(crumbs(page)).toHaveCount(5)
+  await expect(crumbs(page)).toHaveCount(4)
   await expect(page.getByTestId('crumb-activity-3')).toHaveAttribute('aria-current', 'page')
 
   // Back along the trail.
   await page.getByTestId('crumb-activity').click()
-  await expect(crumbs(page)).toHaveCount(3)
+  await expect(crumbs(page)).toHaveCount(2)
   await expect(page.getByTestId('crumb-activity')).toHaveAttribute('aria-current', 'page')
 
   // From the list: only that activity after the project.
   await page.getByTestId('goto-follow-n-goto').click()
-  await expect(crumbs(page)).toHaveCount(4)
-  await page.getByTestId('nav-activity-activity-3').click()
   await expect(crumbs(page)).toHaveCount(3)
+  await page.getByTestId('nav-activity-activity-3').click()
+  await expect(crumbs(page)).toHaveCount(2)
   await expect(page.getByTestId('crumb-activity-3')).toBeVisible()
   await expect(page.getByTestId('crumb-activity')).toHaveCount(0)
 
   // The project is the overview, home is the project list.
   await page.getByTestId('nav-overview').click()
   await expect(page.getByTestId('project-overview')).toBeVisible()
-  await expect(crumbs(page)).toHaveCount(2)
+  await expect(crumbs(page)).toHaveCount(1)
   await page.getByTestId('nav-home').click()
   await expect(page.getByTestId('project-list')).toBeVisible()
 })
@@ -119,7 +120,7 @@ test('an activity lists the gotos that lead to it, and each opens its caller', a
 test('the project list has a gear and a bin for each project', async ({ page }) => {
   await createProject(page, 'Listed guideline')
   await page.getByTestId('nav-home').click()
-  const open = page.getByTestId('project-list').locator('li [data-testid^="open-"]')
+  const open = page.getByTestId('project-list').locator('[data-testid^="open-"]')
   await expect(open).toHaveCount(1)
   const id = (await open.getAttribute('data-testid'))!.replace(/^open-/, '')
 

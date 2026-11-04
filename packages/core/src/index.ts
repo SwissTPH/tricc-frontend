@@ -8,6 +8,7 @@
 // Model
 export * from './model/types.js'
 export * from './model/activity-kind.js'
+export * from './model/labels.js'
 
 // Format
 export * from './format/schema/index.js'
@@ -45,6 +46,12 @@ export {
 } from './discussion/anchor.js'
 export { DEFAULT_DISCUSSION_LABELS } from './discussion/labels.js'
 export { parseCommentText, type TextPart } from './discussion/text.js'
+export { attentionFor, type AttentionTarget } from './discussion/attention.js'
+export {
+  DerivedNotifications,
+  memoryReadState,
+  type ReadStateStore,
+} from './notifications/derived.js'
 export {
   decisionLog,
   decisionLogCsv,

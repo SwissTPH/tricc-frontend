@@ -101,7 +101,7 @@ export function ActivityRefField({
             ? 'This project has no other activities to go to yet.'
             : kind === 'block'
               ? 'This project has no building blocks yet. Create one on the Building blocks tab.'
-              : 'This project has no process activities yet.')
+              : 'This project has no segments yet.')
         }
         onSelect={(id) => {
           onChange(id)

@@ -10,6 +10,7 @@ import type {
   TriccNode,
   Designation,
   ProjectImage,
+  ProjectOwner,
 } from '../model/types.js'
 import type { LocalizedText } from '../format/schema/localized.js'
 import { fieldsOf, type CustomField } from '../format/node-fields.js'
@@ -315,6 +316,7 @@ export function interventionToY(i: Intervention): Y.Map<unknown> {
   setPlain(m, 'trigger', i.trigger)
   setPlain(m, 'args', i.args && Object.keys(i.args).length ? i.args : undefined)
   setPlain(m, 'requires', i.requires?.length ? i.requires : undefined)
+  setPlain(m, 'labels', i.labels?.length ? i.labels : undefined)
   const activities = new Y.Array<Y.Map<unknown>>()
   activities.insert(
     0,
@@ -349,6 +351,8 @@ export function interventionFromY(m: Y.Map<unknown>): Intervention {
   if (args && Object.keys(args).length) i.args = structuredClone(args)
   const requires = m.get('requires') as Intervention['requires']
   if (requires?.length) i.requires = [...requires]
+  const labels = m.get('labels') as Intervention['labels']
+  if (labels?.length) i.labels = [...labels]
   return i
 }
 
@@ -498,6 +502,8 @@ export function projectToDoc(project: Project, doc: Y.Doc): void {
       setScalar(meta, k, project[k])
     }
     setPlain(meta, 'repository', project.repository)
+    setPlain(meta, 'labels', project.labels?.length ? project.labels : undefined)
+    setPlain(meta, 'owner', project.owner)
     const languages = doc.getMap<unknown>('languages')
     languages.set('default', project.languages.default)
     const avail = new Y.Array<string>()
@@ -603,6 +609,10 @@ export function projectFromDoc(doc: Y.Doc): Project {
   if (repository && typeof repository === 'object') {
     project.repository = structuredClone(repository) as Project['repository']
   }
+  const labels = meta.get('labels') as Project['labels']
+  if (Array.isArray(labels) && labels.length) project.labels = [...labels]
+  const owner = meta.get('owner')
+  if (owner && typeof owner === 'object') project.owner = structuredClone(owner) as ProjectOwner
   const imagesY = doc.getMap<Y.Map<unknown>>('images')
   if (imagesY.size > 0) {
     const images: Record<string, ProjectImage> = {}

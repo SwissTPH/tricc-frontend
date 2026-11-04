@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { Expression } from '@tricc/core'
 import { Button } from './ui/button.js'
+import { Icon } from '../theme/Icon.js'
 
 /** Settings dialog and delete confirmation shared by the intervention and activity editors. */
 
@@ -27,16 +28,22 @@ export function Dialog({
   children: ReactNode
 }) {
   const cardRef = useRef<HTMLDivElement>(null)
+  // The latest onClose, so a parent passing a new function each render neither re-runs the
+  // focus below (which would pull focus out of the field being typed in) nor goes stale.
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
   useEffect(() => {
     cardRef.current?.querySelector<HTMLElement>('input, select, textarea')?.focus()
+  }, [])
+  useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       event.preventDefault()
-      onClose()
+      closeRef.current()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [])
 
   return createPortal(
     <div
@@ -173,72 +180,13 @@ export function ConfirmDelete({
   )
 }
 
-export function SaveIcon() {
-  return (
-    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M3 1.5h7.1L14 5.4V14a.5.5 0 0 1-.5.5h-11A.5.5 0 0 1 2 14V2a.5.5 0 0 1 .5-.5H3zm.5 1V13h9V5.8L9.7 2.5H3.5zM5 9h6v4H5V9zm1-6h3v2H6V3z"
-      />
-    </svg>
-  )
-}
-
-export function CloseIcon() {
-  return (
-    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M3.2 2.2 8 7l4.8-4.8 1 1L9 8l4.8 4.8-1 1L8 9l-4.8 4.8-1-1L7 8 2.2 3.2l1-1z"
-      />
-    </svg>
-  )
-}
-
-export function GearIcon() {
-  return (
-    <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M11.5 2h-3l-.4 2.1a6 6 0 0 0-1.5.9L4.4 4.1 2.6 7.2l1.7 1.3a6 6 0 0 0 0 1.8l-1.7 1.3 1.8 3.1 2.2-.9a6 6 0 0 0 1.5.9l.4 2.1h3l.4-2.1a6 6 0 0 0 1.5-.9l2.2.9 1.8-3.1-1.7-1.3a6 6 0 0 0 0-1.8l1.7-1.3-1.8-3.1-2.2.9a6 6 0 0 0-1.5-.9L11.5 2zM10 8a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"
-      />
-    </svg>
-  )
-}
-
-export function BinIcon() {
-  return (
-    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M6 2h4l1 1h3v1H2V3h3l1-1zM3.5 6h1v7h-1V6zm3 0h1v7h-1V6zm3 0h1v7h-1V6zM4 5h8l-.6 9H4.6L4 5z"
-      />
-    </svg>
-  )
-}
-
-export function HomeIcon() {
-  return (
-    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M8 1.5 1 7.6l.7.8L3 7.3V14.5h4v-4h2v4h4V7.3l1.3 1.1.7-.8L8 1.5zM12 13.5h-2v-4H6v4H4V6.4l4-3.5 4 3.5v7.1z"
-      />
-    </svg>
-  )
-}
-
+export const SaveIcon = () => <Icon name="save" size={18} />
+export const CloseIcon = () => <Icon name="close" size={18} />
+export const GearIcon = () => <Icon name="settings" size={18} />
+export const BinIcon = () => <Icon name="delete" size={18} />
+export const HomeIcon = () => <Icon name="home" size={18} />
 /** Follow a link: a square with an arrow leaving it. */
-export function FollowIcon() {
-  return (
-    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M9 2h5v5h-1V3.7L7.4 9.3l-.7-.7L12.3 3H9V2zM2 4h5v1H3v8h8V9h1v5H2V4z"
-      />
-    </svg>
-  )
-}
+export const FollowIcon = () => <Icon name="open_in_new" size={16} />
 
 export function mergeExpression(
   current: Expression | undefined,

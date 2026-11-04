@@ -435,10 +435,9 @@ describe('project overview', () => {
     renderWith(h, <ProjectOverview />)
 
     expect(screen.getByTestId('intervention-sick-child')).toBeInTheDocument()
-    expect(screen.queryByTestId('intervention-sick-child-activity-triage')).not.toBeInTheDocument()
-    expect(screen.getByTestId('intervention-sick-child-activity-triage-process')).toHaveTextContent(
-      'Triage',
-    )
+    // Segments are sub-rows of the intervention, expanded by default.
+    expect(screen.queryByTestId('segment-sick-child-triage')).not.toBeInTheDocument()
+    expect(screen.getByTestId('segment-sick-child-triage-process')).toHaveTextContent('Triage')
     expect(screen.getByTestId('intervention-sick-child-trigger')).toHaveTextContent('on-demand')
   })
 
@@ -476,6 +475,7 @@ describe('project overview', () => {
     ]
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
+    fireEvent.click(screen.getByTestId('tab-validation'))
     const issue = screen.getByTestId('issue-intervention.reserved-trigger')
     expect(issue).toHaveAttribute('data-severity', 'error')
     expect(issue).toHaveTextContent(/planning layer/)
@@ -697,6 +697,7 @@ describe('intervention editing', () => {
     const h = await withIntervention()
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-sick-child'))
     await user.click(screen.getByTestId('add-process-to-sick-child'))
     await pickActivity(user, 'add-activity-to-sick-child', 'triage-process')
     expect(h.open.document.snapshot().interventions[0]?.activities).toEqual([
@@ -709,6 +710,7 @@ describe('intervention editing', () => {
     const h = await withIntervention()
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-sick-child'))
     await user.click(screen.getByTestId('add-process-to-sick-child'))
     await pickActivity(user, 'add-activity-to-sick-child', 'triage-process')
 
@@ -724,6 +726,7 @@ describe('intervention editing', () => {
     const h = await withIntervention()
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-sick-child'))
     await user.click(screen.getByTestId('add-process-to-sick-child'))
     await pickActivity(user, 'add-activity-to-sick-child', 'triage-process')
     await user.click(screen.getByTestId('configure-intervention-sick-child'))
@@ -740,6 +743,7 @@ describe('intervention editing', () => {
     const h = await withIntervention()
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-sick-child'))
     await user.click(screen.getByTestId('add-process-to-sick-child'))
     await pickActivity(user, 'add-activity-to-sick-child', 'triage-process')
     await user.click(screen.getByTestId('remove-activity-sick-child-triage-process'))
@@ -780,6 +784,7 @@ describe('intervention editing', () => {
     expect(trigger).toHaveTextContent('planned (needs the planning layer)')
 
     await user.selectOptions(trigger, 'planned')
+    fireEvent.click(screen.getByTestId('tab-validation'))
     expect(screen.getByTestId('issue-intervention.reserved-trigger')).toHaveAttribute(
       'data-severity',
       'error',
@@ -916,7 +921,7 @@ describe('process activities versus activities', () => {
     // A process file imported from the Activities tab is listed, and imported, as a process.
     await user.upload(screen.getByTestId('import-activity-file', { hidden: true }), airway)
     await waitFor(() =>
-      expect(screen.getByTestId('import-group-process')).toHaveTextContent('Processes (1)'),
+      expect(screen.getByTestId('import-group-process')).toHaveTextContent('Segments (1)'),
     )
     expect(screen.queryByTestId('import-group-activity')).not.toBeInTheDocument()
     await user.click(screen.getByTestId('import-confirm'))
@@ -985,7 +990,7 @@ describe('process activities versus activities', () => {
     expect(
       screen.queryByTestId('issue-intervention.not-a-process-activity'),
     ).not.toBeInTheDocument()
-    expect(screen.queryByTestId('intervention-iv-activity-triage')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('segment-iv-triage')).not.toBeInTheDocument()
   })
 
   it('creates a process activity straight from the intervention and lists it', async () => {
@@ -997,6 +1002,7 @@ describe('process activities versus activities', () => {
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-iv'))
     await user.click(screen.getByTestId('add-process-to-iv'))
     await user.type(screen.getByTestId('process-name-iv'), 'triage')
     await user.click(screen.getByTestId('create-process-activity-iv'))
@@ -1028,6 +1034,7 @@ describe('process activities versus activities', () => {
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-iv'))
     await user.click(screen.getByTestId('add-process-to-iv'))
     expect(screen.getByTestId('add-activity-to-iv-option-triage-process')).toBeInTheDocument()
     expect(screen.getByTestId('add-activity-to-iv-option-reg-process')).toBeInTheDocument()
@@ -1050,6 +1057,7 @@ describe('process activities versus activities', () => {
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-iv'))
     await user.click(screen.getByTestId('move-down-iv-a-process'))
     expect(h.open.document.snapshot().interventions[0]?.activities.map((a) => a.ref)).toEqual([
       'b-process',
@@ -1072,6 +1080,7 @@ describe('process activities versus activities', () => {
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
 
+    fireEvent.click(screen.getByTestId('configure-intervention-iv'))
     expect(screen.getByTestId('move-up-iv-a-process')).toBeDisabled()
     expect(screen.getByTestId('move-down-iv-b-process')).toBeDisabled()
   })

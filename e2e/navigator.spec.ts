@@ -28,6 +28,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 async function createProject(page: Page, name: string): Promise<void> {
+  await page.getByTestId('new-project').click()
   await page.getByTestId('new-project-name').fill(name)
   await page.getByTestId('create-project').click()
   await expect(page.getByTestId('save-status')).toBeVisible()
@@ -156,7 +157,7 @@ test('a plus opens a dialog and nothing is created until it is confirmed', async
 
   await page.getByTestId('tab-processes').click()
   await page.getByTestId('add-process').click()
-  await expect(modal).toContainText('New process')
+  await expect(modal).toContainText('New segment')
   await expect(page.getByTestId('add-process-activity')).toBeDisabled()
   await page.getByTestId('library-modal-backdrop').click({ position: { x: 8, y: 8 } })
   await expect(modal).toHaveCount(0)
@@ -233,7 +234,7 @@ test('import adds a file to the open tab and waits for confirmation', async ({ p
 
   // A process file started from the Activities tab is listed as a process, not skipped.
   await page.getByTestId('import-activity-file').setInputFiles(airway)
-  await expect(page.getByTestId('import-group-process')).toContainText('Processes (1)')
+  await expect(page.getByTestId('import-group-process')).toContainText('Segments (1)')
   await expect(page.getByTestId('import-group-activity')).toHaveCount(0)
   await page.getByTestId('import-modal-backdrop').click({ position: { x: 8, y: 8 } })
   await expect(modal).toHaveCount(0)
@@ -309,7 +310,7 @@ test('one draw.io import lands each page as a process or an activity', async ({ 
   await createProject(page, 'Registration guideline')
   // Started from the Activities tab, the process page is not skipped.
   await page.getByTestId('import-activity-file').setInputFiles(drawing)
-  await expect(page.getByTestId('import-group-process')).toContainText('Processes (1)')
+  await expect(page.getByTestId('import-group-process')).toContainText('Segments (1)')
   await expect(page.getByTestId('import-group-process')).toContainText('Registration')
   await expect(page.getByTestId('import-group-activity')).toContainText('Activities (1)')
   await expect(page.getByTestId('import-group-activity')).toContainText('Weight measurement')

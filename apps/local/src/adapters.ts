@@ -6,8 +6,14 @@ import {
   LocalPersistence,
   LocalProjectCatalog,
   LocalPreferences,
+  localReadState,
 } from '@tricc/adapters-local'
-import { createTriccRuntime, type ProjectRef, type TriccRuntime } from '@tricc/core'
+import {
+  createTriccRuntime,
+  DerivedNotifications,
+  type ProjectRef,
+  type TriccRuntime,
+} from '@tricc/core'
 
 /**
  * Adapter composition — the only thing this app contributes beyond routing and chrome.
@@ -47,7 +53,15 @@ export function createLocalRuntime(): LocalRuntime {
   const catalog = new LocalProjectCatalog()
 
   const collaboration = new IndexedDbCollaboration()
-  const runtime = createTriccRuntime({ persistence, catalog, identity, collaboration })
+  // No notification service locally: the bell is worked out from the project files.
+  const notifications = new DerivedNotifications(catalog, identity, localReadState())
+  const runtime = createTriccRuntime({
+    persistence,
+    catalog,
+    identity,
+    collaboration,
+    notifications,
+  })
 
   return {
     runtime,

@@ -195,7 +195,7 @@ export function ImportFromRepoButton({
   )
 }
 
-function ImportFromRepoDialog({
+export function ImportFromRepoDialog({
   onImport,
   onClose,
 }: {
@@ -815,7 +815,7 @@ function ProposeDialog({
         setBody(
           (b) =>
             b ||
-            `Proposed with TRICC Authoring by ${local.identity.current().displayName}.\n\n` +
+            `Proposed with DrawTricc by ${local.identity.current().displayName}.\n\n` +
               p.plan.apply.map((c) => `- ${c.path} (${KIND_LABEL[c.kind]})`).join('\n'),
         )
       })

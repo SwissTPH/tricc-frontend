@@ -270,6 +270,8 @@ export interface Intervention {
   args?: Record<string, ParamValue>
   /** Scope: the other interventions (ids) this one works with. */
   requires?: string[]
+  /** Free tags for finding and grouping interventions while authoring. tricc_oo ignores them. */
+  labels?: string[]
 }
 
 export interface TriccContext {
@@ -423,6 +425,10 @@ export interface Project {
   version?: string
   title?: LocalizedText
   description?: LocalizedText
+  /** Free tags for finding projects while authoring. tricc_oo ignores them. */
+  labels?: string[]
+  /** Who looks after the project. Authoring information; tricc_oo ignores it. */
+  owner?: ProjectOwner
   languages: { default: string; available: string[] }
   interventions: Intervention[]
   contexts: TriccContext[]
@@ -449,6 +455,12 @@ export interface Project {
   discussionLabels?: DiscussionLabel[]
   /** Discussion files that could not be read, kept so a save does not delete them. */
   discussionKeep?: Record<string, string>
+}
+
+/** A person, as the project names its owner: an identity id and a display name. */
+export interface ProjectOwner {
+  id: string
+  name: string
 }
 
 /**
