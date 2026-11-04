@@ -47,7 +47,7 @@ import {
 } from '../runtime/context.js'
 import { ValidationSummary, uniqueId } from '../project/Overview.js'
 import { NameInput } from '../components/NameInput.js'
-import { SidePanel, usePanelLayout } from '../components/SidePanel.js'
+import { PANEL_MIN, SidePanel, usePanelLayout } from '../components/SidePanel.js'
 import { CqlExpressionField } from '../cql/CqlExpressionField.js'
 import { expressionNames, renderCqlLabels } from '../cql/names.js'
 import { ActivityCanvas, type CanvasPlacement } from './canvas/Canvas.js'
@@ -142,7 +142,7 @@ export function ActivityEditor({
   const [panel, setPanel] = useState<
     'details' | 'nodes' | 'connection' | 'validation' | 'discussion'
   >(focusNodeId || focusEdgeId ? 'details' : 'nodes')
-  const layout = usePanelLayout({ id: 'flow-side-panel', min: 320 })
+  const layout = usePanelLayout({ id: 'flow-side-panel', min: PANEL_MIN })
   // A selection made while the panel is collapsed leaves a dot on the rail.
   const [unseen, setUnseen] = useState(false)
   const selectionKey = `${selectedId ?? ''}|${selectedEdgeId ?? ''}|${boxSelection.join(',')}`

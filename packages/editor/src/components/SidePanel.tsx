@@ -17,11 +17,13 @@ import { Icon } from '../theme/Icon.js'
  * The right-hand panel of the flow and project pages: resizable, collapsible to a rail
  * (GitHub RFC #9, "Resizable and collapsible right panel").
  *
- * The grid container holds the width in CSS: `--tricc-panel-min` per page, the default
+ * The grid container holds the width in CSS: `--tricc-panel-min`, the default
  * `max(20vw, min)`, and `--tricc-panel-width` once the author drags. Collapsed is
  * `data-panel="collapsed"`. Under 900px an open panel covers the main area (styles.css).
  */
 
+/** The narrowest an open panel gets, on every page (styles.css `--tricc-panel-min`). */
+export const PANEL_MIN = 340
 /** Collapsed width: the open button. */
 export const PANEL_RAIL = 32
 /** What the main area keeps beside an open panel. */
@@ -85,30 +87,26 @@ export interface PanelLayout {
 export const PANEL_SHRINK_BREAKPOINTS = [PANEL_COLLAPSED_BELOW, 900]
 
 /**
- * Panel state, per panel id, for the session: every flow page (activity, block, segment)
- * shares one, the project page has its own. Never saved.
+ * Panel state for the session, shared by every page: the project page and every flow
+ * (activity, block, segment). Never saved.
  */
 interface PanelState {
   collapsed: boolean
   dragged?: number
 }
-const states = new Map<string, PanelState>()
+let shared: PanelState | undefined
 const listeners = new Set<() => void>()
 const dragActive: MutableRefObject<boolean> = { current: false }
 let lastWindowWidth: number | undefined
 let installed = false
 
-function stateOf(id: string): PanelState {
-  let state = states.get(id)
-  if (!state) {
-    state = { collapsed: startsCollapsed() }
-    states.set(id, state)
-  }
-  return state
+function stateOf(): PanelState {
+  shared ??= { collapsed: startsCollapsed() }
+  return shared
 }
 
-function update(id: string, patch: Partial<PanelState>): void {
-  Object.assign(stateOf(id), patch)
+function update(patch: Partial<PanelState>): void {
+  Object.assign(stateOf(), patch)
   for (const listener of listeners) listener()
 }
 
@@ -122,9 +120,9 @@ function onWindowResize(): void {
   lastWindowWidth = width
   if (dragActive.current) return
   const shrunk = PANEL_SHRINK_BREAKPOINTS.some((b) => before >= b && width < b)
-  for (const state of states.values()) {
-    state.dragged = undefined
-    if (shrunk) state.collapsed = true
+  if (shared) {
+    shared.dragged = undefined
+    if (shrunk) shared.collapsed = true
   }
   for (const listener of listeners) listener()
 }
@@ -136,13 +134,13 @@ function install(): void {
   window.addEventListener('resize', onWindowResize)
 }
 
-/** Forget every panel's state (tests). */
+/** Forget the panel's state (tests). */
 export function resetPanelState(): void {
-  states.clear()
+  shared = undefined
   lastWindowWidth = typeof window === 'undefined' ? undefined : window.innerWidth
 }
 
-/** The state of one panel, shared by every page that uses the same `id`. */
+/** The state of the right-hand panel, shared by every page. */
 export function usePanelLayout({ id, min }: { id: string; min: number }): PanelLayout {
   const ref = useRef<HTMLDivElement>(null)
   const [, rerender] = useReducer((n: number) => n + 1, 0)
@@ -155,15 +153,15 @@ export function usePanelLayout({ id, min }: { id: string; min: number }): PanelL
     }
   }, [])
 
-  const { collapsed, dragged } = stateOf(id)
+  const { collapsed, dragged } = stateOf()
 
-  const setCollapsed = useCallback((next: boolean) => update(id, { collapsed: next }), [id])
+  const setCollapsed = useCallback((next: boolean) => update({ collapsed: next }), [])
 
   const measure = useCallback(() => {
     const box = ref.current?.getBoundingClientRect()
     const max = box ? Math.max(min, box.width - PANEL_MAIN_FLOOR) : min
     const panel = document.getElementById(id)?.getBoundingClientRect().width
-    const current = stateOf(id).dragged
+    const current = stateOf().dragged
     const width =
       current ?? (panel && panel > PANEL_RAIL ? panel : defaultWidth(min, window.innerWidth))
     return { width: clampWidth(width, min, max), max }
@@ -180,14 +178,11 @@ export function usePanelLayout({ id, min }: { id: string; min: number }): PanelL
 
   const apply = useCallback(
     (target: number | 'collapsed') =>
-      update(
-        id,
-        target === 'collapsed' ? { collapsed: true } : { collapsed: false, dragged: target },
-      ),
-    [id],
+      update(target === 'collapsed' ? { collapsed: true } : { collapsed: false, dragged: target }),
+    [],
   )
 
-  const reset = useCallback(() => update(id, { collapsed: false, dragged: undefined }), [id])
+  const reset = useCallback(() => update({ collapsed: false, dragged: undefined }), [])
 
   return {
     id,

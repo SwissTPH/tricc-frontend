@@ -60,10 +60,10 @@ async function dragEdge(page: Page, dx: number): Promise<void> {
   await page.mouse.up()
 }
 
-test('the flow inspector is 20% of the window, never under 320px', async ({ page }) => {
+test('the flow inspector is 20% of the window, never under 340px', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 800 })
   await newActivity(page, 'Panel width')
-  expect(await panelWidth(page)).toBe(320)
+  expect(await panelWidth(page)).toBe(340)
 
   await page.setViewportSize({ width: 1920, height: 800 })
   await expect.poll(() => panelWidth(page)).toBe(384)
@@ -77,12 +77,12 @@ test('dragging resizes the panel, a window resize resets it', async ({ page }) =
   await expect.poll(() => panelWidth(page)).toBeGreaterThan(500)
 
   // Just below the minimum it stops at the minimum.
-  await dragEdge(page, (await panelWidth(page)) - 300)
-  await expect.poll(() => panelWidth(page)).toBe(320)
+  await dragEdge(page, (await panelWidth(page)) - 320)
+  await expect.poll(() => panelWidth(page)).toBe(340)
 
   await dragEdge(page, -200)
   await page.setViewportSize({ width: 1500, height: 800 })
-  await expect.poll(() => panelWidth(page)).toBe(320)
+  await expect.poll(() => panelWidth(page)).toBe(340)
 })
 
 test('dragging well past the minimum collapses the panel to a rail', async ({ page }) => {
@@ -162,7 +162,7 @@ test('under 900px an open panel covers the canvas', async ({ page }) => {
   await expect(page.getByTestId('activity-canvas')).toBeVisible()
 })
 
-test('every flow shares the panel width and state', async ({ page }) => {
+test('every page shares the panel width and state', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 800 })
   await newActivity(page, 'Panel shared')
   await dragEdge(page, -200)
@@ -177,8 +177,11 @@ test('every flow shares the panel width and state', async ({ page }) => {
   await page.getByTestId('panel-toggle').click()
   // Through the project page and back: the flow page is mounted again.
   await page.getByTestId('nav-overview').click()
+  await expect(page.getByTestId('project-overview')).toHaveAttribute('data-panel', 'collapsed')
+  await page.getByTestId('panel-toggle').click()
   await page.getByTestId('nav-activity-activity').click()
-  await expect(page.getByTestId('panel-toggle')).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByTestId('panel-toggle')).toHaveAttribute('aria-expanded', 'true')
+  await expect.poll(() => panelWidth(page)).toBe(width)
 })
 
 test('every inspector tab can be reached by scrolling the tab row', async ({ page }) => {
@@ -201,7 +204,7 @@ test('every inspector tab can be reached by scrolling the tab row', async ({ pag
   await expect(last).toHaveAttribute('aria-selected', 'true')
 })
 
-test('the project panel has a 340px minimum and the same controls', async ({ page }) => {
+test('the project panel has the same width rule and controls', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 800 })
   await newProject(page, 'Project panel')
   expect(await panelWidth(page, 'project-side-panel')).toBe(340)

@@ -50,7 +50,6 @@
 }
 
 .tricc-editor__body {
-  --tricc-panel-min: 320px;
   display: grid;
   position: relative;
   /* Canvas and the right-hand inspector (see the side panel section). */
@@ -263,7 +262,6 @@
 
 /* The table on the left, the Info / Discussion / Validation panel on the right. */
 .tricc-overview {
-  --tricc-panel-min: 340px;
   display: grid;
   position: relative;
   grid-template-columns: minmax(0, 1fr) var(--tricc-panel-current);
@@ -293,6 +291,7 @@
  */
 .tricc-editor__body,
 .tricc-overview {
+  --tricc-panel-min: 340px; /* PANEL_MIN in SidePanel.tsx */
   --tricc-panel-current: var(--tricc-panel-width, max(20vw, var(--tricc-panel-min)));
 }
 .tricc-editor__body[data-panel='collapsed'],

@@ -21,7 +21,7 @@ import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
 import { DiscussionSection } from '../discussion/Discussion.js'
 import { InspectorPanel, type InspectorTab } from '../components/InspectorPanel.js'
-import { usePanelLayout } from '../components/SidePanel.js'
+import { PANEL_MIN, usePanelLayout } from '../components/SidePanel.js'
 import { LabelsField } from '../components/LabelsField.js'
 import { Icon } from '../theme/Icon.js'
 
@@ -70,7 +70,7 @@ export function ProjectOverview({
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [panel, setPanel] = useState('info')
   const [selected, setSelected] = useState<string | undefined>(undefined)
-  const layout = usePanelLayout({ id: 'project-side-panel', min: 340 })
+  const layout = usePanelLayout({ id: 'project-side-panel', min: PANEL_MIN })
   const closeSettings = useCallback(() => setSettingsOpen(false), [])
   const cancelDelete = useCallback(() => setConfirmingDelete(false), [])
   const mutate = useMutate()
