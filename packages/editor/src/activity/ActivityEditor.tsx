@@ -47,6 +47,7 @@ import {
 } from '../runtime/context.js'
 import { ValidationSummary, uniqueId } from '../project/Overview.js'
 import { NameInput } from '../components/NameInput.js'
+import { PANEL_MIN, SidePanel, usePanelLayout } from '../components/SidePanel.js'
 import { CqlExpressionField } from '../cql/CqlExpressionField.js'
 import { expressionNames, renderCqlLabels } from '../cql/names.js'
 import { ActivityCanvas, type CanvasPlacement } from './canvas/Canvas.js'
@@ -141,6 +142,19 @@ export function ActivityEditor({
   const [panel, setPanel] = useState<
     'details' | 'nodes' | 'connection' | 'validation' | 'discussion'
   >(focusNodeId || focusEdgeId ? 'details' : 'nodes')
+  const layout = usePanelLayout({ id: 'flow-side-panel', min: PANEL_MIN })
+  // A selection made while the panel is collapsed leaves a dot on the rail.
+  const [unseen, setUnseen] = useState(false)
+  const selectionKey = `${selectedId ?? ''}|${selectedEdgeId ?? ''}|${boxSelection.join(',')}`
+  const seenSelection = useRef(selectionKey)
+  useEffect(() => {
+    if (seenSelection.current === selectionKey) return
+    seenSelection.current = selectionKey
+    if (layout.collapsed && selectionKey !== '||') setUnseen(true)
+  }, [selectionKey, layout.collapsed])
+  useEffect(() => {
+    if (!layout.collapsed) setUnseen(false)
+  }, [layout.collapsed])
   const [focusThread, setFocusThread] = useState<string | undefined>(focusDiscussion?.discussionId)
   const lang = project.languages.default
   const kind = activity ? activityKind(activity) : 'activity'
@@ -507,7 +521,7 @@ export function ActivityEditor({
         />
       )}
 
-      <div className="tricc-editor__body">
+      <div className="tricc-editor__body" {...layout.containerProps}>
         <DiagramDiscussContext.Provider value={{ activityId, open: openDiscuss }}>
           <ActivityCanvas
             activityId={activityId}
@@ -528,77 +542,83 @@ export function ActivityEditor({
           />
         </DiagramDiscussContext.Provider>
 
-        <aside className="tricc-inspector">
-          <div className="tricc-inspector__tabs" role="tablist" aria-label="Inspector">
-            {hasSelection && (
+        <SidePanel
+          layout={layout}
+          label="Inspector"
+          active={active}
+          dot={unseen}
+          tabs={
+            <>
+              {hasSelection && (
+                <button
+                  type="button"
+                  role="tab"
+                  id="tab-details"
+                  data-testid="tab-details"
+                  aria-selected={active === 'details'}
+                  aria-controls="inspector-details"
+                  onClick={() => setPanel('details')}
+                >
+                  Details
+                </button>
+              )}
+              {canDiscuss && (
+                <button
+                  type="button"
+                  role="tab"
+                  id="tab-discussion"
+                  data-testid="tab-discussion"
+                  aria-selected={active === 'discussion'}
+                  aria-controls="inspector-discussion"
+                  onClick={() => setPanel('discussion')}
+                >
+                  Discussion
+                  {discussionCount > 0 && (
+                    <span className="tricc-inspector__count">{discussionCount}</span>
+                  )}
+                </button>
+              )}
               <button
                 type="button"
                 role="tab"
-                id="tab-details"
-                data-testid="tab-details"
-                aria-selected={active === 'details'}
-                aria-controls="inspector-details"
-                onClick={() => setPanel('details')}
+                id="tab-nodes"
+                data-testid="tab-nodes"
+                aria-selected={active === 'nodes'}
+                aria-controls="inspector-nodes"
+                onClick={() => setPanel('nodes')}
               >
-                Details
+                Nodes
               </button>
-            )}
-            {canDiscuss && (
               <button
                 type="button"
                 role="tab"
-                id="tab-discussion"
-                data-testid="tab-discussion"
-                aria-selected={active === 'discussion'}
-                aria-controls="inspector-discussion"
-                onClick={() => setPanel('discussion')}
+                id="tab-connection"
+                data-testid="tab-connection"
+                aria-selected={active === 'connection'}
+                aria-controls="inspector-connection"
+                onClick={() => setPanel('connection')}
               >
-                Discussion
-                {discussionCount > 0 && (
-                  <span className="tricc-inspector__count">{discussionCount}</span>
+                Connection
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="tab-validation"
+                data-testid="tab-validation"
+                aria-selected={active === 'validation'}
+                aria-controls="inspector-validation"
+                onClick={() => setPanel('validation')}
+              >
+                Validation
+                {activityIssueCount > 0 && (
+                  <span className="tricc-inspector__count" title="Issues in this activity">
+                    {activityIssueCount}
+                  </span>
                 )}
               </button>
-            )}
-            <button
-              type="button"
-              role="tab"
-              id="tab-nodes"
-              data-testid="tab-nodes"
-              aria-selected={active === 'nodes'}
-              aria-controls="inspector-nodes"
-              onClick={() => setPanel('nodes')}
-            >
-              Nodes
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="tab-connection"
-              data-testid="tab-connection"
-              aria-selected={active === 'connection'}
-              aria-controls="inspector-connection"
-              onClick={() => setPanel('connection')}
-            >
-              Connection
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="tab-validation"
-              data-testid="tab-validation"
-              aria-selected={active === 'validation'}
-              aria-controls="inspector-validation"
-              onClick={() => setPanel('validation')}
-            >
-              Validation
-              {activityIssueCount > 0 && (
-                <span className="tricc-inspector__count" title="Issues in this activity">
-                  {activityIssueCount}
-                </span>
-              )}
-            </button>
-          </div>
-
+            </>
+          }
+        >
           {active === 'details' && (
             <div role="tabpanel" id="inspector-details" aria-labelledby="tab-details">
               {several && (
@@ -775,7 +795,7 @@ export function ActivityEditor({
               />
             </section>
           )}
-        </aside>
+        </SidePanel>
       </div>
     </div>
   )

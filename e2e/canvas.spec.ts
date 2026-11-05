@@ -488,6 +488,8 @@ test('the inspector shows details, nodes, and connection one at a time', async (
   expect(fit!.clipped).toEqual([])
 
   await page.setViewportSize({ width: 390, height: 700 })
+  // Shrinking collapses the panel; opened again, it covers the canvas.
+  await page.getByTestId('panel-toggle').click()
   const narrow = await page.evaluate(() => {
     const inspector = document.querySelector('.tricc-inspector')
     const tabs = document.querySelector('.tricc-inspector__tabs')
@@ -759,9 +761,8 @@ test('read-only removes dragging and the palette but keeps the canvas readable',
   await page.setViewportSize({ width: 390, height: 700 })
   const narrow = await page.evaluate(editorPanes)
   expect(narrow.palette).toBeNull()
-  expect(narrow.inspector.width).toBeGreaterThan(280)
-  expect(narrow.inspector.width).toBeLessThan(400)
-  expect(narrow.inspector.x).toBeGreaterThan(narrow.canvas.right - 2)
+  // Shrinking past 900px collapses the inspector to its rail on the right edge.
+  expect(narrow.inspector.width).toBeLessThan(40)
   expect(Math.abs(narrow.inspector.right - narrow.body.right)).toBeLessThan(2)
 })
 

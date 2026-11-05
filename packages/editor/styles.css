@@ -51,8 +51,9 @@
 
 .tricc-editor__body {
   display: grid;
-  /* Canvas and the right-hand inspector. Add a node lives in the Nodes tab. */
-  grid-template-columns: minmax(0, 1fr) 320px;
+  position: relative;
+  /* Canvas and the right-hand inspector (see the side panel section). */
+  grid-template-columns: minmax(0, 1fr) var(--tricc-panel-current);
   grid-template-areas: 'canvas inspector';
   flex: 1 1 auto;
   min-height: 0;
@@ -262,7 +263,8 @@
 /* The table on the left, the Info / Discussion / Validation panel on the right. */
 .tricc-overview {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) var(--tricc-panel-current);
   flex: 1 1 auto;
   min-height: 0;
 }
@@ -274,18 +276,113 @@
 .tricc-overview__panel {
   grid-area: auto;
 }
-@media (max-width: 900px) {
+@media (max-width: 899.98px) {
+  .tricc-overview__main {
+    padding-inline: 16px calc(16px + 32px);
+  }
+}
+
+/* ------------------------------------------------------------ side panel */
+
+/*
+ * The right-hand panel of the flow and project pages (SidePanel.tsx, RFC #9). Its width is
+ * 20% of the window and never under the page's minimum, until the author drags its edge
+ * (--tricc-panel-width). Collapsed, it is a 32px rail with the open button.
+ */
+.tricc-editor__body,
+.tricc-overview {
+  --tricc-panel-min: 340px; /* PANEL_MIN in SidePanel.tsx */
+  --tricc-panel-current: var(--tricc-panel-width, max(20vw, var(--tricc-panel-min)));
+}
+.tricc-editor__body[data-panel='collapsed'],
+.tricc-overview[data-panel='collapsed'] {
+  --tricc-panel-current: 32px;
+}
+
+.tricc-panel-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: calc(var(--tricc-panel-current) - 3px);
+  width: 6px;
+  z-index: 6;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+  transition: background 0.12s;
+}
+.tricc-panel-resizer:hover,
+.tricc-panel-resizer:focus-visible,
+body[data-panel-resizing] .tricc-panel-resizer {
+  background: var(--tricc-primary);
+  outline: none;
+}
+body[data-panel-resizing] {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.tricc-inspector[data-collapsed] {
+  padding: 8px 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.tricc-panel-toggle {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--tricc-text-muted);
+  cursor: pointer;
+}
+.tricc-panel-toggle:hover,
+.tricc-panel-toggle:focus-visible {
+  border-color: var(--tricc-border-strong);
+  background: var(--tricc-surface);
+  color: var(--tricc-text);
+}
+.tricc-panel-toggle__dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tricc-primary);
+}
+
+/* Under 900px an open panel covers the main area, like on a phone; collapsed, it is a rail. */
+@media (max-width: 899.98px) {
+  .tricc-editor__body,
   .tricc-overview {
     grid-template-columns: minmax(0, 1fr);
-    overflow-y: auto;
+    grid-template-areas: 'canvas';
   }
-  .tricc-overview__main {
-    overflow: visible;
-    padding-inline: 16px;
+  .tricc-editor__body > .tricc-inspector,
+  .tricc-overview > .tricc-inspector {
+    grid-area: auto;
+    position: absolute;
+    inset: 0;
+    z-index: 5;
   }
-  .tricc-overview__panel {
-    border-left: 0;
-    border-top: 1px solid var(--tricc-border);
+  .tricc-editor__body > .tricc-inspector[data-collapsed],
+  .tricc-overview > .tricc-inspector[data-collapsed] {
+    left: auto;
+    width: 32px;
+  }
+  .tricc-panel-resizer {
+    display: none;
   }
 }
 .tricc-overview__meta {
@@ -1052,22 +1149,33 @@ ol.tricc-segment-rows > li::before {
   color: var(--tricc-text-muted);
 }
 
-.tricc-inspector__tabs {
+.tricc-inspector__bar {
   display: flex;
+  align-items: center;
+  gap: 6px;
   position: sticky;
   top: -12px;
   z-index: 1;
   margin: -12px -12px 12px;
-  padding: 8px 12px;
+  padding: 8px 12px 8px 6px;
   background: var(--tricc-subtle);
   border-bottom: 1px solid var(--tricc-border);
 }
 
-.tricc-inspector__tabs button {
-  flex: 1 1 0;
+/* Each tab keeps its full name; when they do not all fit, the row scrolls sideways. */
+.tricc-inspector__tabs {
+  display: flex;
+  flex: 1 1 auto;
   min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.tricc-inspector__tabs button {
+  flex: 1 0 auto;
+  white-space: nowrap;
   margin: 0;
-  padding: 5px 4px;
+  padding: 5px 6px;
   border: 1px solid var(--tricc-border-strong);
   background: var(--tricc-surface);
   color: var(--tricc-text);
