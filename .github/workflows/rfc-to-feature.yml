@@ -1,0 +1,65 @@
+name: RFC to feature spec
+
+# Labelling an RFC issue `rfc:approved` writes it to feature/<YYYYMMDD>-<slug>.md and opens a PR.
+# Merging that PR closes the issue. Relabel after editing the issue to refresh the same PR.
+# Needs Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests".
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: rfc-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  spec:
+    if: github.event.label.name == 'rfc:approved'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+
+      - id: rfc
+        run: node .github/scripts/rfc-to-feature.mjs
+
+      - run: npx --yes prettier@3.9.6 --write "$FILE"
+        env:
+          FILE: ${{ steps.rfc.outputs.path }}
+
+      - name: Open or update the PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.issue.number }}
+          TITLE: ${{ github.event.issue.title }}
+          FILE: ${{ steps.rfc.outputs.path }}
+          BRANCH: ${{ steps.rfc.outputs.branch }}
+          BASE: ${{ github.event.repository.default_branch }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "$BRANCH"
+          git add -A feature
+          git commit -m "Docs: :memo: RFC #$NUMBER as $FILE"
+          git push --force -u origin "$BRANCH"
+
+          url=$(gh pr list --head "$BRANCH" --state open --json url -q '.[0].url')
+          if [ -z "$url" ]; then
+            body=$(printf '%s\n\n%s\n\n%s\n' \
+              "Feature spec from the approved RFC #$NUMBER: \`$FILE\`." \
+              "Before merging, add its row to \`feature/README.md\`." \
+              "Closes #$NUMBER")
+            url=$(gh pr create --base "$BASE" --head "$BRANCH" \
+              --title "Docs: ${TITLE#RFC: }" --body "$body")
+            gh issue comment "$NUMBER" --body "Approved. The spec is in $url as \`$FILE\`; merging it closes this RFC."
+          else
+            gh issue comment "$NUMBER" --body "Refreshed \`$FILE\` in $url from the current issue text."
+          fi
