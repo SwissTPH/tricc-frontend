@@ -3,6 +3,7 @@ import { BranchChoiceDialog, type BranchChoiceValue } from './BranchChoice.js'
 import {
   Background,
   Controls,
+  MarkerType,
   MiniMap,
   ReactFlow,
   ReactFlowProvider,
@@ -35,7 +36,7 @@ import {
   type FlowNode,
   type ProjectContext,
 } from './elements.js'
-import { TriccEdgeView, branchKindOf, type TriccFlowEdge } from './BranchEdge.js'
+import { TriccEdgeView, branchKindOf, type BranchKind, type TriccFlowEdge } from './BranchEdge.js'
 import {
   NODE_OUT_HANDLE,
   answerEdgeCaption,
@@ -51,6 +52,15 @@ import { useThemeMode } from '../../theme/ThemeProvider.js'
 
 const nodeTypes = { tricc: TriccNodeView, comment: CommentNodeView, 'group-frame': GroupNodeView }
 const edgeTypes = { branch: TriccEdgeView }
+/** Arrowhead colour per branch kind, matching the `.tricc-edge--*` stroke in styles.css. */
+const EDGE_COLOR: Record<BranchKind, string> = {
+  unconditional: 'var(--tricc-border-strong)',
+  continue: 'var(--tricc-border-strong)',
+  yes: 'var(--tricc-success)',
+  no: 'var(--tricc-error)',
+  score: 'var(--tricc-warning-text)',
+  condition: 'var(--tricc-primary)',
+}
 /** React Flow's own default is Backspace. Delete is the key authors use. */
 const DELETE_KEYS = ['Backspace', 'Delete']
 
@@ -295,6 +305,13 @@ function CanvasInner({
             // choice node is the first answer. The node output has its own id.
             sourceHandle: answer?.optionId ? answerHandleId(answer.optionId) : NODE_OUT_HANDLE,
             type: 'branch' as const,
+            // The arrowhead shows which way the flow goes.
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: EDGE_COLOR[kind],
+              width: 16,
+              height: 16,
+            },
             deletable: canWrite,
             selected:
               boxSelection.length > 0
