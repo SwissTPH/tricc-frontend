@@ -7,7 +7,7 @@
 | **Branch target** | `feature/block-outputs` → `develop`                                                                                                                                                                                                                                                                      |
 | **Packages**      | `@tricc/core`, `@tricc/editor`, `tricc_oo`                                                                                                                                                                                                                                                               |
 | **Related**       | `20261028-snippets-tab-and-params.md` (amends §3.2, §5.1, §10; phases 1–5 are built), `20261008-data-dictionary-and-concept-texts.md` (texts live on concepts), `tricc_oo/feature/20261102-block-params-and-start-node.md` §18 rev 3 "closed blocks" (dynamic arguments, `outputs`, concepts at linking) |
-| **tricc_oo**      | Mirror into `../tricc_oo/feature/` on approval: abstract concepts (§1.3), the `{expression}` argument form (§1.1), `outputs: []` meaning none (§1.2; no key still means all, §18.2), a shared fixture of the stored-data functions (§1.5).                                                               |
+| **tricc_oo**      | Mirror into `../tricc_oo/feature/` on approval: abstract concepts (§1.3), the `{expression}` argument form (§1.1), `outputs: []` meaning none (§1.2; no key still means all, §18.2), the stored-data function list (§1.5; done in tricc_oo §18.8, Draft).                                                |
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
@@ -96,8 +96,9 @@ from `format/schema/expression.ts`:
 - `argRef()` and `argProblem()` (`params/effective.ts`, `params/resolve.ts`) treat it as neither a
   reference nor a literal. `argSummary` shows the intent, or the CQL when no intent is set.
 - **Static-only parameters.** `staticParams(project, pageId)` (new, `params/effective.ts`) returns
-  the names used in a node or option `name`, in a configuration choice, or of type `name` or
-  `concept`. This set is computed through the call chain. `ArgumentForm` disables _Calculated
+  the names used in a node or option `name`, in a configuration choice, as `{{p|raw}}` (it builds
+  a name), in a `save` field (a concept code), or of type `name` or `concept`. This set is
+  computed through the call chain. `ArgumentForm` disables _Calculated
   here_ for them.
 - `ArgumentForm` (`editor/src/blocks/ArgumentForm.tsx`): a fourth mode `calc` renders
   `CqlExpressionField` with the caller's names (`expressionNames(project, lang, callerId)`). An
@@ -144,7 +145,7 @@ from `format/schema/expression.ts`:
 - A concept is **abstract** when its code matches `TEMPLATE_NAME_RE` and contains `{{`. It carries
   the FHIR standard property `notSelectable = true` and `kind = template`, with `owner` = the block
   id. It lives in the same dictionary as a concrete concept of that node type
-  (`dictionaryForType`).
+  (`dictionaryForType`). tricc_oo's terminology export skips `kind = template` concepts.
 - Its texts (display, questionnaire text, hint, help, every designation) may use `{{param}}`.
   Rendering in text follows lib §4 (raw text). A `choice` value renders as the option's label in
   the target language when the option has a concept, and as the code otherwise.
@@ -186,8 +187,10 @@ called from `validateProject`). They are validation only: nothing is prevented w
   parameter, an output of an inner _Use block_, or a library calculate → `E_BLOCK_SCOPE`.
 - **Stored data.** A call to a function on the stored-data list (`AgeInDays()`, the history and
   `GetRepeatedValue` readers), and any `populate` node → `E_BLOCK_SCOPE`. The list is
-  `STORED_DATA_FUNCTIONS` in `@tricc/core`, kept in step with tricc_oo `FUNCTION_MAP`
-  (`retrieves_stored_data`, §18.5) by a shared fixture.
+  `STORED_DATA_FUNCTIONS` in `@tricc/core`, a copy of tricc_oo's
+  `tricc_oo/converters/cql/stored_data_functions.json` (`{"version": 1, "functions": [{"name",
+"reads": patient|encounter|history|context}]}`, tricc_oo §18.8 point 4), which a test compares
+  with the tricc_oo file when it is present.
 - **Go to.** A `goto` node in a block → `E_BLOCK_GOTO`. The palette still offers it; the node is
   flagged.
 - The token scan can miss what only the library's operation tree sees. tricc_oo stays the
