@@ -186,7 +186,10 @@ called from `validateProject`). They are validation only: nothing is prevented w
 - **Outside references.** A quoted name that is not an inner node name (template or rendered), a
   parameter, an output of an inner _Use block_, or a library calculate → `E_BLOCK_SCOPE`.
 - **Stored data.** A call to a function on the stored-data list (`AgeInDays()`, the history and
-  `GetRepeatedValue` readers), and any `populate` node → `E_BLOCK_SCOPE`. The list is
+  `GetRepeatedValue` readers, and the context readers `GetPractitionerValue`, `GetLocationValue`
+  and `GetFacilityValue`), and any `populate` node → `E_BLOCK_SCOPE`. A block that needs one of
+  these values takes it as an argument. `Today()` and `Now()` are not on the list: a block may call
+  them. They are still not static, so a static-only parameter cannot be computed from them. The list is
   `STORED_DATA_FUNCTIONS` in `@tricc/core`, a copy of tricc_oo's
   `tricc_oo/converters/cql/stored_data_functions.json` (`{"version": 1, "functions": [{"name",
 "reads": patient|encounter|history|context}]}`, tricc_oo §18.8 point 4), which a test compares
@@ -267,3 +270,7 @@ None.
   concept supplies the texts (Patrick).
 - 2026-11-06: an explicit `outputs: []` means no outputs, distinct from no key (all); tricc_oo
   §18.2 adopts the distinction (Patrick, on approval).
+- 2026-11-06: inside a block, `Today()` and `Now()` are allowed: they are not stored data, but they
+  are still not static. `GetPractitionerValue`, `GetLocationValue` and `GetFacilityValue` are
+  forbidden like the patient, encounter and history readers (`reads: context`). This follows
+  tricc_oo §18.8 "Decisions" (Patrick).
