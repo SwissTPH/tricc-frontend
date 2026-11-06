@@ -95,10 +95,12 @@ function eventToY(event: DiscussionEvent): Y.Map<unknown> {
   return m
 }
 
-function byTime<T extends { at: string; id?: string }>(items: T[]): T[] {
-  return items
-    .slice()
-    .sort((a, b) => a.at.localeCompare(b.at) || (a.id ?? '').localeCompare(b.id ?? ''))
+/**
+ * Oldest first. Ties (two writes in the same millisecond) keep the Y.Array order, which every
+ * peer shares: a random id as tie-break could put a reply before its question.
+ */
+function byTime<T extends { at: string }>(items: T[]): T[] {
+  return items.slice().sort((a, b) => a.at.localeCompare(b.at))
 }
 
 function discussionFromY(m: Y.Map<unknown>): Discussion {

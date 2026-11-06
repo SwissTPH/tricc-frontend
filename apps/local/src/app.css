@@ -30,11 +30,12 @@ body {
   background: var(--tricc-surface);
 }
 
+/* When the bar is full, the project's tools go to a second line rather than under the mode menu. */
 .tricc-topbar__project {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 4px 8px;
   flex: 1 1 12em;
   min-width: 0;
 }
@@ -83,11 +84,6 @@ main > [data-testid='activity-editor'] {
   pointer-events: none;
 }
 
-@media (max-width: 700px) {
-  .tricc-topbar__project {
-    flex-wrap: wrap;
-  }
-}
 [data-testid='save-status'] {
   margin: 0;
   padding: 0;
@@ -461,11 +457,11 @@ details > summary {
   color: var(--tricc-error-text);
 }
 
+/* Never narrower than its buttons; the badge truncates (it hides its overflow). */
 .tricc-repo-tools {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-width: 0;
 }
 .tricc-repo-badge {
   overflow: hidden;
