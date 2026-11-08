@@ -3,6 +3,10 @@ import type { Activity } from '@tricc/core'
 
 const NODE_W = 200
 const NODE_H = 64
+/** Horizontal gap between sibling nodes and branches, wide enough for edge labels. */
+export const H_GAP = 96
+/** Vertical gap between ranks. */
+export const V_GAP = 64
 
 /**
  * Top-to-bottom auto-layout.
@@ -32,7 +36,7 @@ export function autoLayout(
   sizeOf: (id: string) => NodeSize | undefined = () => undefined,
 ): Map<string, { x: number; y: number }> {
   const graph = new dagre.graphlib.Graph()
-  graph.setGraph({ rankdir: 'TB', nodesep: 48, ranksep: 64, marginx: 24, marginy: 24 })
+  graph.setGraph({ rankdir: 'TB', nodesep: H_GAP, ranksep: V_GAP, marginx: 24, marginy: 24 })
   graph.setDefaultEdgeLabel(() => ({}))
 
   const sizes = new Map<string, NodeSize>()
