@@ -49,8 +49,8 @@ async function projectWithProcessActivity(page: Page, name: string): Promise<voi
   await page.getByTestId('create-project').click()
   await page.getByTestId('tab-processes').click()
   await page.getByTestId('add-process').click()
-  await page.getByTestId('new-process-name').fill('triage')
-  await page.getByTestId('add-process-activity').click()
+  await page.getByTestId('new-segment-process').selectOption('triage')
+  await page.getByTestId('create-segment').click()
   await expect(page.getByTestId('activity-canvas')).toBeVisible()
   await page.getByTestId('nav-overview').click()
 }
@@ -144,7 +144,7 @@ test('read-only disables intervention editing entirely', async ({ page }) => {
   await page.getByTestId('intervention-settings-intervention-close').click()
   await expect(page.getByTestId('intervention-settings-intervention')).toHaveCount(0)
   await expect(page.getByTestId('add-activity-to-intervention')).toHaveCount(0)
-  await expect(page.getByTestId('create-process-activity-intervention')).toHaveCount(0)
+  await expect(page.getByTestId('create-segment')).toHaveCount(0)
   await expect(page.getByTestId('delete-intervention-intervention')).toHaveCount(0)
 })
 
@@ -176,8 +176,8 @@ test('the activity picker searches rather than listing everything', async ({ pag
   // Two more process activities, so filtering has something to do.
   for (const _ of [1, 2]) {
     await page.getByTestId('add-process').click()
-    await page.getByTestId('new-process-name').fill('triage')
-    await page.getByTestId('add-process-activity').click()
+    await page.getByTestId('new-segment-process').selectOption('triage')
+    await page.getByTestId('create-segment').click()
     await page.getByTestId('nav-overview').click()
   }
 
@@ -281,8 +281,8 @@ test('creates a process activity straight from the intervention', async ({ page 
     'no segments yet',
   )
 
-  await page.getByTestId('process-name-intervention').fill('registration')
-  await page.getByTestId('create-process-activity-intervention').click()
+  await page.getByTestId('new-segment-process').selectOption('registration')
+  await page.getByTestId('create-segment').click()
   await expect(
     page.getByTestId('intervention-intervention-activity-registration-process'),
   ).toBeVisible()
@@ -359,8 +359,8 @@ test('the intervention table lists segments as sub-rows, filters, and opens one'
 test('activities are ordered on the intervention', async ({ page }) => {
   await projectWithProcessActivity(page, 'Order guideline')
   await page.getByTestId('add-process').click()
-  await page.getByTestId('new-process-name').fill('triage')
-  await page.getByTestId('add-process-activity').click()
+  await page.getByTestId('new-segment-process').selectOption('triage')
+  await page.getByTestId('create-segment').click()
   await page.getByTestId('nav-overview').click()
 
   await page.getByTestId('add-intervention').click()

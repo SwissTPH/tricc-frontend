@@ -86,8 +86,9 @@ test('search and expand reach an activity or process that does not fit', async (
   ]
   for (const name of processes) {
     await page.getByTestId('add-process').click()
-    await page.getByTestId('new-process-name').fill(name)
-    await page.getByTestId('add-process-activity').click()
+    await page.getByTestId('new-segment-process').selectOption({ label: 'Other / custom…' })
+    await page.getByTestId('new-segment-custom-process').fill(name)
+    await page.getByTestId('create-segment').click()
   }
   await expect(page.getByTestId('tab-processes')).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByTestId('activity-navigator')).toHaveAttribute('data-expanded', 'true')
@@ -158,17 +159,48 @@ test('a plus opens a dialog and nothing is created until it is confirmed', async
   await page.getByTestId('tab-processes').click()
   await page.getByTestId('add-process').click()
   await expect(modal).toContainText('New segment')
-  await expect(page.getByTestId('add-process-activity')).toBeDisabled()
+  await expect(page.getByTestId('create-segment')).toBeDisabled()
   await page.getByTestId('library-modal-backdrop').click({ position: { x: 8, y: 8 } })
   await expect(modal).toHaveCount(0)
   await expect(page.getByTestId('no-process-activities')).toBeVisible()
 
   await page.getByTestId('add-process').click()
-  await page.getByTestId('new-process-name').fill('registration')
-  await expect(page.getByTestId('new-process-id')).toHaveText('registration-process')
-  await page.getByTestId('add-process-activity').click()
+  await page.getByTestId('new-segment-process').selectOption('registration')
+  await expect(page.getByTestId('new-segment-id')).toHaveText('registration-process')
+  await page.getByTestId('create-segment').click()
   await expect(page.getByTestId('nav-activity-registration-process')).toBeVisible()
   await expect(page.getByTestId('activity-process')).toHaveValue('registration')
+})
+
+test('a new segment takes a custom process and a name at creation', async ({ page }) => {
+  await createProject(page, 'Segment form')
+  await page.getByTestId('tab-processes').click()
+  await page.getByTestId('add-process').click()
+
+  const picker = page.getByTestId('new-segment-process')
+  await expect(picker).toBeFocused()
+  await picker.selectOption({ label: 'Other / custom…' })
+  await page.getByTestId('new-segment-custom-process').fill('home-visit')
+  // The name follows the process until the author types their own.
+  await expect(page.getByTestId('new-segment-name')).toHaveValue('Home visit')
+  await page.getByTestId('new-segment-name').fill('First home visit')
+  await expect(page.getByTestId('new-segment-id')).toHaveText('first-home-visit')
+  await page.getByTestId('create-segment').click()
+
+  await expect(page.getByTestId('nav-activity-first-home-visit')).toContainText('First home visit')
+  await page.getByTestId('configure-activity').click()
+  await expect(page.getByTestId('act-title')).toHaveValue('First home visit')
+  await expect(page.getByTestId('act-process')).toHaveValue('home-visit')
+  await page.getByTestId('activity-settings-save').click()
+
+  // The project's own process is offered next time, beside the CPG list.
+  await page.getByTestId('add-process').click()
+  await expect(
+    page
+      .getByTestId('new-segment-process')
+      .locator('optgroup[label="Used in this project"] option'),
+  ).toHaveText(['home-visit'])
+  await page.getByTestId('library-cancel').click()
 })
 
 test('import adds a file to the open tab and waits for confirmation', async ({ page }) => {

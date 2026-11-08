@@ -847,14 +847,42 @@ describe('process activities versus activities', () => {
     await user.click(screen.getByTestId('create-activity'))
     await user.click(screen.getByTestId('tab-processes'))
     await user.click(screen.getByTestId('add-process'))
-    await user.type(screen.getByTestId('new-process-name'), 'registration')
-    await user.click(screen.getByTestId('add-process-activity'))
+    await user.selectOptions(screen.getByTestId('new-segment-process'), 'registration')
+    await user.click(screen.getByTestId('create-segment'))
 
     const activities = h.open.document.snapshot().activities
     expect(activityKind(activities['activity']!)).toBe('activity')
     expect(activityKind(activities['registration-process']!)).toBe('process')
     // The wrapper says which process it starts, on the root and on the activity.
     expect(processOf(activities['registration-process']!)).toBe('registration')
+  })
+
+  it('creates a segment with a custom process and a name', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityNavigator selected={undefined} onSelect={() => {}} />)
+
+    await user.click(screen.getByTestId('tab-processes'))
+    await user.click(screen.getByTestId('add-process'))
+    expect(screen.getByTestId('create-segment')).toBeDisabled()
+    await user.selectOptions(screen.getByTestId('new-segment-process'), 'history-and-physical')
+    // The name follows the process until the author types one.
+    expect(screen.getByTestId('new-segment-name')).toHaveValue('History and physical')
+    expect(screen.getByTestId('new-segment-id').textContent).toBe('history-and-physical-process')
+
+    await user.selectOptions(screen.getByTestId('new-segment-process'), 'Other / custom…')
+    expect(screen.getByTestId('create-segment')).toBeDisabled()
+    await user.type(screen.getByTestId('new-segment-custom-process'), 'home-visit')
+    expect(screen.getByTestId('new-segment-name')).toHaveValue('Home visit')
+    await user.clear(screen.getByTestId('new-segment-name'))
+    await user.type(screen.getByTestId('new-segment-name'), 'Home visit, first week')
+    expect(screen.getByTestId('new-segment-id').textContent).toBe('home-visit-first-week')
+    await user.click(screen.getByTestId('create-segment'))
+
+    const segment = h.open.document.snapshot().activities['home-visit-first-week']!
+    expect(activityKind(segment)).toBe('process')
+    expect(processOf(segment)).toBe('home-visit')
+    expect(segment.title).toEqual({ en: 'Home visit, first week' })
   })
 
   it('lists the two kinds separately', async () => {
@@ -864,8 +892,8 @@ describe('process activities versus activities', () => {
 
     await user.click(screen.getByTestId('tab-processes'))
     await user.click(screen.getByTestId('add-process'))
-    await user.type(screen.getByTestId('new-process-name'), 'triage')
-    await user.click(screen.getByTestId('add-process-activity'))
+    await user.selectOptions(screen.getByTestId('new-segment-process'), 'triage')
+    await user.click(screen.getByTestId('create-segment'))
 
     // Each kind appears on its own tab, not in one undifferentiated pile.
     expect(screen.getByTestId('process-activity-list')).toContainElement(
@@ -951,11 +979,12 @@ describe('process activities versus activities', () => {
     await user.click(screen.getByTestId('create-activity'))
     await user.click(screen.getByTestId('tab-processes'))
     await user.click(screen.getByTestId('add-process'))
-    await user.type(screen.getByTestId('new-process-name'), 'registration')
-    await user.click(screen.getByTestId('add-process-activity'))
+    await user.selectOptions(screen.getByTestId('new-segment-process'), 'registration')
+    await user.click(screen.getByTestId('create-segment'))
     await user.click(screen.getByTestId('add-process'))
-    await user.type(screen.getByTestId('new-process-name'), 'followup')
-    await user.click(screen.getByTestId('add-process-activity'))
+    await user.selectOptions(screen.getByTestId('new-segment-process'), 'Other / custom…')
+    await user.type(screen.getByTestId('new-segment-custom-process'), 'followup')
+    await user.click(screen.getByTestId('create-segment'))
 
     expect(screen.getByTestId('nav-expand')).toBeDisabled()
     await user.click(screen.getByTestId('tab-activities'))
@@ -1004,12 +1033,43 @@ describe('process activities versus activities', () => {
 
     await user.click(screen.getByTestId('configure-intervention-iv'))
     await user.click(screen.getByTestId('add-process-to-iv'))
-    await user.type(screen.getByTestId('process-name-iv'), 'triage')
-    await user.click(screen.getByTestId('create-process-activity-iv'))
+    await user.selectOptions(screen.getByTestId('new-segment-process'), 'triage')
+    await user.click(screen.getByTestId('create-segment'))
 
     const snapshot = h.open.document.snapshot()
     expect(activityKind(snapshot.activities['triage-process']!)).toBe('process')
+    expect(snapshot.activities['triage-process']?.title).toEqual({ en: 'Triage' })
     expect(snapshot.interventions[0]?.activities).toEqual([{ ref: 'triage-process' }])
+  })
+
+  it('names a new segment from the intervention, with the same form as the Segments tab', async () => {
+    const user = userEvent.setup()
+    const project = seed()
+    project.activities['vax-process'] = createProcessActivity({
+      id: 'vax-process',
+      process: 'vaccination',
+    })
+    project.interventions = [
+      { id: 'iv', name: 'iv', trigger: { mode: 'on-demand' }, activities: [] },
+    ]
+    const h = await harness(project)
+    renderWith(h, <ProjectOverview />)
+
+    await user.click(screen.getByTestId('configure-intervention-iv'))
+    await user.click(screen.getByTestId('add-process-to-iv'))
+    // A custom process already used in the project is offered next to the CPG list.
+    await user.selectOptions(screen.getByTestId('new-segment-process'), 'vaccination')
+    expect(screen.getByTestId('new-segment-name')).toHaveValue('Vaccination')
+    await user.clear(screen.getByTestId('new-segment-name'))
+    await user.type(screen.getByTestId('new-segment-name'), 'Booster dose')
+    expect(screen.getByTestId('new-segment-id').textContent).toBe('booster-dose')
+    await user.click(screen.getByTestId('create-segment'))
+
+    const snapshot = h.open.document.snapshot()
+    const segment = snapshot.activities['booster-dose']!
+    expect(processOf(segment)).toBe('vaccination')
+    expect(segment.title).toEqual({ en: 'Booster dose' })
+    expect(snapshot.interventions[0]?.activities).toEqual([{ ref: 'booster-dose' }])
   })
 
   it('offers every activity that is not already listed', async () => {

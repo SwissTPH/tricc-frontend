@@ -6,7 +6,6 @@ import {
   moveTextsToConcepts,
   createActivity,
   createBlock,
-  createProcessActivity,
   effectiveParams,
   mergeImages,
   processOf,
@@ -24,13 +23,20 @@ import { dictionaryLabel } from '../terminology/ConceptDialog.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
 import { TERMS } from '../blocks/terms.js'
+import {
+  EMPTY_SEGMENT,
+  NewSegmentFields,
+  createSegment,
+  plannedSegment,
+  type SegmentDraft,
+} from './NewSegmentFields.js'
 
 type LibraryTab = 'process' | 'activity' | 'block'
 
 type LibraryDraft =
   | { kind: 'activity'; name: string }
   | { kind: 'block'; name: string }
-  | { kind: 'process'; process: string }
+  | { kind: 'process'; segment: SegmentDraft }
 
 type ImportRow = ParsedActivity & { filename: string; kind: LibraryTab }
 
@@ -156,7 +162,7 @@ export function ActivityNavigator({
   const openDraft = (kind: LibraryTab) => {
     if (kind === 'activity') setDraft({ kind, name: uniqueId('activity', taken) })
     else if (kind === 'block') setDraft({ kind, name: uniqueId('block', taken) })
-    else setDraft({ kind, process: '' })
+    else setDraft({ kind, segment: EMPTY_SEGMENT })
   }
 
   const confirmDraft = () => {
@@ -181,15 +187,11 @@ export function ActivityNavigator({
       onSelect(id)
       return
     }
-    const process = draft.process.trim()
-    const base = slugId(process)
-    if (!base) return
-    const id = uniqueId(`${base}-process`, taken)
-    mutate((tx) =>
-      tx.addActivity(createProcessActivity({ id, process, title: process, language: lang })),
-    )
+    const plan = plannedSegment(draft.segment, taken)
+    if (!plan) return
+    mutate((tx) => tx.addActivity(createSegment(plan, lang)))
     setDraft(null)
-    onSelect(id)
+    onSelect(plan.id)
   }
 
   const cancelDraft = useCallback(() => setDraft(null), [])
@@ -618,6 +620,7 @@ export function ActivityNavigator({
       )}
       {draft && canWrite && (
         <LibraryDraftDialog
+          project={project}
           draft={draft}
           taken={taken}
           onChange={setDraft}
@@ -743,12 +746,14 @@ function LibraryPanel({
  * Cancel, Escape, and the backdrop leave the library unchanged.
  */
 function LibraryDraftDialog({
+  project,
   draft,
   taken,
   onChange,
   onCancel,
   onConfirm,
 }: {
+  project: Project
   draft: LibraryDraft
   taken: Set<string>
   onChange: (draft: LibraryDraft) => void
@@ -757,21 +762,18 @@ function LibraryDraftDialog({
 }) {
   const cardRef = useRef<HTMLFormElement>(null)
   const activityBase = draft.kind !== 'process' ? slugId(draft.name) : ''
-  const processBase = draft.kind === 'process' ? slugId(draft.process) : ''
   const savedAs =
     draft.kind !== 'process'
       ? activityBase
         ? uniqueId(activityBase, taken)
         : ''
-      : processBase
-        ? uniqueId(`${processBase}-process`, taken)
-        : ''
+      : (plannedSegment(draft.segment, taken)?.id ?? '')
 
   useEffect(() => {
     const card = cardRef.current
-    const input = card?.querySelector<HTMLInputElement>('input')
-    input?.focus()
-    input?.select()
+    const field = card?.querySelector<HTMLInputElement | HTMLSelectElement>('input, select')
+    field?.focus()
+    if (field instanceof HTMLInputElement) field.select()
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
@@ -780,7 +782,7 @@ function LibraryDraftDialog({
         return
       }
       if (event.key !== 'Tab' || !card) return
-      const items = [...card.querySelectorAll<HTMLElement>('input, button')]
+      const items = [...card.querySelectorAll<HTMLElement>('input, select, button')]
       const first = items[0]
       const last = items[items.length - 1]
       if (!first || !last) return
@@ -837,29 +839,24 @@ function LibraryDraftDialog({
             />
           </label>
         ) : (
-          <label>
-            Starts
-            <Input
-              data-testid="new-process-name"
-              list="cpg-processes"
-              placeholder="e.g. registration"
-              value={draft.process}
-              autoComplete="off"
-              onChange={(event) => onChange({ kind: 'process', process: event.target.value })}
-            />
-          </label>
+          <NewSegmentFields
+            project={project}
+            draft={draft.segment}
+            taken={taken}
+            onChange={(segment) => onChange({ kind: 'process', segment })}
+          />
         )}
-        <p className="tricc-library-modal__id">
-          {savedAs ? (
-            <>
-              Saved as <span data-testid={`new-${draft.kind}-id`}>{savedAs}</span>
-            </>
-          ) : draft.kind !== 'process' ? (
-            'Enter a name to continue.'
-          ) : (
-            'Name the CPG process this segment starts.'
-          )}
-        </p>
+        {draft.kind !== 'process' && (
+          <p className="tricc-library-modal__id">
+            {savedAs ? (
+              <>
+                Saved as <span data-testid={`new-${draft.kind}-id`}>{savedAs}</span>
+              </>
+            ) : (
+              'Enter a name to continue.'
+            )}
+          </p>
+        )}
         <div className="tricc-library-modal__actions">
           <Button
             size="sm"
@@ -869,7 +866,7 @@ function LibraryDraftDialog({
                 ? 'create-activity'
                 : draft.kind === 'block'
                   ? 'create-block'
-                  : 'add-process-activity'
+                  : 'create-segment'
             }
             disabled={!savedAs}
           >

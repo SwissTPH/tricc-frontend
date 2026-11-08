@@ -799,8 +799,8 @@ test('a goto selects an activity, and never a process activity', async ({ page }
   await page.getByTestId('nav-overview').click()
   await page.getByTestId('tab-processes').click()
   await page.getByTestId('add-process').click()
-  await page.getByTestId('new-process-name').fill('triage')
-  await page.getByTestId('add-process-activity').click()
+  await page.getByTestId('new-segment-process').selectOption('triage')
+  await page.getByTestId('create-segment').click()
 
   await page.getByTestId('tab-activities').click()
   await page.getByTestId(`nav-activity-${FIRST_ACTIVITY}`).click()
