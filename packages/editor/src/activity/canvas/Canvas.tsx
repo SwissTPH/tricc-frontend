@@ -141,7 +141,7 @@ function CanvasInner({
 }: CanvasProps) {
   const mutate = useMutate()
   const canWrite = useCanWrite()
-  const { labelChars } = useEditorPreferences()
+  const { labelChars, nodeGap } = useEditorPreferences()
   const instance = useRef<ReactFlowInstance<FlowNode, TriccFlowEdge> | null>(null)
   const colorMode = useThemeMode().resolved
   const frameRef = useRef<HTMLDivElement>(null)
@@ -242,7 +242,7 @@ function CanvasInner({
       severityByNode,
       // Nodes without a stored position are laid out on read, so a hand-written or
       // machine-generated activity still opens (project-format §3.2).
-      layout: autoLayout(activity),
+      layout: autoLayout(activity, undefined, nodeGap),
       drag: (id) => dragPositions.current.get(id),
       resize: (id) => resizeDims.current.get(id),
       measured: (id) => measuredSize(instance.current, measuredSizes.current, id),
@@ -260,7 +260,17 @@ function CanvasInner({
     })
     nodeCache.current = next
     return projected
-  }, [activity, project, lang, selectedId, boxSelection, canWrite, severityByNode, dragTick])
+  }, [
+    activity,
+    project,
+    lang,
+    selectedId,
+    boxSelection,
+    canWrite,
+    severityByNode,
+    dragTick,
+    nodeGap,
+  ])
 
   // When an element's handles change (answers added, removed, reordered; a new type) and its
   // size does not, React Flow keeps the old handle positions. Tell it to read them again.

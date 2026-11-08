@@ -308,6 +308,18 @@ describe('LocalPreferences', () => {
     expect(new LocalPreferences(prefs).current().diagramStyle).toBe('bpmn')
   })
 
+  it('defaults the tidy-layout gap to half a node plus 8, keeps an update, and clamps it', () => {
+    const prefs = memoryPrefs()
+    const p = new LocalPreferences(prefs)
+    expect(p.current().nodeGap).toBe(108)
+    p.update({ nodeGap: 160 })
+    expect(new LocalPreferences(prefs).current().nodeGap).toBe(160)
+    p.update({ nodeGap: 2 })
+    expect(p.current().nodeGap).toBe(16)
+    p.update({ nodeGap: 5000 })
+    expect(p.current().nodeGap).toBe(600)
+  })
+
   it('falls back to the defaults when storage is corrupt or throws', () => {
     const prefs = memoryPrefs()
     prefs.set('tricc.preferences', 'not json')
