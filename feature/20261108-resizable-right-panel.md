@@ -2,7 +2,7 @@
 
 | Field             | Value                                                                                                        |
 | ----------------- | ------------------------------------------------------------------------------------------------------------ |
-| **Status**        | Approved (2026-11-08, RFC #9)                                                                                |
+| **Status**        | Implemented (2026-11-08, RFC #9, PR #10)                                                                     |
 | **RFC**           | [#9](https://github.com/SwissTPH/tricc-frontend/issues/9)                                                    |
 | **Branch target** | `feature/resizable-right-panel` → `develop`                                                                  |
 | **Packages**      | `@tricc/editor`                                                                                              |
