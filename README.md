@@ -160,6 +160,27 @@ One companion spec lives in the other repository:
 [`feature/README.md`](./feature/README.md) records the decisions these specs rest on, so they are
 not relitigated in review.
 
+## Development
+
+Needs Node 20 or later and pnpm 9 (`corepack enable` provides the pinned version).
+
+```bash
+pnpm install
+pnpm build                              # the app imports the packages' built dist/
+pnpm --filter @tricc/app-local dev      # http://localhost:5173
+```
+
+The dev server reloads changes in `apps/local`. A change under `packages/` needs its package rebuilt,
+for example `pnpm --filter @tricc/editor build`.
+
+| Command                                | What it does                                      |
+| -------------------------------------- | ------------------------------------------------- |
+| `pnpm typecheck`                       | TypeScript in every package                       |
+| `pnpm test`                            | Unit tests (Vitest)                               |
+| `pnpm test:e2e`                        | Browser tests (Playwright) against a built app    |
+| `pnpm format`                          | Prettier on the repository                        |
+| `pnpm --filter @tricc/app-local start` | The packaged local app, as `npx @tricc/app-local` |
+
 ## Contributing
 
 Follow the `feature/` gate: specify, get approval, then implement. New capabilities get a dated

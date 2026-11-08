@@ -1,8 +1,6 @@
 import { useCallback, useState } from 'react'
 import {
-  CPG_PROCESSES,
   IMPLEMENTED_TRIGGER_MODES,
-  createProcessActivity,
   interventionParams,
   isProcessActivity,
   processOf,
@@ -21,6 +19,13 @@ import { Input } from '../components/ui/input.js'
 import { LabelsField } from '../components/LabelsField.js'
 import { Icon } from '../theme/Icon.js'
 import { ArgumentForm } from '../blocks/ArgumentForm.js'
+import {
+  EMPTY_SEGMENT,
+  NewSegmentFields,
+  createSegment,
+  plannedSegment,
+  type SegmentDraft,
+} from './NewSegmentFields.js'
 
 /**
  * The intervention editor: a modal opened from the gear on its row of the project table.
@@ -51,7 +56,7 @@ export function InterventionDialog({
 }) {
   const mutate = useMutate()
   const lang = project.languages.default
-  const [newProcess, setNewProcess] = useState('')
+  const [newSegment, setNewSegment] = useState<SegmentDraft>(EMPTY_SEGMENT)
   const [view, setView] = useState<'settings' | 'add'>('settings')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const cancelDelete = useCallback(() => setConfirmingDelete(false), [])
@@ -67,6 +72,8 @@ export function InterventionDialog({
   const used = new Set(intervention.activities.map((a) => a.ref))
   const processIds = activityIds.filter((id) => isListedProcess(project, id))
   const addable = processIds.filter((id) => !used.has(id))
+  const taken = new Set(activityIds)
+  const plan = plannedSegment(newSegment, taken)
 
   if (view === 'add' && !readOnly) {
     return (
@@ -93,51 +100,34 @@ export function InterventionDialog({
             backToSettings()
           }}
         />
-        <div className="tricc-add-process">
-          <label htmlFor={`process-name-${intervention.id}`}>New segment</label>
-          <Input
-            size="sm"
-            id={`process-name-${intervention.id}`}
-            list={`cpg-processes-${intervention.id}`}
-            data-testid={`process-name-${intervention.id}`}
-            value={newProcess}
-            placeholder="e.g. registration"
-            onChange={(e) => setNewProcess(e.target.value)}
-          />
-          <datalist id={`cpg-processes-${intervention.id}`}>
-            {CPG_PROCESSES.map((p) => (
-              <option key={p} value={p} />
-            ))}
-          </datalist>
-          <p>
-            Name the CPG common process it implements, such as triage or diagnosis, or type your
-            own.
-          </p>
-          <Button
-            size="sm"
-            type="button"
-            data-testid={`create-process-activity-${intervention.id}`}
-            disabled={newProcess.trim() === ''}
-            onClick={() => {
-              const process = newProcess.trim()
-              const taken = new Set(Object.keys(project.activities))
-              const id = uniqueActivityId(`${process}-process`, taken)
-              mutate((tx) => {
-                tx.addActivity(
-                  createProcessActivity({ id, process, title: process, language: lang }),
-                )
-                tx.updateIntervention({
-                  ...intervention,
-                  activities: [...intervention.activities, { ref: id }],
-                })
+        <form
+          className="tricc-add-process"
+          data-testid={`new-segment-${intervention.id}`}
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (!plan) return
+            mutate((tx) => {
+              tx.addActivity(createSegment(plan, lang))
+              tx.updateIntervention({
+                ...intervention,
+                activities: [...intervention.activities, { ref: plan.id }],
               })
-              setNewProcess('')
-              backToSettings()
-            }}
-          >
+            })
+            setNewSegment(EMPTY_SEGMENT)
+            backToSettings()
+          }}
+        >
+          <h4>New segment</h4>
+          <NewSegmentFields
+            project={project}
+            draft={newSegment}
+            taken={taken}
+            onChange={setNewSegment}
+          />
+          <Button size="sm" type="submit" data-testid="create-segment" disabled={!plan}>
             Create segment
           </Button>
-        </div>
+        </form>
       </Dialog>
     )
   }
@@ -542,13 +532,6 @@ function moveProcess(
   next[from] = next[target]!
   next[target] = swap
   return next
-}
-
-function uniqueActivityId(base: string, taken: Set<string>): string {
-  if (!taken.has(base)) return base
-  let n = 2
-  while (taken.has(`${base}-${n}`)) n++
-  return `${base}-${n}`
 }
 
 function activityOption(id: string, project: Project): TypeaheadOption {

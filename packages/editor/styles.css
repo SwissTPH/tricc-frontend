@@ -663,6 +663,30 @@ ol.tricc-segment-rows > li::before {
   color: var(--tricc-text);
 }
 
+/* New segment: the process picker matches the text fields around it. */
+.tricc-segment-form label {
+  display: block;
+  margin-top: 8px;
+}
+
+.tricc-segment-form select {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--tricc-border-strong);
+  border-radius: 6px;
+  background: var(--tricc-surface);
+  color: var(--tricc-text);
+  font: inherit;
+}
+
+.tricc-segment-form select:focus-visible {
+  outline: 2px solid var(--tricc-focus);
+  outline-offset: 2px;
+}
+
 .tricc-library-modal__id {
   margin: 8px 0 0;
   font-size: 12px;
