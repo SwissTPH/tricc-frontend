@@ -895,6 +895,29 @@ test('tidy layout spaces tall nodes without overlap', async ({ page }) => {
   expect(overlap).toBe(false)
 })
 
+test('the node-gap preference sets how far apart tidy layout puts side-by-side nodes', async ({
+  page,
+}) => {
+  await page.getByTestId('nav-preferences').click()
+  await expect(page.getByTestId('pref-node-gap')).toHaveValue('108')
+  // A gap as wide as a node, so the check does not depend on the zoom.
+  await page.getByTestId('pref-node-gap').fill('200')
+  await page.goto('/')
+  await newActivity(page, 'Wide tidy guideline')
+  await placeNode(page, 'integer')
+  await placeNode(page, 'decimal')
+  await page.getByTestId('tidy-layout').click()
+  // Unlinked nodes share one row, side by side.
+  const [a, b] = (
+    await Promise.all(
+      ['node-n-integer', 'node-n-decimal'].map((id) => page.getByTestId(id).boundingBox()),
+    )
+  ).sort((p, q) => p!.x - q!.x)
+  expect(Math.abs(a!.y - b!.y)).toBeLessThan(2)
+  const gap = b!.x - (a!.x + a!.width)
+  expect(gap / a!.width).toBeCloseTo(1, 1)
+})
+
 test('a goto opens its activity from the details and from the button on the node', async ({
   page,
 }) => {

@@ -1,8 +1,15 @@
 import dagre from '@dagrejs/dagre'
-import type { Activity } from '@tricc/core'
+import { DEFAULT_PREFERENCES, type Activity } from '@tricc/core'
 
 const NODE_W = 200
 const NODE_H = 64
+/**
+ * Default horizontal gap between sibling nodes and branches: half a node plus 8px, room for
+ * an edge label. The viewer's `nodeGap` preference overrides it.
+ */
+export const H_GAP = NODE_W / 2 + 8
+/** Vertical gap between ranks. */
+export const V_GAP = 64
 
 /**
  * Top-to-bottom auto-layout.
@@ -25,14 +32,16 @@ export function renderedNodeSize(id: string): NodeSize | undefined {
 
 /**
  * `sizeOf` gives a node's real size (wrapped text makes nodes taller). Nodes it does not
- * know, such as ones not drawn yet, use the default box.
+ * know, such as ones not drawn yet, use the default box. `hGap` is the horizontal space
+ * between side-by-side nodes (the `nodeGap` preference).
  */
 export function autoLayout(
   activity: Activity,
   sizeOf: (id: string) => NodeSize | undefined = () => undefined,
+  hGap: number = DEFAULT_PREFERENCES.nodeGap,
 ): Map<string, { x: number; y: number }> {
   const graph = new dagre.graphlib.Graph()
-  graph.setGraph({ rankdir: 'TB', nodesep: 48, ranksep: 64, marginx: 24, marginy: 24 })
+  graph.setGraph({ rankdir: 'TB', nodesep: hGap, ranksep: V_GAP, marginx: 24, marginy: 24 })
   graph.setDefaultEdgeLabel(() => ({}))
 
   const sizes = new Map<string, NodeSize>()

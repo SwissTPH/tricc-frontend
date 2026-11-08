@@ -124,7 +124,7 @@ export function ActivityEditor({
   const canWrite = useCanWrite()
   const canDiscuss = useCapability('comment.read')
   const mutate = useMutate()
-  const { labelLines, labelChars } = useEditorPreferences()
+  const { labelLines, labelChars, nodeGap } = useEditorPreferences()
   const [selectedId, setSelectedId] = useState<string | undefined>(focusNodeId)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | undefined>(focusEdgeId)
   /** Flow ids from a right-drag that covered more than one element. */
@@ -481,7 +481,7 @@ export function ActivityEditor({
             type="button"
             data-testid="tidy-layout"
             onClick={() => {
-              const positions = autoLayout(activity, renderedNodeSize)
+              const positions = autoLayout(activity, renderedNodeSize, nodeGap)
               mutate((tx) => {
                 // Nodes in a group keep their place inside it.
                 for (const [id, pos] of positions) {

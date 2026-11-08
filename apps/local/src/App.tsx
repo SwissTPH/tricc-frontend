@@ -6,6 +6,8 @@ import {
   LABEL_CHARS_MIN,
   IMAGE_WIDTH_MAX,
   IMAGE_WIDTH_MIN,
+  NODE_GAP_MAX,
+  NODE_GAP_MIN,
   LABEL_LINES_MAX,
   LABEL_LINES_MIN,
   toArchive,
@@ -512,6 +514,7 @@ function Preferences({ local }: { local: LocalRuntime }) {
   const [imageWidth, setImageWidth] = useState(String(local.preferences.current().imageMaxWidth))
   const [types, setTypes] = useState(local.preferences.current().conceptTypes.join('\n'))
   const [diagramStyle, setDiagramStyle] = useState(local.preferences.current().diagramStyle)
+  const [nodeGap, setNodeGap] = useState(String(local.preferences.current().nodeGap))
   return (
     <div data-testid="preferences">
       <h1>Preferences</h1>
@@ -577,6 +580,25 @@ function Preferences({ local }: { local: LocalRuntime }) {
       <p>
         Flowchart draws a Decision as a rhombus; BPMN draws it as a rectangle. This is your setting;
         it is not saved in the project.
+      </p>
+      <label htmlFor="pref-node-gap">Space between side-by-side nodes (pixels)</label>
+      <Input
+        id="pref-node-gap"
+        data-testid="pref-node-gap"
+        type="number"
+        min={NODE_GAP_MIN}
+        max={NODE_GAP_MAX}
+        step={4}
+        value={nodeGap}
+        onChange={(e) => {
+          setNodeGap(e.target.value)
+          if (e.target.value !== '') local.preferences.update({ nodeGap: Number(e.target.value) })
+        }}
+      />
+      <p>
+        How far apart Tidy layout puts branches, so the Yes / No and answer labels on the links stay
+        readable. The default, 108, is half a node plus 8. Nodes you placed yourself only move when
+        you tidy.
       </p>
       <label htmlFor="pref-label-chars">Characters of a label in short lists</label>
       <Input
