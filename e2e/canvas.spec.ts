@@ -910,6 +910,19 @@ test('Preferences open over the activity and close back to it: button, icon and 
   await expect(page.getByTestId('field-label')).toHaveValue(LONG_LABEL)
 })
 
+test('Preferences are centred in the area under the top bar', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await page.getByTestId('nav-preferences').click()
+  const area = (await page.getByTestId('preferences').boundingBox())!
+  const close = (await page.getByTestId('preferences-close').boundingBox())!
+  const heading = (await page.locator('#preferences-heading').boundingBox())!
+  // The column is 60rem wide: the space left of the heading matches the space right of Close.
+  const left = heading.x - area.x
+  const right = area.x + area.width - (close.x + close.width)
+  expect(left).toBeGreaterThan(100)
+  expect(Math.abs(left - right)).toBeLessThan(24)
+})
+
 test('a direct link to Preferences opens them over the home page, and Close goes home', async ({
   page,
 }) => {
