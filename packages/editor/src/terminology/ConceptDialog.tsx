@@ -255,7 +255,7 @@ export function ConceptDialog({
           </p>
         )}
         <form
-          className="tricc-concept__body"
+          className="tricc-form-grid tricc-concept__body"
           onSubmit={(e) => {
             e.preventDefault()
             save()

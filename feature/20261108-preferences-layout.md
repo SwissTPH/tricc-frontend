@@ -2,7 +2,7 @@
 
 | Field      | Value                                                       |
 | ---------- | ----------------------------------------------------------- |
-| **Status** | Approved (2026-11-08, RFC #23)                              |
+| **Status** | Implemented (2026-11-09, RFC #23)                           |
 | **RFC**    | [#23](https://github.com/SwissTPH/tricc-frontend/issues/23) |
 
 ## Problem

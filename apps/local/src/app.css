@@ -57,6 +57,16 @@ main > [data-testid='activity-editor'] {
   flex: 1 1 auto;
   min-height: 0;
 }
+[data-testid='preferences'] > .tricc-form-grid {
+  padding: 0;
+  max-width: 60rem;
+}
+[data-testid='preferences'] .tricc-form-grid > label {
+  padding-top: 6px;
+}
+[data-testid='preferences'] .pref-number {
+  max-width: 8rem;
+}
 
 .pref-diagram-style {
   display: inline-flex;
