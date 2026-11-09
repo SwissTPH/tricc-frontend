@@ -45,6 +45,25 @@ main {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+/* Preferences over the page under the top bar; the page stays mounted underneath. */
+.tricc-preferences-overlay {
+  position: absolute;
+  inset: 0;
+  /* Above the canvas's own overlays (20), below dialogs (40). */
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  background: var(--tricc-surface);
+}
+.tricc-preferences__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 60rem;
 }
 main > [data-testid='activity-editor'] {
   flex: 1 1 auto;
