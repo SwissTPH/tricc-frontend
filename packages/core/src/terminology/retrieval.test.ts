@@ -162,6 +162,11 @@ describe('retrieval validation', () => {
   const rules = (project: Project) =>
     validateProject(project).filter((i) => i.rule.startsWith('retrieval.'))
 
+  it('does not ask a retrieval for a data type', () => {
+    const issues = validateProject(withRetrievals()).filter((i) => i.rule === 'concept.no-datatype')
+    expect(issues.filter((i) => i.location.conceptCode?.startsWith('#'))).toEqual([])
+  })
+
   it('accepts a well-formed dictionary and reports the unused entry', () => {
     expect(
       rules(withRetrievals()).map((i) => [i.rule, i.severity, i.location.conceptCode]),

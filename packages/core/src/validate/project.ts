@@ -404,7 +404,8 @@ function validateTerminology(project: Project): Issue[] {
         }
         seen.add(key)
       }
-      if (!c.dataType) {
+      // A retrieval's value type comes from its function or the concept it reads.
+      if (!c.dataType && !c.retrieval) {
         issues.push(
           issue(
             'concept.no-datatype',
