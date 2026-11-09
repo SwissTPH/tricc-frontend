@@ -24,6 +24,7 @@ import {
   BlocksView,
   Breadcrumbs,
   Button,
+  Dialog,
   DictionaryView,
   DiscussionsButton,
   Input,
@@ -512,152 +513,287 @@ function Preferences({ local }: { local: LocalRuntime }) {
   const [lines, setLines] = useState(String(local.preferences.current().labelLines))
   const [chars, setChars] = useState(String(local.preferences.current().labelChars))
   const [imageWidth, setImageWidth] = useState(String(local.preferences.current().imageMaxWidth))
-  const [types, setTypes] = useState(local.preferences.current().conceptTypes.join('\n'))
+  const [types, setTypes] = useState(local.preferences.current().conceptTypes)
+  const [editingTypes, setEditingTypes] = useState(false)
   const [diagramStyle, setDiagramStyle] = useState(local.preferences.current().diagramStyle)
   const [nodeGap, setNodeGap] = useState(String(local.preferences.current().nodeGap))
   return (
     <div data-testid="preferences">
       <h1>Preferences</h1>
-      <ThemeChoice />
-      {/* No accounts and no authentication - a display name, used for authorship. */}
-      <label htmlFor="display-name">Display name</label>
-      <Input
-        id="display-name"
-        data-testid="display-name"
-        value={name}
-        onChange={(e) => {
-          setName(e.target.value)
-          local.identity.update({ displayName: e.target.value })
-        }}
-      />
-      <label htmlFor="pref-label-lines">Lines of text on a node</label>
-      <Input
-        id="pref-label-lines"
-        data-testid="pref-label-lines"
-        type="number"
-        min={LABEL_LINES_MIN}
-        max={LABEL_LINES_MAX}
-        value={lines}
-        onChange={(e) => {
-          setLines(e.target.value)
-          if (e.target.value !== '')
-            local.preferences.update({ labelLines: Number(e.target.value) })
-        }}
-      />
-      <p>
-        Longer text is cut after this many lines. The full text shows when you hover the node. This
-        is your setting; it is not saved in the project.
-      </p>
-      <label id="pref-diagram-style-label">Diagram style</label>
-      <div
-        role="radiogroup"
-        aria-labelledby="pref-diagram-style-label"
-        className="pref-diagram-style"
-        data-testid="pref-diagram-style"
-      >
-        {(
-          [
-            ['flowchart', 'Flowchart'],
-            ['bpmn', 'BPMN'],
-          ] as [DiagramStyle, string][]
-        ).map(([value, text]) => (
-          <label key={value}>
-            <input
-              type="radio"
-              name="pref-diagram-style"
-              value={value}
-              data-testid={`pref-diagram-style-${value}`}
-              checked={diagramStyle === value}
-              onChange={() => {
-                setDiagramStyle(value)
-                local.preferences.update({ diagramStyle: value })
-              }}
-            />
-            {text}
-          </label>
-        ))}
+      <div className="tricc-form-grid">
+        <h2>You</h2>
+        {/* No accounts and no authentication - a display name, used for authorship. */}
+        <PrefRow
+          label="Display name"
+          htmlFor="display-name"
+          hint="Shown as the author of your changes."
+        >
+          <Input
+            id="display-name"
+            data-testid="display-name"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value)
+              local.identity.update({ displayName: e.target.value })
+            }}
+          />
+        </PrefRow>
+        <ThemeChoice />
+
+        <h2>Diagram</h2>
+        <PrefRow
+          label="Diagram style"
+          labelId="pref-diagram-style-label"
+          hint="Flowchart draws a Decision as a rhombus; BPMN draws it as a rectangle. This is your setting; it is not saved in the project."
+        >
+          <div
+            role="radiogroup"
+            aria-labelledby="pref-diagram-style-label"
+            className="pref-diagram-style"
+            data-testid="pref-diagram-style"
+          >
+            {(
+              [
+                ['flowchart', 'Flowchart'],
+                ['bpmn', 'BPMN'],
+              ] as [DiagramStyle, string][]
+            ).map(([value, text]) => (
+              <label key={value}>
+                <input
+                  type="radio"
+                  name="pref-diagram-style"
+                  value={value}
+                  data-testid={`pref-diagram-style-${value}`}
+                  checked={diagramStyle === value}
+                  onChange={() => {
+                    setDiagramStyle(value)
+                    local.preferences.update({ diagramStyle: value })
+                  }}
+                />
+                {text}
+              </label>
+            ))}
+          </div>
+        </PrefRow>
+        <PrefRow
+          label="Lines of text on a node"
+          htmlFor="pref-label-lines"
+          hint="Longer text is cut after this many lines. The full text shows when you hover the node. This is your setting; it is not saved in the project."
+        >
+          <Input
+            id="pref-label-lines"
+            data-testid="pref-label-lines"
+            className="pref-number"
+            type="number"
+            min={LABEL_LINES_MIN}
+            max={LABEL_LINES_MAX}
+            value={lines}
+            onChange={(e) => {
+              setLines(e.target.value)
+              if (e.target.value !== '')
+                local.preferences.update({ labelLines: Number(e.target.value) })
+            }}
+          />
+        </PrefRow>
+        <PrefRow
+          label="Space between side-by-side nodes (pixels)"
+          htmlFor="pref-node-gap"
+          hint="How far apart Tidy layout puts branches, so the Yes / No and answer labels on the links stay readable. The default, 108, is half a node plus 8. Nodes you placed yourself only move when you tidy."
+        >
+          <Input
+            id="pref-node-gap"
+            data-testid="pref-node-gap"
+            className="pref-number"
+            type="number"
+            min={NODE_GAP_MIN}
+            max={NODE_GAP_MAX}
+            step={4}
+            value={nodeGap}
+            onChange={(e) => {
+              setNodeGap(e.target.value)
+              if (e.target.value !== '')
+                local.preferences.update({ nodeGap: Number(e.target.value) })
+            }}
+          />
+        </PrefRow>
+
+        <h2>Lists and labels</h2>
+        <PrefRow
+          label="Characters of a label in short lists"
+          htmlFor="pref-label-chars"
+          hint="How much of a label shows on an answer link and in the Insert data list. The full text is on hover."
+        >
+          <Input
+            id="pref-label-chars"
+            data-testid="pref-label-chars"
+            className="pref-number"
+            type="number"
+            min={LABEL_CHARS_MIN}
+            max={LABEL_CHARS_MAX}
+            value={chars}
+            onChange={(e) => {
+              setChars(e.target.value)
+              if (e.target.value !== '')
+                local.preferences.update({ labelChars: Number(e.target.value) })
+            }}
+          />
+        </PrefRow>
+
+        <h2>Data dictionary</h2>
+        <PrefRow
+          label="Concept types"
+          labelId="pref-concept-types-label"
+          hint="The data dictionary offers these as a concept's type; tricc_oo maps them to a FHIR resource."
+        >
+          <div className="tricc-form-grid__summary">
+            <span data-testid="pref-concept-types-summary">{typesSummary(types)}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              aria-describedby="pref-concept-types-label"
+              data-testid="pref-concept-types-edit"
+              onClick={() => setEditingTypes(true)}
+            >
+              Edit…
+            </Button>
+          </div>
+        </PrefRow>
+        {editingTypes && (
+          <ConceptTypesDialog
+            types={types}
+            onCancel={() => setEditingTypes(false)}
+            onSave={(next) => {
+              local.preferences.update({ conceptTypes: next })
+              setTypes(local.preferences.current().conceptTypes)
+              setEditingTypes(false)
+            }}
+          />
+        )}
+
+        <h2>Media</h2>
+        <PrefRow
+          label="Maximum image width (pixels)"
+          htmlFor="pref-image-width"
+          hint="A wider picture is made smaller when it is added, so forms stay light on a health worker's device. Drawings (SVG) are kept as they are."
+        >
+          <Input
+            id="pref-image-width"
+            data-testid="pref-image-width"
+            className="pref-number"
+            type="number"
+            min={IMAGE_WIDTH_MIN}
+            max={IMAGE_WIDTH_MAX}
+            step={50}
+            value={imageWidth}
+            onChange={(e) => {
+              setImageWidth(e.target.value)
+              if (e.target.value !== '')
+                local.preferences.update({ imageMaxWidth: Number(e.target.value) })
+            }}
+          />
+        </PrefRow>
+
+        <h2>Storage</h2>
+        <p data-testid="storage-explanation">
+          {local.canUseFolders
+            ? 'A project can be bound to a folder on disk; until then it is kept in this browser.'
+            : 'This browser cannot write to a folder, so projects are kept in browser storage.'}
+        </p>
       </div>
-      <p>
-        Flowchart draws a Decision as a rhombus; BPMN draws it as a rectangle. This is your setting;
-        it is not saved in the project.
-      </p>
-      <label htmlFor="pref-node-gap">Space between side-by-side nodes (pixels)</label>
-      <Input
-        id="pref-node-gap"
-        data-testid="pref-node-gap"
-        type="number"
-        min={NODE_GAP_MIN}
-        max={NODE_GAP_MAX}
-        step={4}
-        value={nodeGap}
-        onChange={(e) => {
-          setNodeGap(e.target.value)
-          if (e.target.value !== '') local.preferences.update({ nodeGap: Number(e.target.value) })
-        }}
-      />
-      <p>
-        How far apart Tidy layout puts branches, so the Yes / No and answer labels on the links stay
-        readable. The default, 108, is half a node plus 8. Nodes you placed yourself only move when
-        you tidy.
-      </p>
-      <label htmlFor="pref-label-chars">Characters of a label in short lists</label>
-      <Input
-        id="pref-label-chars"
-        data-testid="pref-label-chars"
-        type="number"
-        min={LABEL_CHARS_MIN}
-        max={LABEL_CHARS_MAX}
-        value={chars}
-        onChange={(e) => {
-          setChars(e.target.value)
-          if (e.target.value !== '')
-            local.preferences.update({ labelChars: Number(e.target.value) })
-        }}
-      />
-      <p>
-        How much of a label shows on an answer link and in the Insert data list. The full text is on
-        hover.
-      </p>
-      <label htmlFor="pref-concept-types">Concept types</label>
-      <Textarea
-        id="pref-concept-types"
-        data-testid="pref-concept-types"
-        rows={8}
-        value={types}
-        onChange={(e) => {
-          setTypes(e.target.value)
-          local.preferences.update({ conceptTypes: e.target.value.split('\n') })
-        }}
-      />
-      <p>
-        One per line. The data dictionary offers these as a concept's type; tricc_oo maps them to a
-        FHIR resource.
-      </p>
-      <label htmlFor="pref-image-width">Maximum image width (pixels)</label>
-      <Input
-        id="pref-image-width"
-        data-testid="pref-image-width"
-        type="number"
-        min={IMAGE_WIDTH_MIN}
-        max={IMAGE_WIDTH_MAX}
-        step={50}
-        value={imageWidth}
-        onChange={(e) => {
-          setImageWidth(e.target.value)
-          if (e.target.value !== '')
-            local.preferences.update({ imageMaxWidth: Number(e.target.value) })
-        }}
-      />
-      <p>
-        A wider picture is made smaller when it is added, so forms stay light on a health worker's
-        device. Drawings (SVG) are kept as they are.
-      </p>
-      <p data-testid="storage-explanation">
-        {local.canUseFolders
-          ? 'A project can be bound to a folder on disk; until then it is kept in this browser.'
-          : 'This browser cannot write to a folder, so projects are kept in browser storage.'}
-      </p>
     </div>
+  )
+}
+
+/** One setting: its name on the left, its control and explanation on the right. */
+function PrefRow({
+  label,
+  htmlFor,
+  labelId,
+  hint,
+  children,
+}: {
+  label: string
+  /** The control's id, for a single field. */
+  htmlFor?: string
+  /** The label's id, for a group named with aria-labelledby. */
+  labelId?: string
+  hint: string
+  children: ReactNode
+}) {
+  return (
+    <>
+      <label htmlFor={htmlFor} id={labelId}>
+        {label}
+      </label>
+      <div>
+        {children}
+        <p className="tricc-form-grid__hint">{hint}</p>
+      </div>
+    </>
+  )
+}
+
+/** "26 types: Observation, Value, Condition, …" */
+function typesSummary(types: readonly string[]): string {
+  if (types.length === 0) return 'No types'
+  const head = types.slice(0, 3).join(', ')
+  return `${types.length} ${types.length === 1 ? 'type' : 'types'}: ${head}${types.length > 3 ? ', …' : ''}`
+}
+
+/** The concept types, one per line. Applies on Save; Cancel, Close and Escape keep the old list. */
+function ConceptTypesDialog({
+  types,
+  onSave,
+  onCancel,
+}: {
+  types: readonly string[]
+  onSave: (types: string[]) => void
+  onCancel: () => void
+}) {
+  const [draft, setDraft] = useState(types.join('\n'))
+  return (
+    <Dialog
+      testId="pref-concept-types-dialog"
+      titleId="pref-concept-types-title"
+      title="Concept types"
+      onClose={onCancel}
+    >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          onSave(
+            draft
+              .split('\n')
+              .map((t) => t.trim())
+              .filter((t) => t !== ''),
+          )
+        }}
+      >
+        <label htmlFor="pref-concept-types">One per line</label>
+        <Textarea
+          id="pref-concept-types"
+          data-testid="pref-concept-types"
+          rows={14}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+        <div className="tricc-library-modal__actions">
+          <Button size="sm" type="submit" data-testid="pref-concept-types-save">
+            Save
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            data-testid="pref-concept-types-cancel"
+            onClick={onCancel}
+          >
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </Dialog>
   )
 }
 
@@ -665,8 +801,11 @@ function Preferences({ local }: { local: LocalRuntime }) {
 function ThemeChoice() {
   const { mode, setMode } = useThemeMode()
   return (
-    <>
-      <label id="pref-theme-label">Theme</label>
+    <PrefRow
+      label="Theme"
+      labelId="pref-theme-label"
+      hint="System follows your computer's light or dark setting."
+    >
       <ToggleButtonGroup
         exclusive
         size="small"
@@ -688,7 +827,6 @@ function ThemeChoice() {
           </ToggleButton>
         ))}
       </ToggleButtonGroup>
-      <p>System follows your computer's light or dark setting.</p>
-    </>
+    </PrefRow>
   )
 }

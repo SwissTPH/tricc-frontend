@@ -699,7 +699,8 @@ ol.tricc-segment-rows > li::before {
   margin-top: 14px;
 }
 
-.tricc-library-modal__card input:where(:not([data-slot='input'], .MuiInputBase-input)):focus-visible {
+.tricc-library-modal__card
+  input:where(:not([data-slot='input'], .MuiInputBase-input)):focus-visible {
   outline: 2px solid var(--tricc-focus);
   outline-offset: 2px;
 }
@@ -1462,23 +1463,46 @@ ol.tricc-segment-rows > li::before {
   min-height: 0;
   overflow-y: auto;
 }
-.tricc-concept__body {
+/* A form as rows of name | control (the concept page, Preferences). Headings, notes and tables
+   span both columns; under 900px the columns stack. */
+.tricc-form-grid {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 6px 12px;
   padding: 12px 16px;
   align-items: start;
 }
-.tricc-concept__body > p,
-.tricc-concept__body > h2,
-.tricc-concept__body > table,
-.tricc-concept__body > ul {
+.tricc-form-grid > p,
+.tricc-form-grid > h2,
+.tricc-form-grid > table,
+.tricc-form-grid > ul {
   grid-column: 1 / -1;
   margin: 0;
 }
-.tricc-concept__body > h2 {
+.tricc-form-grid > h2 {
   font-size: 14px;
   margin-top: 8px;
+}
+/* The explanation of a row, under its control. */
+.tricc-form-grid__hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--tricc-text-muted);
+}
+.tricc-form-grid__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.tricc-form-grid__summary > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 899.98px) {
+  .tricc-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .tricc-concept__texts {
   width: 100%;

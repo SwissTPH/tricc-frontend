@@ -415,7 +415,9 @@ test('a questionnaire text gets bold and data from an earlier answer', async ({ 
 
 test('concept types come from the preferences', async ({ page }) => {
   await page.getByTestId('nav-preferences').click()
+  await page.getByTestId('pref-concept-types-edit').click()
   await page.getByTestId('pref-concept-types').fill('Vital\nCounselling')
+  await page.getByTestId('pref-concept-types-save').click()
   await page.goto('/')
   await createProject(page, 'Types guideline')
   await page.getByTestId('tab-dictionary').click()
@@ -425,6 +427,54 @@ test('concept types come from the preferences', async ({ page }) => {
     'Vital',
     'Counselling',
   ])
+})
+
+test('concept types are edited in a dialog: Cancel keeps the list, Save keeps it after a reload', async ({
+  page,
+}) => {
+  await page.getByTestId('nav-preferences').click()
+  const summary = page.getByTestId('pref-concept-types-summary')
+  const before = await summary.textContent()
+  // The list is only in the dialog, not on the page.
+  await expect(page.getByTestId('pref-concept-types')).toHaveCount(0)
+
+  await page.getByTestId('pref-concept-types-edit').click()
+  await page.getByTestId('pref-concept-types').fill('Vital')
+  await page.getByTestId('pref-concept-types-cancel').click()
+  await expect(page.getByTestId('pref-concept-types-dialog')).toHaveCount(0)
+  await expect(summary).toHaveText(before ?? '')
+
+  await page.getByTestId('pref-concept-types-edit').click()
+  await page.getByTestId('pref-concept-types').fill('Vital')
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('pref-concept-types-dialog')).toHaveCount(0)
+  await expect(summary).toHaveText(before ?? '')
+
+  await page.getByTestId('pref-concept-types-edit').click()
+  await page.getByTestId('pref-concept-types').fill('Vital\nCounselling\nReferral\nDose')
+  await page.getByTestId('pref-concept-types-save').click()
+  await expect(summary).toHaveText('4 types: Vital, Counselling, Referral, …')
+
+  await page.reload()
+  await expect(page.getByTestId('pref-concept-types-summary')).toHaveText(
+    '4 types: Vital, Counselling, Referral, …',
+  )
+  await page.getByTestId('pref-concept-types-edit').click()
+  await expect(page.getByTestId('pref-concept-types')).toHaveValue(
+    'Vital\nCounselling\nReferral\nDose',
+  )
+})
+
+test('preferences stack into one column on a narrow window', async ({ page }) => {
+  await page.setViewportSize({ width: 600, height: 800 })
+  await page.getByTestId('nav-preferences').click()
+  const prefs = page.getByTestId('preferences')
+  await expect(page.getByTestId('pref-node-gap')).toBeVisible()
+  const overflow = await prefs.evaluate((el) => el.scrollWidth - el.clientWidth)
+  expect(overflow).toBeLessThanOrEqual(0)
+  const label = await page.locator('label[for="pref-node-gap"]').boundingBox()
+  const field = await page.getByTestId('pref-node-gap').boundingBox()
+  expect(field!.y).toBeGreaterThan(label!.y + label!.height - 1)
 })
 
 test('the project gear renames it, and the bin deletes it after confirmation', async ({ page }) => {
