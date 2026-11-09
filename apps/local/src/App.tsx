@@ -26,28 +26,20 @@ import {
   type OpenProject,
   type ProjectFiles,
   type ProjectRef,
-  type ConceptKey,
   type DiagramStyle,
   type ProjectSummary,
 } from '@tricc/core'
 import {
-  ActivityEditor,
-  ActivityNavigator,
   BinIcon,
-  Breadcrumbs,
   Button,
   ConfirmDelete,
-  DictionaryView,
   GearIcon,
   HomeIcon,
   Input,
-  MediaView,
   HistoryButtons,
-  OpenProjectProvider,
-  ProjectOverview,
+  ProjectWorkspace,
   Textarea,
   TriccRuntimeProvider,
-  nextTrail,
   useSave,
 } from '@tricc/editor'
 import type { LocalRuntime } from './adapters.js'
@@ -81,7 +73,7 @@ export function App({ local }: { local: LocalRuntime }) {
         <Route
           path="/project/:id/*"
           element={
-            <ProjectWorkspace
+            <ProjectPage
               local={local}
               storageLabel={storageLabel}
               onStorageLabel={setStorageLabel}
@@ -422,7 +414,7 @@ function defaultStorageLabel(local: LocalRuntime): string {
     : 'This browser cannot write to a folder, so projects are kept in browser storage'
 }
 
-function ProjectWorkspace({
+function ProjectPage({
   local,
   storageLabel,
   onStorageLabel,
@@ -443,58 +435,7 @@ function ProjectWorkspace({
   const [generation, setGeneration] = useState(0)
   /** The project whose copy-or-branch choice is made: open it without asking again. */
   const [chosenFor, setChosenFor] = useState<string | undefined>(undefined)
-  /** Activities reached, outermost first; the last one is open. Empty: the overview. */
-  const [trail, setTrail] = useState<string[]>([])
-  const activityId = trail[trail.length - 1]
-  const [focus, setFocus] = useState<{ activityId: string; nodeId?: string; edgeId?: string } | null>(null)
   const navigate = useNavigate()
-  const [dictionary, setDictionary] = useState(false)
-  const [media, setMedia] = useState(false)
-  const [concept, setConcept] = useState<ConceptKey | undefined>(undefined)
-  /** The dictionary on screen (canonical url); undefined until one is chosen. */
-  const [dictionarySystem, setDictionarySystem] = useState<string | undefined>(undefined)
-  const openNode = useCallback((nextActivity: string, nodeId: string) => {
-    setDictionary(false)
-    setMedia(false)
-    setConcept(undefined)
-    setFocus({ activityId: nextActivity, nodeId })
-    setTrail((t) => nextTrail(t, nextActivity, 'reset'))
-  }, [])
-  const openEdge = useCallback((nextActivity: string, edgeId: string) => {
-    setDictionary(false)
-    setMedia(false)
-    setConcept(undefined)
-    setFocus({ activityId: nextActivity, edgeId })
-    setTrail((t) => nextTrail(t, nextActivity, 'reset'))
-  }, [])
-  const openConcept = useCallback((key: ConceptKey) => {
-    setConcept(key)
-    setDictionarySystem(key.system)
-    setMedia(false)
-    setDictionary(true)
-  }, [])
-  const openActivity = useCallback((id: string | undefined) => {
-    setDictionary(false)
-    setMedia(false)
-    setConcept(undefined)
-    setFocus(null)
-    setTrail(id ? [id] : [])
-  }, [])
-  /** Through a goto: the activity is added to the breadcrumb. */
-  const followActivity = useCallback((next: string) => {
-    setFocus(null)
-    setTrail((t) => nextTrail(t, next, 'follow'))
-  }, [])
-  /** Back to a goto that leads here: on the breadcrumb if it came from there. */
-  const openCaller = useCallback((caller: string, nodeId: string) => {
-    setFocus({ activityId: caller, nodeId })
-    setTrail((t) => nextTrail(t, caller, 'return'))
-  }, [])
-  const showView = useCallback((view: 'dictionary' | 'media' | null) => {
-    setDictionary(view === 'dictionary')
-    setMedia(view === 'media')
-    setConcept(undefined)
-  }, [])
 
   useEffect(() => {
     if (settingsOnOpen) setSearch({}, { replace: true })
@@ -563,115 +504,54 @@ function ProjectWorkspace({
     [local, reopen],
   )
 
-  if (error) {
-    return (
-      <Shell local={local} storageLabel={storageLabel}>
-        <p data-testid="project-error">{error}</p>
-      </Shell>
-    )
-  }
-  if (!open) {
-    return (
-      <Shell local={local} storageLabel={storageLabel}>
-        <p data-testid="project-loading">Opening…</p>
-        {choice && (
-          <ChooseCopyDialog
-            check={choice.check}
-            onContinue={reopen}
-            onClose={() => (choice.check.state ? reopen() : navigate('/'))}
-            onLoad={async (branch) => {
-              const fetched = await fetchBranch(choice.check.repository, branch)
-              await replaceWith(choice.ref, fetched)
-            }}
-          />
-        )}
-      </Shell>
-    )
-  }
-
+  const showing = Boolean(open) && !error
   return (
-    <OpenProjectProvider project={open}>
-      <Shell
-        local={local}
-        storageLabel={storageLabel}
-        crumbs={
-          <Breadcrumbs
-            trail={dictionary || media ? [] : trail}
-            extra={dictionary ? 'Data dictionary' : media ? 'Media' : undefined}
-            onHome={() => navigate('/')}
-            onProject={() => {
-              showView(null)
-              setFocus(null)
-              setTrail([])
-            }}
-            onCrumb={(index) => {
-              showView(null)
-              setFocus(null)
-              setTrail((t) => t.slice(0, index + 1))
-            }}
-          />
-        }
-        tools={
-          <>
-            <SaveIndicator />
-            <HistoryButtons />
-            <ExportButton open={open} />
-            <RepoTools local={local} open={open} onReplace={(fetched) => void replaceWith(open.ref, fetched)} />
-          </>
-        }
-      >
-        <ActivityNavigator
-          onSelect={openActivity}
-          selected={dictionary || media ? undefined : activityId}
-          dictionaryOpen={dictionary}
-          dictionarySystem={dictionary ? dictionarySystem : undefined}
-          onOpenDictionary={(system) => {
-            setMedia(false)
-            setConcept(undefined)
-            setDictionarySystem(system)
-            setDictionary(true)
-          }}
-          onOpenConcept={openConcept}
-          onOpenNode={openNode}
-          mediaOpen={media}
-          onOpenMedia={() => {
-            setDictionary(false)
-            setMedia(true)
-          }}
-        />
-        {media ? (
-          <MediaView onOpenConcept={openConcept} />
-        ) : dictionary ? (
-          <DictionaryView system={dictionarySystem} open={concept} onOpen={setConcept} onOpenNode={openNode} />
-        ) : activityId ? (
-          <ActivityEditor
-            activityId={activityId}
-            focusNodeId={focus?.activityId === activityId ? focus.nodeId : undefined}
-            focusEdgeId={focus?.activityId === activityId ? focus.edgeId : undefined}
-            onOpen={openNode}
-            onOpenEdge={openEdge}
-            onOpenActivity={followActivity}
-            onOpenCaller={openCaller}
-            onDeleted={() => {
-              const gone = activityId
-              setFocus(null)
-              setTrail((t) => t.filter((a) => a !== gone))
-            }}
-          />
-        ) : (
-          <ProjectOverview
-            onOpen={openNode}
-            onOpenEdge={openEdge}
-            onOpenConcept={openConcept}
-            onSelect={openActivity}
-            onRename={(name) => void local.catalog.rename(open.ref, name)}
-            initialSettingsOpen={settingsOnOpen}
-            deleteNote={deleteNote(local, open.ref)}
-            onDelete={() => void deleteProject(local, open.ref, () => navigate('/'))}
-          />
-        )}
-      </Shell>
-    </OpenProjectProvider>
+    <ProjectWorkspace
+      project={showing ? open : undefined}
+      initialSettingsOpen={settingsOnOpen}
+      onHome={() => navigate('/')}
+      onRename={open ? (name) => void local.catalog.rename(open.ref, name) : undefined}
+      onDelete={open ? () => void deleteProject(local, open.ref, () => navigate('/')) : undefined}
+      deleteNote={open ? deleteNote(local, open.ref) : undefined}
+      frame={({ crumbs, body }) => (
+        <Shell
+          local={local}
+          storageLabel={storageLabel}
+          crumbs={showing ? crumbs : undefined}
+          tools={
+            showing && open ? (
+              <>
+                <SaveIndicator />
+                <HistoryButtons />
+                <ExportButton open={open} />
+                <RepoTools local={local} open={open} onReplace={(fetched) => void replaceWith(open.ref, fetched)} />
+              </>
+            ) : undefined
+          }
+        >
+          {error ? (
+            <p data-testid="project-error">{error}</p>
+          ) : !open ? (
+            <>
+              <p data-testid="project-loading">Opening…</p>
+              {choice && (
+                <ChooseCopyDialog
+                  check={choice.check}
+                  onContinue={reopen}
+                  onClose={() => (choice.check.state ? reopen() : navigate('/'))}
+                  onLoad={async (branch) => {
+                    const fetched = await fetchBranch(choice.check.repository, branch)
+                    await replaceWith(choice.ref, fetched)
+                  }}
+                />
+              )}
+            </>
+          ) : (
+            body
+          )}
+        </Shell>
+      )}
+    />
   )
 }
 

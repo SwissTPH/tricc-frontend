@@ -5,6 +5,7 @@ export {
   uniqueId,
   type IssueLinks,
 } from './project/Overview.js'
+export { ProjectWorkspace, type ProjectWorkspaceFrame } from './project/ProjectWorkspace.js'
 export { InterventionEditor } from './project/InterventionEditor.js'
 export { ActivityNavigator } from './project/ActivityNavigator.js'
 export { ConceptDialog, type ConceptTarget } from './terminology/ConceptDialog.js'
