@@ -17,7 +17,12 @@ import { decodeActivity, decodeCodeSystem, encodeActivity, encodeCodeSystem } fr
 import { moveTextsToConcepts } from '../../terminology/texts-to-concepts.js'
 import { isBlock } from '../../model/activity-kind.js'
 import { applyParamSync } from '../../params/sync.js'
-import { calculateCodeSystem, withCalculateTag } from '../../terminology/dictionaries.js'
+import {
+  calculateCodeSystem,
+  retrieveCodeSystem,
+  withCalculateTag,
+  withRetrieveTag,
+} from '../../terminology/dictionaries.js'
 import { fromJson, fromYaml, toJson, toYaml } from './yaml.js'
 import {
   encodeTriccYaml,
@@ -87,13 +92,17 @@ export function writeProject(project: Project): ProjectFiles {
     if (!a) continue
     files[pagePath(a)] = toYaml(encodeActivity(a, lang, project.formatVersion))
   }
-  // The calculate dictionary always carries its role tag, so tricc_oo finds the same one.
+  // The calculate and retrieve dictionaries always carry their role tag, so tricc_oo finds
+  // the same ones.
   const calculate = calculateCodeSystem(project)
+  const retrieve = retrieveCodeSystem(project)
   for (const url of Object.keys(project.codeSystems).sort()) {
     const cs = project.codeSystems[url]
     if (!cs) continue
     files[cs.path ?? codeSystemPath(cs.id)] = toJson(
-      encodeCodeSystem(cs === calculate ? withCalculateTag(cs) : cs),
+      encodeCodeSystem(
+        cs === calculate ? withCalculateTag(cs) : cs === retrieve ? withRetrieveTag(cs) : cs,
+      ),
     )
   }
   for (const name of Object.keys(project.libraries).sort()) {
@@ -247,6 +256,7 @@ function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
   if (meta.version) loaded.version = meta.version
   if (meta.defaultCodeSystem) loaded.defaultCodeSystem = meta.defaultCodeSystem
   if (meta.calculateCodeSystem) loaded.calculateCodeSystem = meta.calculateCodeSystem
+  if (meta.retrieveCodeSystem) loaded.retrieveCodeSystem = meta.retrieveCodeSystem
   if (meta.mediaPath) loaded.mediaPath = meta.mediaPath
   if (meta.repository) loaded.repository = meta.repository
   if (meta.labels) loaded.labels = meta.labels

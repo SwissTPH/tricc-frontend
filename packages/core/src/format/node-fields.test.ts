@@ -45,6 +45,7 @@ const FULL: TriccNode = {
   priority: 3,
   context: 'encounter',
   period: 'P1D',
+  source: { system: 'http://tricc.org/CodeSystem/tricc', code: 'weight' },
   process: 'triage',
   intervention: 'follow-up',
   condition: 'true',

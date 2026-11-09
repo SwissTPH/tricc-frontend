@@ -405,6 +405,11 @@ function shapeToNode(
   ) {
     node.context = context
   }
+  if (kind.type === 'populate') {
+    if (shape.attrs['period']) node.period = shape.attrs['period']
+    const source = shape.attrs['source']?.trim()
+    if (source) node.source = source
+  }
   const severity = shape.attrs['severity']
   if (
     severity === 'light' ||

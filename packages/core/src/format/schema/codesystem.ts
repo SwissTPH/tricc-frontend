@@ -23,6 +23,14 @@ export const propertyValueSchema = z
     valueString: z.string().optional(),
     valueBoolean: z.boolean().optional(),
     valueInteger: z.number().int().optional(),
+    valueCoding: z
+      .object({
+        system: z.string().optional(),
+        code: z.string().optional(),
+        display: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
   })
   .strict()
 

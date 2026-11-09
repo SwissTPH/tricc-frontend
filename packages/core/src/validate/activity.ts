@@ -10,7 +10,8 @@ import {
   needsName,
 } from '../format/schema/node-types.js'
 import { NODE_TYPE_SPECS } from '../format/schema/node-spec.js'
-import { nodeConceptKey } from '../terminology/usage.js'
+import { lookupConcept, nodeConceptKey, populateSourceKey } from '../terminology/usage.js'
+import { isIsoPeriod } from '../terminology/retrieval.js'
 import { isOpenHandoff } from '../format/schema/expression.js'
 import { activityKind, processOf } from '../model/activity-kind.js'
 import { issue, type Issue } from './types.js'
@@ -255,6 +256,34 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
           { label: 'Create the concept', kind: 'concept.create' },
         ),
       )
+    }
+
+    if (n.type === 'populate') {
+      const timed = n.context === 'encounter' || n.context === 'history'
+      if (timed && n.period !== undefined && !isIsoPeriod(n.period)) {
+        issues.push(
+          issue(
+            'populate.period',
+            'warning',
+            `The period "${n.period}" is not an ISO-8601 period, so the export cannot tell how far back to read. Write it like P30D (30 days) or P6M (6 months).`,
+            { ...at(n), field: 'period' },
+          ),
+        )
+      }
+      if (
+        project &&
+        n.source !== undefined &&
+        !lookupConcept(project, populateSourceKey(project, n))
+      ) {
+        issues.push(
+          issue(
+            'populate.source',
+            'warning',
+            'The source concept of this prefilled value is not in the data dictionary, so the export does not know what to read. Pick a concept from the dictionary.',
+            { ...at(n), field: 'source' },
+          ),
+        )
+      }
     }
 
     // A goto, a decision or a start/end carries its name as an internal id the author never
