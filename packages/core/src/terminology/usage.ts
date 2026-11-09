@@ -71,6 +71,22 @@ export function nodeConceptKey(project: Project, node: TriccNode): ConceptKey | 
   return refOf(project, node)
 }
 
+/**
+ * The concept a prefilled value (populate) reads: its `source`, a code in the default
+ * dictionary or a concept anywhere, else the default-dictionary concept named like the node
+ * (fix/20261109-populate-source-period.md).
+ */
+export function populateSourceKey(project: Project, node: TriccNode): ConceptKey | undefined {
+  const source = node.source
+  if (source === undefined) return node.name ? refOf(project, { name: node.name }) : undefined
+  if (typeof source !== 'string') {
+    const cs = findCodeSystem(project, source.system)
+    return { system: cs?.url ?? source.system, code: source.code }
+  }
+  const cs = defaultCodeSystem(project)
+  return cs ? { system: cs.url, code: source } : undefined
+}
+
 export function optionConceptKey(project: Project, option: SelectOption): ConceptKey | undefined {
   return refOf(project, option)
 }

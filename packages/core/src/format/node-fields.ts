@@ -39,6 +39,7 @@ export const NODE_FIELDS = {
   priority: 'scalar',
   context: 'scalar',
   period: 'scalar',
+  source: 'json',
   process: 'scalar',
   intervention: 'scalar',
   condition: 'scalar',

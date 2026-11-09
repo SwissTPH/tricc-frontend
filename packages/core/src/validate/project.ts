@@ -4,6 +4,7 @@ import { IMPLEMENTED_TRIGGER_MODES } from '../format/schema/project.js'
 import { isOpenHandoff } from '../format/schema/expression.js'
 import { validateActivity, MACHINE_NAME } from './activity.js'
 import { validateParams } from './params.js'
+import { validateRetrievals } from './retrievals.js'
 import { issue, type Issue } from './types.js'
 import { designationInterventions, designationUse } from '../terminology/designation.js'
 import { designationText, imageRefs, references } from '../text/message.js'
@@ -25,6 +26,7 @@ export function validateProject(project: Project): Issue[] {
   issues.push(...validateInterventions(project))
   issues.push(...validateTerminology(project))
   issues.push(...validateParams(project))
+  issues.push(...validateRetrievals(project))
   return issues
 }
 

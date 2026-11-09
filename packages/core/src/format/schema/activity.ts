@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { localizedTextSchema } from './localized.js'
 import { expressionSchema } from './expression.js'
-import { conceptRefSchema } from './concept.js'
+import { FHIR_CODE, conceptRefSchema } from './concept.js'
 import { NODE_TYPES, canonicalNodeType } from './node-types.js'
 import { PARAM_TYPES } from '../../model/types.js'
 
@@ -159,6 +159,8 @@ export const nodeSchema = z
       .enum(['patient', 'facility', 'practitioner', 'location', 'encounter', 'history'])
       .optional(),
     period: z.string().optional(),
+    /** The concept read: a code in the default dictionary, or `{system, code}` (fix #34). */
+    source: z.union([z.string().regex(FHIR_CODE), conceptRefSchema]).optional(),
 
     // Process `start` only. `formId` is the old spelling; read and stored as `form_id`.
     // A value on any other node type is ignored on load.

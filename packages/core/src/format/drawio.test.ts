@@ -355,7 +355,11 @@ describe('draw.io pages', () => {
           'odk_type="calculate" name="score" reference="&quot;weight_kg&quot; + 1"',
           'Score',
         ),
-        cell('pop', 'odk_type="input" name="prev_weight"', 'Previous weight'),
+        cell(
+          'pop',
+          'odk_type="input" name="prev_weight" source="weight" period="P30D"',
+          'Previous weight',
+        ),
         cell(
           'rh',
           'odk_type="rhombus" name="gate" reference="&quot;age&quot; &lt; 60" severity="severe"',
@@ -380,7 +384,12 @@ describe('draw.io pages', () => {
     expect(main?.nodes['q']?.hint).toEqual({ en: 'Look at the chest' })
     expect(main?.nodes['opt']).toBeUndefined()
     expect(main?.nodes['calc']?.calculate).toEqual({ expression: '"weight_kg" + 1' })
-    expect(main?.nodes['pop']).toMatchObject({ type: 'populate', context: 'encounter' })
+    expect(main?.nodes['pop']).toMatchObject({
+      type: 'populate',
+      context: 'encounter',
+      source: 'weight',
+      period: 'P30D',
+    })
     expect(main?.nodes['rh']).toMatchObject({
       type: 'rhombus',
       severity: 'severe',
