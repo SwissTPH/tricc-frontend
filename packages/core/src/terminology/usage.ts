@@ -33,13 +33,18 @@ export function findCodeSystem(project: Project, ref: string | undefined): CodeS
 }
 
 export function defaultCodeSystem(project: Project): CodeSystem | undefined {
+  // A dictionary with a role (calculate, retrieve) is never the default one, even alone.
+  const plain = Object.values(project.codeSystems).filter(
+    (cs) => !(cs.meta?.tag ?? []).some((t) => t.system === CODESYSTEM_ROLE_SYSTEM),
+  )
   return (
     findCodeSystem(project, project.defaultCodeSystem) ??
-    (Object.keys(project.codeSystems).length === 1
-      ? Object.values(project.codeSystems)[0]
-      : undefined)
+    (Object.keys(project.codeSystems).length === 1 && plain.length === 1 ? plain[0] : undefined)
   )
 }
+
+/** `meta.tag` system of a dictionary's role; the same as `CODESYSTEM_ROLE` (dictionaries.ts). */
+const CODESYSTEM_ROLE_SYSTEM = 'http://tricc.org/fhir/CodeSystem/codesystem-role'
 
 export function lookupConcept(project: Project, key: ConceptKey | undefined): Concept | undefined {
   if (!key) return undefined

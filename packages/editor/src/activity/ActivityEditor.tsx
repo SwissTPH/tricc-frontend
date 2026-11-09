@@ -84,6 +84,7 @@ import { DiscussionSection } from '../discussion/Discussion.js'
 import { ArgumentForm, inheritedAtCall, rowsFor } from '../blocks/ArgumentForm.js'
 import { TERMS } from '../blocks/terms.js'
 import { DiagramDiscussContext } from '../discussion/context.js'
+import { PopulateFields } from './PopulateFields.js'
 import { discussionsAbout } from '../discussion/marks.js'
 
 export function ActivityEditor({
@@ -667,6 +668,7 @@ export function ActivityEditor({
                     mutate((tx) => tx.removeNode(activityId, selected.id))
                     setSelectedId(undefined)
                   }}
+                  onMoved={() => setSelectedId(undefined)}
                 />
               )}
               {selectedEdge && (
@@ -818,6 +820,7 @@ export function NodeProperties({
   onOpenSettings,
   onOpenActivity,
   onOpenCaller,
+  onMoved,
 }: {
   activityId: string
   node: TriccNode
@@ -831,6 +834,8 @@ export function NodeProperties({
   onOpenSettings?: () => void
   /** On the root node: open a goto that leads to this activity. */
   onOpenCaller?: (activityId: string, nodeId: string) => void
+  /** A prefilled value moved to the retrieval dictionary: the node is gone. */
+  onMoved?: (code: string) => void
 }) {
   const mutate = useMutate()
   const project = useProjectSnapshot()
@@ -1262,28 +1267,13 @@ export function NodeProperties({
       )}
 
       {node.type === 'populate' && (
-        <>
-          <label htmlFor="node-context">Read from</label>
-          <select
-            id="node-context"
-            data-testid="field-context"
-            value={node.context ?? ''}
-            disabled={readOnly}
-            onChange={(e) =>
-              update({
-                context: (e.target.value || undefined) as TriccNode['context'],
-              })
-            }
-          >
-            <option value="">Not set</option>
-            <option value="patient">Patient</option>
-            <option value="facility">Facility</option>
-            <option value="practitioner">Practitioner</option>
-            <option value="location">Location</option>
-            <option value="encounter">Encounter</option>
-            <option value="history">History</option>
-          </select>
-        </>
+        <PopulateFields
+          activityId={activityId}
+          node={node}
+          readOnly={readOnly}
+          update={update}
+          {...(onMoved ? { onMoved } : {})}
+        />
       )}
 
       {node.type === 'continue_with' && (

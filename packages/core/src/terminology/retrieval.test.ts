@@ -14,7 +14,7 @@ import {
   retrievalsForIntervention,
 } from './retrieval.js'
 import { planMoveToRetrieval } from './retrieval-migration.js'
-import { populateSourceKey } from './usage.js'
+import { defaultCodeSystem, populateSourceKey } from './usage.js'
 
 const DEFAULT = 'http://tricc.org/CodeSystem/tricc'
 const RETRIEVE = `${DEFAULT}-retrieve`
@@ -65,6 +65,18 @@ describe('retrieval dictionary', () => {
     expect(retrieveCodeSystem(project)?.url).toBe(RETRIEVE)
     delete project.codeSystems[RETRIEVE]!.meta
     expect(retrieveCodeSystem(project)?.url).toBe(RETRIEVE)
+  })
+
+  it('is never the default dictionary, even when it is the only one', () => {
+    const project = withRetrievals()
+    delete project.codeSystems[DEFAULT]
+    delete project.defaultCodeSystem
+    expect(defaultCodeSystem(project)).toBeUndefined()
+    expect(projectDictionaries(project).map((d) => [d.kind, Boolean(d.codeSystem)])).toEqual([
+      ['default', false],
+      ['calculate', false],
+      ['retrieve', true],
+    ])
   })
 
   it('writes context, function, reads, period and expressions as FHIR and reads them back', () => {

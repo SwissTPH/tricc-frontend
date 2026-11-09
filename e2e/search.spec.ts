@@ -65,7 +65,7 @@ test('a calculation concept goes to the calculate dictionary, listed next to the
 
   await page.getByTestId('tab-dictionary').click()
   const chips = page.getByTestId('dictionary-list').locator('button')
-  await expect(chips).toHaveCount(2)
+  await expect(chips).toHaveCount(3)
   await expect(chips.first()).toHaveAttribute('aria-current', 'true')
   await expect(page.getByTestId('concept-row-weight_kg')).toBeVisible()
   await expect(page.getByTestId('concept-row-weight_for_age')).toHaveCount(0)
