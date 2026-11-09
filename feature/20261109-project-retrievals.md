@@ -189,3 +189,14 @@ None.
   (@delcroip)
 - 2026-11-09: The concept read is property `reads`, because `source` is already provenance.
 - 2026-11-09: References stay quoted in CQL (`"#age_months"`), like every other name.
+- 2026-11-09: The retrieval dictionary is offered only from itself in the concept dialog, and a
+  dictionary with a role (calculate, retrieve) is never taken as the default one.
+
+## Implementation notes
+
+- Phases 1–3 (frontend): `terminology/retrieval.ts`, `retrieval-migration.ts`,
+  `validate/retrievals.ts`, `Mutations.moveToRetrieval`; editor `RetrievalFields.tsx`,
+  `PopulateFields.tsx`, `DictionaryView`, `CqlExpressionField`. Tests:
+  `core/src/terminology/retrieval.test.ts`, `editor/src/terminology/retrievals.test.tsx`,
+  `e2e/retrievals.spec.ts`.
+- Phase 4 (tricc_oo): `tricc/feature/20261109-project-retrievals.md`, separate PR.

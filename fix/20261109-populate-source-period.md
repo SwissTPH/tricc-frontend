@@ -2,7 +2,7 @@
 
 | Field             | Value                                                                                                   |
 | ----------------- | ------------------------------------------------------------------------------------------------------- |
-| **Status**        | Approved (2026-11-09, in conversation)                                                                  |
+| **Status**        | Implemented (2026-11-09)                                                                                |
 | **Branch target** | `feature/project-retrievals` → `develop` (one PR with #31)                                              |
 | **Scope**         | `@tricc/core` (schema, model, validator, draw.io import), `@tricc/editor` (populate inspector)          |
 | **Issue**         | #34                                                                                                     |
