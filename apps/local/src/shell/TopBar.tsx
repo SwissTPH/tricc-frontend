@@ -13,6 +13,7 @@ import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { Icon } from '@tricc/editor'
 import type { LocalRuntime } from '../adapters.js'
+import { usePreferencesPanel } from './preferences-panel.js'
 
 export const APP_NAME = 'DrawTricc'
 
@@ -34,6 +35,7 @@ export function TopBar({
   crumbs?: ReactNode
   bell?: ReactNode
 }) {
+  const prefs = usePreferencesPanel()
   return (
     <AppBar
       position="static"
@@ -82,12 +84,12 @@ export function TopBar({
         <div className="tricc-topbar__project">{tools}</div>
         <ModeMenu local={local} />
         {bell}
-        <Tooltip title="Preferences">
+        <Tooltip title={prefs.open ? 'Close preferences' : 'Preferences'}>
           <IconButton
-            component={RouterLink}
-            to="/preferences"
             data-testid="nav-preferences"
             aria-label="Preferences"
+            aria-pressed={prefs.open}
+            onClick={prefs.toggle}
           >
             <Icon name="settings" />
           </IconButton>

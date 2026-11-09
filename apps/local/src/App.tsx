@@ -1,5 +1,13 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import { Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom'
 import {
   ARCHIVE_EXTENSION,
   LABEL_CHARS_MAX,
@@ -46,6 +54,7 @@ import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import type { LocalRuntime } from './adapters.js'
 import { TopBar } from './shell/TopBar.js'
+import { PreferencesContext, usePreferencesPanel } from './shell/preferences-panel.js'
 import { HomePage } from './home/HomePage.js'
 import { deleteNote, deleteProject } from './projects.js'
 import {
@@ -62,37 +71,56 @@ import {
 
 export function App({ local }: { local: LocalRuntime }) {
   const [storageLabel, setStorageLabel] = useState(defaultStorageLabel(local))
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  // Preferences open over the current page rather than replacing it, so closing them returns
+  // to the same activity, selection and side view (feature/20261109-preferences-close.md).
+  // A direct /preferences link opens them over the home page; closing goes home.
+  const [prefsOpen, setPrefsOpen] = useState(pathname === '/preferences')
+  const panel = useMemo(() => {
+    const close = () => {
+      setPrefsOpen(false)
+      if (pathname === '/preferences') navigate('/', { replace: true })
+    }
+    return {
+      open: prefsOpen || pathname === '/preferences',
+      close,
+      toggle: () => (prefsOpen || pathname === '/preferences' ? close() : setPrefsOpen(true)),
+    }
+  }, [prefsOpen, pathname, navigate])
   return (
     <TriccRuntimeProvider runtime={local.runtime} preferences={local.preferences}>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <Shell local={local} storageLabel={storageLabel}>
-              <HomePage local={local} />
-            </Shell>
-          }
-        />
-        <Route
-          path="/project/:id/*"
-          element={
-            <ProjectWorkspace
-              local={local}
-              storageLabel={storageLabel}
-              onStorageLabel={setStorageLabel}
-            />
-          }
-        />
-        <Route
-          path="/preferences"
-          element={
-            <Shell local={local} storageLabel={storageLabel}>
-              <Preferences local={local} />
-            </Shell>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <PreferencesContext.Provider value={panel}>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <Shell local={local} storageLabel={storageLabel}>
+                <HomePage local={local} />
+              </Shell>
+            }
+          />
+          <Route
+            path="/project/:id/*"
+            element={
+              <ProjectWorkspace
+                local={local}
+                storageLabel={storageLabel}
+                onStorageLabel={setStorageLabel}
+              />
+            }
+          />
+          <Route
+            path="/preferences"
+            element={
+              <Shell local={local} storageLabel={storageLabel}>
+                <HomePage local={local} />
+              </Shell>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </PreferencesContext.Provider>
     </TriccRuntimeProvider>
   )
 }
@@ -114,6 +142,7 @@ function Shell({
   bell?: ReactNode
   children: ReactNode
 }) {
+  const prefs = usePreferencesPanel()
   return (
     <>
       <TopBar
@@ -123,7 +152,15 @@ function Shell({
         crumbs={crumbs}
         bell={bell ?? <AllProjectsBell />}
       />
-      <main>{children}</main>
+      <main>
+        {children}
+        {/* Over the page, not in its place: the page keeps its state while they are open. */}
+        {prefs.open && (
+          <div className="tricc-preferences-overlay">
+            <Preferences local={local} onClose={prefs.close} />
+          </div>
+        )}
+      </main>
     </>
   )
 }
@@ -508,7 +545,7 @@ function saveLabel(state: string, error?: string): string {
   return `Could not save${error ? `: ${error}` : ''}. Export a copy so the work is not only in this browser.`
 }
 
-function Preferences({ local }: { local: LocalRuntime }) {
+function Preferences({ local, onClose }: { local: LocalRuntime; onClose: () => void }) {
   const [name, setName] = useState(local.identity.current().displayName)
   const [lines, setLines] = useState(String(local.preferences.current().labelLines))
   const [chars, setChars] = useState(String(local.preferences.current().labelChars))
@@ -517,9 +554,31 @@ function Preferences({ local }: { local: LocalRuntime }) {
   const [editingTypes, setEditingTypes] = useState(false)
   const [diagramStyle, setDiagramStyle] = useState(local.preferences.current().diagramStyle)
   const [nodeGap, setNodeGap] = useState(String(local.preferences.current().nodeGap))
+  useEffect(() => {
+    // The concept types dialog handles its own Escape; this one only closes the page.
+    if (editingTypes) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      event.preventDefault()
+      onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [editingTypes, onClose])
   return (
-    <div data-testid="preferences">
-      <h1>Preferences</h1>
+    <div data-testid="preferences" role="region" aria-labelledby="preferences-heading">
+      <div className="tricc-preferences__header">
+        <h1 id="preferences-heading">Preferences</h1>
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+          data-testid="preferences-close"
+          onClick={onClose}
+        >
+          Close
+        </Button>
+      </div>
       <div className="tricc-form-grid">
         <h2>You</h2>
         {/* No accounts and no authentication - a display name, used for authorship. */}

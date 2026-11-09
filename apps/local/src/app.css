@@ -45,6 +45,26 @@ main {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+/* Preferences over the page under the top bar; the page stays mounted underneath. */
+.tricc-preferences-overlay {
+  position: absolute;
+  inset: 0;
+  /* Above the canvas's own overlays (20), below dialogs (40). */
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  background: var(--tricc-surface);
+}
+.tricc-preferences__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 60rem;
+  margin-inline: auto;
 }
 main > [data-testid='activity-editor'] {
   flex: 1 1 auto;
@@ -57,9 +77,11 @@ main > [data-testid='activity-editor'] {
   flex: 1 1 auto;
   min-height: 0;
 }
+/* One centred column: header and form share the width, so Close lines up with the fields. */
 [data-testid='preferences'] > .tricc-form-grid {
   padding: 0;
   max-width: 60rem;
+  margin-inline: auto;
 }
 [data-testid='preferences'] .tricc-form-grid > label {
   padding-top: 6px;

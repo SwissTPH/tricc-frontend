@@ -261,8 +261,9 @@ test('preferences set a display name, with no account anywhere', async ({ page }
   await page.getByTestId('nav-preferences').click()
   await expect(page.getByTestId('display-name')).toHaveValue('Dr Adeline')
 
-  // No sign-in, password or account surface exists.
-  await expect(page.getByText(/sign in|log in|password|account/i)).toHaveCount(0)
+  // No sign-in, password or account surface exists. Whole words, so an icon's ligature name
+  // such as account_tree on the page under Preferences does not count.
+  await expect(page.getByText(/\b(sign in|log in|password|account)\b/i)).toHaveCount(0)
 })
 
 test('a project reopens from the project list', async ({ page }) => {
@@ -418,7 +419,7 @@ test('concept types come from the preferences', async ({ page }) => {
   await page.getByTestId('pref-concept-types-edit').click()
   await page.getByTestId('pref-concept-types').fill('Vital\nCounselling')
   await page.getByTestId('pref-concept-types-save').click()
-  await page.goto('/')
+  await page.getByTestId('preferences-close').click()
   await createProject(page, 'Types guideline')
   await page.getByTestId('tab-dictionary').click()
   await page.getByTestId('concept-add').click()
@@ -455,7 +456,9 @@ test('concept types are edited in a dialog: Cancel keeps the list, Save keeps it
   await page.getByTestId('pref-concept-types-save').click()
   await expect(summary).toHaveText('4 types: Vital, Counselling, Referral, …')
 
+  // Preferences open over the page, so a reload closes them.
   await page.reload()
+  await page.getByTestId('nav-preferences').click()
   await expect(page.getByTestId('pref-concept-types-summary')).toHaveText(
     '4 types: Vital, Counselling, Referral, …',
   )

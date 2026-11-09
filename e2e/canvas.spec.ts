@@ -865,7 +865,7 @@ test('node text wraps to three lines by default, and the full text is on hover',
 test('the lines-per-node preference changes how much text a node shows', async ({ page }) => {
   await page.getByTestId('nav-preferences').click()
   await page.getByTestId('pref-label-lines').fill('5')
-  await page.goto('/')
+  await page.getByTestId('preferences-close').click()
   await newActivity(page, 'Five lines guideline')
   await placeNode(page, 'integer')
   await page.getByTestId('field-label').fill(LONG_LABEL)
@@ -873,10 +873,71 @@ test('the lines-per-node preference changes how much text a node shows', async (
   expect(await visibleLines(page, 'node-n-integer-label')).toBe(5)
 })
 
+test('Preferences open over the activity and close back to it: button, icon and Escape', async ({
+  page,
+}) => {
+  await newActivity(page, 'Close preferences guideline')
+  await placeNode(page, 'integer')
+  await page.getByTestId('field-label').fill(LONG_LABEL)
+  expect(await visibleLines(page, 'node-n-integer-label')).toBe(3)
+  const crumb = page.getByTestId(`crumb-${FIRST_ACTIVITY}`)
+  await expect(crumb).toBeVisible()
+
+  // Button: the change shows on the diagram at once, and the activity and selection stay.
+  await page.getByTestId('nav-preferences').click()
+  await expect(page.getByTestId('preferences')).toBeVisible()
+  await expect(page.getByTestId('nav-preferences')).toHaveAttribute('aria-pressed', 'true')
+  await page.getByTestId('pref-label-lines').fill('5')
+  await page.getByTestId('preferences-close').click()
+  await expect(page.getByTestId('preferences')).toHaveCount(0)
+  await expect(crumb).toBeVisible()
+  await expect(page.getByTestId('field-label')).toHaveValue(LONG_LABEL)
+  expect(await visibleLines(page, 'node-n-integer-label')).toBe(5)
+
+  // The icon toggles.
+  await page.getByTestId('nav-preferences').click()
+  await expect(page.getByTestId('preferences')).toBeVisible()
+  await page.getByTestId('nav-preferences').click()
+  await expect(page.getByTestId('preferences')).toHaveCount(0)
+  await expect(page.getByTestId('field-label')).toHaveValue(LONG_LABEL)
+
+  // Escape.
+  await page.getByTestId('nav-preferences').click()
+  await expect(page.getByTestId('preferences')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('preferences')).toHaveCount(0)
+  await expect(crumb).toBeVisible()
+  await expect(page.getByTestId('field-label')).toHaveValue(LONG_LABEL)
+})
+
+test('Preferences are centred in the area under the top bar', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await page.getByTestId('nav-preferences').click()
+  const area = (await page.getByTestId('preferences').boundingBox())!
+  const close = (await page.getByTestId('preferences-close').boundingBox())!
+  const heading = (await page.locator('#preferences-heading').boundingBox())!
+  // The column is 60rem wide: the space left of the heading matches the space right of Close.
+  const left = heading.x - area.x
+  const right = area.x + area.width - (close.x + close.width)
+  expect(left).toBeGreaterThan(100)
+  expect(Math.abs(left - right)).toBeLessThan(24)
+})
+
+test('a direct link to Preferences opens them over the home page, and Close goes home', async ({
+  page,
+}) => {
+  await page.goto('/preferences')
+  await expect(page.getByTestId('preferences')).toBeVisible()
+  await page.getByTestId('preferences-close').click()
+  await expect(page.getByTestId('preferences')).toHaveCount(0)
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByTestId('new-project')).toBeVisible()
+})
+
 test('tidy layout spaces tall nodes without overlap', async ({ page }) => {
   await page.getByTestId('nav-preferences').click()
   await page.getByTestId('pref-label-lines').fill('6')
-  await page.goto('/')
+  await page.getByTestId('preferences-close').click()
   await newActivity(page, 'Tidy tall guideline')
   await placeNode(page, 'integer')
   await page.getByTestId('field-label').fill(LONG_LABEL)
@@ -902,7 +963,7 @@ test('the node-gap preference sets how far apart tidy layout puts side-by-side n
   await expect(page.getByTestId('pref-node-gap')).toHaveValue('108')
   // A gap as wide as a node, so the check does not depend on the zoom.
   await page.getByTestId('pref-node-gap').fill('200')
-  await page.goto('/')
+  await page.getByTestId('preferences-close').click()
   await newActivity(page, 'Wide tidy guideline')
   await placeNode(page, 'integer')
   await placeNode(page, 'decimal')
