@@ -195,10 +195,17 @@ main > [data-testid='activity-editor'] {
   gap: 4px;
   width: 100%;
   min-width: 0;
-  overflow: hidden;
+  /* Collapsed, the row scrolls sideways; the wheel scrolls it too (see ActivityNavigator). */
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding-top: 0;
+  padding-left: 0;
+  padding-right: 0;
 }
 [data-testid='activity-navigator'][data-expanded='true'] ul {
   flex-wrap: wrap;

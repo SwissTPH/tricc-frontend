@@ -23,6 +23,7 @@ import {
   ActivityNavigator,
   BlocksView,
   Breadcrumbs,
+  LibraryGridView,
   Button,
   Dialog,
   DictionaryView,
@@ -40,6 +41,7 @@ import {
   useSave,
   useThemeMode,
   Icon,
+  type LibraryGridKind,
   type ThemeMode,
 } from '@tricc/editor'
 import ToggleButton from '@mui/material/ToggleButton'
@@ -96,6 +98,9 @@ export function App({ local }: { local: LocalRuntime }) {
     </TriccRuntimeProvider>
   )
 }
+
+/** The project-wide views that fill the main area instead of a page. */
+type MainView = 'dictionary' | 'media' | 'blocks' | 'segments' | 'activities'
 
 function Shell({
   local,
@@ -207,6 +212,8 @@ function ProjectWorkspace({
   const [dictionary, setDictionary] = useState(false)
   const [media, setMedia] = useState(false)
   const [blocks, setBlocks] = useState(false)
+  /** The segment or activity grid in the main area, opened from its navigator tab. */
+  const [list, setList] = useState<LibraryGridKind | undefined>(undefined)
   const [concept, setConcept] = useState<ConceptKey | undefined>(undefined)
   /** The dictionary on screen (canonical url); undefined until one is chosen. */
   const [dictionarySystem, setDictionarySystem] = useState<string | undefined>(undefined)
@@ -214,6 +221,7 @@ function ProjectWorkspace({
     setDictionary(false)
     setMedia(false)
     setBlocks(false)
+    setList(undefined)
     setConcept(undefined)
     setFocus({ activityId: nextActivity, nodeId })
     setTrail((t) => nextTrail(t, nextActivity, 'reset'))
@@ -222,6 +230,7 @@ function ProjectWorkspace({
     setDictionary(false)
     setMedia(false)
     setBlocks(false)
+    setList(undefined)
     setConcept(undefined)
     setFocus({ activityId: nextActivity, edgeId })
     setTrail((t) => nextTrail(t, nextActivity, 'reset'))
@@ -231,12 +240,14 @@ function ProjectWorkspace({
     setDictionarySystem(key.system)
     setMedia(false)
     setBlocks(false)
+    setList(undefined)
     setDictionary(true)
   }, [])
   const openActivity = useCallback((id: string | undefined) => {
     setDictionary(false)
     setMedia(false)
     setBlocks(false)
+    setList(undefined)
     setConcept(undefined)
     setFocus(null)
     setTrail(id ? [id] : [])
@@ -268,6 +279,7 @@ function ProjectWorkspace({
     setDictionary(false)
     setMedia(false)
     setBlocks(false)
+    setList(undefined)
     setFocus(null)
     setTrail((t) => nextTrail(t, next, 'follow'))
   }, [])
@@ -276,10 +288,11 @@ function ProjectWorkspace({
     setFocus({ activityId: caller, nodeId })
     setTrail((t) => nextTrail(t, caller, 'return'))
   }, [])
-  const showView = useCallback((view: 'dictionary' | 'media' | 'blocks' | null) => {
+  const showView = useCallback((view: MainView | null) => {
     setDictionary(view === 'dictionary')
     setMedia(view === 'media')
     setBlocks(view === 'blocks')
+    setList(view === 'segments' ? 'process' : view === 'activities' ? 'activity' : undefined)
     setConcept(undefined)
   }, [])
 
@@ -383,9 +396,19 @@ function ProjectWorkspace({
         storageLabel={storageLabel}
         crumbs={
           <Breadcrumbs
-            trail={dictionary || media || blocks ? [] : trail}
+            trail={dictionary || media || blocks || list ? [] : trail}
             extra={
-              dictionary ? 'Data dictionary' : media ? 'Media' : blocks ? TERMS.blocks : undefined
+              dictionary
+                ? 'Data dictionary'
+                : media
+                  ? 'Media'
+                  : blocks
+                    ? TERMS.blocks
+                    : list === 'process'
+                      ? 'Segments'
+                      : list === 'activity'
+                        ? 'Activities'
+                        : undefined
             }
             onProject={() => {
               showView(null)
@@ -421,12 +444,13 @@ function ProjectWorkspace({
       >
         <ActivityNavigator
           onSelect={openActivity}
-          selected={dictionary || media || blocks ? undefined : activityId}
+          selected={dictionary || media || blocks || list ? undefined : activityId}
           dictionaryOpen={dictionary}
           dictionarySystem={dictionary ? dictionarySystem : undefined}
           onOpenDictionary={(system) => {
             setMedia(false)
             setBlocks(false)
+            setList(undefined)
             setConcept(undefined)
             setDictionarySystem(system)
             setDictionary(true)
@@ -437,12 +461,17 @@ function ProjectWorkspace({
           onOpenMedia={() => {
             setDictionary(false)
             setBlocks(false)
+            setList(undefined)
             setMedia(true)
           }}
           blocksOpen={blocks}
           onOpenBlocks={() => showView('blocks')}
+          listOpen={list}
+          onOpenList={(kind) => showView(kind === 'process' ? 'segments' : 'activities')}
         />
-        {blocks ? (
+        {list ? (
+          <LibraryGridView kind={list} onOpen={openActivity} />
+        ) : blocks ? (
           <BlocksView onOpenBlock={openActivity} onOpenNode={openNode} />
         ) : media ? (
           <MediaView onOpenConcept={openConcept} />

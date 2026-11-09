@@ -312,7 +312,8 @@ test('overview, processes, and activities use the full browser width', async ({ 
   await page.getByTestId('tab-activities').click()
   const activities = await page.getByTestId('activity-navigator').boundingBox()
   expect(activities!.width).toBeLessThanOrEqual(root.width + 1)
-  const editor = await page.getByTestId('activity-editor').boundingBox()
+  // The Activities tab opens the grid of activities in the main area.
+  const editor = await page.getByTestId('activity-grid-view').boundingBox()
   expect(editor!.width).toBeLessThanOrEqual(root.width + 1)
   expect(editor!.width).toBeGreaterThanOrEqual(1680 - 32)
 })

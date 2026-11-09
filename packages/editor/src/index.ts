@@ -38,6 +38,7 @@ export { Button, buttonVariants, type ButtonProps } from './components/ui/button
 export { Input, inputVariants, type InputProps } from './components/ui/input.js'
 export { Textarea, textareaVariants, type TextareaProps } from './components/ui/textarea.js'
 export { cn } from './lib/utils.js'
+export { LibraryGridView, type LibraryGridKind } from './project/LibraryGridView.js'
 export { BlocksView, blockUses, type BlockUse } from './blocks/BlocksView.js'
 export { ArgumentForm, argSummary, rowsFor, type ArgumentRow } from './blocks/ArgumentForm.js'
 export { ParamsSection } from './blocks/ParamsSection.js'

@@ -2456,6 +2456,70 @@ ol.tricc-segment-rows > li::before {
   text-decoration: underline;
 }
 
+/* Segments and activities as a grid in the main area, opened from their navigator tabs. */
+.tricc-library-grid {
+  padding: 16px;
+  overflow: auto;
+}
+.tricc-library-grid__filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0 12px;
+}
+.tricc-library-grid__filters input {
+  max-width: 24em;
+}
+.tricc-library-grid__count {
+  font-size: 12px;
+  color: var(--tricc-text-muted);
+}
+.tricc-library-grid__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+.tricc-library-grid__card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--tricc-border);
+  border-radius: 6px;
+  background: var(--tricc-surface);
+  color: var(--tricc-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.tricc-library-grid__card[data-kind='process'] {
+  border-color: var(--tricc-border-strong);
+}
+.tricc-library-grid__card:hover,
+.tricc-library-grid__card:focus-visible {
+  border-color: var(--tricc-primary);
+}
+.tricc-library-grid__title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.tricc-library-grid__card code {
+  font-size: 11px;
+  color: var(--tricc-text-muted);
+  overflow-wrap: anywhere;
+}
+.tricc-library-grid__meta {
+  font-size: 12px;
+  color: var(--tricc-text-muted);
+}
+
 /* React Flow chrome follows the palette (colorMode only switches its own defaults). */
 .tricc-editor .react-flow {
   --xy-background-color: var(--tricc-bg);

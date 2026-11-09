@@ -30,6 +30,7 @@ import {
   plannedSegment,
   type SegmentDraft,
 } from './NewSegmentFields.js'
+import type { LibraryGridKind } from './LibraryGridView.js'
 
 type LibraryTab = 'process' | 'activity' | 'block'
 
@@ -66,6 +67,8 @@ export function ActivityNavigator({
   onOpenNode,
   blocksOpen,
   onOpenBlocks,
+  listOpen,
+  onOpenList,
 }: {
   selected: string | undefined
   onSelect: (id: string | undefined) => void
@@ -90,6 +93,10 @@ export function ActivityNavigator({
   blocksOpen?: boolean
   /** Shows the Building blocks list in the main area, from its tab. */
   onOpenBlocks?: () => void
+  /** The segment or activity grid that fills the main area, if one does. */
+  listOpen?: LibraryGridKind
+  /** Shows the Segments or Activities grid in the main area, from its tab. */
+  onOpenList?: (kind: LibraryGridKind) => void
 }) {
   const project = useProjectSnapshot()
   const canWrite = useCanWrite()
@@ -140,11 +147,12 @@ export function ActivityNavigator({
     if (dictionaryOpen) setTab('dictionary')
     else if (mediaOpen) setTab('media')
     else if (blocksOpen) setTab('block')
+    else if (listOpen) setTab(listOpen)
     else
       setTab((current) =>
         current === 'dictionary' || current === 'media' ? (selectedKind ?? 'activity') : current,
       )
-  }, [dictionaryOpen, mediaOpen, blocksOpen, selectedKind])
+  }, [dictionaryOpen, mediaOpen, blocksOpen, listOpen, selectedKind])
 
   const label = (id: string) => resolve(project.activities[id]?.title, lang, lang) ?? id
   const usedBy = (id: string) => {
@@ -301,7 +309,10 @@ export function ActivityNavigator({
             aria-selected={tab === 'process'}
             aria-controls="process-panel"
             data-testid="tab-processes"
-            onClick={() => setTab('process')}
+            onClick={() => {
+              setTab('process')
+              onOpenList?.('process')
+            }}
           >
             Segments
             <span className="tricc-nav__count">{processActivities.length}</span>
@@ -313,7 +324,10 @@ export function ActivityNavigator({
             aria-selected={tab === 'activity'}
             aria-controls="activity-panel"
             data-testid="tab-activities"
-            onClick={() => setTab('activity')}
+            onClick={() => {
+              setTab('activity')
+              onOpenList?.('activity')
+            }}
           >
             Activities
             <span className="tricc-nav__count">{normalActivities.length}</span>
@@ -705,6 +719,24 @@ function LibraryPanel({
       el.scrollTop = 0
     }
   }, [query])
+
+  // Collapsed, the row scrolls sideways; a plain mouse wheel scrolls it too. Not passive, so the
+  // page does not also scroll while the row moves.
+  useEffect(() => {
+    const el = listRef.current
+    if (!el || expanded) return
+    const onWheel = (event: WheelEvent) => {
+      if (event.shiftKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return
+      if (el.scrollWidth <= el.clientWidth) return
+      const atStart = el.scrollLeft <= 0 && event.deltaY < 0
+      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1 && event.deltaY > 0
+      if (atStart || atEnd) return
+      event.preventDefault()
+      el.scrollLeft += event.deltaY
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [expanded])
 
   useEffect(() => {
     if (!selected || !shown.includes(selected)) return
