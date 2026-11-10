@@ -26,7 +26,11 @@ export interface PmNode {
 /** A mark as one string: `strong`, `em`, `u`, or `color:<css colour>`. */
 type Tag = string
 
-const PM_MARK: Record<Exclude<MarkKind, 'color'>, string> = { strong: 'bold', em: 'italic', u: 'underline' }
+const PM_MARK: Record<Exclude<MarkKind, 'color'>, string> = {
+  strong: 'bold',
+  em: 'italic',
+  u: 'underline',
+}
 const KIND_OF: Record<string, Tag> = { bold: 'strong', italic: 'em', underline: 'u' }
 /** Outermost first. A colour wraps inside the styles, so `**red text**` keeps one span. */
 const RANK = (tag: Tag) => (tag === 'strong' ? 0 : tag === 'em' ? 1 : tag === 'u' ? 2 : 3)
@@ -91,10 +95,12 @@ function inlineOf(nodes: MessageNode[], marks: Tag[]): PmNode[] {
   const out: PmNode[] = []
   for (const node of nodes) {
     if (node.type === 'text' && node.value) out.push({ type: 'text', text: node.value, ...pmMarks })
-    else if (node.type === 'interp') out.push({ type: 'interp', attrs: { name: node.name }, ...pmMarks })
+    else if (node.type === 'interp')
+      out.push({ type: 'interp', attrs: { name: node.name }, ...pmMarks })
     else if (node.type === 'break') out.push({ type: 'hardBreak' })
     // A picture carries no marks: the tree never puts one inside bold or a colour.
-    else if (node.type === 'image') out.push({ type: 'image', attrs: { src: node.src, alt: node.alt ?? null } })
+    else if (node.type === 'image')
+      out.push({ type: 'image', attrs: { src: node.src, alt: node.alt ?? null } })
     else if (node.type === 'mark') out.push(...inlineOf(node.children, [...marks, tagOf(node)]))
     else if (node.type === 'list') {
       // A list nested inside a phrase cannot be one in ProseMirror: keep its text in lines.
@@ -154,17 +160,19 @@ interface Leaf {
 function group(content: PmNode[]): MessageNode[] {
   const leaves: Leaf[] = []
   for (const pm of content) {
-    const marks = (pm.marks ?? [])
-      .map(tagFromPm)
-      .filter((k): k is Tag => k !== undefined)
-    if (pm.type === 'text' && pm.text) leaves.push({ node: { type: 'text', value: pm.text }, marks })
+    const marks = (pm.marks ?? []).map(tagFromPm).filter((k): k is Tag => k !== undefined)
+    if (pm.type === 'text' && pm.text)
+      leaves.push({ node: { type: 'text', value: pm.text }, marks })
     else if (pm.type === 'interp' && typeof pm.attrs?.['name'] === 'string')
       leaves.push({ node: { type: 'interp', name: pm.attrs['name'] }, marks })
     else if (pm.type === 'hardBreak') leaves.push({ node: { type: 'break' }, marks: [] })
     else if (pm.type === 'image' && typeof pm.attrs?.['src'] === 'string' && pm.attrs['src']) {
       const alt = pm.attrs['alt']
       leaves.push({
-        node: typeof alt === 'string' && alt ? { type: 'image', src: pm.attrs['src'], alt } : { type: 'image', src: pm.attrs['src'] },
+        node:
+          typeof alt === 'string' && alt
+            ? { type: 'image', src: pm.attrs['src'], alt }
+            : { type: 'image', src: pm.attrs['src'] },
         marks: [],
       })
     }
@@ -186,7 +194,9 @@ function wrap(leaves: Leaf[]): MessageNode[] {
     }
     let j = i
     while (j < leaves.length && leaves[j]!.marks.includes(kind)) j++
-    const inner = leaves.slice(i, j).map((l) => ({ node: l.node, marks: l.marks.filter((m) => m !== kind) }))
+    const inner = leaves
+      .slice(i, j)
+      .map((l) => ({ node: l.node, marks: l.marks.filter((m) => m !== kind) }))
     out.push(markNode(kind, wrap(inner)))
     i = j
   }
@@ -197,7 +207,8 @@ function mergeText(nodes: MessageNode[]): MessageNode[] {
   const out: MessageNode[] = []
   for (const node of nodes) {
     const last = out[out.length - 1]
-    if (last?.type === 'text' && node.type === 'text') out[out.length - 1] = { type: 'text', value: last.value + node.value }
+    if (last?.type === 'text' && node.type === 'text')
+      out[out.length - 1] = { type: 'text', value: last.value + node.value }
     else out.push(node)
   }
   return out

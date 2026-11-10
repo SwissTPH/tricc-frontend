@@ -14,6 +14,7 @@ import { fromDoc, toDoc, type PmNode } from './prosemirror.js'
 import { imageFiles, useAddImages } from '../media/images.js'
 import { ImagePicker } from '../media/ImagePicker.js'
 import { TextImage } from './RichTextField.js'
+import { defaultTextColour, textColours } from '../theme/palette.js'
 
 /**
  * The formatted-text editor. Loaded on demand (it is the only TipTap import), so the
@@ -32,7 +33,12 @@ const Interp = Node.create({
     return { name: { default: '' } }
   },
   parseHTML() {
-    return [{ tag: 'span[data-interp]', getAttrs: (el) => ({ name: (el as HTMLElement).dataset['interp'] }) }]
+    return [
+      {
+        tag: 'span[data-interp]',
+        getAttrs: (el) => ({ name: (el as HTMLElement).dataset['interp'] }),
+      },
+    ]
   },
   renderHTML({ node, HTMLAttributes }) {
     return [
@@ -53,7 +59,10 @@ const Interp = Node.create({
 function PictureView({ node }: ReactNodeViewProps) {
   return (
     <NodeViewWrapper as="span" className="tricc-text-picture">
-      <TextImage src={String(node.attrs['src'] ?? '')} alt={(node.attrs['alt'] as string | null) ?? undefined} />
+      <TextImage
+        src={String(node.attrs['src'] ?? '')}
+        alt={(node.attrs['alt'] as string | null) ?? undefined}
+      />
     </NodeViewWrapper>
   )
 }
@@ -101,13 +110,7 @@ const TextPicture = Node.create({
 })
 
 /** Colours that read well on a form; any other comes from the colour picker. */
-const COLORS: [string, string][] = [
-  ['Red', '#d32f2f'],
-  ['Orange', '#ef6c00'],
-  ['Green', '#2e7d32'],
-  ['Blue', '#1565c0'],
-  ['Grey', '#616161'],
-]
+const COLORS = textColours
 
 export default function RichTextEditor({
   value,
@@ -218,8 +221,12 @@ export default function RichTextEditor({
   return (
     <div className="tricc-rich" data-testid={testId}>
       <div className="tricc-rich__bar" role="toolbar" aria-label={`Format ${label}`}>
-        {button('bold', 'Bold', editor.isActive('bold'), () => editor.chain().focus().toggleBold().run())}
-        {button('italic', 'Italic', editor.isActive('italic'), () => editor.chain().focus().toggleItalic().run())}
+        {button('bold', 'Bold', editor.isActive('bold'), () =>
+          editor.chain().focus().toggleBold().run(),
+        )}
+        {button('italic', 'Italic', editor.isActive('italic'), () =>
+          editor.chain().focus().toggleItalic().run(),
+        )}
         {button('underline', 'Underline', editor.isActive('underline'), () =>
           editor.chain().focus().toggleUnderline().run(),
         )}
@@ -248,7 +255,9 @@ export default function RichTextEditor({
           ))}
           {(() => {
             const current = editor.getAttributes('textStyle')['color'] as string | undefined
-            return current && !COLORS.some(([, v]) => v === current) ? <option value={current}>{current}</option> : null
+            return current && !COLORS.some(([, v]) => v === current) ? (
+              <option value={current}>{current}</option>
+            ) : null
           })()}
         </select>
         <input
@@ -256,7 +265,9 @@ export default function RichTextEditor({
           data-testid={`${testId}-color-custom`}
           aria-label="Another colour"
           disabled={disabled}
-          value={(editor.getAttributes('textStyle')['color'] as string | undefined) ?? '#000000'}
+          value={
+            (editor.getAttributes('textStyle')['color'] as string | undefined) ?? defaultTextColour
+          }
           onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
         />
         <button
@@ -277,7 +288,8 @@ export default function RichTextEditor({
           disabled={disabled || names.length === 0}
           onChange={(e) => {
             const name = e.target.value
-            if (name) editor.chain().focus().insertContent({ type: 'interp', attrs: { name } }).run()
+            if (name)
+              editor.chain().focus().insertContent({ type: 'interp', attrs: { name } }).run()
           }}
         >
           <option value="">Insert data…</option>
@@ -299,7 +311,11 @@ export default function RichTextEditor({
           onClose={() => setPicking(false)}
           onPick={(id) => {
             setPicking(false)
-            editor.chain().focus().insertContent({ type: 'image', attrs: { src: imageSrc(id) } }).run()
+            editor
+              .chain()
+              .focus()
+              .insertContent({ type: 'image', attrs: { src: imageSrc(id) } })
+              .run()
           }}
         />
       )}

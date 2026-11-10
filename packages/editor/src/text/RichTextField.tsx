@@ -54,7 +54,8 @@ export function RichTextField({
             <MessageView text={value} />
           </div>
         ) : (
-          <Input size="sm"
+          <Input
+            size="sm"
             id={id}
             data-testid={testId}
             value={value}
@@ -144,7 +145,13 @@ function RichTextModal({
       >
         <h2>{label}</h2>
         <Suspense fallback={<p aria-busy="true">Loading the editor…</p>}>
-          <RichTextEditor value={draft} onChange={setDraft} testId={testId} names={names} label={label} />
+          <RichTextEditor
+            value={draft}
+            onChange={setDraft}
+            testId={testId}
+            names={names}
+            label={label}
+          />
         </Suspense>
         <div className="tricc-library-modal__actions">
           <Button
@@ -201,7 +208,9 @@ function renderNode(node: MessageNode, key: number): ReactNode {
       )
     }
     case 'list': {
-      const items = node.items.map((item, i) => <li key={i}>{item.children.map((c, j) => renderNode(c, j))}</li>)
+      const items = node.items.map((item, i) => (
+        <li key={i}>{item.children.map((c, j) => renderNode(c, j))}</li>
+      ))
       return node.ordered ? <ol key={key}>{items}</ol> : <ul key={key}>{items}</ul>
     }
     case 'image':
@@ -210,17 +219,31 @@ function renderNode(node: MessageNode, key: number): ReactNode {
 }
 
 /** A picture of a text, from the image library. A missing one says so instead of breaking. */
-export function TextImage({ src, alt, className }: { src: string; alt?: string; className?: string }) {
+export function TextImage({
+  src,
+  alt,
+  className,
+}: {
+  src: string
+  alt?: string
+  className?: string
+}) {
   const id = imageIdOf(src)
   const url = useImageUrl(id)
   if (!url) {
     return (
-      <span className="tricc-text-image tricc-text-image--missing" data-image={id ?? src} title="Not in the image library">
+      <span
+        className="tricc-text-image tricc-text-image--missing"
+        data-image={id ?? src}
+        title="Not in the image library"
+      >
         {`[${id ?? src}]`}
       </span>
     )
   }
-  return <img className={className ?? 'tricc-text-image'} src={url} alt={alt ?? ''} data-image={id} />
+  return (
+    <img className={className ?? 'tricc-text-image'} src={url} alt={alt ?? ''} data-image={id} />
+  )
 }
 
 /**
@@ -232,9 +255,11 @@ function injectableNames(project: Project, limit: number): { name: string; label
   const byName = new Map<string, string>()
   for (const a of Object.values(project.activities)) {
     for (const n of Object.values(a.nodes)) {
-      if (!n.name || n.type === 'activity_start' || n.type === 'start' || byName.has(n.name)) continue
+      if (!n.name || n.type === 'activity_start' || n.type === 'start' || byName.has(n.name))
+        continue
       const concept = lookupConcept(project, nodeConceptKey(project, n))
-      const display = conceptText(concept, 'display', lang, lang) ?? resolve(n.label, lang, lang) ?? ''
+      const display =
+        conceptText(concept, 'display', lang, lang) ?? resolve(n.label, lang, lang) ?? ''
       byName.set(n.name, display)
     }
   }

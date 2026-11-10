@@ -10,12 +10,15 @@ import {
 
 /** The project's default CodeSystem, created on first use. */
 export function ensureDefaultCodeSystem(project: Project, tx: Mutations): CodeSystem {
-  return defaultCodeSystem(project) ?? ensureDictionary(project, tx, projectDictionaries(project)[0]!.url)
+  return (
+    defaultCodeSystem(project) ??
+    ensureDictionary(project, tx, projectDictionaries(project)[0]!.url)
+  )
 }
 
 /**
- * The dictionary with this url. The default and the calculate dictionaries are listed before
- * they exist: the first concept creates them, and the project names them in `tricc.yaml`.
+ * The dictionary with this url. The default, calculate and retrieve dictionaries are listed
+ * before they exist: the first concept creates them, and the project names them in `tricc.yaml`.
  */
 export function ensureDictionary(project: Project, tx: Mutations, url: string): CodeSystem {
   const existing = findCodeSystem(project, url)
@@ -26,5 +29,6 @@ export function ensureDictionary(project: Project, tx: Mutations, url: string): 
   tx.addCodeSystem(cs)
   if (dictionary.kind === 'default') tx.setMeta('defaultCodeSystem', cs.url)
   if (dictionary.kind === 'calculate') tx.setMeta('calculateCodeSystem', cs.url)
+  if (dictionary.kind === 'retrieve') tx.setMeta('retrieveCodeSystem', cs.url)
   return cs
 }

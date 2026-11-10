@@ -32,12 +32,14 @@ export const NODE_FIELDS = {
   constraintMessage: 'localized',
   reference: 'scalar',
   link: 'scalar',
+  args: 'json',
   repeat: 'scalar',
   instance: 'scalar',
   severity: 'scalar',
   priority: 'scalar',
   context: 'scalar',
   period: 'scalar',
+  source: 'json',
   process: 'scalar',
   intervention: 'scalar',
   condition: 'scalar',
@@ -54,7 +56,8 @@ export const NODE_FIELDS = {
   labelMessage: 'transient',
 } as const satisfies Record<keyof TriccNode, FieldKind>
 
-export type FieldKind = 'key' | 'scalar' | 'localized' | 'expression' | 'json' | 'custom' | 'transient'
+export type FieldKind =
+  'key' | 'scalar' | 'localized' | 'expression' | 'json' | 'custom' | 'transient'
 export type NodeField = keyof typeof NODE_FIELDS
 export type FieldsOf<K extends FieldKind> = {
   [F in NodeField]: (typeof NODE_FIELDS)[F] extends K ? F : never
@@ -63,5 +66,7 @@ export type CustomField = FieldsOf<'custom'>
 
 /** The fields of one kind, in table order. */
 export function fieldsOf<K extends FieldKind>(kind: K): FieldsOf<K>[] {
-  return (Object.keys(NODE_FIELDS) as NodeField[]).filter((f) => NODE_FIELDS[f] === kind) as FieldsOf<K>[]
+  return (Object.keys(NODE_FIELDS) as NodeField[]).filter(
+    (f) => NODE_FIELDS[f] === kind,
+  ) as FieldsOf<K>[]
 }

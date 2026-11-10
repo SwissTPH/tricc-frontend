@@ -322,7 +322,9 @@ describe('validation surfaces in the UI', () => {
     await user.click(screen.getByTestId('tab-validation'))
     expect(screen.queryByTestId('issue-expression.open-handoff')).not.toBeInTheDocument()
     await user.click(screen.getByTestId('tab-details'))
-    expect(screen.getByTestId('field-relevance-expression-display')).toHaveTextContent('AgeInMonths')
+    expect(screen.getByTestId('field-relevance-expression-display')).toHaveTextContent(
+      'AgeInMonths',
+    )
     expect(screen.queryByText(/not rewritten into CQL/)).not.toBeInTheDocument()
   })
 
@@ -433,10 +435,9 @@ describe('project overview', () => {
     renderWith(h, <ProjectOverview />)
 
     expect(screen.getByTestId('intervention-sick-child')).toBeInTheDocument()
-    expect(screen.queryByTestId('intervention-sick-child-activity-triage')).not.toBeInTheDocument()
-    expect(screen.getByTestId('intervention-sick-child-activity-triage-process')).toHaveTextContent(
-      'Triage',
-    )
+    // Segments are sub-rows of the intervention, expanded by default.
+    expect(screen.queryByTestId('segment-sick-child-triage')).not.toBeInTheDocument()
+    expect(screen.getByTestId('segment-sick-child-triage-process')).toHaveTextContent('Triage')
     expect(screen.getByTestId('intervention-sick-child-trigger')).toHaveTextContent('on-demand')
   })
 
@@ -474,6 +475,7 @@ describe('project overview', () => {
     ]
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
+    fireEvent.click(screen.getByTestId('tab-validation'))
     const issue = screen.getByTestId('issue-intervention.reserved-trigger')
     expect(issue).toHaveAttribute('data-severity', 'error')
     expect(issue).toHaveTextContent(/planning layer/)
@@ -695,6 +697,7 @@ describe('intervention editing', () => {
     const h = await withIntervention()
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-sick-child'))
     await user.click(screen.getByTestId('add-process-to-sick-child'))
     await pickActivity(user, 'add-activity-to-sick-child', 'triage-process')
     expect(h.open.document.snapshot().interventions[0]?.activities).toEqual([
@@ -707,11 +710,14 @@ describe('intervention editing', () => {
     const h = await withIntervention()
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-sick-child'))
     await user.click(screen.getByTestId('add-process-to-sick-child'))
     await pickActivity(user, 'add-activity-to-sick-child', 'triage-process')
 
     await user.click(screen.getByTestId('add-process-to-sick-child'))
-    expect(screen.getByTestId('add-activity-to-sick-child-exhausted')).toHaveTextContent('already listed')
+    expect(screen.getByTestId('add-activity-to-sick-child-exhausted')).toHaveTextContent(
+      'already listed',
+    )
     expect(screen.queryByTestId('add-activity-to-sick-child-option-triage')).not.toBeInTheDocument()
   })
 
@@ -720,6 +726,7 @@ describe('intervention editing', () => {
     const h = await withIntervention()
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-sick-child'))
     await user.click(screen.getByTestId('add-process-to-sick-child'))
     await pickActivity(user, 'add-activity-to-sick-child', 'triage-process')
     await user.click(screen.getByTestId('configure-intervention-sick-child'))
@@ -736,6 +743,7 @@ describe('intervention editing', () => {
     const h = await withIntervention()
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-sick-child'))
     await user.click(screen.getByTestId('add-process-to-sick-child'))
     await pickActivity(user, 'add-activity-to-sick-child', 'triage-process')
     await user.click(screen.getByTestId('remove-activity-sick-child-triage-process'))
@@ -776,6 +784,7 @@ describe('intervention editing', () => {
     expect(trigger).toHaveTextContent('planned (needs the planning layer)')
 
     await user.selectOptions(trigger, 'planned')
+    fireEvent.click(screen.getByTestId('tab-validation'))
     expect(screen.getByTestId('issue-intervention.reserved-trigger')).toHaveAttribute(
       'data-severity',
       'error',
@@ -838,14 +847,42 @@ describe('process activities versus activities', () => {
     await user.click(screen.getByTestId('create-activity'))
     await user.click(screen.getByTestId('tab-processes'))
     await user.click(screen.getByTestId('add-process'))
-    await user.type(screen.getByTestId('new-process-name'), 'registration')
-    await user.click(screen.getByTestId('add-process-activity'))
+    await user.selectOptions(screen.getByTestId('new-segment-process'), 'registration')
+    await user.click(screen.getByTestId('create-segment'))
 
     const activities = h.open.document.snapshot().activities
     expect(activityKind(activities['activity']!)).toBe('activity')
     expect(activityKind(activities['registration-process']!)).toBe('process')
     // The wrapper says which process it starts, on the root and on the activity.
     expect(processOf(activities['registration-process']!)).toBe('registration')
+  })
+
+  it('creates a segment with a custom process and a name', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityNavigator selected={undefined} onSelect={() => {}} />)
+
+    await user.click(screen.getByTestId('tab-processes'))
+    await user.click(screen.getByTestId('add-process'))
+    expect(screen.getByTestId('create-segment')).toBeDisabled()
+    await user.selectOptions(screen.getByTestId('new-segment-process'), 'history-and-physical')
+    // The name follows the process until the author types one.
+    expect(screen.getByTestId('new-segment-name')).toHaveValue('History and physical')
+    expect(screen.getByTestId('new-segment-id').textContent).toBe('history-and-physical-process')
+
+    await user.selectOptions(screen.getByTestId('new-segment-process'), 'Other / custom…')
+    expect(screen.getByTestId('create-segment')).toBeDisabled()
+    await user.type(screen.getByTestId('new-segment-custom-process'), 'home-visit')
+    expect(screen.getByTestId('new-segment-name')).toHaveValue('Home visit')
+    await user.clear(screen.getByTestId('new-segment-name'))
+    await user.type(screen.getByTestId('new-segment-name'), 'Home visit, first week')
+    expect(screen.getByTestId('new-segment-id').textContent).toBe('home-visit-first-week')
+    await user.click(screen.getByTestId('create-segment'))
+
+    const segment = h.open.document.snapshot().activities['home-visit-first-week']!
+    expect(activityKind(segment)).toBe('process')
+    expect(processOf(segment)).toBe('home-visit')
+    expect(segment.title).toEqual({ en: 'Home visit, first week' })
   })
 
   it('lists the two kinds separately', async () => {
@@ -855,8 +892,8 @@ describe('process activities versus activities', () => {
 
     await user.click(screen.getByTestId('tab-processes'))
     await user.click(screen.getByTestId('add-process'))
-    await user.type(screen.getByTestId('new-process-name'), 'triage')
-    await user.click(screen.getByTestId('add-process-activity'))
+    await user.selectOptions(screen.getByTestId('new-segment-process'), 'triage')
+    await user.click(screen.getByTestId('create-segment'))
 
     // Each kind appears on its own tab, not in one undifferentiated pile.
     expect(screen.getByTestId('process-activity-list')).toContainElement(
@@ -886,7 +923,9 @@ describe('process activities versus activities', () => {
 
     await user.upload(screen.getByTestId('import-activity-file', { hidden: true }), cough)
     await waitFor(() =>
-      expect(screen.getByTestId('import-modal')).toHaveTextContent('Nothing is added until you import.'),
+      expect(screen.getByTestId('import-modal')).toHaveTextContent(
+        'Nothing is added until you import.',
+      ),
     )
     expect(screen.getByTestId('import-id-cough')).toHaveTextContent('cough')
     await user.click(screen.getByTestId('import-cancel'))
@@ -910,12 +949,15 @@ describe('process activities versus activities', () => {
     // A process file imported from the Activities tab is listed, and imported, as a process.
     await user.upload(screen.getByTestId('import-activity-file', { hidden: true }), airway)
     await waitFor(() =>
-      expect(screen.getByTestId('import-group-process')).toHaveTextContent('Processes (1)'),
+      expect(screen.getByTestId('import-group-process')).toHaveTextContent('Segments (1)'),
     )
     expect(screen.queryByTestId('import-group-activity')).not.toBeInTheDocument()
     await user.click(screen.getByTestId('import-confirm'))
     expect(activityKind(h.open.document.snapshot().activities['airway-process']!)).toBe('process')
-    expect(screen.getByTestId('nav-activity-airway-process')).toHaveAttribute('data-kind', 'process')
+    expect(screen.getByTestId('nav-activity-airway-process')).toHaveAttribute(
+      'data-kind',
+      'process',
+    )
   })
 
   it('hides import when the project is read-only', async () => {
@@ -937,11 +979,12 @@ describe('process activities versus activities', () => {
     await user.click(screen.getByTestId('create-activity'))
     await user.click(screen.getByTestId('tab-processes'))
     await user.click(screen.getByTestId('add-process'))
-    await user.type(screen.getByTestId('new-process-name'), 'registration')
-    await user.click(screen.getByTestId('add-process-activity'))
+    await user.selectOptions(screen.getByTestId('new-segment-process'), 'registration')
+    await user.click(screen.getByTestId('create-segment'))
     await user.click(screen.getByTestId('add-process'))
-    await user.type(screen.getByTestId('new-process-name'), 'followup')
-    await user.click(screen.getByTestId('add-process-activity'))
+    await user.selectOptions(screen.getByTestId('new-segment-process'), 'Other / custom…')
+    await user.type(screen.getByTestId('new-segment-custom-process'), 'followup')
+    await user.click(screen.getByTestId('create-segment'))
 
     expect(screen.getByTestId('nav-expand')).toBeDisabled()
     await user.click(screen.getByTestId('tab-activities'))
@@ -973,8 +1016,10 @@ describe('process activities versus activities', () => {
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
 
-    expect(screen.queryByTestId('issue-intervention.not-a-process-activity')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('intervention-iv-activity-triage')).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('issue-intervention.not-a-process-activity'),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByTestId('segment-iv-triage')).not.toBeInTheDocument()
   })
 
   it('creates a process activity straight from the intervention and lists it', async () => {
@@ -986,13 +1031,45 @@ describe('process activities versus activities', () => {
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-iv'))
     await user.click(screen.getByTestId('add-process-to-iv'))
-    await user.type(screen.getByTestId('process-name-iv'), 'triage')
-    await user.click(screen.getByTestId('create-process-activity-iv'))
+    await user.selectOptions(screen.getByTestId('new-segment-process'), 'triage')
+    await user.click(screen.getByTestId('create-segment'))
 
     const snapshot = h.open.document.snapshot()
     expect(activityKind(snapshot.activities['triage-process']!)).toBe('process')
+    expect(snapshot.activities['triage-process']?.title).toEqual({ en: 'Triage' })
     expect(snapshot.interventions[0]?.activities).toEqual([{ ref: 'triage-process' }])
+  })
+
+  it('names a new segment from the intervention, with the same form as the Segments tab', async () => {
+    const user = userEvent.setup()
+    const project = seed()
+    project.activities['vax-process'] = createProcessActivity({
+      id: 'vax-process',
+      process: 'vaccination',
+    })
+    project.interventions = [
+      { id: 'iv', name: 'iv', trigger: { mode: 'on-demand' }, activities: [] },
+    ]
+    const h = await harness(project)
+    renderWith(h, <ProjectOverview />)
+
+    await user.click(screen.getByTestId('configure-intervention-iv'))
+    await user.click(screen.getByTestId('add-process-to-iv'))
+    // A custom process already used in the project is offered next to the CPG list.
+    await user.selectOptions(screen.getByTestId('new-segment-process'), 'vaccination')
+    expect(screen.getByTestId('new-segment-name')).toHaveValue('Vaccination')
+    await user.clear(screen.getByTestId('new-segment-name'))
+    await user.type(screen.getByTestId('new-segment-name'), 'Booster dose')
+    expect(screen.getByTestId('new-segment-id').textContent).toBe('booster-dose')
+    await user.click(screen.getByTestId('create-segment'))
+
+    const snapshot = h.open.document.snapshot()
+    const segment = snapshot.activities['booster-dose']!
+    expect(processOf(segment)).toBe('vaccination')
+    expect(segment.title).toEqual({ en: 'Booster dose' })
+    expect(snapshot.interventions[0]?.activities).toEqual([{ ref: 'booster-dose' }])
   })
 
   it('offers every activity that is not already listed', async () => {
@@ -1017,6 +1094,7 @@ describe('process activities versus activities', () => {
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-iv'))
     await user.click(screen.getByTestId('add-process-to-iv'))
     expect(screen.getByTestId('add-activity-to-iv-option-triage-process')).toBeInTheDocument()
     expect(screen.getByTestId('add-activity-to-iv-option-reg-process')).toBeInTheDocument()
@@ -1039,6 +1117,7 @@ describe('process activities versus activities', () => {
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
 
+    await user.click(screen.getByTestId('configure-intervention-iv'))
     await user.click(screen.getByTestId('move-down-iv-a-process'))
     expect(h.open.document.snapshot().interventions[0]?.activities.map((a) => a.ref)).toEqual([
       'b-process',
@@ -1061,6 +1140,7 @@ describe('process activities versus activities', () => {
     const h = await harness(project)
     renderWith(h, <ProjectOverview />)
 
+    fireEvent.click(screen.getByTestId('configure-intervention-iv'))
     expect(screen.getByTestId('move-up-iv-a-process')).toBeDisabled()
     expect(screen.getByTestId('move-down-iv-b-process')).toBeDisabled()
   })
@@ -1228,7 +1308,12 @@ describe('activity settings and delete', () => {
       edges: {},
     }
     project.interventions = [
-      { id: 'iv', title: { en: 'Sick child' }, trigger: { mode: 'on-demand' }, activities: [{ ref: 'triage' }, { ref: 'caller' }] },
+      {
+        id: 'iv',
+        title: { en: 'Sick child' },
+        trigger: { mode: 'on-demand' },
+        activities: [{ ref: 'triage' }, { ref: 'caller' }],
+      },
     ]
     const h = await harness(project)
     let deleted = false
@@ -1333,7 +1418,9 @@ describe('the start node is the activity', () => {
     await user.click(screen.getByTestId('add-activity_end'))
     expect(screen.getByTestId('node-properties')).toHaveTextContent('activity_end')
     expect(screen.queryByTestId('field-name')).not.toBeInTheDocument()
-    expect(h.open.document.snapshot().activities['triage']?.nodes['n-activity_end']?.name).toBeUndefined()
+    expect(
+      h.open.document.snapshot().activities['triage']?.nodes['n-activity_end']?.name,
+    ).toBeUndefined()
   })
 
   it('a renamed activity shows its new title on the root node', async () => {
@@ -1358,7 +1445,13 @@ describe('data dictionary', () => {
       status: 'draft',
       content: 'complete',
       concepts: {
-        weight: { system: URL, code: 'weight', display: 'Weight (kg)', designations: [], dataType: 'decimal' },
+        weight: {
+          system: URL,
+          code: 'weight',
+          display: 'Weight (kg)',
+          designations: [],
+          dataType: 'decimal',
+        },
       },
       conceptOrder: ['weight'],
     }
@@ -1404,7 +1497,9 @@ describe('data dictionary', () => {
     await user.clear(screen.getByTestId('concept-display'))
     await user.type(screen.getByTestId('concept-display'), 'Body weight')
     await user.click(screen.getByTestId('concept-dialog-cancel'))
-    expect(h.open.document.snapshot().codeSystems[URL]!.concepts['weight']!.display).toBe('Weight (kg)')
+    expect(h.open.document.snapshot().codeSystems[URL]!.concepts['weight']!.display).toBe(
+      'Weight (kg)',
+    )
   })
 
   it('saves texts and type from the dialog, and offers concept types from preferences', async () => {
@@ -1418,7 +1513,11 @@ describe('data dictionary', () => {
     const concept = h.open.document.snapshot().codeSystems[URL]!.concepts['weight']!
     expect(concept.conceptType).toBe('Vital')
     expect(concept.designations).toEqual([
-      { language: 'en', use: { system: 'https://tricc.org/CodeSystem/designation-use', code: 'hint' }, value: 'In kilograms' },
+      {
+        language: 'en',
+        use: { system: 'https://tricc.org/CodeSystem/designation-use', code: 'hint' },
+        value: 'In kilograms',
+      },
     ])
   })
 
@@ -1518,11 +1617,18 @@ describe('questionnaire text per intervention', () => {
       url,
       status: 'draft',
       content: 'complete',
-      concepts: { weight: { system: url, code: 'weight', display: 'Weight (kg)', designations: [] } },
+      concepts: {
+        weight: { system: url, code: 'weight', display: 'Weight (kg)', designations: [] },
+      },
       conceptOrder: ['weight'],
     }
     project.interventions = [
-      { id: 'community', title: { en: 'Community' }, trigger: { mode: 'on-demand' }, activities: [] },
+      {
+        id: 'community',
+        title: { en: 'Community' },
+        trigger: { mode: 'on-demand' },
+        activities: [],
+      },
     ]
     const h = await harness(project)
     renderWith(h, <DictionaryView open={{ system: url, code: 'weight' }} onOpen={() => {}} />)
@@ -1535,7 +1641,10 @@ describe('questionnaire text per intervention', () => {
     const d = h.open.document.snapshot().codeSystems[url]!.concepts['weight']!.designations[0]!
     expect(d).toMatchObject({ language: 'en', value: 'Weigh the child' })
     expect(d.extension).toEqual([
-      { url: 'https://tricc.org/StructureDefinition/designation-intervention', valueCode: 'community' },
+      {
+        url: 'https://tricc.org/StructureDefinition/designation-intervention',
+        valueCode: 'community',
+      },
     ])
   })
 })
@@ -1565,7 +1674,10 @@ describe('project settings and delete', () => {
     const user = userEvent.setup()
     const h = await harness()
     let deleted = 0
-    renderWith(h, <ProjectOverview onDelete={() => deleted++} deleteNote="The folder stays on disk." />)
+    renderWith(
+      h,
+      <ProjectOverview onDelete={() => deleted++} deleteNote="The folder stays on disk." />,
+    )
     await user.click(screen.getByTestId('delete-project'))
     expect(screen.getByTestId('delete-project-note')).toHaveTextContent('The folder stays on disk.')
     await user.click(screen.getByTestId('delete-project-cancel'))
@@ -1641,15 +1753,14 @@ describe('node fields', () => {
     expect(screen.queryByTestId('field-name')).not.toBeInTheDocument()
   })
 
-  it('opens the activity a goto goes to, from its details and by Ctrl+click', async () => {
+  it('opens the activity a goto goes to from its details', async () => {
     const user = userEvent.setup()
     const h = await harness(withGoto())
     const opened: string[] = []
     renderWith(h, <ActivityEditor activityId="triage" onOpenActivity={(id) => opened.push(id)} />)
     selectNode('g')
     await user.click(screen.getByTestId('goto-open'))
-    fireEvent.click(screen.getByTestId('node-g'), { ctrlKey: true })
-    expect(opened).toEqual(['cough', 'cough'])
+    expect(opened).toEqual(['cough'])
   })
 
   it('opens the activity a goto goes to from the follow button on the node', async () => {
@@ -1707,7 +1818,12 @@ describe('comments on the diagram', () => {
   it('adds a coloured comment about a node, keeps it out of the guideline, and deletes it', async () => {
     const user = userEvent.setup()
     const project = seed()
-    project.activities['triage']!.nodes['w'] = { id: 'w', type: 'decimal', name: 'weight', ui: { x: 0, y: 100 } }
+    project.activities['triage']!.nodes['w'] = {
+      id: 'w',
+      type: 'decimal',
+      name: 'weight',
+      ui: { x: 0, y: 100 },
+    }
     project.activities['triage']!.nodeOrder.push('w')
     const h = await harness(project)
     renderWith(h, <ActivityEditor activityId="triage" />)
@@ -1720,7 +1836,12 @@ describe('comments on the diagram', () => {
 
     const triage = h.open.document.snapshot().activities['triage']!
     expect(triage.ui?.comments).toEqual([
-      expect.objectContaining({ id: 'comment', text: 'Check the 9 kg threshold', color: 'pink', node: 'w' }),
+      expect.objectContaining({
+        id: 'comment',
+        text: 'Check the 9 kg threshold',
+        color: 'pink',
+        node: 'w',
+      }),
     ])
     // Not a node, not an edge: conversion never sees it.
     expect(Object.keys(triage.nodes)).toEqual(['s', 'w'])
@@ -1738,7 +1859,12 @@ describe('page groups', () => {
   it('adds a group, titles it through its concept, and ungroups keeping its nodes', async () => {
     const user = userEvent.setup()
     const project = seed()
-    project.activities['triage']!.nodes['q'] = { id: 'q', type: 'select_yesno', name: 'convulsions', ui: { x: 0, y: 100 } }
+    project.activities['triage']!.nodes['q'] = {
+      id: 'q',
+      type: 'select_yesno',
+      name: 'convulsions',
+      ui: { x: 0, y: 100 },
+    }
     project.activities['triage']!.nodeOrder.push('q')
     const h = await harness(project)
     renderWith(h, <ActivityEditor activityId="triage" />)
@@ -1753,7 +1879,9 @@ describe('page groups', () => {
     const snap = h.open.document.snapshot()
     const group = snap.activities['triage']!.groups![0]!
     expect(group).toMatchObject({ id: 'group', name: 'danger_signs', color: 'pink' })
-    expect(Object.values(snap.codeSystems)[0]!.concepts['danger_signs']?.display).toBe('Danger signs')
+    expect(Object.values(snap.codeSystems)[0]!.concepts['danger_signs']?.display).toBe(
+      'Danger signs',
+    )
 
     // Membership is what tricc_oo reads; dragging into the frame sets it (e2e). Here directly.
     h.open.document.transact((tx) => tx.setNodeGroup('triage', 'q', 'group', 10, 40))
@@ -1801,13 +1929,18 @@ describe('hint and help marks', () => {
     triage.nodeOrder.push('w', 'a')
     const h = await harness(project)
     renderWith(h, <ActivityEditor activityId="triage" />)
-    expect(screen.getByTestId('node-w-hint')).toHaveAttribute('title', 'Hint: Use a calibrated scale')
-    expect(screen.getByTestId('node-w-help')).toHaveAttribute('title', 'Help: Undress the child first')
+    expect(screen.getByTestId('node-w-hint')).toHaveAttribute(
+      'title',
+      'Hint: Use a calibrated scale',
+    )
+    expect(screen.getByTestId('node-w-help')).toHaveAttribute(
+      'title',
+      'Help: Undress the child first',
+    )
     expect(screen.queryByTestId('node-a-hint')).not.toBeInTheDocument()
     expect(screen.queryByTestId('node-a-help')).not.toBeInTheDocument()
   })
 })
-
 
 describe('breadcrumb trail', () => {
   it('resets from a list, grows through gotos and cuts back on a loop', () => {

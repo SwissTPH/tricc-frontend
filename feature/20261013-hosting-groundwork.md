@@ -1,13 +1,13 @@
 # Hosting groundwork: what the libraries change so a hosted platform can use them
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft |
-| **Repo** | `tricc_frontend` (libraries only). The platform itself lives in `../../tricc_platform/`, see [`../../tricc_platform/feature/20261013-hosted-platform.md`](../../tricc_platform/feature/20261013-hosted-platform.md). |
-| **Related** | `20260825-library-architecture.md` (ports, §5 "four lines"), `20260825-document-model.md` (§7 persistence and the file projection), `20261012-images.md` (images in the CRDT) |
-| **Source** | Patrick, 2026-10-13: an online app that keeps every project on a server and lets authors edit the same diagram together. Postgres for the data, auth reused from an existing product, Node and/or Python backend, Docker or Tilt packaging. |
+| Field         | Value                                                                                                                                                                                                                                                    |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**    | Draft                                                                                                                                                                                                                                                    |
+| **Repo**      | `tricc_frontend` (libraries only). The platform itself lives in `../../tricc_platform/`, see [`../../tricc_platform/feature/20261013-hosted-platform.md`](../../tricc_platform/feature/20261013-hosted-platform.md).                                     |
+| **Related**   | `20260825-library-architecture.md` (ports, §5 "four lines"), `20260825-document-model.md` (§7 persistence and the file projection), `20261012-images.md` (images in the CRDT)                                                                            |
+| **Source**    | Patrick, 2026-10-13: an online app that keeps every project on a server and lets authors edit the same diagram together. Postgres for the data, auth reused from an existing product, Node and/or Python backend, Docker or Tilt packaging.              |
 | **Decisions** | 2026-10-13: the platform is a **separate repo** (`../tricc_platform`), so this repo stays libraries plus the local app with no backend. Identity is **Keycloak** (OIDC). Images go through a **blob port**: Postgres first, S3-compatible storage later. |
-| **Approval** | — |
+| **Approval**  | —                                                                                                                                                                                                                                                        |
 
 ---
 
@@ -33,17 +33,17 @@ Nothing in this spec adds accounts, servers or network access to the local app.
 
 ### 1. What the code already provides (checked 2026-10-13)
 
-| Expectation | State |
-|---|---|
-| The document is a Yjs CRDT, edited only through `Mutations` | Yes, `document/doc.ts`, `document/mutations.ts` |
-| `ProjectDocument.applyUpdate` / `encodeState` | Yes, `document/doc.ts:106-111` |
-| Undo reverses only local edits | Yes, `document/undo.ts` (`trackedOrigins`) |
-| `CollaborationPort` | Defined in `ports/collaboration.ts`. `IndexedDbCollaboration` implements it, but **nothing calls `connect`**. |
-| Opening a project | `TriccRuntime.open` (`runtime.ts:57`) always builds the document from files with `ProjectDocument.fromProject` |
-| Capabilities, including `project.share` | Yes, `ports/identity.ts` |
-| Conformance suites | Persistence, catalog and identity. **No collaboration suite.** |
-| Images | Bytes inside the CRDT (`codec.ts` `imageToY` stores `data: Uint8Array`) |
-| Undo scope | **Leaves out the `images` map** (`undo.ts:15-26`), although `20261012-images.md` says undo covers images |
+| Expectation                                                 | State                                                                                                          |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| The document is a Yjs CRDT, edited only through `Mutations` | Yes, `document/doc.ts`, `document/mutations.ts`                                                                |
+| `ProjectDocument.applyUpdate` / `encodeState`               | Yes, `document/doc.ts:106-111`                                                                                 |
+| Undo reverses only local edits                              | Yes, `document/undo.ts` (`trackedOrigins`)                                                                     |
+| `CollaborationPort`                                         | Defined in `ports/collaboration.ts`. `IndexedDbCollaboration` implements it, but **nothing calls `connect`**.  |
+| Opening a project                                           | `TriccRuntime.open` (`runtime.ts:57`) always builds the document from files with `ProjectDocument.fromProject` |
+| Capabilities, including `project.share`                     | Yes, `ports/identity.ts`                                                                                       |
+| Conformance suites                                          | Persistence, catalog and identity. **No collaboration suite.**                                                 |
+| Images                                                      | Bytes inside the CRDT (`codec.ts` `imageToY` stores `data: Uint8Array`)                                        |
+| Undo scope                                                  | **Leaves out the `images` map** (`undo.ts:15-26`), although `20261012-images.md` says undo covers images       |
 
 So the claim in `20260825-library-architecture.md` §5, that a hosted shell replaces four lines, is
 not true yet. A hosted shell could swap the adapters, but `open` would still build the document from
@@ -55,9 +55,9 @@ files on every client, and that cannot work when several people share it (§3).
 
 ```ts
 interface ProjectImage {
-  id: string                 // unchanged: the name, `Binary/<id>` in texts
+  id: string // unchanged: the name, `Binary/<id>` in texts
   contentType: ImageContentType
-  sha256: string             // hex, of the stored bytes
+  sha256: string // hex, of the stored bytes
   size: number
 }
 ```
@@ -70,7 +70,7 @@ A replace still writes a new value (a new `sha256`).
 ```ts
 export interface BlobPort {
   readonly id: string
-  put(bytes: Uint8Array, contentType: string): Promise<string>   // returns sha256; idempotent
+  put(bytes: Uint8Array, contentType: string): Promise<string> // returns sha256; idempotent
   get(sha256: string): Promise<Uint8Array | undefined>
   has(sha256: string): Promise<boolean>
 }
@@ -86,6 +86,7 @@ export interface BlobPort {
 - `adapters-memory` gets an in-memory one for tests.
 
 **Files are unchanged.**
+
 - `writeProject` gets the bytes through a resolver (`(sha) => Uint8Array`), and still writes
   `<media_path>/images/<id>.<ext>`.
 - `readProject` hashes each image file and returns the bytes next to the project, so the caller

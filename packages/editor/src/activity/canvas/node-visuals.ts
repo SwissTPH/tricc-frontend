@@ -44,6 +44,8 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   activity_end: V('terminator', 'flow', '■', true, false),
   end: V('terminator', 'flow', '■', true, false),
   goto: V('rounded', 'flow', '↪'),
+  block_start: V('terminator', 'flow', '▶', false, true),
+  block: V('rounded', 'flow', '⧉'),
   link_in: V('rounded', 'flow', '⇥', false, true),
   link_out: V('rounded', 'flow', '↦', true, false),
   bridge: V('junction', 'flow', '＋'),

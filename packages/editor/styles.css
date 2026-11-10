@@ -7,19 +7,7 @@
  */
 
 .tricc-editor {
-  --tricc-flow: #64748b;
-  --tricc-flow-bg: #f1f5f9;
-  --tricc-question: #2563eb;
-  --tricc-question-bg: #eff6ff;
-  --tricc-logic: #b45309;
-  --tricc-logic-bg: #fffbeb;
-  --tricc-data: #7c3aed;
-  --tricc-data-bg: #f5f3ff;
-  --tricc-clinical: #be123c;
-  --tricc-clinical-bg: #fff1f2;
-  --tricc-error: #dc2626;
-  --tricc-warning: #d97706;
-
+  /* Colours: the --tricc-* tokens on :root (editor src/theme/tokens.ts). */
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -30,7 +18,7 @@
     -apple-system,
     'Segoe UI',
     sans-serif;
-  color: #0f172a;
+  color: var(--tricc-text);
 }
 
 .tricc-editor__header {
@@ -38,7 +26,7 @@
   align-items: center;
   gap: 12px;
   padding: 8px 16px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--tricc-border);
   flex: 0 0 auto;
 }
 
@@ -63,8 +51,9 @@
 
 .tricc-editor__body {
   display: grid;
-  /* Canvas and the right-hand inspector. Add a node lives in the Nodes tab. */
-  grid-template-columns: minmax(0, 1fr) 320px;
+  position: relative;
+  /* Canvas and the right-hand inspector (see the side panel section). */
+  grid-template-columns: minmax(0, 1fr) var(--tricc-panel-current);
   grid-template-areas: 'canvas inspector';
   flex: 1 1 auto;
   min-height: 0;
@@ -78,14 +67,14 @@
   padding: 12px;
   min-height: 0;
   grid-area: inspector;
-  border-left: 1px solid #e2e8f0;
-  background: #fafafa;
+  border-left: 1px solid var(--tricc-border);
+  background: var(--tricc-subtle);
 }
 
 .tricc-palette {
   margin: 0 0 12px;
   padding: 0 0 12px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--tricc-border);
 }
 
 .tricc-palette h2,
@@ -93,7 +82,7 @@
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
+  color: var(--tricc-text-muted);
   margin: 0 0 8px;
 }
 
@@ -109,7 +98,7 @@
 .tricc-palette__group legend {
   font-size: 11px;
   text-transform: uppercase;
-  color: #94a3b8;
+  color: var(--tricc-text-faint);
   padding: 0 0 4px;
 }
 
@@ -117,23 +106,23 @@
   margin: -4px 0 10px;
   font-size: 12px;
   line-height: 1.35;
-  color: #64748b;
+  color: var(--tricc-text-muted);
 }
 
 .tricc-palette__group button {
   font-size: 12px;
   padding: 3px 7px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--tricc-border-strong);
   border-radius: 5px;
-  background: #fff;
+  background: var(--tricc-surface);
   cursor: grab;
   user-select: none;
   touch-action: none;
 }
 
 .tricc-palette__group button:hover {
-  border-color: #94a3b8;
-  background: #f8fafc;
+  border-color: var(--tricc-border-strong);
+  background: var(--tricc-subtle);
 }
 
 .tricc-palette__group button:active {
@@ -146,12 +135,12 @@
   transform: translate(-50%, -50%);
   pointer-events: none;
   padding: 4px 8px;
-  border: 1px solid #0f172a;
+  border: 1px solid var(--tricc-text);
   border-radius: 5px;
-  background: #fff;
+  background: var(--tricc-surface);
   font-size: 12px;
   font-weight: 600;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.16);
+  box-shadow: var(--tricc-shadow-md);
 }
 
 /* ---------------------------------------------------------------- canvas */
@@ -161,19 +150,19 @@
   position: relative;
   min-height: 0;
   min-width: 0;
-  background: #fff;
+  background: var(--tricc-surface);
 }
 
 .tricc-marquee {
   position: absolute;
   z-index: 5;
-  border: 1px solid #2563eb;
-  background: rgb(37 99 235 / 12%);
+  border: 1px solid var(--tricc-primary);
+  background: var(--tricc-primary-soft-strong);
   pointer-events: none;
 }
 
 .tricc-canvas[data-dropping='true'] {
-  box-shadow: inset 0 0 0 2px #0f172a;
+  box-shadow: inset 0 0 0 2px var(--tricc-text);
 }
 
 .tricc-branch-modal {
@@ -183,15 +172,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(15 23 42 / 0.35);
+  background: var(--tricc-backdrop);
 }
 
 .tricc-branch-modal__card {
   width: min(22rem, calc(100% - 32px));
   padding: 16px;
   border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 12px 40px rgb(15 23 42 / 0.2);
+  background: var(--tricc-surface);
+  box-shadow: var(--tricc-shadow-lg);
 }
 
 .tricc-branch-modal__card h2 {
@@ -202,7 +191,7 @@
 .tricc-branch-modal__card p {
   margin: 0 0 14px;
   font-size: 13px;
-  color: #475569;
+  color: var(--tricc-text-muted);
 }
 
 .tricc-branch-modal__choices {
@@ -214,28 +203,28 @@
   font-size: 13px;
   padding: 6px 12px;
   border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  background: #fff;
+  border: 1px solid var(--tricc-border-strong);
+  background: var(--tricc-surface);
   cursor: pointer;
 }
 
 .tricc-branch-modal__choices button:hover {
-  background: #f8fafc;
+  background: var(--tricc-subtle);
 }
 
 .tricc-branch-modal__choices button:focus-visible {
-  outline: 2px solid #0f172a;
+  outline: 2px solid var(--tricc-text);
   outline-offset: 2px;
 }
 
 .tricc-branch-modal__choices button[data-testid='branch-choice-yes'] {
-  border-color: #16a34a;
-  color: #15803d;
+  border-color: var(--tricc-success);
+  color: var(--tricc-success-text);
 }
 
 .tricc-branch-modal__choices button[data-testid='branch-choice-no'] {
-  border-color: #dc2626;
-  color: #b91c1c;
+  border-color: var(--tricc-error);
+  color: var(--tricc-error-text);
 }
 
 .tricc-branch-modal__cancel {
@@ -251,87 +240,329 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(15 23 42 / 0.35);
+  background: var(--tricc-backdrop);
 }
 
 .tricc-library-modal__card {
   width: min(22rem, calc(100% - 32px));
+  /* A long dialog (settings with parameters) scrolls inside; its header stays in reach. */
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   padding: 16px;
   border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 12px 40px rgb(15 23 42 / 0.2);
+  background: var(--tricc-surface);
+  box-shadow: var(--tricc-shadow-lg);
 }
 
 .tricc-library-modal__card--wide {
   width: min(28rem, calc(100% - 32px));
 }
 
-/* --------------------------------------------------------- intervention cards */
+/* ------------------------------------------------- project overview (layer -1) */
 
-.tricc-intervention-grid {
+/* The table on the left, the Info / Discussion / Validation panel on the right. */
+.tricc-overview {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
-  gap: 12px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.tricc-intervention-card {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #fff;
-}
-
-.tricc-intervention-card__header {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.tricc-intervention-card h3 {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) var(--tricc-panel-current);
   flex: 1 1 auto;
+  min-height: 0;
+}
+.tricc-overview__main {
   min-width: 0;
-  margin: 0;
-  font-size: 15px;
+  overflow-y: auto;
+  padding: 16px 24px 32px;
+}
+.tricc-overview__panel {
+  grid-area: auto;
+}
+@media (max-width: 899.98px) {
+  .tricc-overview__main {
+    padding-inline: 16px calc(16px + 32px);
+  }
 }
 
-.tricc-intervention-card > p {
+/* ------------------------------------------------------------ side panel */
+
+/*
+ * The right-hand panel of the flow and project pages (SidePanel.tsx, RFC #9). Its width is
+ * 20% of the window and never under the page's minimum, until the author drags its edge
+ * (--tricc-panel-width). Collapsed, it is a 32px rail with the open button.
+ */
+.tricc-editor__body,
+.tricc-overview {
+  --tricc-panel-min: 340px; /* PANEL_MIN in SidePanel.tsx */
+  --tricc-panel-current: var(--tricc-panel-width, max(20vw, var(--tricc-panel-min)));
+}
+.tricc-editor__body[data-panel='collapsed'],
+.tricc-overview[data-panel='collapsed'] {
+  --tricc-panel-current: 32px;
+}
+
+.tricc-panel-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: calc(var(--tricc-panel-current) - 3px);
+  width: 6px;
+  z-index: 6;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+  transition: background 0.12s;
+}
+.tricc-panel-resizer:hover,
+.tricc-panel-resizer:focus-visible,
+body[data-panel-resizing] .tricc-panel-resizer {
+  background: var(--tricc-primary);
+  outline: none;
+}
+body[data-panel-resizing] {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.tricc-inspector[data-collapsed] {
+  padding: 8px 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.tricc-panel-toggle {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
   margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--tricc-text-muted);
+  cursor: pointer;
+}
+.tricc-panel-toggle:hover,
+.tricc-panel-toggle:focus-visible {
+  border-color: var(--tricc-border-strong);
+  background: var(--tricc-surface);
+  color: var(--tricc-text);
+}
+.tricc-panel-toggle__dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tricc-primary);
+}
+
+/* Under 900px an open panel covers the main area, like on a phone; collapsed, it is a rail. */
+@media (max-width: 899.98px) {
+  .tricc-editor__body,
+  .tricc-overview {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'canvas';
+  }
+  .tricc-editor__body > .tricc-inspector,
+  .tricc-overview > .tricc-inspector {
+    grid-area: auto;
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+  }
+  .tricc-editor__body > .tricc-inspector[data-collapsed],
+  .tricc-overview > .tricc-inspector[data-collapsed] {
+    left: auto;
+    width: 32px;
+  }
+  .tricc-panel-resizer {
+    display: none;
+  }
+}
+.tricc-overview__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 4px 0 16px;
+  color: var(--tricc-text-muted);
+}
+.tricc-overview__label {
+  padding: 0 8px;
+  border: 1px solid var(--tricc-border-strong);
+  border-radius: 999px;
   font-size: 12px;
-  color: #475569;
 }
-
-.tricc-process-rows {
+.tricc-overview__interventions {
+  margin-top: 16px;
+}
+.tricc-overview__about {
+  margin: 4px 0 8px;
+  color: var(--tricc-text-muted);
+}
+.tricc-overview__info h3 {
+  margin: 12px 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tricc-text-muted);
+}
+.tricc-overview__info ul {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
-
-.tricc-process-row {
+.tricc-overview__info li {
   display: flex;
   align-items: center;
-  gap: 4px;
-  min-width: 0;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--tricc-border);
+}
+.tricc-overview__info li > .tricc-icon {
+  color: var(--tricc-text-muted);
+}
+.tricc-overview__info-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tricc-primary-text);
+  cursor: pointer;
+  text-align: left;
+}
+.tricc-overview__info-link:hover {
+  text-decoration: underline;
+}
+.tricc-overview__info-count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.tricc-overview__info dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+.tricc-overview__info dt {
+  color: var(--tricc-text-muted);
+}
+.tricc-overview__info dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
-.tricc-process-row__actions {
+/* Segments of an intervention: sub-rows of its table row. */
+.tricc-segment-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0 0 4px 0;
+  list-style: none;
+  counter-reset: segment;
+}
+.tricc-segment-rows > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 3px 8px;
+  border-left: 2px solid var(--tricc-primary-soft-strong);
+}
+ol.tricc-segment-rows > li::before {
+  counter-increment: segment;
+  content: counter(segment);
+  min-width: 1.5em;
+  color: var(--tricc-text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.tricc-segment-rows code {
+  color: var(--tricc-text-muted);
+  font-size: 12px;
+}
+.tricc-segment-rows__title {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tricc-primary-text);
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.tricc-segment-rows__title:hover {
+  text-decoration: underline;
+}
+.tricc-segment-rows__empty {
+  color: var(--tricc-text-muted);
+  font-style: italic;
+}
+
+/* A segment listed by more than one intervention. */
+.tricc-nav__shared {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--tricc-secondary-soft);
+  color: var(--tricc-secondary-text);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* The ordered segment list of the intervention editor. */
+.tricc-iv-segments .tricc-segment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.tricc-segment-list__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid var(--tricc-border);
+  border-radius: 6px;
+  background: var(--tricc-surface);
+}
+.tricc-segment-list__index {
+  min-width: 1.5em;
+  color: var(--tricc-text-faint);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.tricc-segment-list__title {
+  flex: 1 1 auto;
+  font-size: 14px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tricc-primary-text);
+  font-weight: 600;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tricc-segment-list__actions {
   display: inline-flex;
   flex: 0 0 auto;
-  gap: 4px;
+  gap: 2px;
 }
-
-.tricc-intervention-card__add {
-  align-self: flex-start;
+.tricc-intervention__labels,
+.tricc-project-settings__labels {
+  margin: 12px 0 4px;
 }
 
 .tricc-chip {
@@ -343,9 +574,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 3px 8px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--tricc-border-strong);
   border-radius: 5px;
-  background: #fff;
+  background: var(--tricc-surface);
   color: inherit;
   font: inherit;
   font-size: 12px;
@@ -354,7 +585,7 @@
 }
 
 .tricc-chip[data-kind='process'] {
-  border-color: #0f172a;
+  border-color: var(--tricc-text);
   font-weight: 600;
 }
 
@@ -373,13 +604,13 @@
 
 .tricc-import-list li {
   padding: 6px 0;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--tricc-border);
   font-size: 13px;
 }
 
 .tricc-import-list li span {
   display: block;
-  color: #64748b;
+  color: var(--tricc-text-muted);
   font-size: 12px;
 }
 
@@ -389,6 +620,12 @@
 }
 
 .tricc-library-modal__header {
+  position: sticky;
+  top: -16px;
+  z-index: 1;
+  padding: 16px 0 4px;
+  margin-top: -16px !important;
+  background: var(--tricc-surface);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -410,7 +647,7 @@
 .tricc-library-modal__card label {
   display: block;
   font-size: 12px;
-  color: #64748b;
+  color: var(--tricc-text-muted);
 }
 
 /* Text fields are shadcn inputs and bring their own look; this styles what is left. */
@@ -419,17 +656,41 @@
   width: 100%;
   margin-top: 4px;
   padding: 6px 8px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--tricc-border-strong);
   border-radius: 6px;
   font: inherit;
   font-size: 14px;
-  color: #0f172a;
+  color: var(--tricc-text);
+}
+
+/* New segment: the process picker matches the text fields around it. */
+.tricc-segment-form label {
+  display: block;
+  margin-top: 8px;
+}
+
+.tricc-segment-form select {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--tricc-border-strong);
+  border-radius: 6px;
+  background: var(--tricc-surface);
+  color: var(--tricc-text);
+  font: inherit;
+}
+
+.tricc-segment-form select:focus-visible {
+  outline: 2px solid var(--tricc-focus);
+  outline-offset: 2px;
 }
 
 .tricc-library-modal__id {
   margin: 8px 0 0;
   font-size: 12px;
-  color: #64748b;
+  color: var(--tricc-text-muted);
 }
 
 .tricc-library-modal__actions {
@@ -438,8 +699,9 @@
   margin-top: 14px;
 }
 
-.tricc-library-modal__card input:where(:not([data-slot='input'])):focus-visible {
-  outline: 2px solid #0f172a;
+.tricc-library-modal__card
+  input:where(:not([data-slot='input'], .MuiInputBase-input)):focus-visible {
+  outline: 2px solid var(--tricc-focus);
   outline-offset: 2px;
 }
 
@@ -459,8 +721,8 @@
   width: 200px;
   min-height: 48px;
   padding: 8px 10px;
-  border: 1.5px solid var(--group-colour, #94a3b8);
-  background: var(--group-bg, #fff);
+  border: 1.5px solid var(--group-colour, var(--tricc-border-strong));
+  background: var(--group-bg, var(--tricc-surface));
   font-size: 12px;
   position: relative;
 }
@@ -550,7 +812,7 @@
 }
 .tricc-node--diamond::after {
   inset: var(--diamond-stroke-width);
-  background: var(--group-bg, #fff);
+  background: var(--group-bg, var(--tricc-surface));
 }
 .tricc-node--diamond .tricc-node__label {
   -webkit-line-clamp: min(var(--tricc-label-lines, 3), 2);
@@ -558,7 +820,7 @@
 }
 .tricc-node.tricc-node--diamond.is-selected {
   outline: none;
-  --diamond-stroke: #0f172a;
+  --diamond-stroke: var(--tricc-text);
   --diamond-stroke-width: 3px;
 }
 .tricc-node.tricc-node--diamond.has-error {
@@ -574,7 +836,7 @@
   border-radius: 4px;
   border-style: solid;
   border-width: 1.5px;
-  box-shadow: inset 0 0 0 2px #fff;
+  box-shadow: inset 0 0 0 2px var(--tricc-surface);
 }
 .tricc-node--junction {
   border-radius: 50%;
@@ -589,7 +851,7 @@
 }
 
 .tricc-node.is-selected {
-  outline: 2px solid #0f172a;
+  outline: 2px solid var(--tricc-text);
   outline-offset: 2px;
 }
 
@@ -634,7 +896,7 @@
 
 .tricc-node__code {
   font-size: 10px;
-  color: #64748b;
+  color: var(--tricc-text-muted);
   font-family: ui-monospace, monospace;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -660,9 +922,9 @@
   align-items: center;
   gap: 6px;
   padding-top: 4px;
-  border-top: 1px solid color-mix(in srgb, var(--group-colour) 35%, white);
+  border-top: 1px solid color-mix(in srgb, var(--group-colour) 35%, var(--tricc-surface));
   font-size: 11px;
-  color: #334155;
+  color: var(--tricc-text);
 }
 
 .tricc-node__radio {
@@ -684,7 +946,7 @@
   list-style: none;
   margin: 0;
   padding: 4px 0 0;
-  border-top: 1px solid color-mix(in srgb, var(--group-colour) 35%, white);
+  border-top: 1px solid color-mix(in srgb, var(--group-colour) 35%, var(--tricc-surface));
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -713,51 +975,51 @@
   line-height: 1;
   padding: 2px 3px;
   border-radius: 3px;
-  background: #e2e8f0;
-  color: #475569;
+  background: var(--tricc-border);
+  color: var(--tricc-text-muted);
 }
 
 .tricc-node__follow {
   display: inline-flex;
   align-items: center;
   padding: 2px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--tricc-border-strong);
   border-radius: 3px;
-  background: #fff;
-  color: #1d4ed8;
+  background: var(--tricc-surface);
+  color: var(--tricc-primary-text);
   cursor: pointer;
 }
 .tricc-node__follow:hover,
 .tricc-node__follow:focus-visible {
-  background: #eff6ff;
+  background: var(--tricc-primary-soft);
 }
 
 .tricc-badge--error {
   background: var(--tricc-error);
-  color: #fff;
+  color: var(--tricc-on-primary);
 }
 .tricc-badge--warning {
   background: var(--tricc-warning);
-  color: #fff;
+  color: var(--tricc-on-primary);
 }
 
 /* ---------------------------------------------------------------- edges */
 
 .tricc-edge {
-  stroke: #94a3b8;
+  stroke: var(--tricc-border-strong);
   stroke-width: 1.5;
 }
 .tricc-edge--yes {
-  stroke: #16a34a;
+  stroke: var(--tricc-success);
 }
 .tricc-edge--no {
-  stroke: #dc2626;
+  stroke: var(--tricc-error);
 }
 .tricc-edge--score {
-  stroke: #b45309;
+  stroke: var(--tricc-warning-text);
 }
 .tricc-edge--condition {
-  stroke: #2563eb;
+  stroke: var(--tricc-primary);
 }
 .tricc-edge.is-selected {
   stroke-width: 2.5;
@@ -765,25 +1027,28 @@
 
 .tricc-edge__label {
   position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 10px;
   padding: 1px 5px;
   border-radius: 3px;
-  background: #fff;
-  border: 1px solid #cbd5e1;
+  background: var(--tricc-surface);
+  border: 1px solid var(--tricc-border-strong);
   pointer-events: all;
 }
 
 .tricc-edge__label--yes {
-  border-color: #16a34a;
-  color: #15803d;
+  border-color: var(--tricc-success);
+  color: var(--tricc-success-text);
 }
 .tricc-edge__label--no {
-  border-color: #dc2626;
-  color: #b91c1c;
+  border-color: var(--tricc-error);
+  color: var(--tricc-error-text);
 }
 .tricc-edge__label--condition {
-  border-color: #2563eb;
-  color: #1d4ed8;
+  border-color: var(--tricc-primary);
+  color: var(--tricc-primary-text);
   font-family: ui-monospace, monospace;
 }
 
@@ -792,7 +1057,7 @@
 .tricc-inspector label {
   display: block;
   font-size: 11px;
-  color: #64748b;
+  color: var(--tricc-text-muted);
   margin: 8px 0 2px;
 }
 
@@ -801,7 +1066,7 @@
   width: 100%;
   box-sizing: border-box;
   padding: 4px 6px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--tricc-border-strong);
   border-radius: 4px;
   font: inherit;
   font-size: 12px;
@@ -824,14 +1089,14 @@
   margin: 0 2px;
   padding: 0 4px 0 6px;
   border-radius: 999px;
-  background: #e0e7ff;
-  color: #312e81;
+  background: var(--tricc-syntax-name-bg);
+  color: var(--tricc-syntax-name-text);
   font-weight: 600;
 }
 
 .tricc-cql__name--unknown {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--tricc-error-soft);
+  color: var(--tricc-error-text);
 }
 
 .tricc-cql__about {
@@ -841,14 +1106,17 @@
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: #fff;
+  background: var(--tricc-surface);
   color: inherit;
-  font: italic 11px/16px ui-sans-serif, system-ui, sans-serif;
+  font:
+    italic 11px/16px ui-sans-serif,
+    system-ui,
+    sans-serif;
   cursor: pointer;
 }
 
 .tricc-cql__about:focus-visible {
-  outline: 2px solid #0f172a;
+  outline: 2px solid var(--tricc-text);
   outline-offset: 1px;
 }
 
@@ -856,13 +1124,13 @@
   display: block;
   margin-top: 4px;
   padding: 8px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--tricc-border-strong);
   border-radius: 8px;
-  background: #fff;
-  color: #0f172a;
+  background: var(--tricc-surface);
+  color: var(--tricc-text);
   font-weight: 400;
   white-space: normal;
-  box-shadow: 0 8px 24px rgb(15 23 42 / 0.12);
+  box-shadow: var(--tricc-shadow-md);
 }
 
 .tricc-cql__card strong,
@@ -875,25 +1143,25 @@
 }
 
 .tricc-cql__keyword {
-  color: #1d4ed8;
+  color: var(--tricc-syntax-keyword);
   font-weight: 600;
 }
 
 .tricc-cql__function {
-  color: #7c3aed;
+  color: var(--tricc-syntax-function);
   font-weight: 600;
 }
 
 .tricc-cql__number {
-  color: #0f766e;
+  color: var(--tricc-syntax-number);
 }
 
 .tricc-cql__operator {
-  color: #334155;
+  color: var(--tricc-syntax-operator);
 }
 
 .tricc-cql__error {
-  text-decoration: underline wavy #dc2626;
+  text-decoration: underline wavy var(--tricc-error);
 }
 
 .tricc-cql__lint {
@@ -902,29 +1170,40 @@
 
 .tricc-inspector input:where(:not([data-slot='input'])):disabled,
 .tricc-inspector select:disabled {
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--tricc-subtle);
+  color: var(--tricc-text-muted);
 }
 
-.tricc-inspector__tabs {
+.tricc-inspector__bar {
   display: flex;
+  align-items: center;
+  gap: 6px;
   position: sticky;
   top: -12px;
   z-index: 1;
   margin: -12px -12px 12px;
-  padding: 8px 12px;
-  background: #fafafa;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 8px 12px 8px 6px;
+  background: var(--tricc-subtle);
+  border-bottom: 1px solid var(--tricc-border);
+}
+
+/* Each tab keeps its full name; when they do not all fit, the row scrolls sideways. */
+.tricc-inspector__tabs {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .tricc-inspector__tabs button {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 1 0 auto;
+  white-space: nowrap;
   margin: 0;
-  padding: 5px 4px;
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  color: #334155;
+  padding: 5px 6px;
+  border: 1px solid var(--tricc-border-strong);
+  background: var(--tricc-surface);
+  color: var(--tricc-text);
   font: inherit;
   font-size: 12px;
   line-height: 1.2;
@@ -946,9 +1225,9 @@
 .tricc-inspector__tabs button[aria-selected='true'] {
   position: relative;
   z-index: 1;
-  background: #0f172a;
-  color: #fff;
-  border-color: #0f172a;
+  background: var(--tricc-primary);
+  color: var(--tricc-on-primary);
+  border-color: var(--tricc-primary);
 }
 
 .tricc-inspector__count {
@@ -958,13 +1237,13 @@
 }
 
 .tricc-inspector__tabs button[aria-selected='true'] .tricc-inspector__count {
-  color: #cbd5e1;
+  color: var(--tricc-border-strong);
 }
 
 .tricc-validation > p {
   margin: 0 0 8px;
   font-size: 12px;
-  color: #64748b;
+  color: var(--tricc-text-muted);
 }
 
 .tricc-inspector section {
@@ -983,10 +1262,10 @@
 }
 
 .tricc-inspector li[data-severity='error'] {
-  color: #b91c1c;
+  color: var(--tricc-error-text);
 }
 .tricc-inspector li[data-severity='warning'] {
-  color: #b45309;
+  color: var(--tricc-warning-text);
 }
 
 .tricc-node-list button,
@@ -996,7 +1275,7 @@
   padding: 2px 0;
   font: inherit;
   font-size: 12px;
-  color: #2563eb;
+  color: var(--tricc-primary);
   cursor: pointer;
   text-align: left;
 }
@@ -1004,7 +1283,7 @@
 .tricc-node-list button[aria-current='true'],
 .tricc-edge-list button[aria-current='true'] {
   font-weight: 600;
-  color: #0f172a;
+  color: var(--tricc-text);
 }
 
 /* ---------------------------------------------------------------- typeahead */
@@ -1024,10 +1303,10 @@
   list-style: none;
   max-height: 220px;
   overflow-y: auto;
-  background: #fff;
-  border: 1px solid #cbd5e1;
+  background: var(--tricc-surface);
+  border: 1px solid var(--tricc-border-strong);
   border-radius: 6px;
-  box-shadow: 0 6px 18px rgb(15 23 42 / 12%);
+  box-shadow: var(--tricc-shadow-md);
 }
 
 .tricc-typeahead__list li {
@@ -1040,17 +1319,17 @@
 }
 
 .tricc-typeahead__list li.is-highlighted {
-  background: #eff6ff;
+  background: var(--tricc-primary-soft);
 }
 
 .tricc-typeahead__empty {
-  color: #64748b;
+  color: var(--tricc-text-muted);
   cursor: default;
 }
 
 .tricc-typeahead__hint {
   font-size: 10px;
-  color: #64748b;
+  color: var(--tricc-text-muted);
   font-family: ui-monospace, monospace;
 }
 
@@ -1060,19 +1339,19 @@
   letter-spacing: 0.04em;
   padding: 2px 6px;
   border-radius: 3px;
-  background: #e2e8f0;
-  color: #475569;
+  background: var(--tricc-border);
+  color: var(--tricc-text-muted);
 }
 .tricc-editor__kind[data-kind='process'] {
-  background: #0f172a;
-  color: #fff;
+  background: var(--tricc-primary);
+  color: var(--tricc-on-primary);
 }
 .tricc-editor__process {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  color: #64748b;
+  color: var(--tricc-text-muted);
 }
 .tricc-ref-field {
   margin: 8px 0;
@@ -1080,28 +1359,28 @@
 .tricc-ref-field__label {
   display: block;
   font-size: 11px;
-  color: #64748b;
+  color: var(--tricc-text-muted);
   margin-bottom: 2px;
 }
 .tricc-ref-field__value {
   display: inline-block;
   padding: 2px 6px;
   border-radius: 3px;
-  background: #e2e8f0;
+  background: var(--tricc-border);
   font-size: 12px;
   margin-right: 6px;
 }
 .tricc-ref-field__missing {
-  color: #b91c1c;
+  color: var(--tricc-error-text);
 }
 
 /* Root node: the start node is the activity, so Details shows the activity and its gear. */
 .tricc-activity-summary {
-  border: 1px solid #d6dee6;
+  border: 1px solid var(--tricc-border);
   border-radius: 6px;
   padding: 8px 10px;
   margin-bottom: 12px;
-  background: #f6f9fb;
+  background: var(--tricc-subtle);
 }
 .tricc-activity-summary p {
   margin: 0 0 6px;
@@ -1131,7 +1410,7 @@
 }
 .tricc-called-by p {
   margin: 0;
-  color: #64748b;
+  color: var(--tricc-text-muted);
 }
 
 /* Data dictionary: the navigator tab, the concept page, and the card on a node. */
@@ -1166,12 +1445,12 @@
   text-align: left;
   background: none;
   border: 0;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--tricc-border);
   padding: 4px 2px;
   cursor: pointer;
 }
 .tricc-dictionary__row[aria-current='true'] {
-  background: #eef4fa;
+  background: var(--tricc-subtle);
 }
 .tricc-dictionary__code {
   font-family: ui-monospace, monospace;
@@ -1184,23 +1463,46 @@
   min-height: 0;
   overflow-y: auto;
 }
-.tricc-concept__body {
+/* A form as rows of name | control (the concept page, Preferences). Headings, notes and tables
+   span both columns; under 900px the columns stack. */
+.tricc-form-grid {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 6px 12px;
   padding: 12px 16px;
   align-items: start;
 }
-.tricc-concept__body > p,
-.tricc-concept__body > h2,
-.tricc-concept__body > table,
-.tricc-concept__body > ul {
+.tricc-form-grid > p,
+.tricc-form-grid > h2,
+.tricc-form-grid > table,
+.tricc-form-grid > ul {
   grid-column: 1 / -1;
   margin: 0;
 }
-.tricc-concept__body > h2 {
+.tricc-form-grid > h2 {
   font-size: 14px;
   margin-top: 8px;
+}
+/* The explanation of a row, under its control. */
+.tricc-form-grid__hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--tricc-text-muted);
+}
+.tricc-form-grid__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.tricc-form-grid__summary > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 899.98px) {
+  .tricc-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .tricc-concept__texts {
   width: 100%;
@@ -1215,11 +1517,11 @@
   width: 100%;
 }
 .tricc-concept-card {
-  border: 1px solid #d6dee6;
+  border: 1px solid var(--tricc-border);
   border-radius: 6px;
   padding: 8px 10px;
   margin: 8px 0;
-  background: #f6f9fb;
+  background: var(--tricc-subtle);
   display: grid;
   gap: 4px;
 }
@@ -1244,15 +1546,15 @@
   min-width: 0;
 }
 .tricc-rich {
-  border: 1px solid #c9d3dd;
+  border: 1px solid var(--tricc-border-strong);
   border-radius: 4px;
-  background: #fff;
+  background: var(--tricc-surface);
 }
 .tricc-rich__bar {
   display: flex;
   gap: 2px;
   padding: 2px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--tricc-border);
   flex-wrap: wrap;
 }
 .tricc-rich__bar button {
@@ -1260,7 +1562,7 @@
   padding: 0 6px;
 }
 .tricc-rich__bar button[aria-pressed='true'] {
-  background: #dce8f4;
+  background: var(--tricc-primary-soft-strong);
 }
 .tricc-rich__content .ProseMirror {
   min-height: 2.5em;
@@ -1278,8 +1580,8 @@
 .tricc-interp {
   font-family: ui-monospace, monospace;
   font-size: 0.9em;
-  background: #eef4fa;
-  border: 1px solid #c9d8e8;
+  background: var(--tricc-subtle);
+  border: 1px solid var(--tricc-border-strong);
   border-radius: 3px;
   padding: 0 2px;
 }
@@ -1312,13 +1614,13 @@
 .tricc-dictionary__table th {
   position: sticky;
   top: 0;
-  background: #fff;
+  background: var(--tricc-surface);
   text-align: left;
-  border-bottom: 1px solid #c9d3dd;
+  border-bottom: 1px solid var(--tricc-border-strong);
   padding: 6px 8px;
 }
 .tricc-dictionary__table td {
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--tricc-border);
   padding: 6px 8px;
   vertical-align: top;
   overflow-wrap: anywhere;
@@ -1328,12 +1630,12 @@
 }
 .tricc-dictionary__table tbody tr:hover,
 .tricc-dictionary__table tbody tr:focus {
-  background: #eef4fa;
+  background: var(--tricc-subtle);
   outline: none;
 }
 .tricc-nav__note {
   margin: 6px 0;
-  color: #4a5868;
+  color: var(--tricc-text-muted);
 }
 /* The concept dialog: one form, long enough to scroll inside the modal. */
 .tricc-concept-dialog {
@@ -1348,7 +1650,7 @@
   grid-column: 1 / -1;
   position: sticky;
   bottom: 0;
-  background: #fff;
+  background: var(--tricc-surface);
   padding-top: 8px;
 }
 .tricc-concept-dialog h3 {
@@ -1363,9 +1665,9 @@
   min-width: 0;
   min-height: 1.6em;
   padding: 3px 6px;
-  border: 1px solid #c9d3dd;
+  border: 1px solid var(--tricc-border-strong);
   border-radius: 4px;
-  background: #f8fafc;
+  background: var(--tricc-subtle);
 }
 .tricc-rich__preview ul,
 .tricc-rich__preview ol {
@@ -1417,57 +1719,81 @@
 
 /* Comments: sticky notes for authors, drawn but never converted. */
 .tricc-comment {
+  position: relative;
   width: 180px;
   min-height: 48px;
   padding: 8px 10px;
   font-size: 12px;
   line-height: 1.35;
   border-radius: 2px;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.18);
+  box-shadow: var(--tricc-shadow-sm);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-style: italic;
-  color: #2b2b2b;
+  color: var(--tricc-sticky-text);
 }
 .tricc-comment.is-selected {
-  outline: 2px solid #1565c0;
+  outline: 2px solid var(--tricc-primary);
   outline-offset: 1px;
 }
-.tricc-comment--yellow { background: #fff6b3; }
-.tricc-comment--blue { background: #d6e8fb; }
-.tricc-comment--green { background: #d8f0d4; }
-.tricc-comment--pink { background: #fbd9e3; }
-.tricc-comment--grey { background: #e6e9ed; }
+.tricc-comment--yellow {
+  background: var(--tricc-swatch-yellow);
+}
+.tricc-comment--blue {
+  background: var(--tricc-swatch-blue);
+}
+.tricc-comment--green {
+  background: var(--tricc-swatch-green);
+}
+.tricc-comment--pink {
+  background: var(--tricc-swatch-pink);
+}
+.tricc-comment--grey {
+  background: var(--tricc-swatch-grey);
+}
 .tricc-comment__text:empty::before {
-  content: 'Comment';
+  content: 'Sticky note';
   opacity: 0.5;
 }
 .tricc-edge--about path {
-  stroke: #8a96a3;
+  stroke: var(--tricc-border-strong);
   stroke-dasharray: 4 4;
 }
 
 /* Page groups: a titled frame behind its nodes; a section of the form once converted. */
 .tricc-group {
+  position: relative;
   width: 100%;
   height: 100%;
-  border: 1.5px dashed #7d8b99;
+  border: 1.5px dashed var(--tricc-text-faint);
   border-radius: 6px;
-  background: rgb(230 233 237 / 0.35);
+  background: var(--tricc-swatch-grey-frame);
 }
 .tricc-group.is-selected {
   border-style: solid;
-  border-color: #1565c0;
+  border-color: var(--tricc-primary);
 }
-.tricc-group--yellow { background: rgb(255 246 179 / 0.35); border-color: #c9b33b; }
-.tricc-group--blue { background: rgb(214 232 251 / 0.4); border-color: #5b8cc4; }
-.tricc-group--green { background: rgb(216 240 212 / 0.4); border-color: #5f9a56; }
-.tricc-group--pink { background: rgb(251 217 227 / 0.4); border-color: #c46b86; }
+.tricc-group--yellow {
+  background: var(--tricc-swatch-yellow-frame);
+  border-color: var(--tricc-swatch-yellow-edge);
+}
+.tricc-group--blue {
+  background: var(--tricc-swatch-blue-frame);
+  border-color: var(--tricc-swatch-blue-edge);
+}
+.tricc-group--green {
+  background: var(--tricc-swatch-green-frame);
+  border-color: var(--tricc-swatch-green-edge);
+}
+.tricc-group--pink {
+  background: var(--tricc-swatch-pink-frame);
+  border-color: var(--tricc-swatch-pink-edge);
+}
 .tricc-group__title {
   padding: 4px 8px;
   font-size: 12px;
   font-weight: 600;
-  color: #34495e;
+  color: var(--tricc-text-muted);
   cursor: grab;
 }
 
@@ -1491,12 +1817,12 @@
   cursor: help;
 }
 .tricc-node__mark--hint {
-  background: #f9d94a;
-  color: #4a3b00;
+  background: var(--tricc-mark-hint-bg);
+  color: var(--tricc-mark-hint-text);
 }
 .tricc-node__mark--help {
-  background: #1e6fd0;
-  color: #fff;
+  background: var(--tricc-mark-help-bg);
+  color: var(--tricc-mark-help-text);
 }
 
 /* A validation issue links to the element it is about. */
@@ -1567,7 +1893,7 @@
 }
 .tricc-node__answer-picture {
   margin-left: 4px;
-  color: #475569;
+  color: var(--tricc-text-muted);
   font-size: 11px;
 }
 .react-flow__node[data-picture-drop='true'] .tricc-node {
@@ -1627,9 +1953,9 @@
   gap: 4px;
   width: 100%;
   padding: 8px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--tricc-border-strong);
   border-radius: 6px;
-  background: #fff;
+  background: var(--tricc-surface);
   cursor: pointer;
   font: inherit;
   font-size: 12px;
@@ -1643,7 +1969,7 @@
   width: 100%;
   height: 100px;
   object-fit: contain;
-  background: #f8fafc;
+  background: var(--tricc-subtle);
 }
 .tricc-image-tile span {
   max-width: 100%;
@@ -1660,7 +1986,7 @@
   flex: 1;
 }
 .tricc-image-picker__empty {
-  color: #64748b;
+  color: var(--tricc-text-muted);
 }
 .tricc-field-error {
   color: var(--tricc-error);
@@ -1689,22 +2015,22 @@
   flex-direction: column;
   gap: 4px;
   padding: 8px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--tricc-border-strong);
   border-radius: 6px;
-  background: #fff;
+  background: var(--tricc-surface);
   font-size: 12px;
 }
 .tricc-media__name {
   overflow-wrap: anywhere;
 }
 .tricc-media__meta {
-  color: #64748b;
+  color: var(--tricc-text-muted);
 }
 .tricc-media__users {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  color: #64748b;
+  color: var(--tricc-text-muted);
 }
 .tricc-media__actions {
   display: flex;
@@ -1726,7 +2052,7 @@
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
+  color: var(--tricc-text-muted);
 }
 .tricc-search__list {
   list-style: none;
@@ -1749,7 +2075,7 @@
 }
 .tricc-search__list button:hover:not(:disabled),
 .tricc-search__list button:focus-visible {
-  background: #f1f5f9;
+  background: var(--tricc-subtle);
 }
 .tricc-search__main {
   flex: 1 1 auto;
@@ -1761,7 +2087,7 @@
 .tricc-search__detail {
   flex: 0 1 auto;
   font-size: 11px;
-  color: #64748b;
+  color: var(--tricc-text-muted);
   white-space: nowrap;
 }
 
@@ -1774,4 +2100,424 @@
 .tricc-node__answer-none {
   flex: none;
   margin-left: 4px;
+}
+
+/* Discussion marks: a filled dot for open, a hollow ring for pending. */
+.tricc-discuss-marks {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  z-index: 4;
+  display: inline-flex;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.tricc-edge__label .tricc-discuss-marks {
+  position: static;
+  top: auto;
+  right: auto;
+}
+.tricc-discuss-marks__open,
+.tricc-discuss-marks__pending {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  display: inline-block;
+  box-sizing: border-box;
+}
+.tricc-discuss-marks__open {
+  background: var(--tricc-primary);
+  color: var(--tricc-on-primary);
+}
+.tricc-discuss-marks__pending {
+  /* Apricot fill with a dark rim. A white centre disappears on the canvas. */
+  background: var(--tricc-pending-bg);
+  color: var(--tricc-pending-text);
+  border: 2px solid var(--tricc-pending-border);
+  line-height: 14px;
+}
+.tricc-discussion__thread {
+  padding: 8px;
+  margin: 0 0 8px;
+  border: 1px solid var(--tricc-border);
+  border-radius: 6px;
+  background: var(--tricc-surface);
+}
+.tricc-discussion__thread[data-highlight='true'] {
+  border-color: var(--tricc-primary);
+}
+.tricc-discussion__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.tricc-discussion__meta .tricc-discuss-marks__open,
+.tricc-discussion__meta .tricc-discuss-marks__pending {
+  position: static;
+}
+.tricc-discussion__status.is-settled {
+  color: var(--tricc-text-muted);
+}
+.tricc-discussion__composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--tricc-border);
+}
+.tricc-discussion__start {
+  font-size: 12px;
+  font-weight: 600;
+}
+.tricc-discussion__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tricc-discuss-chip {
+  border: 1px solid var(--tricc-border-strong);
+  background: var(--tricc-surface);
+  color: var(--tricc-text);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tricc-discuss-chip--blue.is-selected {
+  background: var(--tricc-swatch-blue-chip);
+  border-color: var(--tricc-swatch-blue-chip);
+  color: var(--tricc-surface);
+}
+.tricc-discuss-chip--green.is-selected {
+  background: var(--tricc-swatch-green-chip);
+  border-color: var(--tricc-swatch-green-chip);
+  color: var(--tricc-surface);
+}
+.tricc-discuss-chip--pink.is-selected {
+  background: var(--tricc-swatch-pink-chip);
+  border-color: var(--tricc-swatch-pink-chip);
+  color: var(--tricc-surface);
+}
+.tricc-discuss-chip--yellow.is-selected {
+  background: var(--tricc-swatch-yellow-chip);
+  border-color: var(--tricc-swatch-yellow-chip);
+  color: var(--tricc-surface);
+}
+.tricc-discuss-chip--grey.is-selected {
+  background: var(--tricc-swatch-grey-chip);
+  border-color: var(--tricc-swatch-grey-chip);
+  color: var(--tricc-surface);
+}
+.tricc-discuss-chip--blue:not(.is-selected) {
+  color: var(--tricc-swatch-blue-chip);
+  border-color: var(--tricc-swatch-blue-chip);
+}
+.tricc-discuss-chip--green:not(.is-selected) {
+  color: var(--tricc-swatch-green-chip);
+  border-color: var(--tricc-swatch-green-chip);
+}
+.tricc-discuss-chip--pink:not(.is-selected) {
+  color: var(--tricc-swatch-pink-chip);
+  border-color: var(--tricc-swatch-pink-chip);
+}
+.tricc-discuss-chip--yellow:not(.is-selected) {
+  color: var(--tricc-swatch-yellow-chip);
+  border-color: var(--tricc-swatch-yellow-chip);
+}
+.tricc-discuss-chip--grey:not(.is-selected) {
+  color: var(--tricc-swatch-grey-chip);
+  border-color: var(--tricc-swatch-grey-chip);
+}
+.tricc-discuss-button {
+  border: 1px solid var(--tricc-border-strong);
+  background: var(--tricc-surface);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tricc-discuss-button__open {
+  color: var(--tricc-primary);
+}
+.tricc-discuss-button__pending {
+  color: var(--tricc-warning);
+}
+.tricc-process-row__marks,
+.tricc-unassigned__marks {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+.tricc-process-row__marks .tricc-discuss-marks__open,
+.tricc-process-row__marks .tricc-discuss-marks__pending,
+.tricc-unassigned__marks .tricc-discuss-marks__open,
+.tricc-unassigned__marks .tricc-discuss-marks__pending {
+  position: static;
+}
+
+/* ---------------------------------------------------------------- building blocks and parameters */
+/* feature/20261028-snippets-tab-and-params.md */
+
+.tricc-params,
+.tricc-call-args,
+.tricc-iv-settings,
+.tricc-iv-segments,
+.tricc-iv-scope {
+  margin: 12px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--tricc-border);
+  border-radius: 4px;
+}
+.tricc-params legend,
+.tricc-call-args legend,
+.tricc-iv-settings legend,
+.tricc-iv-segments legend,
+.tricc-iv-scope legend {
+  font-weight: 600;
+  font-size: 13px;
+  padding: 0 4px;
+}
+.tricc-params__note,
+.tricc-iv-settings > p,
+.tricc-iv-segments > p,
+.tricc-iv-scope > p {
+  margin: 0 0 6px;
+  color: var(--tricc-text-muted);
+  font-size: 12px;
+}
+.tricc-blocks__naming {
+  margin: 0 0 8px;
+  color: var(--tricc-text-muted);
+  font-size: 12px;
+}
+.tricc-blocks__naming summary {
+  cursor: pointer;
+}
+.tricc-blocks__naming p,
+.tricc-blocks__naming ul {
+  margin: 4px 0 0;
+}
+.tricc-blocks__naming ul {
+  padding-left: 18px;
+}
+.tricc-params__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.tricc-params__row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--tricc-subtle);
+}
+.tricc-params__row[data-kind='computed'] {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--tricc-text-muted);
+}
+.tricc-params__from {
+  cursor: pointer;
+  border: 0;
+}
+.tricc-params__types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+}
+.tricc-params__options ol {
+  margin: 2px 0;
+  padding-left: 18px;
+}
+.tricc-params__options li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.tricc-params__add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.tricc-params__id {
+  color: var(--tricc-text-muted);
+  font-size: 12px;
+}
+
+.tricc-args {
+  display: grid;
+  gap: 6px;
+}
+.tricc-args__row {
+  border: 0;
+  margin: 0;
+  padding: 4px 0;
+  border-top: 1px solid var(--tricc-subtle);
+}
+.tricc-args__row legend {
+  font-weight: 500;
+  font-size: 12px;
+  padding: 0;
+}
+.tricc-args__code {
+  color: var(--tricc-text-faint);
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+.tricc-args__required {
+  color: var(--tricc-error);
+}
+.tricc-args__help,
+.tricc-args__inherited,
+.tricc-args__override,
+.tricc-args__empty {
+  margin: 2px 0;
+  color: var(--tricc-text-muted);
+  font-size: 12px;
+}
+.tricc-args__override {
+  color: var(--tricc-warning);
+}
+
+.tricc-editor__params {
+  cursor: pointer;
+  border: 0;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tricc-cql__param {
+  font-style: italic;
+}
+.tricc-cql__insert {
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.tricc-blocks {
+  padding: 16px;
+  overflow: auto;
+}
+.tricc-blocks__filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+.tricc-blocks__list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.tricc-blocks__card {
+  border: 1px solid var(--tricc-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.tricc-blocks__card header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tricc-blocks__card p {
+  margin: 4px 0;
+  color: var(--tricc-text-muted);
+  font-size: 13px;
+}
+.tricc-blocks__title {
+  font-weight: 600;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.tricc-blocks__title:hover {
+  text-decoration: underline;
+}
+
+/* React Flow chrome follows the palette (colorMode only switches its own defaults). */
+.tricc-editor .react-flow {
+  --xy-background-color: var(--tricc-bg);
+  --xy-background-pattern-color: var(--tricc-border-strong);
+  --xy-minimap-background-color: var(--tricc-surface);
+  --xy-controls-button-background-color: var(--tricc-surface);
+  --xy-controls-button-background-color-hover: var(--tricc-subtle);
+  --xy-controls-button-color: var(--tricc-text);
+  --xy-controls-button-border-color: var(--tricc-border);
+}
+
+/* The project's discussions, from the top bar. */
+.tricc-discussion-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(52rem, calc(100% - 32px));
+  max-height: calc(100% - 64px);
+  overflow-y: auto;
+  padding: 16px 20px;
+  border-radius: 10px;
+  background: var(--tricc-surface);
+  color: var(--tricc-text);
+  box-shadow: var(--tricc-shadow-lg);
+}
+.tricc-discussion-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tricc-discussion-panel > header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.tricc-discussion-panel__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.tricc-discussion-panel__filters input:not([type='checkbox']),
+.tricc-discussion-panel__filters select,
+.tricc-discussion-panel input[type='date'] {
+  padding: 4px 8px;
+  border: 1px solid var(--tricc-border-strong);
+  border-radius: 6px;
+  background: var(--tricc-surface);
+  color: var(--tricc-text);
+  font: inherit;
+}
+.tricc-discussion-panel__filters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.tricc-discussion-panel > ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--tricc-border);
+}
+.tricc-discussion-panel > ul > li {
+  border-bottom: 1px solid var(--tricc-border);
 }

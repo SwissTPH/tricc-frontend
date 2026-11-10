@@ -52,7 +52,9 @@ function qDisplay(project: Project, code = 'weight') {
 
 describe('the image node', () => {
   it('renders as Markdown, drops out of plain text and round-trips as JSON', () => {
-    expect(toMarkdown(withPicture)).toBe('Look at the chest ![indrawing](Binary/chest)\nIs there indrawing?')
+    expect(toMarkdown(withPicture)).toBe(
+      'Look at the chest ![indrawing](Binary/chest)\nIs there indrawing?',
+    )
     expect(toPlain(withPicture)).toBe('Look at the chest  Is there indrawing?')
     expect(messageFromJson(JSON.parse(JSON.stringify(withPicture)))).toEqual(withPicture)
     expect(imageRefs(withPicture)).toEqual(['chest'])

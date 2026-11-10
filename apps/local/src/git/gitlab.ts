@@ -142,6 +142,6 @@ export class GitLabHost implements GitHost {
   }
 
   tokenPage(origin: string): string {
-    return `${origin}/-/user_settings/personal_access_tokens?name=TRICC%20Authoring&scopes=api`
+    return `${origin}/-/user_settings/personal_access_tokens?name=DrawTricc&scopes=api`
   }
 }

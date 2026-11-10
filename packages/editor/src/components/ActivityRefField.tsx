@@ -29,7 +29,7 @@ export function ActivityRefField({
   readOnly: boolean
   testId: string
   exclude?: string[]
-  kind?: 'activity' | 'process'
+  kind?: 'activity' | 'process' | 'block'
   emptyMessage?: string
 }) {
   const [changing, setChanging] = useState(false)
@@ -91,15 +91,17 @@ export function ActivityRefField({
       <Typeahead
         testId={testId}
         label={label}
-        placeholder="Search activities…"
+        placeholder={kind === 'block' ? 'Search blocks…' : 'Search activities…'}
         options={options}
         disabled={readOnly}
-        emptyMessage="No activity matches."
+        emptyMessage={kind === 'block' ? 'No block matches.' : 'No activity matches.'}
         exhaustedMessage={
           emptyMessage ??
           (kind === 'activity'
             ? 'This project has no other activities to go to yet.'
-            : 'This project has no process activities yet.')
+            : kind === 'block'
+              ? 'This project has no building blocks yet. Create one on the Building blocks tab.'
+              : 'This project has no segments yet.')
         }
         onSelect={(id) => {
           onChange(id)

@@ -1,6 +1,21 @@
-import { imageIdFrom, type CodeSystem, type Concept, type Designation, type Project, type SelectOption, type TriccNode } from '../model/types.js'
+import {
+  imageIdFrom,
+  type CodeSystem,
+  type Concept,
+  type Designation,
+  type Project,
+  type SelectOption,
+  type TriccNode,
+} from '../model/types.js'
 import type { LocalizedText } from '../format/schema/localized.js'
-import { designationText, imageRefs, prependImage, toMarkdown, withDesignationText, type Message } from '../text/message.js'
+import {
+  designationText,
+  imageRefs,
+  prependImage,
+  toMarkdown,
+  withDesignationText,
+  type Message,
+} from '../text/message.js'
 import { isTextNode, type NodeType } from '../format/schema/node-types.js'
 import { NODE_TYPE_SPECS } from '../format/schema/node-spec.js'
 import { DESIGNATION_USES, designationUse, isUnscoped, type DesignationUse } from './designation.js'
@@ -69,7 +84,9 @@ export function moveTextsToConcepts(
       if (dataType) concept.dataType = dataType
       // The type tricc_oo would assign the item (xml_to_tricc.py get_concept_type).
       concept.conceptType =
-        'type' in item ? defaultConceptType(item.type) : defaultConceptType('option', where.parentType ?? 'select_one')
+        'type' in item
+          ? defaultConceptType(item.type)
+          : defaultConceptType('option', where.parentType ?? 'select_one')
       cs.concepts[code] = concept
       cs.conceptOrder.push(code)
     }
@@ -96,7 +113,10 @@ export function moveTextsToConcepts(
       const q = own(concept, 'q-display', lang)
       const base = q ? designationText(q) : (concept.display ?? '')
       if (!imageRefs(base).includes(id)) {
-        const next = withDesignationText(q ?? designation(lang, 'q-display', ''), prependImage(base, id))
+        const next = withDesignationText(
+          q ?? designation(lang, 'q-display', ''),
+          prependImage(base, id),
+        )
         if (q) concept.designations[concept.designations.indexOf(q)] = next
         else concept.designations.push(next)
       }
@@ -127,7 +147,10 @@ export function moveTextsToConcepts(
         cs.conceptOrder.push(group.name)
       }
       for (const [language, text] of Object.entries(group.label)) {
-        if (text.trim()) placeLabel(concept, language, text, lang, (t) => result.dropped.push({ activityId, nodeId: group.id, text: t }))
+        if (text.trim())
+          placeLabel(concept, language, text, lang, (t) =>
+            result.dropped.push({ activityId, nodeId: group.id, text: t }),
+          )
       }
       delete group.label
       const key = `${cs.url}|${group.name}`
@@ -157,7 +180,6 @@ export function defaultConceptType(nodeType: string, parentType?: string): strin
   if (parentType !== undefined) return parentType === 'select_multiple' ? 'Observation' : 'Value'
   return NODE_TYPE_SPECS[nodeType as NodeType]?.conceptType ?? 'Observation'
 }
-
 
 /**
  * A label is the display when the concept has none; otherwise, if it says something else,
@@ -199,7 +221,8 @@ function placeRichLabel(
 ): void {
   if (language === defaultLang && !concept.display) concept.display = plain
   const q = own(concept, 'q-display', language)
-  if (!q) concept.designations.push(withDesignationText(designation(language, 'q-display', ''), rich))
+  if (!q)
+    concept.designations.push(withDesignationText(designation(language, 'q-display', ''), rich))
   else if (q.value !== toMarkdown(rich)) drop(plain)
 }
 

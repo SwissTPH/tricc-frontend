@@ -22,7 +22,8 @@ export const DESIGNATION_USES = {
 export type DesignationUse = keyof typeof DESIGNATION_USES
 
 /** A designation carrying this extension applies only to the named intervention(s). */
-export const INTERVENTION_SCOPE_URL = 'https://tricc.org/StructureDefinition/designation-intervention'
+export const INTERVENTION_SCOPE_URL =
+  'https://tricc.org/StructureDefinition/designation-intervention'
 
 /** The interventions a designation is scoped to; empty for an unscoped (default) text. */
 export function designationInterventions(d: Designation): string[] {
@@ -83,7 +84,9 @@ export function conceptRichText(
 ): DisplayText | undefined {
   if (!concept) return undefined
   const find = (u: DesignationUse) => {
-    const matching = concept.designations.filter((d) => d.language === lang && designationUse(d) === u)
+    const matching = concept.designations.filter(
+      (d) => d.language === lang && designationUse(d) === u,
+    )
     const scoped = interventionId
       ? matching.find((d) => designationInterventions(d).includes(interventionId))
       : undefined
@@ -96,7 +99,8 @@ export function conceptRichText(
   }
   const value = find(use)
   if (value !== undefined) return value
-  if (use === 'q-display') return conceptRichText(concept, 'display', lang, defaultLang, interventionId)
+  if (use === 'q-display')
+    return conceptRichText(concept, 'display', lang, defaultLang, interventionId)
   return undefined
 }
 
@@ -129,7 +133,9 @@ export function withConceptText(
   }
   const text = typeof value === 'string' ? fromPlain(value) : value!
   const base: Designation =
-    index >= 0 ? next.designations[index]! : { language: lang, use: { ...DESIGNATION_USES[use] }, value: '' }
+    index >= 0
+      ? next.designations[index]!
+      : { language: lang, use: { ...DESIGNATION_USES[use] }, value: '' }
   const updated = withDesignationText(base, text)
   if (index >= 0) next.designations[index] = updated
   else next.designations.push(updated)

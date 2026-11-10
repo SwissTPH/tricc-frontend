@@ -8,6 +8,7 @@
 // Model
 export * from './model/types.js'
 export * from './model/activity-kind.js'
+export * from './model/labels.js'
 
 // Format
 export * from './format/schema/index.js'
@@ -19,6 +20,8 @@ export {
   createProject,
   createActivity,
   createProcessActivity,
+  createBlock,
+  pagePath,
   FormatVersionError,
   toYaml,
   fromYaml,
@@ -33,6 +36,29 @@ export {
   sameContent,
   mergeImages,
 } from './format/serialize/index.js'
+export {
+  anchorFromParam,
+  anchorKey,
+  anchorKindName,
+  anchorLabel,
+  anchorToParam,
+  resolveAnchor,
+} from './discussion/anchor.js'
+export { DEFAULT_DISCUSSION_LABELS } from './discussion/labels.js'
+export { parseCommentText, type TextPart } from './discussion/text.js'
+export { attentionFor, type AttentionTarget } from './discussion/attention.js'
+export {
+  DerivedNotifications,
+  memoryReadState,
+  type ReadStateStore,
+} from './notifications/derived.js'
+export {
+  decisionLog,
+  decisionLogCsv,
+  decisionLogMarkdown,
+  type DecisionRow,
+} from './discussion/decision-log.js'
+export { LocalDiscussions, oneCategory, type DiscussionPort } from './discussion/port.js'
 export {
   readRepository,
   repositoryOfTriccYaml,
@@ -53,12 +79,16 @@ export {
   type Migration,
 } from './format/migrations/index.js'
 
+// Parameters and building blocks
+export * from './params/index.js'
+
 // Document
 export {
   ProjectDocument,
   CapabilityError,
   ALL_CAPABILITIES,
   READ_ONLY_CAPABILITIES,
+  REVIEW_CAPABILITIES,
   type ProjectDocumentOptions,
   type Unsubscribe,
 } from './document/doc.js'

@@ -1,20 +1,20 @@
 # "None of these" answer, repeat and instance on every node
 
-| Field | Value |
-|-------|-------|
-| **Status** | Implemented (frontend). `tricc_oo` YAML input reads `is_none` (working tree, not committed). |
-| **Repo** | `tricc_frontend` — `@tricc/core`, `@tricc/editor`; `tricc_oo` (`strategies/input/yaml.py`) |
-| **Source** | Patrick, 2026-10-14 |
+| Field         | Value                                                                                                                                                                                                    |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**    | Implemented (frontend). `tricc_oo` YAML input reads `is_none` (working tree, not committed).                                                                                                             |
+| **Repo**      | `tricc_frontend` — `@tricc/core`, `@tricc/editor`; `tricc_oo` (`strategies/input/yaml.py`)                                                                                                               |
+| **Source**    | Patrick, 2026-10-14                                                                                                                                                                                      |
 | **Decisions** | 2026-10-14: `is_none` is set from the select or from the answer, not on the concept; a select may have none. `instance` is supported the same way as `repeat`, though it should go away with `tricc_og`. |
 
 ## Part I — What the author sees
 
 ### "None of these"
 
-A select's answers may include one that means *none of the others applies* ("No danger sign").
+A select's answers may include one that means _none of the others applies_ ("No danger sign").
 It can be set from either side, which edit the same thing:
 
-- on the question, **None of these**: a list of its answers, or *No such answer*;
+- on the question, **None of these**: a list of its answers, or _No such answer_;
 - on each answer, a **None of these** checkbox.
 
 Marking one answer unmarks any other. On the canvas the answer row shows a small **none** badge.
@@ -25,7 +25,7 @@ A question with two (from a drawing) gets a warning: tricc_oo only uses the firs
 Every node that holds a value (questions, calculations, counts, sums, prefilled values,
 diagnoses), every goto, and the activity itself (in the activity gear) has **Repeat** and
 **Instance** fields. A decision, a note and the flow anchors have neither. Empty means 1.
-The node shows a *Repeat n* / *Instance n* badge when it is not 1.
+The node shows a _Repeat n_ / _Instance n_ badge when it is not 1.
 
 - **Repeat**: collect again in a new slot (2, 3…); `-1` collects here only and inherits nothing.
   On the activity, every value of the activity; on a goto, the called activity.

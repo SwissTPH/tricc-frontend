@@ -1,13 +1,13 @@
 # Discussions in the project: comments on elements, statuses, labels and a decision log
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft |
-| **Repo** | `tricc_frontend`: `@tricc/core` (model, files, document, port), `@tricc/editor` (discussion UI), `apps/local` (wiring, decision log download). Works with no server. |
-| **Related** | `20261009-canvas-comments-and-groups.md` (the sticky notes, which stay), `20260825-document-model.md` (CRDT, undo), `20260825-library-architecture.md` (ports, capabilities), `20261013-hosting-groundwork.md` (later: `join` both documents). Platform: [`20261021-hosted-platform.md`](./20261021-hosted-platform.md), to live in `tricc_platform`. |
-| **Source** | 2026-10-21: authors comment on elements that exist, with a status such as pending or resolved, to record why changes were made. Discussions are **part of the project**, so an export carries them and there is no separate artifact. They attach to the element's existing id. A decision log can also be exported on its own. Tagging people works only on the platform. The platform is a **separate repository**. This repo is built first. |
-| **Decisions** | 2026-10-21: discussions are saved in the project files and travel with every export. The app has them fully, without a server. Tagging, assigning, live co-editing, accounts and notifications are platform features, in `tricc_platform`. Labels are per project. The app is built first. A notification stores the project, the element id (anchor) and the discussion id, and opening it goes there. |
-| **Approval** | — |
+| Field         | Value                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**    | Draft                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| **Repo**      | `tricc_frontend`: `@tricc/core` (model, files, document, port), `@tricc/editor` (discussion UI), `apps/local` (wiring, decision log download). Works with no server.                                                                                                                                                                                                                                                                            |
+| **Related**   | `20261009-canvas-comments-and-groups.md` (the sticky notes, which stay), `20260825-document-model.md` (CRDT, undo), `20260825-library-architecture.md` (ports, capabilities), `20261013-hosting-groundwork.md` (later: `join` both documents). Platform: [`20261021-hosted-platform.md`](./20261021-hosted-platform.md), to live in `tricc_platform`.                                                                                           |
+| **Source**    | 2026-10-21: authors comment on elements that exist, with a status such as pending or resolved, to record why changes were made. Discussions are **part of the project**, so an export carries them and there is no separate artifact. They attach to the element's existing id. A decision log can also be exported on its own. Tagging people works only on the platform. The platform is a **separate repository**. This repo is built first. |
+| **Decisions** | 2026-10-21: discussions are saved in the project files and travel with every export. The app has them fully, without a server. Tagging, assigning, live co-editing, accounts and notifications are platform features, in `tricc_platform`. Labels are per project. The app is built first. A notification stores the project, the element id (anchor) and the discussion id, and opening it goes there.                                         |
+| **Approval**  | —                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 ---
 
@@ -18,15 +18,15 @@
 This spec is **only the app**. The platform does not store a second copy of discussions: it
 syncs the same files live, and adds the things that need accounts.
 
-| In this app (no server) | Only on the platform |
-|---|---|
-| Start, answer, edit, delete discussions | Sign-up, organisations, project roles |
-| Status (open, pending, resolved, won't change) and a resolution note | Tagging a person (`@Alice`) |
-| Labels, per project | Assigning a discussion to a person |
-| Speech-bubble badges, Discussion tab, Discussions panel | Telling people (bell and email). The local app never sends mail |
-| Decision log in the project, and a separate Markdown/CSV download | Several people editing the same diagram at once |
-| Jump to an element from `?open=` and `?discussion=` | A notification that uses that jump |
-| Sticky notes on the drawing | |
+| In this app (no server)                                              | Only on the platform                                            |
+| -------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Start, answer, edit, delete discussions                              | Sign-up, organisations, project roles                           |
+| Status (open, pending, resolved, won't change) and a resolution note | Tagging a person (`@Alice`)                                     |
+| Labels, per project                                                  | Assigning a discussion to a person                              |
+| Speech-bubble badges, Discussion tab, Discussions panel              | Telling people (bell and email). The local app never sends mail |
+| Decision log in the project, and a separate Markdown/CSV download    | Several people editing the same diagram at once                 |
+| Jump to an element from `?open=` and `?discussion=`                  | A notification that uses that jump                              |
+| Sticky notes on the drawing                                          |                                                                 |
 
 A project made on the platform and opened here still shows tags and assignees as names. There is
 no `@` picker here: typing `@Bob` is just text.
@@ -37,10 +37,10 @@ A **discussion** is a conversation about one element of the guideline. It can be
 connection, a group, an activity, an intervention, a concept in the data dictionary, an image, or
 the project as a whole. For example:
 
-> **Weight (kg)** · Pending · *Clinical review*
+> **Weight (kg)** · Pending · _Clinical review_
 > Alice Martin, 21 Oct: Is 9 kg right for children of 2 to 59 months?
 > Bob Keller, 22 Oct: The 2024 chart says 8 kg. Changing it.
-> *Resolved by Bob Keller on 23 Oct, in version 1.3.0: "Threshold changed to 8 kg, as in the 2024 chart."*
+> _Resolved by Bob Keller on 23 Oct, in version 1.3.0: "Threshold changed to 8 kg, as in the 2024 chart."_
 
 ### Where it shows
 
@@ -51,24 +51,24 @@ the project as a whole. For example:
 - The concept page in the data dictionary, the Media view and the project overview have the same
   section.
 - A **Discussions** button in the top bar lists every discussion of the project. Filters: open,
-  pending, resolved, won't change, by label, *element removed*, *started by me*. Clicking a row
+  pending, resolved, won't change, by label, _element removed_, _started by me_. Clicking a row
   goes to the element and opens the discussion.
 
 ### Status
 
-| Status | Meaning |
-|---|---|
-| **Open** | New, needs attention. |
-| **Pending** | Waiting for an answer, a decision or a change. |
-| **Resolved** | Answered or changed. The person resolving can say why. |
-| **Won't change** | Decided against. The reason is required. |
+| Status           | Meaning                                                |
+| ---------------- | ------------------------------------------------------ |
+| **Open**         | New, needs attention.                                  |
+| **Pending**      | Waiting for an answer, a decision or a change.         |
+| **Resolved**     | Answered or changed. The person resolving can say why. |
+| **Won't change** | Decided against. The reason is required.               |
 
 A discussion can be reopened. Every change of status or label is shown in the discussion, with who
 did it and when.
 
 ### Labels
 
-Labels such as *Question*, *Decision*, *Clinical review*, *Translation* or *Problem* sort
+Labels such as _Question_, _Decision_, _Clinical review_, _Translation_ or _Problem_ sort
 discussions. Each project has its own list, in its settings. A new project starts with those five.
 
 ### Saved with the project
@@ -77,7 +77,7 @@ Discussions are saved in the project, in a `discussions/` folder next to `activi
 in the `.tricc` file, in the project folder, in git, and in a pull request. `tricc_oo` ignores
 them: they never reach a form.
 
-If the element is deleted, its discussions stay. They are marked *element removed* and keep the
+If the element is deleted, its discussions stay. They are marked _element removed_ and keep the
 element's name. Undoing the deletion attaches them again.
 
 **Undo (Ctrl+Z) never removes a comment.** Undo is for changes to the guideline. A comment is
@@ -95,7 +95,7 @@ in which version each change was made.
 ### Who wrote it
 
 In the app, a comment is signed with the name in Preferences. The first time someone comments with
-the default name *Local author*, the app asks for their name.
+the default name _Local author_, the app asks for their name.
 
 The **Read-only** switch still allows discussions. That is the reviewer's case: read the guideline
 without moving a node, and comment on it.
@@ -189,14 +189,14 @@ export type Anchor =
 
 export function resolveAnchor(project: Project, anchor: Anchor): AnchorTarget | undefined
 export function anchorLabel(project: Project, anchor: Anchor, language: string): string
-export function anchorKey(anchor: Anchor): string                  // for maps and filters
-export function anchorToParam(anchor: Anchor): string              // `node:weight_check/n-weight`
+export function anchorKey(anchor: Anchor): string // for maps and filters
+export function anchorToParam(anchor: Anchor): string // `node:weight_check/n-weight`
 export function anchorFromParam(param: string): Anchor | undefined
 ```
 
 - Anchors use the ids already in the files: node and edge ids are unique within their activity, so
   those anchors carry the activity id.
-- `resolveAnchor` returning `undefined` means *element removed*. Nothing is rewritten: undoing the
+- `resolveAnchor` returning `undefined` means _element removed_. Nothing is rewritten: undoing the
   deletion brings the id back, and the discussion attaches again.
 - Ids of discussions and comments are random (`d-` or `c-` and 10 base-36 characters), so two
   people on two branches never pick the same one.
@@ -228,7 +228,11 @@ comments:
     at: 2026-10-22T08:40:00Z
     text: The 2024 chart says 8 kg. Changing it.
 events:
-  - { at: 2026-10-21T09:12:00Z, by: { id: 9a41c6e2-…, name: Alice Martin }, labels: [clinical-review] }
+  - {
+      at: 2026-10-21T09:12:00Z,
+      by: { id: 9a41c6e2-…, name: Alice Martin },
+      labels: [clinical-review],
+    }
   - { at: 2026-10-22T08:41:00Z, by: { id: 5f0c11b4-…, name: Bob Keller }, status: pending }
 resolution:
   by: { id: 5f0c11b4-…, name: Bob Keller }
@@ -248,7 +252,7 @@ still names the activity and the element:
   (`project`)
 
 Node ids are only unique inside one activity, so the activity id is required. Deleting the node
-does not delete this file; the discussion stays and is marked *element removed*.
+does not delete this file; the discussion stays and is marked _element removed_.
 
 ```yaml
 # discussions/labels.yaml
@@ -305,6 +309,7 @@ labels:
   - `defineLabel`, `removeLabel` (also takes the label off its discussions).
 
   `edit` and `remove` of someone else's comment require `comment.moderate`.
+
 - **Why a second document.** On the platform, a reviewer must be able to discuss without being able
   to change the guideline. A Yjs document cannot allow one part and refuse another. With two
   documents, the platform can give each its own rights. In the app the split costs nothing: both
@@ -336,7 +341,12 @@ export interface DiscussionPort {
   reply(open: OpenProject, discussionId: string, text: string): Promise<string>
   edit(open: OpenProject, discussionId: string, commentId: string, text: string): Promise<void>
   remove(open: OpenProject, discussionId: string, commentId: string): Promise<void>
-  setStatus(open: OpenProject, discussionId: string, status: DiscussionStatus, note?: string): Promise<void>
+  setStatus(
+    open: OpenProject,
+    discussionId: string,
+    status: DiscussionStatus,
+    note?: string,
+  ): Promise<void>
   setLabels(open: OpenProject, discussionId: string, labelIds: string[]): Promise<void>
   defineLabel(open: OpenProject, label: DiscussionLabel): Promise<void>
   removeLabel(open: OpenProject, labelId: string): Promise<void>
@@ -369,16 +379,16 @@ preferences) instead of `'local'`, so two people sharing a project through git s
 
 ### 7. Editor (`packages/editor/src/discussion/`)
 
-| Component | What it does |
-|---|---|
-| `useDiscussions(anchor?)` | Discussions of one element, or of the project, from the snapshot; open and pending counts. |
-| `DiscussionBadge` | The speech bubble on nodes, groups and connection labels (open and pending only). Click: select the element, open the Discussion tab. |
-| `DiscussionSection` | The list for one element, and *Start a discussion*. Used by the inspector tab, the concept page, Media and the overview. |
-| `DiscussionThread` | Comments and events in time order; edit and delete one's own comments; the *element removed* banner with the saved label. |
-| `Composer` | Plain-text box; Ctrl+Enter sends. |
-| `StatusMenu`, `ResolveDialog` | Status change. Resolve asks for an optional note; won't change requires one. |
-| `LabelPicker`, `LabelSettings` | Labels on a discussion; the project's labels in the project settings. |
-| `DiscussionsPanel` | Every discussion, with filters (status, label, element removed, started by me), text search, latest activity first, and the decision log download. |
+| Component                      | What it does                                                                                                                                       |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useDiscussions(anchor?)`      | Discussions of one element, or of the project, from the snapshot; open and pending counts.                                                         |
+| `DiscussionBadge`              | The speech bubble on nodes, groups and connection labels (open and pending only). Click: select the element, open the Discussion tab.              |
+| `DiscussionSection`            | The list for one element, and _Start a discussion_. Used by the inspector tab, the concept page, Media and the overview.                           |
+| `DiscussionThread`             | Comments and events in time order; edit and delete one's own comments; the _element removed_ banner with the saved label.                          |
+| `Composer`                     | Plain-text box; Ctrl+Enter sends.                                                                                                                  |
+| `StatusMenu`, `ResolveDialog`  | Status change. Resolve asks for an optional note; won't change requires one.                                                                       |
+| `LabelPicker`, `LabelSettings` | Labels on a discussion; the project's labels in the project settings.                                                                              |
+| `DiscussionsPanel`             | Every discussion, with filters (status, label, element removed, started by me), text search, latest activity first, and the decision log download. |
 
 - **Inspector.** A **Discussion** tab beside Details, Nodes, Connection and Validation, with a count.
   It is shown when the identity has `comment.read`.
@@ -405,20 +415,23 @@ preferences) instead of `'local'`, so two people sharing a project through git s
 export interface DecisionRow {
   decidedAt: string
   status: 'resolved' | 'wont_change'
-  element: string          // kind and name, e.g. "Node · Weight (kg) · Weight check"
+  element: string // kind and name, e.g. "Node · Weight (kg) · Weight check"
   labels: string[]
-  question: string         // first comment
-  decision?: string        // resolution note
+  question: string // first comment
+  decision?: string // resolution note
   decidedBy: string
   version?: string
   comments: number
 }
-export function decisionLog(project: Project, opts?: { since?: string; labels?: string[] }): DecisionRow[]
+export function decisionLog(
+  project: Project,
+  opts?: { since?: string; labels?: string[] },
+): DecisionRow[]
 export function decisionLogMarkdown(project: Project, rows: DecisionRow[]): string
 export function decisionLogCsv(rows: DecisionRow[]): string
 ```
 
-- *Download decision log* in the Discussions panel asks for Markdown or CSV and, optionally, a start
+- _Download decision log_ in the Discussions panel asks for Markdown or CSV and, optionally, a start
   date. The file is `<project>-decisions-<date>.md` or `.csv`.
 - Markdown groups the rows by version (newest first), then by activity.
 - CSV is RFC 4180, UTF-8 with a byte-order mark so spreadsheet programs open it correctly.
@@ -428,22 +441,22 @@ export function decisionLogCsv(rows: DecisionRow[]): string
 - A **Discussions** button in the top bar, with the open count.
 - The first comment with the default name asks for a display name (writes Preferences).
 - The **Read-only** switch uses `REVIEW_CAPABILITIES`. Its hint says that discussions stay open.
-- The palette's *Comment* becomes **Sticky note**. Test ids (`add-comment`, `comment-properties`) do
+- The palette's _Comment_ becomes **Sticky note**. Test ids (`add-comment`, `comment-properties`) do
   not change.
 - `docs/guide/discussions.md`: how to discuss, statuses, labels, the decision log, and what the
   platform adds.
 
 ### 10. Tests
 
-| Scope | What |
-|---|---|
-| `core` format | Files → project → files is byte-identical; stable order; a project without discussions writes no folder; deleting a discussion removes its file; an unreadable file is reported and kept. |
-| `core` document | Ctrl+Z after a comment leaves the comment; two replies at the same time are both kept; `discuss` refuses without `comment.write`; editing someone else's comment needs `comment.moderate`. |
-| `core` anchors | Each kind resolves; a deleted node detaches, and undoing the delete reattaches; `anchorToParam` and `anchorFromParam` round trip. |
-| `core` decision log | Rows, filters, Markdown and CSV (quotes, line breaks, BOM). |
-| Conformance | `testDiscussionPort` on `LocalDiscussions`. |
-| `editor` | Discussion tab, badge counts, composer, resolve dialog (note required for won't change), labels, tags shown as chips, no composer without `comment.write`. |
-| e2e | Start a discussion on a node, answer, resolve with a note, reload: still there. Export the `.tricc`: `discussions/` is inside. Delete the node: *element removed*; undo: back. A panel row opens the node. `?open=…&discussion=…` opens the node and the discussion. Read-only: can comment, cannot move a node. Download the decision log in both formats. |
+| Scope               | What                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core` format       | Files → project → files is byte-identical; stable order; a project without discussions writes no folder; deleting a discussion removes its file; an unreadable file is reported and kept.                                                                                                                                                                   |
+| `core` document     | Ctrl+Z after a comment leaves the comment; two replies at the same time are both kept; `discuss` refuses without `comment.write`; editing someone else's comment needs `comment.moderate`.                                                                                                                                                                  |
+| `core` anchors      | Each kind resolves; a deleted node detaches, and undoing the delete reattaches; `anchorToParam` and `anchorFromParam` round trip.                                                                                                                                                                                                                           |
+| `core` decision log | Rows, filters, Markdown and CSV (quotes, line breaks, BOM).                                                                                                                                                                                                                                                                                                 |
+| Conformance         | `testDiscussionPort` on `LocalDiscussions`.                                                                                                                                                                                                                                                                                                                 |
+| `editor`            | Discussion tab, badge counts, composer, resolve dialog (note required for won't change), labels, tags shown as chips, no composer without `comment.write`.                                                                                                                                                                                                  |
+| e2e                 | Start a discussion on a node, answer, resolve with a note, reload: still there. Export the `.tricc`: `discussions/` is inside. Delete the node: _element removed_; undo: back. A panel row opens the node. `?open=…&discussion=…` opens the node and the discussion. Read-only: can comment, cannot move a node. Download the decision log in both formats. |
 
 ### 11. Implementation phases
 
@@ -465,7 +478,7 @@ export function decisionLogCsv(rows: DecisionRow[]): string
 **A3 — App and docs**
 
 - [ ] Top-bar button and panel, name prompt, Read-only with review capabilities, random local id.
-- [ ] Decision log download; label settings; *Sticky note* in the palette.
+- [ ] Decision log download; label settings; _Sticky note_ in the palette.
 - [ ] `docs/guide/discussions.md`; e2e suite of §10.
 
 ### 12. Acceptance criteria

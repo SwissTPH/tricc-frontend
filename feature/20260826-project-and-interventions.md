@@ -1,11 +1,11 @@
 # Project and Intervention Layers — bundling, applicability, planning overview
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft |
-| **Repo** | `tricc_frontend` — `@tricc/core`, `@tricc/editor` |
-| **Related** | `20260825-guided-authoring.md` §1 (the layer model this extends), `20260825-project-format.md` §2 (the format), `20260825-tricc-oo-interop.md` §4 (multi-intervention export), `../../tricc_oo/feature/careplan.md` (**the planning design — Draft, unimplemented**), `../../tricc_oo/feature/careplan-intervention-plandefinition.md` (Implemented), `../../tricc_oo/docs/visual-authoring-concepts.md` |
-| **Approval** | — |
+| Field        | Value                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**   | Draft                                                                                                                                                                                                                                                                                                                                                                                                    |
+| **Repo**     | `tricc_frontend` — `@tricc/core`, `@tricc/editor`                                                                                                                                                                                                                                                                                                                                                        |
+| **Related**  | `20260825-guided-authoring.md` §1 (the layer model this extends), `20260825-project-format.md` §2 (the format), `20260825-tricc-oo-interop.md` §4 (multi-intervention export), `../../tricc_oo/feature/careplan.md` (**the planning design — Draft, unimplemented**), `../../tricc_oo/feature/careplan-intervention-plandefinition.md` (Implemented), `../../tricc_oo/docs/visual-authoring-concepts.md` |
+| **Approval** | —                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
@@ -35,7 +35,7 @@ every patient. An intervention says when each of its activities applies — by a
 what the facility can actually do. Two children entering the same consultation can be taken through
 different subsets of it.
 
-This is where clinical tailoring lives, and it is distinct from the skip logic *inside* an
+This is where clinical tailoring lives, and it is distinct from the skip logic _inside_ an
 activity. Skip logic decides which question to ask next. Applicability decides whether this part of
 the package is relevant to this patient at all.
 
@@ -45,7 +45,7 @@ A project is the set of interventions carried together: the unit of **authoring*
 repository, one review process — and the unit of **delivery** — what gets packaged and installed on
 a device.
 
-A project may also carry **planning**: the decisions about *when* its interventions start. Some are
+A project may also carry **planning**: the decisions about _when_ its interventions start. Some are
 on demand — a sick child arrives. Some are planned — an antenatal schedule with visits at defined
 intervals. Some are triggered by an event — a lab result comes back. Planning can be reasoned about
 per intervention, but a project needs the overview: seeing all of it together is the only way to
@@ -59,13 +59,13 @@ tell whether the pathway a patient experiences makes sense.
 
 ### The full model
 
-| Layer | What it answers |
-|-------|-----------------|
-| **-1 Project** | Which interventions are carried together, and when each one starts |
-| **0 Intervention** | Which activities make up this package, and which suit this patient |
-| **1 Segment / process** | What should happen, and in what order |
-| **2 Activity** | How a segment executes |
-| **3 Node** | The specific action or logic |
+| Layer                   | What it answers                                                    |
+| ----------------------- | ------------------------------------------------------------------ |
+| **-1 Project**          | Which interventions are carried together, and when each one starts |
+| **0 Intervention**      | Which activities make up this package, and which suit this patient |
+| **1 Segment / process** | What should happen, and in what order                              |
+| **2 Activity**          | How a segment executes                                             |
+| **3 Node**              | The specific action or logic                                       |
 
 Five layers is the whole conceptual model, and the tool should navigate and teach all five. Today
 an author holds the top two in their head.
@@ -77,7 +77,7 @@ an author holds the top two in their head.
 ### 1. Reconciling with `careplan.md`
 
 `../../tricc_oo/feature/careplan.md` §0.1 records an agreed hierarchy of
-**`Project → CarePlan(s) → Intervention(s) → Process(es)`**, with these points explicitly *not*
+**`Project → CarePlan(s) → Intervention(s) → Process(es)`**, with these points explicitly _not_
 open questions: a project may have zero CarePlans (today's behaviour) or several, each evaluated
 independently; only interventions are schedulable; and CarePlan authoring reuses the existing
 relevance vocabulary rather than introducing a new one.
@@ -106,41 +106,45 @@ Extending `20260825-project-format.md` §2:
     {
       "id": "sick-child",
       "code": "sick-child",
-      "title":       { "en": "Sick child consultation" },
+      "title": { "en": "Sick child consultation" },
       "description": { "en": "..." },
 
       "applicability": {
         "intent": { "en": "Children from 2 months up to 5 years" },
-        "expression": "AgeInMonths() >= 2 and AgeInMonths() < 60"
+        "expression": "AgeInMonths() >= 2 and AgeInMonths() < 60",
       },
 
       "trigger": { "mode": "on-demand" },
 
       "processes": [
-        { "process": "registration", "activities": [
-            { "ref": "reg-child" }
-        ]},
-        { "process": "history-and-physical", "activities": [
+        { "process": "registration", "activities": [{ "ref": "reg-child" }] },
+        {
+          "process": "history-and-physical",
+          "activities": [
             { "ref": "hp-cough" },
-            { "ref": "hp-diarrhoea", "applicability": {
+            {
+              "ref": "hp-diarrhoea",
+              "applicability": {
                 "intent": { "en": "Only when diarrhoea was reported at triage" },
-                "expression": "\"Diarrhoea reported\""
-            }}
-        ]},
-        { "process": "determine-diagnosis", "activities": [] }
-      ]
-    }
-  ]
+                "expression": "\"Diarrhoea reported\"",
+              },
+            },
+          ],
+        },
+        { "process": "determine-diagnosis", "activities": [] },
+      ],
+    },
+  ],
 }
 ```
 
 #### 2.1 Two levels of applicability
 
-| Where | Meaning |
-|-------|---------|
-| `intervention.applicability` | Whether this package suits this patient at all |
-| `processes[].activities[].applicability` | Whether this activity, **in this intervention**, suits this patient |
-| `activity.applicability` (in the activity YAML) | The activity's **intrinsic** applicability, wherever it is used |
+| Where                                           | Meaning                                                             |
+| ----------------------------------------------- | ------------------------------------------------------------------- |
+| `intervention.applicability`                    | Whether this package suits this patient at all                      |
+| `processes[].activities[].applicability`        | Whether this activity, **in this intervention**, suits this patient |
+| `activity.applicability` (in the activity YAML) | The activity's **intrinsic** applicability, wherever it is used     |
 
 Intrinsic and per-reference conditions are **ANDed**. The reason for both: an activity is reusable
 across interventions, and a condition that is true of the activity everywhere (a growth assessment
@@ -175,11 +179,11 @@ change is needed; it is noted here so the capability is known to exist rather th
 "trigger": { "mode": "on-demand" }
 ```
 
-| `mode` | Meaning | Status |
-|--------|---------|--------|
-| `on-demand` | Started by a health worker when a patient presents | Today's behaviour; the default |
-| `planned` | Started on a schedule defined in the project's planning layer | **Reserved** — needs `careplan.md` |
-| `event` | Started when a named event occurs | **Reserved** — needs `careplan.md` |
+| `mode`      | Meaning                                                       | Status                             |
+| ----------- | ------------------------------------------------------------- | ---------------------------------- |
+| `on-demand` | Started by a health worker when a patient presents            | Today's behaviour; the default     |
+| `planned`   | Started on a schedule defined in the project's planning layer | **Reserved** — needs `careplan.md` |
+| `event`     | Started when a named event occurs                             | **Reserved** — needs `careplan.md` |
 
 Only `on-demand` is implemented in v1. The others are accepted in the format, shown in the UI as
 unavailable with an explanation, and **blocked at export** — a project claiming a planned
@@ -248,14 +252,14 @@ in its own dated spec.
 
 ### 7. Code checklist
 
-| Path | Purpose |
-|------|---------|
-| `packages/core/src/format/schema/intervention.ts` | Intervention schema: applicability, triggers, activity refs |
-| `packages/core/src/validate/project.ts` | Project-scoped rules (§4) |
-| `packages/core/src/model/usage.ts` | Activity ↔ intervention usage, shared and orphaned activities |
-| `packages/editor/src/project/Overview.tsx` | Layer -1 screen |
-| `packages/editor/src/project/Navigator.tsx` | Five-level tree |
-| `packages/editor/src/project/InterventionEditor.tsx` | Intervention metadata, process chain, applicability |
+| Path                                                 | Purpose                                                       |
+| ---------------------------------------------------- | ------------------------------------------------------------- |
+| `packages/core/src/format/schema/intervention.ts`    | Intervention schema: applicability, triggers, activity refs   |
+| `packages/core/src/validate/project.ts`              | Project-scoped rules (§4)                                     |
+| `packages/core/src/model/usage.ts`                   | Activity ↔ intervention usage, shared and orphaned activities |
+| `packages/editor/src/project/Overview.tsx`           | Layer -1 screen                                               |
+| `packages/editor/src/project/Navigator.tsx`          | Five-level tree                                               |
+| `packages/editor/src/project/InterventionEditor.tsx` | Intervention metadata, process chain, applicability           |
 
 ### 8. Tests
 
@@ -297,7 +301,7 @@ editing it warns; set a `planned` trigger and confirm export is blocked with an 
    planning content (five)? This spec assumes five; `careplan.md`'s owners should decide.
 2. **Applicability evaluation context.** Intervention applicability is evaluated before any
    question is answered, so it can only reference `populate` data — patient age, sex, history — not
-   in-form answers. Activity-reference applicability *can* reference answers from earlier processes
+   in-form answers. Activity-reference applicability _can_ reference answers from earlier processes
    in the same intervention. The editor must scope completion accordingly, and that scoping rule
    should be confirmed rather than inferred.
 3. **Does `tricc_oo` export activity-reference applicability today?** `20260825-tricc-oo-interop.md`

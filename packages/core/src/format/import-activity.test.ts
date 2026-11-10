@@ -88,7 +88,9 @@ describe('readActivityFile', () => {
   it('says when the file is a project or empty or unreadable', () => {
     const taken = new Set<string>()
     expect(() => readActivityFile('empty.yaml', '   ', taken)).toThrow(/empty/)
-    expect(() => readActivityFile('tricc.yaml', 'interventions:\n  - id: a\n', taken)).toThrow(/project file/)
+    expect(() => readActivityFile('tricc.yaml', 'interventions:\n  - id: a\n', taken)).toThrow(
+      /project file/,
+    )
     expect(() => readActivityFile('notes.txt', 'hello', taken)).toThrow(/not an activity file/)
     expect(taken.size).toBe(0)
   })

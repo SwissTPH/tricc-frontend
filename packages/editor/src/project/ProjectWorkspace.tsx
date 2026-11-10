@@ -1,12 +1,14 @@
 import { useCallback, useState, type ReactNode } from 'react'
-import type { ConceptKey, OpenProject } from '@tricc/core'
+import type { Anchor, ConceptKey, OpenProject } from '@tricc/core'
 import { ActivityEditor } from '../activity/ActivityEditor.js'
+import { BlocksView } from '../blocks/BlocksView.js'
+import { TERMS } from '../blocks/terms.js'
 import { MediaView } from '../media/MediaView.js'
 import { OpenProjectProvider } from '../runtime/context.js'
 import { DictionaryView } from '../terminology/DictionaryView.js'
 import { ActivityNavigator } from './ActivityNavigator.js'
 import { Breadcrumbs, nextTrail } from './Breadcrumbs.js'
-import { ProjectOverview } from './Overview.js'
+import { ProjectOverview, type OverviewView } from './Overview.js'
 
 /** What the host places in its own top bar and main area. */
 export interface ProjectWorkspaceFrame {
@@ -17,10 +19,23 @@ export interface ProjectWorkspaceFrame {
    * so the activity editor stays a direct child and the local layout still applies.
    */
   body: ReactNode
+  /**
+   * Open the place a discussion is about and show the discussion there. The host passes it to
+   * its notification bell and discussions button.
+   */
+  showDiscussion: (anchor: Anchor, discussionId: string) => void
+}
+
+type DiscussionJump = {
+  seq: number
+  kind: 'node' | 'edge' | 'group' | 'comment' | 'activity'
+  id: string
+  discussionId: string
 }
 
 /**
- * The project screen shared by every shell: which activity is open, the dictionary, and media.
+ * The project screen shared by every shell: which activity is open, the dictionary, media and
+ * building blocks.
  *
  * The host opens the project and draws its own top bar (accounts, save, export). This component
  * stays mounted when `project` is absent, so the trail survives the host's opening state.
@@ -37,7 +52,8 @@ export function ProjectWorkspace({
   project?: OpenProject
   /** Open the project settings as soon as the overview shows. The host reads this once. */
   initialSettingsOpen?: boolean
-  onHome: () => void
+  /** A home link at the start of the breadcrumbs. Without it the host shows its own. */
+  onHome?: () => void
   /** The project was renamed. The host updates its project list. */
   onRename?: (name: string) => void
   /** The author confirmed deleting the project. The host removes it and leaves. */
@@ -49,9 +65,15 @@ export function ProjectWorkspace({
   /** Activities reached, outermost first; the last one is open. Empty: the overview. */
   const [trail, setTrail] = useState<string[]>([])
   const activityId = trail[trail.length - 1]
-  const [focus, setFocus] = useState<{ activityId: string; nodeId?: string; edgeId?: string } | null>(null)
+  const [focus, setFocus] = useState<{
+    activityId: string
+    nodeId?: string
+    edgeId?: string
+  } | null>(null)
+  const [discussJump, setDiscussJump] = useState<DiscussionJump | null>(null)
   const [dictionary, setDictionary] = useState(false)
   const [media, setMedia] = useState(false)
+  const [blocks, setBlocks] = useState(false)
   const [concept, setConcept] = useState<ConceptKey | undefined>(undefined)
   /** The dictionary on screen (canonical url); undefined until one is chosen. */
   const [dictionarySystem, setDictionarySystem] = useState<string | undefined>(undefined)
@@ -59,6 +81,7 @@ export function ProjectWorkspace({
   const openNode = useCallback((nextActivity: string, nodeId: string) => {
     setDictionary(false)
     setMedia(false)
+    setBlocks(false)
     setConcept(undefined)
     setFocus({ activityId: nextActivity, nodeId })
     setTrail((t) => nextTrail(t, nextActivity, 'reset'))
@@ -66,6 +89,7 @@ export function ProjectWorkspace({
   const openEdge = useCallback((nextActivity: string, edgeId: string) => {
     setDictionary(false)
     setMedia(false)
+    setBlocks(false)
     setConcept(undefined)
     setFocus({ activityId: nextActivity, edgeId })
     setTrail((t) => nextTrail(t, nextActivity, 'reset'))
@@ -74,17 +98,44 @@ export function ProjectWorkspace({
     setConcept(key)
     setDictionarySystem(key.system)
     setMedia(false)
+    setBlocks(false)
     setDictionary(true)
   }, [])
   const openActivity = useCallback((id: string | undefined) => {
     setDictionary(false)
     setMedia(false)
+    setBlocks(false)
     setConcept(undefined)
     setFocus(null)
     setTrail(id ? [id] : [])
   }, [])
+  const showDiscussion = useCallback(
+    (anchor: Anchor, discussionId: string) => {
+      const seq = Date.now()
+      if (anchor.kind === 'node') {
+        openNode(anchor.activityId, anchor.nodeId)
+        setDiscussJump({ seq, kind: 'node', id: anchor.nodeId, discussionId })
+      } else if (anchor.kind === 'edge') {
+        openEdge(anchor.activityId, anchor.edgeId)
+        setDiscussJump({ seq, kind: 'edge', id: anchor.edgeId, discussionId })
+      } else if (anchor.kind === 'group') {
+        openActivity(anchor.activityId)
+        setDiscussJump({ seq, kind: 'group', id: anchor.groupId, discussionId })
+      } else if (anchor.kind === 'comment') {
+        openActivity(anchor.activityId)
+        setDiscussJump({ seq, kind: 'comment', id: anchor.commentId, discussionId })
+      } else if (anchor.kind === 'activity') {
+        openActivity(anchor.activityId)
+        setDiscussJump({ seq, kind: 'activity', id: anchor.activityId, discussionId })
+      }
+    },
+    [openActivity, openEdge, openNode],
+  )
   /** Through a goto: the activity is added to the breadcrumb. */
   const followActivity = useCallback((next: string) => {
+    setDictionary(false)
+    setMedia(false)
+    setBlocks(false)
     setFocus(null)
     setTrail((t) => nextTrail(t, next, 'follow'))
   }, [])
@@ -93,17 +144,19 @@ export function ProjectWorkspace({
     setFocus({ activityId: caller, nodeId })
     setTrail((t) => nextTrail(t, caller, 'return'))
   }, [])
-  const showView = useCallback((view: 'dictionary' | 'media' | null) => {
+  const showView = useCallback((view: OverviewView | null) => {
     setDictionary(view === 'dictionary')
     setMedia(view === 'media')
+    setBlocks(view === 'blocks')
     setConcept(undefined)
   }, [])
 
+  const sideView = dictionary || media || blocks
   const crumbs = project ? (
     <Breadcrumbs
-      trail={dictionary || media ? [] : trail}
-      extra={dictionary ? 'Data dictionary' : media ? 'Media' : undefined}
-      onHome={onHome}
+      trail={sideView ? [] : trail}
+      extra={dictionary ? 'Data dictionary' : media ? 'Media' : blocks ? TERMS.blocks : undefined}
+      {...(onHome ? { onHome } : {})}
       onProject={() => {
         showView(null)
         setFocus(null)
@@ -121,11 +174,12 @@ export function ProjectWorkspace({
     <>
       <ActivityNavigator
         onSelect={openActivity}
-        selected={dictionary || media ? undefined : activityId}
+        selected={sideView ? undefined : activityId}
         dictionaryOpen={dictionary}
         dictionarySystem={dictionary ? dictionarySystem : undefined}
         onOpenDictionary={(system) => {
           setMedia(false)
+          setBlocks(false)
           setConcept(undefined)
           setDictionarySystem(system)
           setDictionary(true)
@@ -135,13 +189,24 @@ export function ProjectWorkspace({
         mediaOpen={media}
         onOpenMedia={() => {
           setDictionary(false)
+          setBlocks(false)
           setMedia(true)
         }}
+        blocksOpen={blocks}
+        onOpenBlocks={() => showView('blocks')}
       />
-      {media ? (
+      {blocks ? (
+        <BlocksView onOpenBlock={openActivity} onOpenNode={openNode} />
+      ) : media ? (
         <MediaView onOpenConcept={openConcept} />
       ) : dictionary ? (
-        <DictionaryView system={dictionarySystem} open={concept} onOpen={setConcept} onOpenNode={openNode} />
+        <DictionaryView
+          system={dictionarySystem}
+          open={concept}
+          onOpen={setConcept}
+          onOpenNode={openNode}
+          onOpenActivity={openActivity}
+        />
       ) : activityId ? (
         <ActivityEditor
           activityId={activityId}
@@ -151,6 +216,7 @@ export function ProjectWorkspace({
           onOpenEdge={openEdge}
           onOpenActivity={followActivity}
           onOpenCaller={openCaller}
+          focusDiscussion={discussJump ?? undefined}
           onDeleted={() => {
             const gone = activityId
             setFocus(null)
@@ -164,6 +230,7 @@ export function ProjectWorkspace({
           onOpenConcept={openConcept}
           onSelect={openActivity}
           onRename={onRename}
+          onShowView={showView}
           initialSettingsOpen={initialSettingsOpen}
           deleteNote={deleteNote}
           onDelete={onDelete}
@@ -172,7 +239,7 @@ export function ProjectWorkspace({
     </>
   ) : null
 
-  const framed = frame({ crumbs, body })
+  const framed = frame({ crumbs, body, showDiscussion })
   if (!project) return framed
   return <OpenProjectProvider project={project}>{framed}</OpenProjectProvider>
 }

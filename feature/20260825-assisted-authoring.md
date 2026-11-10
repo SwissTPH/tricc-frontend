@@ -1,11 +1,11 @@
 # Assisted Authoring — LLM help turning narrative into CQL
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft — **post-v1; data-egress decision unresolved, see §8** |
-| **Repo** | `tricc_frontend` — `@tricc/core` (port), `@tricc/cql`, `@tricc/editor` |
-| **Related** | `20260825-guided-authoring.md` (`intent`, the handoff work list), `20260825-cql-authoring.md` (profile, parser, resolution), `20260825-terminology.md` (the concept dictionary), `20260825-library-architecture.md` (ports) |
-| **Approval** | — |
+| Field        | Value                                                                                                                                                                                                                       |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**   | Draft — **post-v1; data-egress decision unresolved, see §8**                                                                                                                                                                |
+| **Repo**     | `tricc_frontend` — `@tricc/core` (port), `@tricc/cql`, `@tricc/editor`                                                                                                                                                      |
+| **Related**  | `20260825-guided-authoring.md` (`intent`, the handoff work list), `20260825-cql-authoring.md` (profile, parser, resolution), `20260825-terminology.md` (the concept dictionary), `20260825-library-architecture.md` (ports) |
+| **Approval** | —                                                                                                                                                                                                                           |
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
@@ -17,7 +17,7 @@ Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
 The clinician writes what a piece of logic should do:
 
-> *Only ask about convulsions for children under five who have had fever for more than three days.*
+> _Only ask about convulsions for children under five who have had fever for more than three days._
 
 An assistant proposes the CQL:
 
@@ -34,9 +34,9 @@ person, expression in CQL from another. That is a genuine improvement on today, 
 a clinician blocked whenever an IT specialist is not available.
 
 This is the narrow, high-value case for assistance. Not "generate a guideline" — a guideline is a
-clinical artefact and generating one would be reckless. Just: *this author has already stated
+clinical artefact and generating one would be reckless. Just: _this author has already stated
 precisely what they want, in their own words, and translating that specific sentence into a formal
-expression is a mechanical skill they lack and a machine has.*
+expression is a mechanical skill they lack and a machine has._
 
 The scope is deliberately confined to **expression fields**. Nothing else.
 
@@ -79,12 +79,12 @@ and to whom, and support for a model running on your own machine so the question
 
 ### 1. Scope
 
-| In | Out |
-|----|-----|
+| In                                               | Out                                        |
+| ------------------------------------------------ | ------------------------------------------ |
 | `intent` → CQL proposal for one expression field | Generating nodes, activities or guidelines |
-| CQL → draft `intent` (the reverse) | Editing the project directly |
-| Explaining why a proposal was rejected | Anything outside expression fields |
-| Local and hosted model backends | Bundling or hosting a model |
+| CQL → draft `intent` (the reverse)               | Editing the project directly               |
+| Explaining why a proposal was rejected           | Anything outside expression fields         |
+| Local and hosted model backends                  | Bundling or hosting a model                |
 
 ### 2. `AssistancePort`
 
@@ -100,9 +100,9 @@ interface ExpressionRequest {
   intent: string
   field: 'relevance' | 'calculate' | 'expression' | 'constraint' | 'edgeCondition'
   scope: {
-    concepts: ConceptSummary[]      // only concepts plausibly relevant, see §4
-    nodes: NodeSummary[]            // nodes in scope, with names and data types
-    functions: FunctionSignature[]  // the TRICC helper functions
+    concepts: ConceptSummary[] // only concepts plausibly relevant, see §4
+    nodes: NodeSummary[] // nodes in scope, with names and data types
+    functions: FunctionSignature[] // the TRICC helper functions
   }
   language: string
 }
@@ -110,8 +110,8 @@ interface ExpressionRequest {
 interface Proposal {
   cql: string
   confidence?: number
-  notes?: string                    // shown, never trusted
-  rendering: string                 // plain-language, computed locally from the parse tree
+  notes?: string // shown, never trusted
+  rendering: string // plain-language, computed locally from the parse tree
 }
 ```
 
@@ -168,14 +168,14 @@ IDE, a chat client, an agent — can then reason about the guideline with correc
 
 `@tricc/mcp` (a fifth package, private until the surface settles) would expose read-only tools:
 
-| Tool | Returns |
-|------|---------|
-| `search_concepts(query, dataType?)` | Concept matches from the project dictionary |
-| `lookup_concept(system, code)` | Full concept detail |
-| `nodes_in_scope(activityId, nodeId)` | Referenceable nodes with names and types |
-| `cql_profile()` | Permitted constructs and helper signatures |
-| `validate_cql(fragment, scope)` | Parse + resolve + profile result — the §3 gate, callable |
-| `explain_cql(fragment, scope)` | Plain-language rendering |
+| Tool                                 | Returns                                                  |
+| ------------------------------------ | -------------------------------------------------------- |
+| `search_concepts(query, dataType?)`  | Concept matches from the project dictionary              |
+| `lookup_concept(system, code)`       | Full concept detail                                      |
+| `nodes_in_scope(activityId, nodeId)` | Referenceable nodes with names and types                 |
+| `cql_profile()`                      | Permitted constructs and helper signatures               |
+| `validate_cql(fragment, scope)`      | Parse + resolve + profile result — the §3 gate, callable |
+| `explain_cql(fragment, scope)`       | Plain-language rendering                                 |
 
 `validate_cql` is the valuable one: it lets an external assistant check its own work against the
 real grammar and the real dictionary before proposing anything, rather than guessing.
@@ -231,15 +231,15 @@ and is sufficient to prove whether the feature is any good.
 
 ### 9. Code checklist
 
-| Path | Purpose |
-|------|---------|
-| `packages/core/src/ports/assistance.ts` | `AssistancePort`, request/proposal types |
-| `packages/core/src/assist/scope.ts` | Grounding: concept shortlist, node scope, few-shot selection |
-| `packages/core/src/assist/gate.ts` | The §3 validation pipeline |
-| `packages/cql/src/render/` | Plain-language rendering (shared with `guided-authoring` §5) |
-| `packages/editor/src/assist/` | Suggest control, proposal list, diff, accept-into-editor |
-| `packages/adapters-local/src/assist/local-model.ts` | `LocalModelAssistance` |
-| `packages/mcp/` | `@tricc/mcp`, if §5 proceeds |
+| Path                                                | Purpose                                                      |
+| --------------------------------------------------- | ------------------------------------------------------------ |
+| `packages/core/src/ports/assistance.ts`             | `AssistancePort`, request/proposal types                     |
+| `packages/core/src/assist/scope.ts`                 | Grounding: concept shortlist, node scope, few-shot selection |
+| `packages/core/src/assist/gate.ts`                  | The §3 validation pipeline                                   |
+| `packages/cql/src/render/`                          | Plain-language rendering (shared with `guided-authoring` §5) |
+| `packages/editor/src/assist/`                       | Suggest control, proposal list, diff, accept-into-editor     |
+| `packages/adapters-local/src/assist/local-model.ts` | `LocalModelAssistance`                                       |
+| `packages/mcp/`                                     | `@tricc/mcp`, if §5 proceeds                                 |
 
 ### 10. Tests
 

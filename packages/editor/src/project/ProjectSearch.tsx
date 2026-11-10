@@ -24,10 +24,16 @@ export function ProjectSearchDialog({
   const project = useProjectSnapshot()
   const result = useMemo(() => searchProject(project, query), [project, query])
   const cardRef = useRef<HTMLDivElement>(null)
-  const total = result.concepts.length + result.processes.length + result.activities.length + result.nodes.length
+  const total =
+    result.concepts.length +
+    result.processes.length +
+    result.activities.length +
+    result.nodes.length
 
   useEffect(() => {
-    cardRef.current?.querySelector<HTMLElement>('ul button, [data-testid="project-search-close"]')?.focus()
+    cardRef.current
+      ?.querySelector<HTMLElement>('ul button, [data-testid="project-search-close"]')
+      ?.focus()
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       event.preventDefault()
@@ -69,7 +75,9 @@ export function ProjectSearchDialog({
                 type="button"
                 data-testid={`search-hit-concept-${concept.code}`}
                 disabled={!onOpenConcept}
-                onClick={open(() => onOpenConcept?.({ system: concept.system, code: concept.code }))}
+                onClick={open(() =>
+                  onOpenConcept?.({ system: concept.system, code: concept.code }),
+                )}
               >
                 <span className="tricc-search__main">{concept.display ?? concept.code}</span>
                 <span className="tricc-search__detail">
@@ -79,7 +87,7 @@ export function ProjectSearchDialog({
             </li>
           ))}
         </Hits>
-        <Hits source="processes" title="Processes" count={result.processes.length}>
+        <Hits source="processes" title="Segments" count={result.processes.length}>
           {result.processes.map((hit) => (
             <li key={hit.activityId}>
               <button
@@ -141,7 +149,17 @@ export function ProjectSearchDialog({
   )
 }
 
-function Hits({ source, title, count, children }: { source: string; title: string; count: number; children: ReactNode }) {
+function Hits({
+  source,
+  title,
+  count,
+  children,
+}: {
+  source: string
+  title: string
+  count: number
+  children: ReactNode
+}) {
   if (count === 0) return null
   return (
     <section data-testid={`project-search-${source}`}>

@@ -1,55 +1,56 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
-  Link,
   Navigate,
   Route,
   Routes,
+  useLocation,
   useNavigate,
   useParams,
   useSearchParams,
 } from 'react-router-dom'
 import {
   ARCHIVE_EXTENSION,
-  isBinaryPath,
   LABEL_CHARS_MAX,
   LABEL_CHARS_MIN,
   IMAGE_WIDTH_MAX,
   IMAGE_WIDTH_MIN,
+  NODE_GAP_MAX,
+  NODE_GAP_MIN,
   LABEL_LINES_MAX,
   LABEL_LINES_MIN,
-  createProject,
-  fromArchive,
-  normalizeImport,
-  readProject,
   toArchive,
   writeProject,
   type OpenProject,
-  type ProjectFiles,
   type ProjectRef,
   type DiagramStyle,
-  type ProjectSummary,
 } from '@tricc/core'
 import {
-  BinIcon,
   Button,
-  ConfirmDelete,
-  GearIcon,
-  HomeIcon,
+  Dialog,
+  DiscussionsButton,
   Input,
+  NotificationBell,
   HistoryButtons,
   ProjectWorkspace,
   Textarea,
   TriccRuntimeProvider,
   useSave,
+  useThemeMode,
+  Icon,
+  type ThemeMode,
 } from '@tricc/editor'
+import ToggleButton from '@mui/material/ToggleButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import type { LocalRuntime } from './adapters.js'
+import { TopBar } from './shell/TopBar.js'
+import { PreferencesContext, usePreferencesPanel } from './shell/preferences-panel.js'
+import { HomePage } from './home/HomePage.js'
+import { deleteNote, deleteProject } from './projects.js'
 import {
   ChooseCopyDialog,
-  ImportFromRepoButton,
   RepoTools,
   checkCopy,
   fetchBranch,
-  forgetRepoState,
   needsChoice,
   repositoryOfFiles,
   writeBranch,
@@ -59,37 +60,56 @@ import {
 
 export function App({ local }: { local: LocalRuntime }) {
   const [storageLabel, setStorageLabel] = useState(defaultStorageLabel(local))
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  // Preferences open over the current page rather than replacing it, so closing them returns
+  // to the same activity, selection and side view (feature/20261109-preferences-close.md).
+  // A direct /preferences link opens them over the home page; closing goes home.
+  const [prefsOpen, setPrefsOpen] = useState(pathname === '/preferences')
+  const panel = useMemo(() => {
+    const close = () => {
+      setPrefsOpen(false)
+      if (pathname === '/preferences') navigate('/', { replace: true })
+    }
+    return {
+      open: prefsOpen || pathname === '/preferences',
+      close,
+      toggle: () => (prefsOpen || pathname === '/preferences' ? close() : setPrefsOpen(true)),
+    }
+  }, [prefsOpen, pathname, navigate])
   return (
     <TriccRuntimeProvider runtime={local.runtime} preferences={local.preferences}>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <Shell local={local} storageLabel={storageLabel}>
-              <ProjectList local={local} />
-            </Shell>
-          }
-        />
-        <Route
-          path="/project/:id/*"
-          element={
-            <ProjectPage
-              local={local}
-              storageLabel={storageLabel}
-              onStorageLabel={setStorageLabel}
-            />
-          }
-        />
-        <Route
-          path="/preferences"
-          element={
-            <Shell local={local} storageLabel={storageLabel}>
-              <Preferences local={local} />
-            </Shell>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <PreferencesContext.Provider value={panel}>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <Shell local={local} storageLabel={storageLabel}>
+                <HomePage local={local} />
+              </Shell>
+            }
+          />
+          <Route
+            path="/project/:id/*"
+            element={
+              <ProjectPage
+                local={local}
+                storageLabel={storageLabel}
+                onStorageLabel={setStorageLabel}
+              />
+            }
+          />
+          <Route
+            path="/preferences"
+            element={
+              <Shell local={local} storageLabel={storageLabel}>
+                <HomePage local={local} />
+              </Shell>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </PreferencesContext.Provider>
     </TriccRuntimeProvider>
   )
 }
@@ -99,6 +119,7 @@ function Shell({
   storageLabel,
   tools,
   crumbs,
+  bell,
   children,
 }: {
   local: LocalRuntime
@@ -106,280 +127,39 @@ function Shell({
   tools?: ReactNode
   /** Where the author is, in place of the app name: inside a project. */
   crumbs?: ReactNode
+  /** The project's own bell; without one, the bell gathers every project. */
+  bell?: ReactNode
   children: ReactNode
 }) {
-  const [readOnly, setReadOnly] = useState(local.identity.isReadOnly())
+  const prefs = usePreferencesPanel()
   return (
     <>
-      <header>
-        {crumbs ?? (
-          <Link to="/" className="tricc-home-link" data-testid="nav-home">
-            <HomeIcon />
-            TRICC Authoring
-          </Link>
+      <TopBar
+        local={local}
+        storageLabel={storageLabel}
+        tools={tools}
+        crumbs={crumbs}
+        bell={bell ?? <AllProjectsBell />}
+      />
+      <main>
+        {children}
+        {/* Over the page, not in its place: the page keeps its state while they are open. */}
+        {prefs.open && (
+          <div className="tricc-preferences-overlay">
+            <Preferences local={local} onClose={prefs.close} />
+          </div>
         )}
-        {/* Which store backs the open project. A user must know before they close the
-            tab, not after. */}
-        <span data-testid="storage-mode">{storageLabel}</span>
-        <div className="tricc-topbar__project">{tools}</div>
-        <label>
-          <input
-            type="checkbox"
-            data-testid="read-only-toggle"
-            checked={readOnly}
-            onChange={(e) => {
-              local.identity.setReadOnly(e.target.checked)
-              setReadOnly(e.target.checked)
-            }}
-          />
-          Read-only
-        </label>
-        <Link to="/preferences" data-testid="nav-preferences">
-          Preferences
-        </Link>
-      </header>
-      <main>{children}</main>
+      </main>
     </>
   )
 }
 
-function ProjectList({ local }: { local: LocalRuntime }) {
-  const [projects, setProjects] = useState<ProjectSummary[]>([])
-  const [name, setName] = useState('')
-  const [error, setError] = useState<string | undefined>(undefined)
-  const [deleting, setDeleting] = useState<ProjectRef | undefined>(undefined)
-  const cancelDelete = useCallback(() => setDeleting(undefined), [])
+/** Home: notifications from every project; one opens its project. */
+function AllProjectsBell() {
   const navigate = useNavigate()
-
-  const refresh = useCallback(async () => setProjects(await local.catalog.list()), [local])
-  useEffect(() => void refresh(), [refresh])
-
-  /** Adopt an imported file set as a new browser-backed project. */
-  const importFiles = async (files: ProjectFiles, fallbackName: string): Promise<ProjectRef | undefined> => {
-    setError(undefined)
-    const normalized = normalizeImport(files)
-    try {
-      // Parse before adopting: importing something unreadable and only discovering it on
-      // open would leave a broken entry in the project list.
-      const { project } = readProject(normalized)
-      const label = resolveName(project.title, project.languages.default) ?? fallbackName
-      const ref = await local.catalog.create(label)
-      await local.persistence.write(ref, {
-        files: normalized,
-        changed: Object.keys(normalized),
-        removed: [],
-      })
-      await refresh()
-      navigate(`/project/${ref.id}`)
-      return ref
-    } catch (e) {
-      setError(
-        e instanceof Error ? `That does not look like a TRICC project: ${e.message}` : String(e),
-      )
-      return undefined
-    }
-  }
-
   return (
-    <div data-testid="project-list">
-      <h1>Projects</h1>
-
-      {error && <p data-testid="import-error">{error}</p>}
-
-      <ul>
-        {projects.map((p) => (
-          <li key={p.id} className="tricc-project-row">
-            <Button
-              variant="link"
-              size="sm"
-              type="button"
-              data-testid={`open-${p.id}`}
-              onClick={() => navigate(`/project/${p.id}`)}
-            >
-              {p.name}
-            </Button>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              type="button"
-              data-testid={`configure-${p.id}`}
-              aria-label={`Settings of ${p.name}`}
-              title="Project settings"
-              onClick={() => navigate(`/project/${p.id}?settings=1`)}
-            >
-              <GearIcon />
-            </Button>
-            {!local.identity.isReadOnly() && (
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="text-destructive hover:text-destructive"
-                type="button"
-                data-testid={`delete-${p.id}`}
-                aria-label={`Delete ${p.name}`}
-                title="Delete project"
-                onClick={async () => setDeleting(await refFor(local, p))}
-              >
-                <BinIcon />
-              </Button>
-            )}
-          </li>
-        ))}
-      </ul>
-      {deleting && (
-        <ConfirmDelete
-          testId="delete-project"
-          heading="Delete this project?"
-          onCancel={cancelDelete}
-          onConfirm={() => {
-            const ref = deleting
-            setDeleting(undefined)
-            void deleteProject(local, ref).then(refresh)
-          }}
-        >
-          <p>This removes {deleting.name} from your projects.</p>
-          <p data-testid="delete-project-note">{deleteNote(local, deleting)}</p>
-        </ConfirmDelete>
-      )}
-      {projects.length === 0 && (
-        <p data-testid="no-projects">
-          No projects yet. Create one below, or import a project folder.
-        </p>
-      )}
-
-      <section aria-labelledby="open-heading">
-        <h2 id="open-heading">Open an existing project</h2>
-
-        {local.canUseFolders && (
-          <Button
-            variant="outline"
-            size="sm"
-            type="button"
-            data-testid="open-folder"
-            onClick={async () => {
-              setError(undefined)
-              const ref = await local.catalog.open()
-              // Undefined means the user cancelled the picker, which is not an error.
-              if (!ref) return
-              await refresh()
-              navigate(`/project/${ref.id}`)
-            }}
-          >
-            Open a project folder…
-          </Button>
-        )}
-
-        <ImportFromRepoButton
-          onImport={async (files, fallbackName) => {
-            // A repository import names its own errors in its dialog, not on the page.
-            const ref = await importFiles(files, fallbackName)
-            if (!ref) setError(undefined)
-            return ref
-          }}
-        />
-        <label htmlFor="import-archive">Import a {ARCHIVE_EXTENSION} file</label>
-        <input
-          id="import-archive"
-          type="file"
-          accept={`${ARCHIVE_EXTENSION},.zip`}
-          data-testid="import-archive"
-          onChange={async (e) => {
-            const file = e.target.files?.[0]
-            if (!file) return
-            const bytes = new Uint8Array(await file.arrayBuffer())
-            try {
-              await importFiles(fromArchive(bytes), stripExtension(file.name))
-            } catch {
-              setError('That file could not be read as an archive.')
-            }
-            e.target.value = ''
-          }}
-        />
-
-        <label htmlFor="import-files">Import a project folder</label>
-        <input
-          id="import-files"
-          type="file"
-          multiple
-          data-testid="import-files"
-          // Reading a directory works in every current browser; only writing back to one
-          // is Chromium-only, so this is the import path that always exists.
-          {...({ webkitdirectory: '' } as Record<string, string>)}
-          onChange={async (e) => {
-            const list = Array.from(e.target.files ?? [])
-            if (list.length === 0) return
-            const files: ProjectFiles = {}
-            for (const f of list) {
-              const path =
-                (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name
-              // Pictures stay bytes; everything else in a project is text.
-              files[path] = isBinaryPath(path) ? new Uint8Array(await f.arrayBuffer()) : await f.text()
-            }
-            await importFiles(files, 'Imported project')
-            e.target.value = ''
-          }}
-        />
-      </section>
-
-      <section aria-labelledby="create-heading">
-        <h2 id="create-heading">Start a new project</h2>
-        <label htmlFor="new-project-name">New project name</label>
-        <Input
-          id="new-project-name"
-          data-testid="new-project-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <Button
-          size="sm"
-          type="button"
-          data-testid="create-project"
-          disabled={name.trim() === ''}
-          onClick={async () => {
-            const id = slug(name)
-            const open = await local.runtime.create(name, createProject({ id, title: name }))
-            await refresh()
-            navigate(`/project/${open.ref.id}`)
-          }}
-        >
-          Create project
-        </Button>
-      </section>
-    </div>
+    <NotificationBell onOpen={(n) => navigate(`/project/${encodeURIComponent(n.projectId)}`)} />
   )
-}
-
-/** The catalog entry with its folder handle, if it has one: that decides what a delete does. */
-async function refFor(local: LocalRuntime, summary: ProjectRef): Promise<ProjectRef> {
-  const handle = await local.catalog.handleFor(summary)
-  return handle ? { ...summary, handle } : summary
-}
-
-function deleteNote(local: LocalRuntime, ref: ProjectRef): string {
-  return local.storeFor(ref) === 'folder'
-    ? 'The folder and its files stay on your disk; only this list forgets the project.'
-    : 'Its files are kept only in this browser and are deleted. Export a copy first to keep it.'
-}
-
-/**
- * Off the list first, so a list shown next no longer has it; then `removed` (leave the
- * project, so no autosave writes it back); then delete what the browser kept.
- */
-async function deleteProject(local: LocalRuntime, ref: ProjectRef, removed?: () => void): Promise<void> {
-  await local.catalog.remove(ref)
-  removed?.()
-  await local.persistence.forget(ref)
-  await local.collaboration.forget(ref)
-  forgetRepoState(ref.id)
-}
-
-function resolveName(title: Record<string, string> | undefined, lang: string): string | undefined {
-  if (!title) return undefined
-  return title[lang] ?? Object.values(title)[0]
-}
-
-function stripExtension(fileName: string): string {
-  return fileName.replace(/\.[^.]+$/, '')
 }
 
 /** Download the open project as a single file. */
@@ -414,6 +194,7 @@ function defaultStorageLabel(local: LocalRuntime): string {
     : 'This browser cannot write to a folder, so projects are kept in browser storage'
 }
 
+/** Opens the project from the URL, then hands it to the shared workspace. */
 function ProjectPage({
   local,
   storageLabel,
@@ -504,51 +285,65 @@ function ProjectPage({
     [local, reopen],
   )
 
-  const showing = Boolean(open) && !error
+  if (error) {
+    return (
+      <Shell local={local} storageLabel={storageLabel}>
+        <p data-testid="project-error">{error}</p>
+      </Shell>
+    )
+  }
+  if (!open) {
+    return (
+      <Shell local={local} storageLabel={storageLabel}>
+        <p data-testid="project-loading">Opening…</p>
+        {choice && (
+          <ChooseCopyDialog
+            check={choice.check}
+            onContinue={reopen}
+            onClose={() => (choice.check.state ? reopen() : navigate('/'))}
+            onLoad={async (branch) => {
+              const fetched = await fetchBranch(choice.check.repository, branch)
+              await replaceWith(choice.ref, fetched)
+            }}
+          />
+        )}
+      </Shell>
+    )
+  }
+
   return (
     <ProjectWorkspace
-      project={showing ? open : undefined}
+      project={open}
       initialSettingsOpen={settingsOnOpen}
-      onHome={() => navigate('/')}
-      onRename={open ? (name) => void local.catalog.rename(open.ref, name) : undefined}
-      onDelete={open ? () => void deleteProject(local, open.ref, () => navigate('/')) : undefined}
-      deleteNote={open ? deleteNote(local, open.ref) : undefined}
-      frame={({ crumbs, body }) => (
+      onRename={(name) => void local.catalog.rename(open.ref, name)}
+      deleteNote={deleteNote(local, open.ref)}
+      onDelete={() => void deleteProject(local, open.ref, () => navigate('/'))}
+      frame={({ crumbs, body, showDiscussion }) => (
         <Shell
           local={local}
           storageLabel={storageLabel}
-          crumbs={showing ? crumbs : undefined}
+          crumbs={crumbs}
+          bell={
+            <NotificationBell
+              projectId={open.ref.id}
+              onOpen={(n) => n.anchor && n.discussionId && showDiscussion(n.anchor, n.discussionId)}
+            />
+          }
           tools={
-            showing && open ? (
-              <>
-                <SaveIndicator />
-                <HistoryButtons />
-                <ExportButton open={open} />
-                <RepoTools local={local} open={open} onReplace={(fetched) => void replaceWith(open.ref, fetched)} />
-              </>
-            ) : undefined
+            <>
+              <SaveIndicator />
+              <HistoryButtons />
+              <DiscussionsButton onShow={showDiscussion} />
+              <ExportButton open={open} />
+              <RepoTools
+                local={local}
+                open={open}
+                onReplace={(fetched) => void replaceWith(open.ref, fetched)}
+              />
+            </>
           }
         >
-          {error ? (
-            <p data-testid="project-error">{error}</p>
-          ) : !open ? (
-            <>
-              <p data-testid="project-loading">Opening…</p>
-              {choice && (
-                <ChooseCopyDialog
-                  check={choice.check}
-                  onContinue={reopen}
-                  onClose={() => (choice.check.state ? reopen() : navigate('/'))}
-                  onLoad={async (branch) => {
-                    const fetched = await fetchBranch(choice.check.repository, branch)
-                    await replaceWith(choice.ref, fetched)
-                  }}
-                />
-              )}
-            </>
-          ) : (
-            body
-          )}
+          {body}
         </Shell>
       )}
     />
@@ -558,7 +353,11 @@ function ProjectPage({
 function SaveIndicator() {
   const status = useSave()
   return (
-    <p data-testid="save-status" data-state={status.state}>
+    <p
+      data-testid="save-status"
+      data-state={status.state}
+      title={saveLabel(status.state, status.error)}
+    >
       {saveLabel(status.state, status.error)}
     </p>
   )
@@ -571,127 +370,347 @@ function saveLabel(state: string, error?: string): string {
   return `Could not save${error ? `: ${error}` : ''}. Export a copy so the work is not only in this browser.`
 }
 
-function Preferences({ local }: { local: LocalRuntime }) {
+function Preferences({ local, onClose }: { local: LocalRuntime; onClose: () => void }) {
   const [name, setName] = useState(local.identity.current().displayName)
   const [lines, setLines] = useState(String(local.preferences.current().labelLines))
   const [chars, setChars] = useState(String(local.preferences.current().labelChars))
   const [imageWidth, setImageWidth] = useState(String(local.preferences.current().imageMaxWidth))
-  const [types, setTypes] = useState(local.preferences.current().conceptTypes.join('\n'))
+  const [types, setTypes] = useState(local.preferences.current().conceptTypes)
+  const [editingTypes, setEditingTypes] = useState(false)
   const [diagramStyle, setDiagramStyle] = useState(local.preferences.current().diagramStyle)
+  const [nodeGap, setNodeGap] = useState(String(local.preferences.current().nodeGap))
+  useEffect(() => {
+    // The concept types dialog handles its own Escape; this one only closes the page.
+    if (editingTypes) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      event.preventDefault()
+      onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [editingTypes, onClose])
   return (
-    <div data-testid="preferences">
-      <h1>Preferences</h1>
-      {/* No accounts and no authentication - a display name, used for authorship. */}
-      <label htmlFor="display-name">Display name</label>
-      <Input
-        id="display-name"
-        data-testid="display-name"
-        value={name}
-        onChange={(e) => {
-          setName(e.target.value)
-          local.identity.update({ displayName: e.target.value })
-        }}
-      />
-      <label htmlFor="pref-label-lines">Lines of text on a node</label>
-      <Input
-        id="pref-label-lines"
-        data-testid="pref-label-lines"
-        type="number"
-        min={LABEL_LINES_MIN}
-        max={LABEL_LINES_MAX}
-        value={lines}
-        onChange={(e) => {
-          setLines(e.target.value)
-          if (e.target.value !== '') local.preferences.update({ labelLines: Number(e.target.value) })
-        }}
-      />
-      <p>Longer text is cut after this many lines. The full text shows when you hover the node. This is your setting; it is not saved in the project.</p>
-      <label id="pref-diagram-style-label">Diagram style</label>
-      <div
-        role="radiogroup"
-        aria-labelledby="pref-diagram-style-label"
-        className="pref-diagram-style"
-        data-testid="pref-diagram-style"
-      >
-        {(
-          [
-            ['flowchart', 'Flowchart'],
-            ['bpmn', 'BPMN'],
-          ] as [DiagramStyle, string][]
-        ).map(([value, text]) => (
-          <label key={value}>
-            <input
-              type="radio"
-              name="pref-diagram-style"
-              value={value}
-              data-testid={`pref-diagram-style-${value}`}
-              checked={diagramStyle === value}
-              onChange={() => {
-                setDiagramStyle(value)
-                local.preferences.update({ diagramStyle: value })
-              }}
-            />
-            {text}
-          </label>
-        ))}
+    <div data-testid="preferences" role="region" aria-labelledby="preferences-heading">
+      <div className="tricc-preferences__header">
+        <h1 id="preferences-heading">Preferences</h1>
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+          data-testid="preferences-close"
+          onClick={onClose}
+        >
+          Close
+        </Button>
       </div>
-      <p>Flowchart draws a Decision as a rhombus; BPMN draws it as a rectangle. This is your setting; it is not saved in the project.</p>
-      <label htmlFor="pref-label-chars">Characters of a label in short lists</label>
-      <Input
-        id="pref-label-chars"
-        data-testid="pref-label-chars"
-        type="number"
-        min={LABEL_CHARS_MIN}
-        max={LABEL_CHARS_MAX}
-        value={chars}
-        onChange={(e) => {
-          setChars(e.target.value)
-          if (e.target.value !== '') local.preferences.update({ labelChars: Number(e.target.value) })
-        }}
-      />
-      <p>How much of a label shows on an answer link and in the Insert data list. The full text is on hover.</p>
-      <label htmlFor="pref-concept-types">Concept types</label>
-      <Textarea
-        id="pref-concept-types"
-        data-testid="pref-concept-types"
-        rows={8}
-        value={types}
-        onChange={(e) => {
-          setTypes(e.target.value)
-          local.preferences.update({ conceptTypes: e.target.value.split('\n') })
-        }}
-      />
-      <p>One per line. The data dictionary offers these as a concept's type; tricc_oo maps them to a FHIR resource.</p>
-      <label htmlFor="pref-image-width">Maximum image width (pixels)</label>
-      <Input
-        id="pref-image-width"
-        data-testid="pref-image-width"
-        type="number"
-        min={IMAGE_WIDTH_MIN}
-        max={IMAGE_WIDTH_MAX}
-        step={50}
-        value={imageWidth}
-        onChange={(e) => {
-          setImageWidth(e.target.value)
-          if (e.target.value !== '') local.preferences.update({ imageMaxWidth: Number(e.target.value) })
-        }}
-      />
-      <p>A wider picture is made smaller when it is added, so forms stay light on a health worker's device. Drawings (SVG) are kept as they are.</p>
-      <p data-testid="storage-explanation">
-        {local.canUseFolders
-          ? 'A project can be bound to a folder on disk; until then it is kept in this browser.'
-          : 'This browser cannot write to a folder, so projects are kept in browser storage.'}
-      </p>
+      <div className="tricc-form-grid">
+        <h2>You</h2>
+        {/* No accounts and no authentication - a display name, used for authorship. */}
+        <PrefRow
+          label="Display name"
+          htmlFor="display-name"
+          hint="Shown as the author of your changes."
+        >
+          <Input
+            id="display-name"
+            data-testid="display-name"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value)
+              local.identity.update({ displayName: e.target.value })
+            }}
+          />
+        </PrefRow>
+        <ThemeChoice />
+
+        <h2>Diagram</h2>
+        <PrefRow
+          label="Diagram style"
+          labelId="pref-diagram-style-label"
+          hint="Flowchart draws a Decision as a rhombus; BPMN draws it as a rectangle. This is your setting; it is not saved in the project."
+        >
+          <div
+            role="radiogroup"
+            aria-labelledby="pref-diagram-style-label"
+            className="pref-diagram-style"
+            data-testid="pref-diagram-style"
+          >
+            {(
+              [
+                ['flowchart', 'Flowchart'],
+                ['bpmn', 'BPMN'],
+              ] as [DiagramStyle, string][]
+            ).map(([value, text]) => (
+              <label key={value}>
+                <input
+                  type="radio"
+                  name="pref-diagram-style"
+                  value={value}
+                  data-testid={`pref-diagram-style-${value}`}
+                  checked={diagramStyle === value}
+                  onChange={() => {
+                    setDiagramStyle(value)
+                    local.preferences.update({ diagramStyle: value })
+                  }}
+                />
+                {text}
+              </label>
+            ))}
+          </div>
+        </PrefRow>
+        <PrefRow
+          label="Lines of text on a node"
+          htmlFor="pref-label-lines"
+          hint="Longer text is cut after this many lines. The full text shows when you hover the node. This is your setting; it is not saved in the project."
+        >
+          <Input
+            id="pref-label-lines"
+            data-testid="pref-label-lines"
+            className="pref-number"
+            type="number"
+            min={LABEL_LINES_MIN}
+            max={LABEL_LINES_MAX}
+            value={lines}
+            onChange={(e) => {
+              setLines(e.target.value)
+              if (e.target.value !== '')
+                local.preferences.update({ labelLines: Number(e.target.value) })
+            }}
+          />
+        </PrefRow>
+        <PrefRow
+          label="Space between side-by-side nodes (pixels)"
+          htmlFor="pref-node-gap"
+          hint="How far apart Tidy layout puts branches, so the Yes / No and answer labels on the links stay readable. The default, 108, is half a node plus 8. Nodes you placed yourself only move when you tidy."
+        >
+          <Input
+            id="pref-node-gap"
+            data-testid="pref-node-gap"
+            className="pref-number"
+            type="number"
+            min={NODE_GAP_MIN}
+            max={NODE_GAP_MAX}
+            step={4}
+            value={nodeGap}
+            onChange={(e) => {
+              setNodeGap(e.target.value)
+              if (e.target.value !== '')
+                local.preferences.update({ nodeGap: Number(e.target.value) })
+            }}
+          />
+        </PrefRow>
+
+        <h2>Lists and labels</h2>
+        <PrefRow
+          label="Characters of a label in short lists"
+          htmlFor="pref-label-chars"
+          hint="How much of a label shows on an answer link and in the Insert data list. The full text is on hover."
+        >
+          <Input
+            id="pref-label-chars"
+            data-testid="pref-label-chars"
+            className="pref-number"
+            type="number"
+            min={LABEL_CHARS_MIN}
+            max={LABEL_CHARS_MAX}
+            value={chars}
+            onChange={(e) => {
+              setChars(e.target.value)
+              if (e.target.value !== '')
+                local.preferences.update({ labelChars: Number(e.target.value) })
+            }}
+          />
+        </PrefRow>
+
+        <h2>Data dictionary</h2>
+        <PrefRow
+          label="Concept types"
+          labelId="pref-concept-types-label"
+          hint="The data dictionary offers these as a concept's type; tricc_oo maps them to a FHIR resource."
+        >
+          <div className="tricc-form-grid__summary">
+            <span data-testid="pref-concept-types-summary">{typesSummary(types)}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              aria-describedby="pref-concept-types-label"
+              data-testid="pref-concept-types-edit"
+              onClick={() => setEditingTypes(true)}
+            >
+              Edit…
+            </Button>
+          </div>
+        </PrefRow>
+        {editingTypes && (
+          <ConceptTypesDialog
+            types={types}
+            onCancel={() => setEditingTypes(false)}
+            onSave={(next) => {
+              local.preferences.update({ conceptTypes: next })
+              setTypes(local.preferences.current().conceptTypes)
+              setEditingTypes(false)
+            }}
+          />
+        )}
+
+        <h2>Media</h2>
+        <PrefRow
+          label="Maximum image width (pixels)"
+          htmlFor="pref-image-width"
+          hint="A wider picture is made smaller when it is added, so forms stay light on a health worker's device. Drawings (SVG) are kept as they are."
+        >
+          <Input
+            id="pref-image-width"
+            data-testid="pref-image-width"
+            className="pref-number"
+            type="number"
+            min={IMAGE_WIDTH_MIN}
+            max={IMAGE_WIDTH_MAX}
+            step={50}
+            value={imageWidth}
+            onChange={(e) => {
+              setImageWidth(e.target.value)
+              if (e.target.value !== '')
+                local.preferences.update({ imageMaxWidth: Number(e.target.value) })
+            }}
+          />
+        </PrefRow>
+
+        <h2>Storage</h2>
+        <p data-testid="storage-explanation">
+          {local.canUseFolders
+            ? 'A project can be bound to a folder on disk; until then it is kept in this browser.'
+            : 'This browser cannot write to a folder, so projects are kept in browser storage.'}
+        </p>
+      </div>
     </div>
   )
 }
 
-function slug(name: string): string {
+/** One setting: its name on the left, its control and explanation on the right. */
+function PrefRow({
+  label,
+  htmlFor,
+  labelId,
+  hint,
+  children,
+}: {
+  label: string
+  /** The control's id, for a single field. */
+  htmlFor?: string
+  /** The label's id, for a group named with aria-labelledby. */
+  labelId?: string
+  hint: string
+  children: ReactNode
+}) {
   return (
-    name
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '') || 'project'
+    <>
+      <label htmlFor={htmlFor} id={labelId}>
+        {label}
+      </label>
+      <div>
+        {children}
+        <p className="tricc-form-grid__hint">{hint}</p>
+      </div>
+    </>
+  )
+}
+
+/** "26 types: Observation, Value, Condition, …" */
+function typesSummary(types: readonly string[]): string {
+  if (types.length === 0) return 'No types'
+  const head = types.slice(0, 3).join(', ')
+  return `${types.length} ${types.length === 1 ? 'type' : 'types'}: ${head}${types.length > 3 ? ', …' : ''}`
+}
+
+/** The concept types, one per line. Applies on Save; Cancel, Close and Escape keep the old list. */
+function ConceptTypesDialog({
+  types,
+  onSave,
+  onCancel,
+}: {
+  types: readonly string[]
+  onSave: (types: string[]) => void
+  onCancel: () => void
+}) {
+  const [draft, setDraft] = useState(types.join('\n'))
+  return (
+    <Dialog
+      testId="pref-concept-types-dialog"
+      titleId="pref-concept-types-title"
+      title="Concept types"
+      onClose={onCancel}
+    >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          onSave(
+            draft
+              .split('\n')
+              .map((t) => t.trim())
+              .filter((t) => t !== ''),
+          )
+        }}
+      >
+        <label htmlFor="pref-concept-types">One per line</label>
+        <Textarea
+          id="pref-concept-types"
+          data-testid="pref-concept-types"
+          rows={14}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+        <div className="tricc-library-modal__actions">
+          <Button size="sm" type="submit" data-testid="pref-concept-types-save">
+            Save
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            data-testid="pref-concept-types-cancel"
+            onClick={onCancel}
+          >
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+/** System / Light / Dark. A per-browser setting, like the others on this page. */
+function ThemeChoice() {
+  const { mode, setMode } = useThemeMode()
+  return (
+    <PrefRow
+      label="Theme"
+      labelId="pref-theme-label"
+      hint="System follows your computer's light or dark setting."
+    >
+      <ToggleButtonGroup
+        exclusive
+        size="small"
+        value={mode}
+        aria-labelledby="pref-theme-label"
+        data-testid="pref-theme"
+        onChange={(_, value: ThemeMode | null) => value && setMode(value)}
+      >
+        {(
+          [
+            ['system', 'contrast', 'System'],
+            ['light', 'light_mode', 'Light'],
+            ['dark', 'dark_mode', 'Dark'],
+          ] as const
+        ).map(([value, icon, text]) => (
+          <ToggleButton key={value} value={value} data-testid={`pref-theme-${value}`}>
+            <Icon name={icon} size={18} style={{ marginRight: 6 }} />
+            {text}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
+    </PrefRow>
   )
 }

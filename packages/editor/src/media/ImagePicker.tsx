@@ -10,7 +10,13 @@ import { Input } from '../components/ui/input.js'
  * dialog). Picking resolves with the image id. Escape closes this dialog only, not the
  * editor it was opened from.
  */
-export function ImagePicker({ onPick, onClose }: { onPick: (id: string) => void; onClose: () => void }) {
+export function ImagePicker({
+  onPick,
+  onClose,
+}: {
+  onPick: (id: string) => void
+  onClose: () => void
+}) {
   const project = useProjectSnapshot()
   const canWrite = useCanWrite()
   const addImages = useAddImages()
@@ -127,7 +133,9 @@ export function ImagePicker({ onPick, onClose }: { onPick: (id: string) => void;
         )}
         {images.length === 0 ? (
           <p className="tricc-image-picker__empty" data-testid="image-picker-empty">
-            {project.images ? 'No picture matches.' : 'The library has no pictures yet. Add one, or drop files here.'}
+            {project.images
+              ? 'No picture matches.'
+              : 'The library has no pictures yet. Add one, or drop files here.'}
           </p>
         ) : (
           <ul className="tricc-image-grid">

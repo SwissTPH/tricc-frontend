@@ -42,6 +42,46 @@ export interface SelectOption {
   media?: { image: string }
 }
 
+/**
+ * Parameter types (tricc_oo block-params spec §2). The first four are the primitive ones the
+ * editor offers by default; each declared one is a concept in the calculate dictionary. `name`,
+ * `concept` and `expression` are substitution-only advanced types and have no concept.
+ */
+export const PARAM_TYPES = [
+  'boolean',
+  'number',
+  'string',
+  'choice',
+  'name',
+  'concept',
+  'expression',
+] as const
+export type ParamType = (typeof PARAM_TYPES)[number]
+export const PRIMITIVE_PARAM_TYPES: readonly ParamType[] = ['boolean', 'number', 'string', 'choice']
+
+/** A literal argument, or `{{name}}` (a string) binding it to a setting of the calling page. */
+export type ParamValue = string | number | boolean | ConceptRef
+
+/**
+ * One entry of a page's `params`: declared by the author, or computed from what the page calls
+ * (saved the same way; which it is, is recomputed from the call graph). Labels and help texts
+ * live on the parameter's concept, not here: the activity YAML holds codes only.
+ */
+export interface ActivityParam {
+  name: string
+  type: ParamType
+  /** Choice: the option codes, in order. */
+  options?: string[]
+  default?: ParamValue
+  required?: boolean
+  /**
+   * Texts read from a draw.io `parameters` shape. Transient: moved to the parameter's concept
+   * when the page joins a project, never written to the activity YAML.
+   */
+  label?: LocalizedText
+  description?: LocalizedText
+}
+
 export interface NotAvailable {
   name?: string
   label?: LocalizedText
@@ -87,7 +127,13 @@ export interface TriccNode {
   instance?: number
 
   reference?: string | WaitReference
+  /** Goto: the activity it goes to. Use block (`block`): the block it uses. */
   link?: string
+  /**
+   * Values set for this call (Use block, Go to activity), by parameter name. A parameter not
+   * listed is inherited from the calling page, then takes its default.
+   */
+  args?: Record<string, ParamValue>
 
   listName?: string
   options?: SelectOption[]
@@ -97,6 +143,11 @@ export interface TriccNode {
 
   context?: 'patient' | 'facility' | 'practitioner' | 'location' | 'encounter' | 'history'
   period?: string
+  /**
+   * Populate: the concept read. A code in the default dictionary, or a concept in another
+   * one. Without it, the concept named like the node (fix/20261109-populate-source-period.md).
+   */
+  source?: string | { system: string; code: string }
 
   /**
    * Legacy process-start form id. Read only: `readProject` moves it to the name of the
@@ -187,6 +238,8 @@ export interface Activity {
   title?: LocalizedText
   process?: string
   applicability?: Expression
+  /** Parameters, declared and computed alike (feature/20261028-snippets-tab-and-params.md §3). */
+  params?: ActivityParam[]
   ui?: ActivityUi
   /** Keyed by node id. */
   nodes: Record<string, TriccNode>
@@ -218,6 +271,12 @@ export interface Intervention {
   trigger?: Trigger
   /** Flat list. A process page is itself an activity in this list, not a group of pages. */
   activities: ActivityRef[]
+  /** Parameter values for everything the intervention lists: the top of every call chain. */
+  args?: Record<string, ParamValue>
+  /** Scope: the other interventions (ids) this one works with. */
+  requires?: string[]
+  /** Free tags for finding and grouping interventions while authoring. tricc_oo ignores them. */
+  labels?: string[]
 }
 
 export interface TriccContext {
@@ -255,11 +314,52 @@ export interface Concept {
   sourceVersion?: string
   targetResource?: string
   targetPath?: string
+  /** `parameter` for the concept of a page parameter (it holds no value, only the declaration). */
+  kind?: string
+  /** A parameter concept: its option codes (choice). */
+  paramOptions?: string[]
+  /** A parameter concept: its default, as text. */
+  paramDefault?: string
+  /** An entry of the retrieval dictionary (feature/20261109-project-retrievals.md §1). */
+  retrieval?: Retrieval
+}
+
+/** Where a retrieval reads. `custom` holds its own expressions. */
+export type RetrievalContext =
+  'patient' | 'facility' | 'practitioner' | 'location' | 'encounter' | 'history' | 'custom'
+
+/** One expression of a custom retrieval, as FHIR `Expression`. */
+export interface RetrievalExpression {
+  /** `text/cql` or `text/x-xlsform`. */
+  language: string
+  expression: string
+}
+
+/** What a retrieval reads (feature/20261109-project-retrievals.md §1). */
+export interface Retrieval {
+  context: RetrievalContext
+  /** Catalogue code (`terminology/retrieval.ts`). Missing: the context's default. */
+  function?: string
+  /** The concept read. */
+  reads?: { system: string; code: string }
+  /** ISO-8601, `encounter`, `history` and `custom` only. */
+  period?: string
+  /** `custom` only, one per export language. */
+  expressions?: RetrievalExpression[]
+}
+
+/** A FHIR Coding as found in `meta.tag`. */
+export interface Coding {
+  system?: string
+  code?: string
+  display?: string
 }
 
 export interface CodeSystem {
   id: string
   url: string
+  /** FHIR `meta`, kept as read. `tag` marks a dictionary's role (`codesystem-role`). */
+  meta?: { tag?: Coding[]; [key: string]: unknown }
   version?: string
   name?: string
   title?: string
@@ -277,6 +377,77 @@ export interface CodeSystem {
   conceptOrder: string[]
 }
 
+export type DiscussionStatus = 'open' | 'pending' | 'resolved' | 'wont_change'
+
+/** A person as written in the files: an id, and the name shown then. */
+export interface Person {
+  id: string
+  name: string
+}
+
+/** What a discussion is about. A sticky note is a `comment`. */
+export type Anchor =
+  | { kind: 'project' }
+  | { kind: 'intervention'; interventionId: string }
+  | { kind: 'activity'; activityId: string }
+  | { kind: 'node'; activityId: string; nodeId: string }
+  | { kind: 'edge'; activityId: string; edgeId: string }
+  | { kind: 'group'; activityId: string; groupId: string }
+  | { kind: 'comment'; activityId: string; commentId: string }
+  | { kind: 'concept'; system: string; code: string }
+  | { kind: 'image'; imageId: string }
+
+export interface DiscussionComment {
+  id: string
+  author: Person
+  /** ISO 8601, UTC. */
+  at: string
+  /** Plain text. `@[Name](user:<id>)` is a tag made on the platform. */
+  text?: string
+  edited?: string
+  /** Removed by its author or a moderator: the text is gone, the place is kept. */
+  deleted?: boolean
+}
+
+export interface DiscussionEvent {
+  at: string
+  by: Person
+  status?: DiscussionStatus
+  /** The one category, when it changed. Stored as a list so the file can name it. */
+  labels?: string[]
+  /** Platform only. `null` is "unassigned". */
+  assignee?: Person | null
+}
+
+export interface DiscussionResolution {
+  by: Person
+  at: string
+  note?: string
+  version?: string
+}
+
+export interface Discussion {
+  id: string
+  about: Anchor
+  /** The element's name when the discussion started; shown once the element is gone. */
+  label: string
+  status: DiscussionStatus
+  /** The category. One id. An empty list is a discussion that was not classified. */
+  labels: string[]
+  /** Platform only. */
+  assignee?: Person
+  comments: DiscussionComment[]
+  events: DiscussionEvent[]
+  resolution?: DiscussionResolution
+}
+
+/** A project's categories. A discussion carries one of these. */
+export interface DiscussionLabel {
+  id: string
+  name: string
+  color: CommentColor
+}
+
 export interface Project {
   formatVersion: string
   id: string
@@ -285,6 +456,10 @@ export interface Project {
   version?: string
   title?: LocalizedText
   description?: LocalizedText
+  /** Free tags for finding projects while authoring. tricc_oo ignores them. */
+  labels?: string[]
+  /** Who looks after the project. Authoring information; tricc_oo ignores it. */
+  owner?: ProjectOwner
   languages: { default: string; available: string[] }
   interventions: Intervention[]
   contexts: TriccContext[]
@@ -296,6 +471,11 @@ export interface Project {
    * diagnoses, the values a CQL library can define. See feature/20261014-project-search-and-dictionaries.md.
    */
   calculateCodeSystem?: string
+  /**
+   * The retrieval dictionary (canonical url, id or name): data read before the consultation,
+   * referenced as `"#code"`. See feature/20261109-project-retrievals.md.
+   */
+  retrieveCodeSystem?: string
   /** Keyed by library name; value is the CQL source. */
   libraries: Record<string, string>
   /** Keyed by activity id. */
@@ -305,6 +485,18 @@ export interface Project {
   images?: Record<string, ProjectImage>
   /** The git repository the project lives in, when it has one. */
   repository?: ProjectRepository
+  /** Conversations about elements. Absent until the first one, so a save stays the same. */
+  discussions?: Record<string, Discussion>
+  /** The categories a discussion can be. One discussion carries one of them. */
+  discussionLabels?: DiscussionLabel[]
+  /** Discussion files that could not be read, kept so a save does not delete them. */
+  discussionKeep?: Record<string, string>
+}
+
+/** A person, as the project names its owner: an identity id and a display name. */
+export interface ProjectOwner {
+  id: string
+  name: string
 }
 
 /**
@@ -378,7 +570,10 @@ export function imagesDir(project: Pick<Project, 'mediaPath'>): string {
   return `${(project.mediaPath ?? PATHS.media).replace(/\/+$/, '')}/images`
 }
 
-export function imagePath(project: Pick<Project, 'mediaPath'>, image: Pick<ProjectImage, 'id' | 'contentType'>): string {
+export function imagePath(
+  project: Pick<Project, 'mediaPath'>,
+  image: Pick<ProjectImage, 'id' | 'contentType'>,
+): string {
   return `${imagesDir(project)}/${image.id}.${IMAGE_TYPES[image.contentType]}`
 }
 
@@ -389,13 +584,19 @@ export const PATHS = {
   /** The project file. Activity bodies live beside it under `activities/`. */
   tricc: 'tricc.yaml',
   activities: 'activities',
+  /** Building blocks: `blocks/<id>.block.yaml`, listed in `tricc.yaml` `blocks`. */
+  blocks: 'blocks',
   terminology: 'terminology',
   cql: 'cql',
   media: 'media',
+  discussions: 'discussions',
 } as const
 
 export function activityPath(id: string): string {
   return `${PATHS.activities}/${id}.activity.yaml`
+}
+export function blockPath(id: string): string {
+  return `${PATHS.blocks}/${id}.block.yaml`
 }
 export function codeSystemPath(id: string): string {
   return `${PATHS.terminology}/${id}.codesystem.json`

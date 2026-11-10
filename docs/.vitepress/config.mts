@@ -5,7 +5,7 @@ const repo = 'https://github.com/SwissTPH/tricc-frontend'
 const base = process.env.DOCS_BASE ?? '/tricc-frontend/'
 
 export default defineConfig({
-  title: 'TRICC Authoring',
+  title: 'DrawTricc',
   description: 'Author TRICC clinical decision-support guidelines in the browser.',
   base,
   head: [
@@ -35,6 +35,7 @@ export default defineConfig({
         items: [
           { text: 'Getting started', link: '/guide/getting-started' },
           { text: 'Authoring a guideline', link: '/guide/authoring' },
+          { text: 'Building blocks', link: '/guide/blocks' },
           { text: 'Saving and sharing', link: '/guide/saving' },
           { text: 'Project format', link: '/guide/project-format' },
           { text: 'Converting with tricc_oo', link: '/guide/tricc-oo' },

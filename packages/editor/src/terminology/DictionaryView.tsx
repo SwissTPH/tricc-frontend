@@ -7,6 +7,9 @@ import {
   imageSrc,
   conceptUsage,
   projectDictionaries,
+  RETRIEVAL_CONTEXT_LABELS,
+  effectiveFunction,
+  retrievalUsage,
   type Concept,
   type ConceptKey,
   type Project,
@@ -29,6 +32,7 @@ export function DictionaryView({
   open,
   onOpen,
   onOpenNode,
+  onOpenActivity,
 }: {
   /** The dictionary shown (canonical url). It may not exist yet: its first concept creates it. */
   system?: string
@@ -36,6 +40,8 @@ export function DictionaryView({
   open?: ConceptKey
   onOpen: (key: ConceptKey | undefined) => void
   onOpenNode?: (activityId: string, nodeId: string) => void
+  /** Open the page a parameter concept belongs to. */
+  onOpenActivity?: (activityId: string) => void
 }) {
   const project = useProjectSnapshot()
   const canWrite = useCanWrite()
@@ -45,8 +51,9 @@ export function DictionaryView({
   const index = useMemo(() => ConceptIndex.fromProject(project), [project])
   const rows = useMemo(() => listed(project, index, query, system), [project, index, query, system])
   const dictionary = system ? projectDictionaries(project).find((d) => d.url === system) : undefined
+  const isRetrieve = dictionary?.kind === 'retrieve'
   const target: ConceptTarget | undefined = creating
-    ? { draft: system ? { system } : {} }
+    ? { draft: system ? { system, ...(isRetrieve ? { code: '#' } : {}) } : {} }
     : open
       ? { key: open }
       : undefined
@@ -62,12 +69,18 @@ export function DictionaryView({
   }
 
   return (
-    <section className="tricc-dictionary" data-testid="dictionary-view" aria-labelledby="dictionary-heading">
+    <section
+      className="tricc-dictionary"
+      data-testid="dictionary-view"
+      aria-labelledby="dictionary-heading"
+    >
       <header className="tricc-editor__header">
         <h1 id="dictionary-heading">
-          Data dictionary{dictionary ? <span data-testid="dictionary-id"> — {dictionary.id}</span> : null}
+          Data dictionary
+          {dictionary ? <span data-testid="dictionary-id"> — {dictionary.id}</span> : null}
         </h1>
-        <Input size="sm"
+        <Input
+          size="sm"
           type="search"
           data-testid="concept-search"
           aria-label="Find a concept"
@@ -83,7 +96,7 @@ export function DictionaryView({
             data-testid="concept-add"
             onClick={() => setCreating(true)}
           >
-            + Concept
+            {isRetrieve ? '+ Retrieval' : '+ Concept'}
           </Button>
         )}
       </header>
@@ -93,13 +106,22 @@ export function DictionaryView({
           made from them. Decisions are only nodes and have no concept.
         </p>
       )}
+      {isRetrieve && (
+        <p className="tricc-nav__note" data-testid="dictionary-retrieve-note">
+          Data that exists before the consultation: the patient's age or sex, a value recorded in a
+          past visit, the facility. Logic uses an entry by its code, like{' '}
+          <code>"#age_months" &lt; 2</code>. A form loads only the retrievals it uses.
+        </p>
+      )}
       {rows.length === 0 ? (
         <p className="tricc-dictionary__empty" data-testid="no-concepts">
           {query
             ? 'No concept matches.'
             : dictionary?.kind === 'calculate'
               ? 'No calculation or diagnosis has a concept yet. Create one from the node, or use + Concept.'
-              : 'The data dictionary is empty. Use + Concept to add one.'}
+              : isRetrieve
+                ? 'No retrieval yet. Use + Retrieval, or move a prefilled value here from its node.'
+                : 'The data dictionary is empty. Use + Concept to add one.'}
         </p>
       ) : (
         <div className="tricc-dictionary__scroll">
@@ -111,7 +133,7 @@ export function DictionaryView({
                 </th>
                 <th scope="col">Code</th>
                 <th scope="col">Display</th>
-                <th scope="col">Questionnaire text</th>
+                <th scope="col">{isRetrieve ? 'Reads' : 'Questionnaire text'}</th>
                 <th scope="col">Used</th>
               </tr>
             </thead>
@@ -143,12 +165,25 @@ export function DictionaryView({
                     {(() => {
                       const text = conceptRichText(concept, 'q-display', lang, lang)
                       const id = text === undefined ? undefined : imageRefs(text)[0]
-                      return id ? <TextImage src={imageSrc(id)} className="tricc-dictionary__thumb" /> : null
+                      return id ? (
+                        <TextImage src={imageSrc(id)} className="tricc-dictionary__thumb" />
+                      ) : null
                     })()}
                   </td>
-                  <td className="tricc-dictionary__code">{concept.code}</td>
+                  <td className="tricc-dictionary__code">
+                    {concept.code}
+                    {concept.kind === 'parameter' && (
+                      <span
+                        className="tricc-badge"
+                        data-testid={`concept-row-${concept.code}-parameter`}
+                      >
+                        {' '}
+                        Parameter
+                      </span>
+                    )}
+                  </td>
                   <td>{concept.display ?? ''}</td>
-                  <td>{questionnaire(concept, lang)}</td>
+                  <td>{isRetrieve ? reads(concept) : questionnaire(concept, lang)}</td>
                   <td>{uses === 0 ? '—' : uses}</td>
                 </tr>
               ))}
@@ -164,10 +199,25 @@ export function DictionaryView({
             onOpen(undefined)
           }}
           onOpenNode={onOpenNode}
+          onOpenActivity={onOpenActivity}
         />
       )}
     </section>
   )
+}
+
+/** A retrieval in one line: where, what, which concept, how far back. */
+function reads(concept: Concept): string {
+  const r = concept.retrieval
+  if (!r) return '—'
+  const fn = effectiveFunction(r)
+  const parts = [RETRIEVAL_CONTEXT_LABELS[r.context]]
+  // `…Value` only reads the concept, which is shown next.
+  if (fn && !fn.code.endsWith('Value')) parts.push(fn.label)
+  if (r.reads) parts.push(r.reads.code)
+  if (r.period) parts.push(r.period)
+  if (r.context === 'custom') parts.push(`${r.expressions?.length ?? 0} expression(s)`)
+  return parts.join(' · ')
 }
 
 /** The questionnaire text only when it says more than the display. */
@@ -178,12 +228,20 @@ function questionnaire(concept: Concept, lang: string): string {
 
 function listed(project: Project, index: ConceptIndex, query: string, system: string | undefined) {
   const concepts = query.trim()
-    ? index.search(query.trim(), { limit: 500, ...(system ? { codeSystem: system } : {}) }).map((m) => m.concept)
-    : Object.values(project.codeSystems).filter((cs) => !system || cs.url === system).flatMap((cs) =>
-        cs.conceptOrder.map((code) => cs.concepts[code]).filter((c): c is Concept => c !== undefined),
-      )
+    ? index
+        .search(query.trim(), { limit: 500, ...(system ? { codeSystem: system } : {}) })
+        .map((m) => m.concept)
+    : Object.values(project.codeSystems)
+        .filter((cs) => !system || cs.url === system)
+        .flatMap((cs) =>
+          cs.conceptOrder
+            .map((code) => cs.concepts[code])
+            .filter((c): c is Concept => c !== undefined),
+        )
   return concepts.map((concept) => ({
     concept,
-    uses: conceptUsage(project, { system: concept.system, code: concept.code }).length,
+    uses:
+      conceptUsage(project, { system: concept.system, code: concept.code }).length +
+      (concept.retrieval ? retrievalUsage(project, concept.code).length : 0),
   }))
 }

@@ -158,6 +158,31 @@ export function testCatalogPort(harness: CatalogHarness): void {
       await port.touch({ id: 'ghost', name: 'ghost' })
       expect((await port.list()).map((s) => s.id)).not.toContain('ghost')
     })
+
+    it('describe replaces what the list shows, keeps the name, and does not create', async () => {
+      const ref = await port.create('Described')
+      await port.describe(ref, {
+        code: 'IMCI',
+        title: 'Integrated care',
+        labels: ['child', 'triage'],
+        owner: { id: 'u1', name: 'Ada' },
+      })
+      let row = (await port.list()).find((s) => s.id === ref.id)
+      expect(row).toMatchObject({
+        name: 'Described',
+        code: 'IMCI',
+        title: 'Integrated care',
+        labels: ['child', 'triage'],
+        owner: { id: 'u1', name: 'Ada' },
+      })
+      await port.describe(ref, { title: 'Integrated care' })
+      row = (await port.list()).find((s) => s.id === ref.id)
+      expect(row?.code).toBeUndefined()
+      expect(row?.labels).toBeUndefined()
+      expect(row?.name).toBe('Described')
+      await port.describe({ id: 'ghost', name: 'ghost' }, { title: 'x' })
+      expect((await port.list()).map((s) => s.id)).not.toContain('ghost')
+    })
   })
 }
 

@@ -1,10 +1,10 @@
 # Project search and data dictionaries
 
-| Field | Value |
-|-------|-------|
-| **Status** | Implemented (frontend). `tricc_oo` reading of `calculate_code_system` and of `concept` on calculations: to follow. |
-| **Repo** | `tricc_frontend` — `@tricc/core`, `@tricc/editor`, `apps/local` |
-| **Source** | Patrick, 2026-10-14 |
+| Field         | Value                                                                                                                                                                                                                                                                         |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**    | Implemented (frontend). `tricc_oo` reading of `calculate_code_system` and of `concept` on calculations: to follow.                                                                                                                                                            |
+| **Repo**      | `tricc_frontend` — `@tricc/core`, `@tricc/editor`, `apps/local`                                                                                                                                                                                                               |
+| **Source**    | Patrick, 2026-10-14                                                                                                                                                                                                                                                           |
 | **Decisions** | 2026-10-14: the dictionaries are `<default id>` and `<default id>-calculate` (no rename, no URL change); calculate types are calculate, count, add, diagnosis, proposed_diagnosis; existing diagnosis concepts stay where they are (no production content yet, no migration). |
 
 ## Part I — What the author sees

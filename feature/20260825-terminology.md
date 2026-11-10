@@ -1,11 +1,11 @@
 # Terminology — concept and CodeSystem authoring
 
-| Field | Value |
-|-------|-------|
-| **Status** | Draft |
-| **Repo** | `tricc_frontend` — `@tricc/core` (model, index, usages), `@tricc/editor` (UI) |
-| **Related** | `20260825-project-format.md` (§2 terminology block), `20260825-cql-authoring.md` (concept picker and chips), `../../tricc_oo/tricc_oo/models/ocl.py` |
-| **Approval** | — |
+| Field        | Value                                                                                                                                                |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**   | Draft                                                                                                                                                |
+| **Repo**     | `tricc_frontend` — `@tricc/core` (model, index, usages), `@tricc/editor` (UI)                                                                        |
+| **Related**  | `20260825-project-format.md` (§2 terminology block), `20260825-cql-authoring.md` (concept picker and chips), `../../tricc_oo/tricc_oo/models/ocl.py` |
+| **Approval** | —                                                                                                                                                    |
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
 
@@ -71,27 +71,37 @@ the mechanism FHIR provides.
   "content": "complete",
   "caseSensitive": true,
   "property": [
-    { "code": "dataType",    "type": "code",   "description": "boolean|integer|decimal|string|date|coded|quantity" },
-    { "code": "conceptType", "type": "code",   "description": "TRICC concept type (drives FHIR resource mapping)" },
-    { "code": "unit",        "type": "string" },
-    { "code": "source",      "type": "string", "description": "Provenance, e.g. ocl:/orgs/WHO/sources/ICD-11/" },
-    { "code": "sourceVersion", "type": "string" }
+    {
+      "code": "dataType",
+      "type": "code",
+      "description": "boolean|integer|decimal|string|date|coded|quantity",
+    },
+    {
+      "code": "conceptType",
+      "type": "code",
+      "description": "TRICC concept type (drives FHIR resource mapping)",
+    },
+    { "code": "unit", "type": "string" },
+    {
+      "code": "source",
+      "type": "string",
+      "description": "Provenance, e.g. ocl:/orgs/WHO/sources/ICD-11/",
+    },
+    { "code": "sourceVersion", "type": "string" },
   ],
   "concept": [
     {
       "code": "weight",
       "display": "Weight",
       "definition": "Body weight measured at this encounter",
-      "designation": [
-        { "language": "fr", "value": "Poids" }
-      ],
+      "designation": [{ "language": "fr", "value": "Poids" }],
       "property": [
-        { "code": "dataType",    "valueCode": "decimal" },
+        { "code": "dataType", "valueCode": "decimal" },
         { "code": "conceptType", "valueCode": "Observation" },
-        { "code": "unit",        "valueString": "kg" }
-      ]
-    }
-  ]
+        { "code": "unit", "valueString": "kg" },
+      ],
+    },
+  ],
 }
 ```
 
@@ -123,10 +133,10 @@ it is `Patient.birthDate`. Two optional properties cover that case:
   "code": "date_of_birth",
   "display": "Date of birth",
   "property": [
-    { "code": "conceptType",    "valueCode":   "patient" },
-    { "code": "targetResource", "valueCode":   "Patient" },
-    { "code": "targetPath",     "valueString": "birthDate" }
-  ]
+    { "code": "conceptType", "valueCode": "patient" },
+    { "code": "targetResource", "valueCode": "Patient" },
+    { "code": "targetPath", "valueString": "birthDate" },
+  ],
 }
 ```
 
@@ -157,12 +167,15 @@ Framework-free, in `@tricc/core` under `src/terminology/`:
 
 ```ts
 interface TerminologyService {
-  search(query: string, opts?: { codeSystem?: string; dataType?: string; limit?: number }): ConceptMatch[]
+  search(
+    query: string,
+    opts?: { codeSystem?: string; dataType?: string; limit?: number },
+  ): ConceptMatch[]
   lookup(system: string, code: string): Concept | undefined
   usages(system: string, code: string): Usage[]
   create(codeSystem: string, concept: ConceptInput): Concept
   update(system: string, code: string, patch: Partial<ConceptInput>): Concept
-  remove(system: string, code: string): RemoveResult   // refuses while usages exist
+  remove(system: string, code: string): RemoveResult // refuses while usages exist
 }
 ```
 
@@ -228,23 +241,23 @@ Not implemented in v1. The following are fixed now so it needs no format change:
 
 ### 7. Code checklist
 
-| Path | Purpose |
-|------|---------|
-| `packages/core/src/terminology/service.ts` | `TerminologyService` implementation |
-| `packages/core/src/terminology/index.ts` | Search index |
-| `packages/core/src/terminology/usages.ts` | Usage walker (bindings + parsed CQL) |
-| `packages/core/src/terminology/codesystem.ts` | FHIR CodeSystem read/write + Zod schema |
-| `packages/editor/src/concepts/Browser.tsx` | Browser |
-| `packages/editor/src/concepts/ConceptPage.tsx` | Concept page |
-| `packages/editor/src/concepts/ConceptPicker.tsx` | Shared picker (reworked from `ConceptSelector.tsx`) |
-| `src/pages/TerminologyServer.tsx` | **Deleted** |
-| `REQUIREMENTS_ARCHITECTURE.md`, `USER_DOCUMENTATION.md`, `.cline` | **Deleted** — superseded; docs move to `docs/` |
+| Path                                                              | Purpose                                             |
+| ----------------------------------------------------------------- | --------------------------------------------------- |
+| `packages/core/src/terminology/service.ts`                        | `TerminologyService` implementation                 |
+| `packages/core/src/terminology/index.ts`                          | Search index                                        |
+| `packages/core/src/terminology/usages.ts`                         | Usage walker (bindings + parsed CQL)                |
+| `packages/core/src/terminology/codesystem.ts`                     | FHIR CodeSystem read/write + Zod schema             |
+| `packages/editor/src/concepts/Browser.tsx`                        | Browser                                             |
+| `packages/editor/src/concepts/ConceptPage.tsx`                    | Concept page                                        |
+| `packages/editor/src/concepts/ConceptPicker.tsx`                  | Shared picker (reworked from `ConceptSelector.tsx`) |
+| `src/pages/TerminologyServer.tsx`                                 | **Deleted**                                         |
+| `REQUIREMENTS_ARCHITECTURE.md`, `USER_DOCUMENTATION.md`, `.cline` | **Deleted** — superseded; docs move to `docs/`      |
 
 ### 8. Tests
 
 **Unit** — CodeSystem round-trip against a FHIR validator fixture; search ranking (exact code >
 exact display > prefix > substring > designation); index performance at 50 000 concepts; usage
-walker finds bindings *and* CQL references, and does not match inside string literals or comments;
+walker finds bindings _and_ CQL references, and does not match inside string literals or comments;
 delete refusal; code rename rewriting references.
 
 **Component** — picker keyboard navigation; inline creation returns to the calling field with the

@@ -8,7 +8,6 @@ import { expect, test, type Page } from '@playwright/test'
  * rest of that list downward, and an expression that is already CQL is shown and checked.
  */
 
-
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await page.evaluate(async () => {
@@ -29,6 +28,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 async function createProject(page: Page, name: string): Promise<void> {
+  await page.getByTestId('new-project').click()
   await page.getByTestId('new-project-name').fill(name)
   await page.getByTestId('create-project').click()
   await expect(page.getByTestId('save-status')).toBeVisible()
@@ -57,7 +57,9 @@ test('search and expand reach an activity or process that does not fit', async (
   const collapsed = await nav.evaluate((el) => el.getBoundingClientRect().height)
   await page.getByTestId('nav-expand').click()
   await expect(nav).toHaveAttribute('data-expanded', 'true')
-  await expect.poll(() => nav.evaluate((el) => el.getBoundingClientRect().height)).toBeGreaterThan(collapsed + 16)
+  await expect
+    .poll(() => nav.evaluate((el) => el.getBoundingClientRect().height))
+    .toBeGreaterThan(collapsed + 16)
 
   await page.getByTestId('activity-search').fill('activity-15')
   await expect(page.getByTestId('nav-activity-activity-15')).toBeVisible()
@@ -84,8 +86,9 @@ test('search and expand reach an activity or process that does not fit', async (
   ]
   for (const name of processes) {
     await page.getByTestId('add-process').click()
-    await page.getByTestId('new-process-name').fill(name)
-    await page.getByTestId('add-process-activity').click()
+    await page.getByTestId('new-segment-process').selectOption({ label: 'Other / custom…' })
+    await page.getByTestId('new-segment-custom-process').fill(name)
+    await page.getByTestId('create-segment').click()
   }
   await expect(page.getByTestId('tab-processes')).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByTestId('activity-navigator')).toHaveAttribute('data-expanded', 'true')
@@ -109,10 +112,14 @@ test('the same controls still reach an entry on a narrow window', async ({ page 
 
   await expectInsideViewport(page, 'activity-navigator')
   await expect(page.getByTestId('nav-expand')).toBeEnabled()
-  const collapsed = await page.getByTestId('activity-navigator').evaluate((el) => el.getBoundingClientRect().height)
+  const collapsed = await page
+    .getByTestId('activity-navigator')
+    .evaluate((el) => el.getBoundingClientRect().height)
   await page.getByTestId('nav-expand').click()
   await expect
-    .poll(() => page.getByTestId('activity-navigator').evaluate((el) => el.getBoundingClientRect().height))
+    .poll(() =>
+      page.getByTestId('activity-navigator').evaluate((el) => el.getBoundingClientRect().height),
+    )
     .toBeGreaterThan(collapsed + 16)
   await expectInsideViewport(page, 'activity-navigator')
   await page.getByTestId('nav-expand').click()
@@ -144,23 +151,56 @@ test('a plus opens a dialog and nothing is created until it is confirmed', async
   await expect(page.getByTestId('new-activity-id')).toHaveText('weight-measurement')
   await page.getByTestId('create-activity').click()
   await expect(modal).toHaveCount(0)
-  await expect(page.getByTestId('nav-activity-weight-measurement')).toContainText('Weight measurement')
+  await expect(page.getByTestId('nav-activity-weight-measurement')).toContainText(
+    'Weight measurement',
+  )
   await expect(page.getByTestId('activity-editor')).toBeVisible()
 
   await page.getByTestId('tab-processes').click()
   await page.getByTestId('add-process').click()
-  await expect(modal).toContainText('New process')
-  await expect(page.getByTestId('add-process-activity')).toBeDisabled()
+  await expect(modal).toContainText('New segment')
+  await expect(page.getByTestId('create-segment')).toBeDisabled()
   await page.getByTestId('library-modal-backdrop').click({ position: { x: 8, y: 8 } })
   await expect(modal).toHaveCount(0)
   await expect(page.getByTestId('no-process-activities')).toBeVisible()
 
   await page.getByTestId('add-process').click()
-  await page.getByTestId('new-process-name').fill('registration')
-  await expect(page.getByTestId('new-process-id')).toHaveText('registration-process')
-  await page.getByTestId('add-process-activity').click()
+  await page.getByTestId('new-segment-process').selectOption('registration')
+  await expect(page.getByTestId('new-segment-id')).toHaveText('registration-process')
+  await page.getByTestId('create-segment').click()
   await expect(page.getByTestId('nav-activity-registration-process')).toBeVisible()
   await expect(page.getByTestId('activity-process')).toHaveValue('registration')
+})
+
+test('a new segment takes a custom process and a name at creation', async ({ page }) => {
+  await createProject(page, 'Segment form')
+  await page.getByTestId('tab-processes').click()
+  await page.getByTestId('add-process').click()
+
+  const picker = page.getByTestId('new-segment-process')
+  await expect(picker).toBeFocused()
+  await picker.selectOption({ label: 'Other / custom…' })
+  await page.getByTestId('new-segment-custom-process').fill('home-visit')
+  // The name follows the process until the author types their own.
+  await expect(page.getByTestId('new-segment-name')).toHaveValue('Home visit')
+  await page.getByTestId('new-segment-name').fill('First home visit')
+  await expect(page.getByTestId('new-segment-id')).toHaveText('first-home-visit')
+  await page.getByTestId('create-segment').click()
+
+  await expect(page.getByTestId('nav-activity-first-home-visit')).toContainText('First home visit')
+  await page.getByTestId('configure-activity').click()
+  await expect(page.getByTestId('act-title')).toHaveValue('First home visit')
+  await expect(page.getByTestId('act-process')).toHaveValue('home-visit')
+  await page.getByTestId('activity-settings-save').click()
+
+  // The project's own process is offered next time, beside the CPG list.
+  await page.getByTestId('add-process').click()
+  await expect(
+    page
+      .getByTestId('new-segment-process')
+      .locator('optgroup[label="Used in this project"] option'),
+  ).toHaveText(['home-visit'])
+  await page.getByTestId('library-cancel').click()
 })
 
 test('import adds a file to the open tab and waits for confirmation', async ({ page }) => {
@@ -226,7 +266,7 @@ test('import adds a file to the open tab and waits for confirmation', async ({ p
 
   // A process file started from the Activities tab is listed as a process, not skipped.
   await page.getByTestId('import-activity-file').setInputFiles(airway)
-  await expect(page.getByTestId('import-group-process')).toContainText('Processes (1)')
+  await expect(page.getByTestId('import-group-process')).toContainText('Segments (1)')
   await expect(page.getByTestId('import-group-activity')).toHaveCount(0)
   await page.getByTestId('import-modal-backdrop').click({ position: { x: 8, y: 8 } })
   await expect(modal).toHaveCount(0)
@@ -269,7 +309,12 @@ function registrationDrawing(): string {
       'Page-1',
       [
         cell('rs', 'odk_type="start" process="registration"', 'Registration', 20),
-        cell('go', 'odk_type="goto" link="data:page/id,wm" name="weight"', 'Weight measurement', 120),
+        cell(
+          'go',
+          'odk_type="goto" link="data:page/id,wm" name="weight"',
+          'Weight measurement',
+          120,
+        ),
         cell('re', 'odk_type="end"', 'End', 220),
         edge('e1', 'rs', 'go'),
         edge('e2', 'go', 're'),
@@ -297,7 +342,7 @@ test('one draw.io import lands each page as a process or an activity', async ({ 
   await createProject(page, 'Registration guideline')
   // Started from the Activities tab, the process page is not skipped.
   await page.getByTestId('import-activity-file').setInputFiles(drawing)
-  await expect(page.getByTestId('import-group-process')).toContainText('Processes (1)')
+  await expect(page.getByTestId('import-group-process')).toContainText('Segments (1)')
   await expect(page.getByTestId('import-group-process')).toContainText('Registration')
   await expect(page.getByTestId('import-group-activity')).toContainText('Activities (1)')
   await expect(page.getByTestId('import-group-activity')).toContainText('Weight measurement')

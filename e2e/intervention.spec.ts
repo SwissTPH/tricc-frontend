@@ -29,14 +29,28 @@ async function pickActivity(page: Page, testId: string, activityId: string): Pro
   await page.getByTestId(`${testId}-option-${activityId}`).click()
 }
 
+/** Segments are added in the intervention editor: open it (if it is not open) and add one. */
+async function openSegmentPicker(page: Page, iv = 'intervention'): Promise<void> {
+  if ((await page.getByTestId(`intervention-settings-${iv}`).count()) === 0) {
+    await page.getByTestId(`configure-intervention-${iv}`).click()
+  }
+  await page.getByTestId(`add-process-to-${iv}`).click()
+}
+
+async function closeEditor(page: Page, iv = 'intervention'): Promise<void> {
+  await page.getByTestId(`intervention-settings-${iv}-close`).click()
+  await expect(page.getByTestId(`intervention-settings-${iv}`)).toHaveCount(0)
+}
+
 /** A project holding one process activity, which an intervention can list. */
 async function projectWithProcessActivity(page: Page, name: string): Promise<void> {
+  await page.getByTestId('new-project').click()
   await page.getByTestId('new-project-name').fill(name)
   await page.getByTestId('create-project').click()
   await page.getByTestId('tab-processes').click()
   await page.getByTestId('add-process').click()
-  await page.getByTestId('new-process-name').fill('triage')
-  await page.getByTestId('add-process-activity').click()
+  await page.getByTestId('new-segment-process').selectOption('triage')
+  await page.getByTestId('create-segment').click()
   await expect(page.getByTestId('activity-canvas')).toBeVisible()
   await page.getByTestId('nav-overview').click()
 }
@@ -55,18 +69,22 @@ test('builds an intervention from scratch and it survives a reload', async ({ pa
   await expect(page.getByTestId('intervention-settings-intervention-close')).toBeVisible()
   await page.getByTestId('intervention-settings-intervention-save').click()
   await expect(page.getByTestId('intervention-settings-intervention')).toHaveCount(0)
-  await page.getByTestId('add-process-to-intervention').click()
+  await openSegmentPicker(page)
   await pickActivity(page, 'add-activity-to-intervention', 'triage-process')
 
   await expect(page.getByTestId('intervention-intervention-activity-triage-process')).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Sick child consultation' })).toBeVisible()
+  await closeEditor(page)
+  await expect(page.getByTestId('intervention-intervention')).toContainText(
+    'Sick child consultation',
+  )
+  await expect(page.getByTestId('segment-intervention-triage-process')).toBeVisible()
 
   await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', {
     timeout: 10_000,
   })
   await page.reload()
 
-  await expect(page.getByTestId('intervention-intervention-activity-triage-process')).toBeVisible()
+  await expect(page.getByTestId('segment-intervention-triage-process')).toBeVisible()
   await expect(page.getByTestId('intervention-intervention-applicability')).toContainText(
     'Children under five',
   )
@@ -77,7 +95,7 @@ test('an activity in an intervention is no longer unassigned', async ({ page }) 
   await expect(page.getByTestId('unassigned-triage-process')).toBeVisible()
 
   await page.getByTestId('add-intervention').click()
-  await page.getByTestId('add-process-to-intervention').click()
+  await openSegmentPicker(page)
   await pickActivity(page, 'add-activity-to-intervention', 'triage-process')
 
   await expect(page.getByTestId('unassigned-triage-process')).toHaveCount(0)
@@ -86,16 +104,16 @@ test('an activity in an intervention is no longer unassigned', async ({ page }) 
 test('the condition stays on the intervention, not on the activity reference', async ({ page }) => {
   await projectWithProcessActivity(page, 'Conditional guideline')
   await page.getByTestId('add-intervention').click()
-  await page.getByTestId('add-process-to-intervention').click()
+  await openSegmentPicker(page)
   await pickActivity(page, 'add-activity-to-intervention', 'triage-process')
 
-  await page.getByTestId('configure-intervention-intervention').click()
+  // Back in the intervention editor once the segment is added.
   await page.getByTestId('iv-cql-intervention').fill('AgeInMonths() < 60')
 
   await expect(page.getByTestId('iv-cql-intervention')).toHaveValue('AgeInMonths() < 60')
-  await expect(page.getByTestId('intervention-intervention-activity-triage-process')).not.toContainText(
-    'conditional',
-  )
+  await expect(
+    page.getByTestId('intervention-intervention-activity-triage-process'),
+  ).not.toContainText('conditional')
   await expect(page.locator('[data-testid^="iv-activity-cql-"]')).toHaveCount(0)
 })
 
@@ -105,6 +123,8 @@ test('a reserved trigger mode is selectable but blocks export', async ({ page })
   await page.getByTestId('configure-intervention-intervention').click()
 
   await page.getByTestId('iv-trigger-intervention').selectOption('planned')
+  await closeEditor(page)
+  await page.getByTestId('tab-validation').click()
 
   const issue = page.getByTestId('issue-intervention.reserved-trigger')
   await expect(issue).toBeVisible()
@@ -115,7 +135,8 @@ test('read-only disables intervention editing entirely', async ({ page }) => {
   await projectWithProcessActivity(page, 'Read only intervention')
   await page.getByTestId('add-intervention').click()
 
-  await page.getByTestId('read-only-toggle').check()
+  await page.getByTestId('mode-menu').click()
+  await page.getByTestId('mode-viewing').click()
   await page.getByTestId('configure-intervention-intervention').click()
 
   await expect(page.getByTestId('iv-title-intervention')).toBeDisabled()
@@ -123,7 +144,7 @@ test('read-only disables intervention editing entirely', async ({ page }) => {
   await page.getByTestId('intervention-settings-intervention-close').click()
   await expect(page.getByTestId('intervention-settings-intervention')).toHaveCount(0)
   await expect(page.getByTestId('add-activity-to-intervention')).toHaveCount(0)
-  await expect(page.getByTestId('create-process-activity-intervention')).toHaveCount(0)
+  await expect(page.getByTestId('create-segment')).toHaveCount(0)
   await expect(page.getByTestId('delete-intervention-intervention')).toHaveCount(0)
 })
 
@@ -155,13 +176,13 @@ test('the activity picker searches rather than listing everything', async ({ pag
   // Two more process activities, so filtering has something to do.
   for (const _ of [1, 2]) {
     await page.getByTestId('add-process').click()
-    await page.getByTestId('new-process-name').fill('triage')
-    await page.getByTestId('add-process-activity').click()
+    await page.getByTestId('new-segment-process').selectOption('triage')
+    await page.getByTestId('create-segment').click()
     await page.getByTestId('nav-overview').click()
   }
 
   await page.getByTestId('add-intervention').click()
-  await page.getByTestId('add-process-to-intervention').click()
+  await openSegmentPicker(page)
 
   const picker = page.getByTestId('add-activity-to-intervention')
   // Scoped to the picker's own listbox.
@@ -172,13 +193,15 @@ test('the activity picker searches rather than listing everything', async ({ pag
 
   await picker.fill('triage-process-2')
   await expect(suggestions).toHaveCount(1)
-  await expect(page.getByTestId('add-activity-to-intervention-option-triage-process-2')).toBeVisible()
+  await expect(
+    page.getByTestId('add-activity-to-intervention-option-triage-process-2'),
+  ).toBeVisible()
 })
 
 test('the activity picker is fully keyboard operable', async ({ page }) => {
   await projectWithProcessActivity(page, 'Keyboard guideline')
   await page.getByTestId('add-intervention').click()
-  await page.getByTestId('add-process-to-intervention').click()
+  await openSegmentPicker(page)
 
   const picker = page.getByTestId('add-activity-to-intervention')
   await picker.focus()
@@ -194,9 +217,9 @@ test('the activity picker is fully keyboard operable', async ({ page }) => {
 test('the picker says so when there is nothing left to add', async ({ page }) => {
   await projectWithProcessActivity(page, 'Exhausted guideline')
   await page.getByTestId('add-intervention').click()
-  await page.getByTestId('add-process-to-intervention').click()
+  await openSegmentPicker(page)
   await pickActivity(page, 'add-activity-to-intervention', 'triage-process')
-  await page.getByTestId('add-process-to-intervention').click()
+  await openSegmentPicker(page)
 
   await expect(page.getByTestId('add-activity-to-intervention-exhausted')).toContainText(
     'already listed',
@@ -218,7 +241,7 @@ test('the two kinds of activity are listed and marked separately', async ({ page
 
   // The editor says which kind is open, and only a process activity names a process.
   await processEntry.click()
-  await expect(page.getByTestId('activity-kind')).toHaveText('Process activity')
+  await expect(page.getByTestId('activity-kind')).toHaveText('Segment')
   await expect(page.getByTestId('activity-process')).toHaveValue('triage')
 
   await page.getByTestId('tab-activities').click()
@@ -235,7 +258,7 @@ test('a normal activity can be listed on an intervention', async ({ page }) => {
   await page.getByTestId('nav-overview').click()
 
   await page.getByTestId('add-intervention').click()
-  await page.getByTestId('add-process-to-intervention').click()
+  await openSegmentPicker(page)
 
   const picker = page.getByTestId('add-activity-to-intervention')
   await picker.click()
@@ -246,20 +269,24 @@ test('a normal activity can be listed on an intervention', async ({ page }) => {
 })
 
 test('creates a process activity straight from the intervention', async ({ page }) => {
+  await page.getByTestId('new-project').click()
   await page.getByTestId('new-project-name').fill('Shortcut guideline')
   await page.getByTestId('create-project').click()
 
   await page.getByTestId('add-intervention').click()
-  await page.getByTestId('add-process-to-intervention').click()
+  await openSegmentPicker(page)
 
   // Nothing exists yet, so the picker says what to do and the shortcut creates one.
   await expect(page.getByTestId('add-activity-to-intervention-exhausted')).toContainText(
-    'no processes yet',
+    'no segments yet',
   )
 
-  await page.getByTestId('process-name-intervention').fill('registration')
-  await page.getByTestId('create-process-activity-intervention').click()
-  await expect(page.getByTestId('intervention-intervention-activity-registration-process')).toBeVisible()
+  await page.getByTestId('new-segment-process').selectOption('registration')
+  await page.getByTestId('create-segment').click()
+  await expect(
+    page.getByTestId('intervention-intervention-activity-registration-process'),
+  ).toBeVisible()
+  await closeEditor(page)
   await page.getByTestId('tab-processes').click()
   await expect(page.getByTestId('nav-activity-registration-process')).toHaveAttribute(
     'data-kind',
@@ -290,49 +317,56 @@ test('overview, processes, and activities use the full browser width', async ({ 
   expect(editor!.width).toBeGreaterThanOrEqual(1680 - 32)
 })
 
-test('intervention cards sit side by side, and a process chip opens it', async ({ page }) => {
-  await projectWithProcessActivity(page, 'Cards guideline')
+test('the intervention table lists segments as sub-rows, filters, and opens one', async ({
+  page,
+}) => {
+  await projectWithProcessActivity(page, 'Table guideline')
   await page.getByTestId('add-intervention').click()
   await page.getByTestId('add-intervention').click()
-  await page.getByTestId('add-process-to-intervention').click()
+  await openSegmentPicker(page)
   await pickActivity(page, 'add-activity-to-intervention', 'triage-process')
+  await page.getByTestId('iv-labels-intervention').fill('malaria,')
+  await closeEditor(page)
 
-  const first = page.getByTestId('intervention-intervention')
-  const second = page.getByTestId('intervention-intervention-2')
-  const wide = await boxes(first, second)
-  expect(wide.secondX).toBeGreaterThan(wide.firstRight - 2)
+  // Rows stack in one table; the segment is a sub-row, expanded by default.
+  const first = await page.getByTestId('intervention-intervention').boundingBox()
+  const second = await page.getByTestId('intervention-intervention-2').boundingBox()
+  expect(second!.y).toBeGreaterThan(first!.y)
+  const segment = page.getByTestId('segment-intervention-triage-process')
+  await expect(segment).toBeVisible()
 
-  await page.setViewportSize({ width: 390, height: 800 })
-  const narrow = await boxes(first, second)
-  expect(narrow.secondY).toBeGreaterThan(narrow.firstBottom - 2)
+  await page.getByTestId('expand-all-interventions').click()
+  await expect(segment).toHaveCount(0)
+  await page.getByTestId('expand-all-interventions').click()
+  await expect(segment).toBeVisible()
 
-  await page.setViewportSize({ width: 1280, height: 800 })
-  await page.getByTestId('intervention-intervention-activity-triage-process').getByRole('button').first().click()
+  // By name or code, and by label.
+  await page.getByTestId('intervention-filter').fill('intervention-2')
+  await expect(page.getByTestId('intervention-intervention')).toHaveCount(0)
+  await expect(page.getByTestId('intervention-intervention-2')).toBeVisible()
+  await page.getByTestId('intervention-filter').fill('')
+  await page.getByTestId('intervention-label-filter').click()
+  await page.getByRole('option', { name: 'malaria' }).click()
+  await expect(page.getByTestId('intervention-intervention')).toBeVisible()
+  await expect(page.getByTestId('intervention-intervention-2')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+
+  await page.getByTestId('open-segment-intervention-triage-process').click()
   await expect(page.getByTestId('activity-editor')).toBeVisible()
-  await expect(page.getByTestId('activity-kind')).toHaveText('Process activity')
+  await expect(page.getByTestId('activity-kind')).toHaveText('Segment')
 })
-
-async function boxes(
-  first: ReturnType<Page['getByTestId']>,
-  second: ReturnType<Page['getByTestId']>,
-): Promise<{ firstRight: number; firstBottom: number; secondX: number; secondY: number }> {
-  const a = await first.boundingBox()
-  const b = await second.boundingBox()
-  if (!a || !b) throw new Error('intervention cards are missing')
-  return { firstRight: a.x + a.width, firstBottom: a.y + a.height, secondX: b.x, secondY: b.y }
-}
 
 test('activities are ordered on the intervention', async ({ page }) => {
   await projectWithProcessActivity(page, 'Order guideline')
   await page.getByTestId('add-process').click()
-  await page.getByTestId('new-process-name').fill('triage')
-  await page.getByTestId('add-process-activity').click()
+  await page.getByTestId('new-segment-process').selectOption('triage')
+  await page.getByTestId('create-segment').click()
   await page.getByTestId('nav-overview').click()
 
   await page.getByTestId('add-intervention').click()
-  await page.getByTestId('add-process-to-intervention').click()
+  await openSegmentPicker(page)
   await pickActivity(page, 'add-activity-to-intervention', 'triage-process')
-  await page.getByTestId('add-process-to-intervention').click()
+  await openSegmentPicker(page)
   await pickActivity(page, 'add-activity-to-intervention', 'triage-process-2')
 
   const listed = page.getByTestId('iv-activities-intervention').getByRole('listitem')

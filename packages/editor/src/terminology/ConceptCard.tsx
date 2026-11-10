@@ -77,7 +77,10 @@ export function ConceptCard({
   if (!key || !concept) {
     if (readOnly) return null
     return (
-      <div className="tricc-concept-card tricc-concept-card--empty" data-testid="concept-card-empty">
+      <div
+        className="tricc-concept-card tricc-concept-card--empty"
+        data-testid="concept-card-empty"
+      >
         <p>This node has no concept in the data dictionary, so its text lives only here.</p>
         <Typeahead
           label="Concept"
@@ -110,7 +113,9 @@ export function ConceptCard({
     <div className="tricc-concept-card" data-testid="concept-card">
       <p className="tricc-concept-card__head">
         <span data-testid="concept-card-code">{concept.code}</span>
-        <span data-testid="concept-card-display">{conceptText(concept, 'display', lang, defaultLang)}</span>
+        <span data-testid="concept-card-display">
+          {conceptText(concept, 'display', lang, defaultLang)}
+        </span>
       </p>
       {questionnaire && questionnaire !== concept.display && (
         <p data-testid="concept-card-q-display">{questionnaire}</p>
@@ -144,7 +149,8 @@ function conceptFromNode(node: TriccNode, system: string, defaultLang: string): 
     designations: [],
   }
   for (const [language, text] of Object.entries(node.label ?? {})) {
-    if (language !== defaultLang && text) concept = withConceptText(concept, 'display', language, text, defaultLang)
+    if (language !== defaultLang && text)
+      concept = withConceptText(concept, 'display', language, text, defaultLang)
   }
   for (const use of ['hint', 'help'] as const) {
     for (const [language, text] of Object.entries(node[use] ?? {})) {

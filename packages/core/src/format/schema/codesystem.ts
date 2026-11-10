@@ -23,6 +23,14 @@ export const propertyValueSchema = z
     valueString: z.string().optional(),
     valueBoolean: z.boolean().optional(),
     valueInteger: z.number().int().optional(),
+    valueCoding: z
+      .object({
+        system: z.string().optional(),
+        code: z.string().optional(),
+        display: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
   })
   .strict()
 
@@ -41,6 +49,20 @@ export const codeSystemSchema = z
   .object({
     resourceType: z.literal('CodeSystem'),
     id: z.string().min(1),
+    meta: z
+      .object({
+        tag: z
+          .array(
+            z
+              .object({ system: z.string(), code: z.string(), display: z.string() })
+              .partial()
+              .passthrough(),
+          )
+          .optional(),
+      })
+      // Other FHIR meta keys (`profile`, `lastUpdated`) are kept and written back.
+      .passthrough()
+      .optional(),
     url: z.string().min(1),
     version: z.string().optional(),
     name: z.string().optional(),

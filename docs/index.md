@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: TRICC Authoring
+  name: DrawTricc
   text: Clinical guidelines, drawn and checked in the browser
   image:
     src: /swisstph-mark.png
@@ -34,6 +34,6 @@ features:
 ---
 
 <p class="home-note">
-TRICC Authoring is the authoring editor. A companion platform for sharing, review and use is in
+DrawTricc is the authoring editor. A companion platform for sharing, review and use is in
 development.
 </p>

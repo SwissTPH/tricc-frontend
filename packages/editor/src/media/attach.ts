@@ -34,7 +34,11 @@ export function withPictureFirst(concept: Concept, imageId: string, lang: string
   const current = at >= 0 ? concept.designations[at] : undefined
   const base = current ? designationText(current) : (concept.display ?? '')
   if (imageRefs(base).includes(imageId)) return concept
-  const blank: Designation = { language: lang, use: { ...DESIGNATION_USES['q-display'] }, value: '' }
+  const blank: Designation = {
+    language: lang,
+    use: { ...DESIGNATION_USES['q-display'] },
+    value: '',
+  }
   const next = withDesignationText(current ?? blank, prependImage(base, imageId))
   const designations = [...concept.designations]
   if (at >= 0) designations[at] = next

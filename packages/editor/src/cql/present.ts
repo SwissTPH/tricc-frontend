@@ -5,9 +5,9 @@
  */
 
 export interface CqlToken {
-  kind: 'name' | 'keyword' | 'number' | 'function' | 'operator' | 'text' | 'error'
+  kind: 'name' | 'param' | 'keyword' | 'number' | 'function' | 'operator' | 'text' | 'error'
   text: string
-  /** Quoted name without the surrounding quotes. */
+  /** Quoted name without the surrounding quotes; for a `param`, the parameter's name. */
   label?: string
 }
 
@@ -64,6 +64,16 @@ export function presentCql(source: string): { tokens: CqlToken[]; diagnostics: C
       tokens.push({ kind: 'text', text: c })
       i += 1
       continue
+    }
+
+    // `{{name}}`: a setting of the page, substituted when it is built.
+    if (c === '{' && source[i + 1] === '{') {
+      const m = /^\{\{\s*([a-z][a-z0-9_]*)\s*(?:\|\s*raw\s*)?\}\}/.exec(source.slice(i))
+      if (m) {
+        tokens.push({ kind: 'param', text: m[0], label: m[1]! })
+        i += m[0].length
+        continue
+      }
     }
 
     if (c === '"') {

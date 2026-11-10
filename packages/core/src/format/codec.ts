@@ -1,5 +1,6 @@
 import type {
   Activity,
+  ActivityParam,
   CodeSystem,
   Concept,
   Intervention,
@@ -8,12 +9,14 @@ import type {
   TriccNode,
   Designation,
   CanvasGroup,
+  Retrieval,
 } from '../model/types.js'
 import {
   activitySchema,
   type ActivityInput,
   type NodeInput,
   type EdgeInput,
+  type ParamInput,
 } from './schema/activity.js'
 import {
   projectSchema,
@@ -21,7 +24,13 @@ import {
   type ProjectInput,
   type InterventionInput,
 } from './schema/project.js'
-import { codeSystemSchema, readProperty, type CodeSystemInput } from './schema/codesystem.js'
+import {
+  codeSystemSchema,
+  readProperty,
+  type CodeSystemInput,
+  type CsConceptInput,
+} from './schema/codesystem.js'
+import { RETRIEVAL_CONTEXTS } from '../terminology/retrieval.js'
 import { toLocalized, fromLocalized, sortKeys, type LocalizedText } from './schema/localized.js'
 import { toExpression, fromExpression, type Expression } from './schema/expression.js'
 import { liftRootAttributes, rootNode } from '../model/activity-kind.js'
@@ -188,6 +197,7 @@ export function decodeActivity(input: unknown, lang: string): Activity {
   const intent = loc(raw.intent, lang)
   if (intent) app.intent = { ...app.intent, ...intent }
   if (app.intent || app.expression) a.applicability = app
+  if (raw.params?.length) a.params = raw.params.map((p) => decodeParam(p, lang))
   if (raw.form_id) {
     const start = nodeOrder.map((id) => nodes[id]).find((n) => n?.type === 'start')
     if (start && start.form_id === undefined) start.form_id = raw.form_id
@@ -214,6 +224,27 @@ export function decodeActivity(input: unknown, lang: string): Activity {
   return a
 }
 
+export function decodeParam(raw: ParamInput, lang: string): ActivityParam {
+  const p: ActivityParam = { name: raw.name, type: raw.type }
+  if (raw.options?.length) p.options = [...raw.options]
+  if (raw.default !== undefined) p.default = structuredClone(raw.default)
+  if (raw.required) p.required = true
+  const label = loc(raw.label, lang)
+  if (label) p.label = label
+  const description = loc(raw.description, lang)
+  if (description) p.description = description
+  return p
+}
+
+/** Codes only: a parameter's texts live on its concept, so `label` and `description` are not written. */
+export function encodeParam(p: ActivityParam): Record<string, unknown> {
+  const o: Record<string, unknown> = { name: p.name, type: p.type }
+  put(o, 'options', p.options && [...p.options])
+  put(o, 'default', p.default === undefined ? undefined : structuredClone(p.default))
+  put(o, 'required', p.required || undefined)
+  return o
+}
+
 function decodeIntervention(raw: InterventionInput, lang: string): Intervention {
   const i: Intervention = {
     id: raw.id,
@@ -232,8 +263,47 @@ function decodeIntervention(raw: InterventionInput, lang: string): Intervention 
 }
 
 const CONCEPT_KEYS = new Set(['code', 'display', 'definition', 'designation', 'property'])
+
+/** The extension holding one expression of a custom retrieval (project-retrievals §1). */
+export const RETRIEVE_EXPRESSION_URL =
+  'http://tricc.org/fhir/StructureDefinition/retrieve-expression'
+
+/** The retrieval of a concept: its `context` property and what goes with it. */
+function decodeRetrieval(c: CsConceptInput): {
+  retrieval?: Retrieval
+  otherExtensions?: unknown[]
+} {
+  const extensions = Array.isArray(c['extension']) ? (c['extension'] as unknown[]) : []
+  const isExpression = (
+    e: unknown,
+  ): e is { valueExpression?: { language?: unknown; expression?: unknown } } =>
+    !!e && typeof e === 'object' && (e as { url?: unknown }).url === RETRIEVE_EXPRESSION_URL
+  const others = extensions.filter((e) => !isExpression(e))
+  const raw = readProperty(c, 'context')
+  const context = RETRIEVAL_CONTEXTS.find((x) => x === raw)
+  const out: { retrieval?: Retrieval; otherExtensions?: unknown[] } = {}
+  if (others.length !== extensions.length || context !== undefined) {
+    const r: Retrieval = { context: context ?? 'custom' }
+    const f = readProperty(c, 'function')
+    if (f !== undefined) r.function = String(f)
+    const reads = c.property?.find((p) => p.code === 'reads')?.valueCoding
+    if (reads?.code) r.reads = { system: reads.system ?? '', code: reads.code }
+    const period = readProperty(c, 'period')
+    if (period !== undefined) r.period = String(period)
+    const expressions = extensions.filter(isExpression).flatMap((e) => {
+      const v = e.valueExpression
+      return v && typeof v.language === 'string' && typeof v.expression === 'string'
+        ? [{ language: v.language, expression: v.expression }]
+        : []
+    })
+    if (expressions.length > 0) r.expressions = expressions
+    out.retrieval = r
+  }
+  if (others.length !== extensions.length) out.otherExtensions = others
+  return out
+}
 /** TRICC properties written as `valueCode` unless the file had `valueString`. */
-const CODE_PROPERTIES = new Set(['dataType', 'conceptType', 'targetResource'])
+const CODE_PROPERTIES = new Set(['dataType', 'conceptType', 'targetResource', 'kind'])
 
 export function decodeCodeSystem(input: unknown): CodeSystem {
   const raw: CodeSystemInput = codeSystemSchema.parse(input)
@@ -247,9 +317,13 @@ export function decodeCodeSystem(input: unknown): CodeSystem {
       return out
     })
     const concept: Concept = { system: raw.url, code: c.code, designations }
-    const extra = Object.fromEntries(
-      Object.entries(c).filter(([key]) => !CONCEPT_KEYS.has(key)),
-    )
+    const { retrieval, otherExtensions } = decodeRetrieval(c)
+    const extra = Object.fromEntries(Object.entries(c).filter(([key]) => !CONCEPT_KEYS.has(key)))
+    if (otherExtensions !== undefined) {
+      if (otherExtensions.length > 0) extra['extension'] = otherExtensions
+      else delete extra['extension']
+    }
+    if (retrieval) concept.retrieval = retrieval
     if (Object.keys(extra).length > 0) concept.extra = structuredClone(extra)
     const asString = (c.property ?? [])
       .filter((p) => p.valueString !== undefined && CODE_PROPERTIES.has(p.code))
@@ -271,6 +345,15 @@ export function decodeCodeSystem(input: unknown): CodeSystem {
     if (tr !== undefined) concept.targetResource = String(tr)
     const tp = readProperty(c, 'targetPath')
     if (tp !== undefined) concept.targetPath = String(tp)
+    const kind = readProperty(c, 'kind')
+    if (kind !== undefined) concept.kind = String(kind)
+    const options = (c.property ?? [])
+      .filter((p) => p.code === 'option')
+      .map((p) => p.valueCode ?? p.valueString)
+      .filter((v): v is string => typeof v === 'string')
+    if (options.length > 0) concept.paramOptions = options
+    const def = readProperty(c, 'default')
+    if (def !== undefined) concept.paramDefault = String(def)
     concepts[c.code] = concept
     conceptOrder.push(c.code)
   }
@@ -282,6 +365,7 @@ export function decodeCodeSystem(input: unknown): CodeSystem {
     concepts,
     conceptOrder,
   }
+  if (raw.meta !== undefined) cs.meta = structuredClone(raw.meta)
   if (raw.version !== undefined) cs.version = raw.version
   if (raw.name !== undefined) cs.name = raw.name
   if (raw.title !== undefined) cs.title = raw.title
@@ -312,6 +396,7 @@ export function decodeProjectMeta(
   if (d) p.description = d
   if (raw.terminology.default !== undefined) p.defaultCodeSystem = raw.terminology.default
   if (raw.terminology.calculate !== undefined) p.calculateCodeSystem = raw.terminology.calculate
+  if (raw.terminology.retrieve !== undefined) p.retrieveCodeSystem = raw.terminology.retrieve
   if (raw.mediaPath !== undefined) p.mediaPath = raw.mediaPath
   return p
 }
@@ -394,6 +479,7 @@ export function encodeActivity(
   if (a.applicability?.expression) put(o, 'applicability', a.applicability.expression)
   const intent = a.applicability?.intent
   if (intent && Object.keys(intent).length > 0) put(o, 'intent', fromLocalized(intent, lang))
+  put(o, 'params', a.params?.map(encodeParam))
   if (a.ui) {
     const ui: Record<string, unknown> = {}
     if (a.ui.viewport) ui['viewport'] = { ...a.ui.viewport }
@@ -464,6 +550,7 @@ export function encodeProjectMeta(p: Project): Record<string, unknown> {
   put(term, 'codeSystems', csPaths)
   put(term, 'default', p.defaultCodeSystem)
   put(term, 'calculate', p.calculateCodeSystem)
+  put(term, 'retrieve', p.retrieveCodeSystem)
   put(o, 'terminology', term)
   put(
     o,
@@ -479,6 +566,7 @@ export function encodeProjectMeta(p: Project): Record<string, unknown> {
 export function encodeCodeSystem(cs: CodeSystem): Record<string, unknown> {
   const o: Record<string, unknown> = { resourceType: 'CodeSystem' }
   put(o, 'id', cs.id)
+  if (cs.meta) o['meta'] = structuredClone(cs.meta)
   put(o, 'url', cs.url)
   put(o, 'version', cs.version)
   put(o, 'name', cs.name)
@@ -507,7 +595,9 @@ export function encodeCodeSystem(cs: CodeSystem): Record<string, unknown> {
       const props: Record<string, unknown>[] = []
       const codeProp = (k: string, v: string | undefined) => {
         if (v === undefined) return
-        props.push(c.stringProperties?.includes(k) ? { code: k, valueString: v } : { code: k, valueCode: v })
+        props.push(
+          c.stringProperties?.includes(k) ? { code: k, valueString: v } : { code: k, valueCode: v },
+        )
       }
       const strProp = (k: string, v: string | undefined) => {
         if (v !== undefined) props.push({ code: k, valueString: v })
@@ -519,6 +609,27 @@ export function encodeCodeSystem(cs: CodeSystem): Record<string, unknown> {
       strProp('sourceVersion', c.sourceVersion)
       codeProp('targetResource', c.targetResource)
       strProp('targetPath', c.targetPath)
+      codeProp('kind', c.kind)
+      for (const option of c.paramOptions ?? []) props.push({ code: 'option', valueCode: option })
+      strProp('default', c.paramDefault)
+      const r = c.retrieval
+      if (r) {
+        props.push({ code: 'context', valueCode: r.context })
+        if (r.function !== undefined) props.push({ code: 'function', valueCode: r.function })
+        if (r.reads)
+          props.push({ code: 'reads', valueCoding: { system: r.reads.system, code: r.reads.code } })
+        strProp('period', r.period)
+        if (r.expressions?.length) {
+          const kept = Array.isArray(co['extension']) ? (co['extension'] as unknown[]) : []
+          co['extension'] = [
+            ...kept,
+            ...r.expressions.map((e) => ({
+              url: RETRIEVE_EXPRESSION_URL,
+              valueExpression: { language: e.language, expression: e.expression },
+            })),
+          ]
+        }
+      }
       put(co, 'property', props)
       return co
     })

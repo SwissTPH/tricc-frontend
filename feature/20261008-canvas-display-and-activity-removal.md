@@ -1,12 +1,12 @@
 # Canvas display — wrapped node text and removing an activity
 
-| Field | Value |
-|-------|-------|
-| **Status** | Implemented 2026-10-08, not committed. See "Implementation notes" at the end. |
-| **Repo** | `tricc_frontend` |
-| **Related** | `20261008-authoring-continuation.md` §4 (Activity editor, Navigator, intervention bin), `20261008-data-dictionary-and-concept-texts.md` (concept card on nodes, Data dictionary tab) |
-| **Source** | Review remarks, 2026-10-08 |
-| **Approval** | — |
+| Field        | Value                                                                                                                                                                                |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Status**   | Implemented 2026-10-08, not committed. See "Implementation notes" at the end.                                                                                                        |
+| **Repo**     | `tricc_frontend`                                                                                                                                                                     |
+| **Related**  | `20261008-authoring-continuation.md` §4 (Activity editor, Navigator, intervention bin), `20261008-data-dictionary-and-concept-texts.md` (concept card on nodes, Data dictionary tab) |
+| **Source**   | Review remarks, 2026-10-08                                                                                                                                                           |
+| **Approval** | —                                                                                                                                                                                    |
 
 ---
 
@@ -74,6 +74,7 @@ setting.
 
   It is **never** written to `tricc.yaml` or the project folder. Two authors on one project can
   differ.
+
 - **Editor:** the runtime context (`packages/editor/src/runtime/context.tsx`) exposes
   `preferences.labelLines`.
   - `ActivityEditor` sets `--tricc-label-lines` on `.tricc-editor`, so nodes re-flow from CSS with
@@ -128,7 +129,7 @@ setting.
 **Save**
 
 - `writeChanged` (`serialize/index.ts:43-72`) deletes managed paths that are no longer produced.
-  But the baseline is `writeProject(project)` on open, which only has *canonical* paths.
+  But the baseline is `writeProject(project)` on open, which only has _canonical_ paths.
 - A file read from a non-canonical path (for example `activities/Weight.activity.yaml` or a
   sub-folder) would survive the save and reappear on the next open.
 - Fix: keep each activity's `sourcePath`. It is not serialized. Add it to the baseline.
@@ -170,10 +171,10 @@ setting.
 
 ### 2.4 Open questions
 
-| # | Question | Recommendation |
-|---|----------|----------------|
-| 1 | Should deleting an activity that other activities `goto` be blocked? | Allow it, with the warning list. Undo covers mistakes, and validation keeps the links visible. |
-| 2 | Should a bin also appear on navigator chips? | No. One place, the editor header, as asked. |
+| #   | Question                                                             | Recommendation                                                                                 |
+| --- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| 1   | Should deleting an activity that other activities `goto` be blocked? | Allow it, with the warning list. Undo covers mistakes, and validation keeps the links visible. |
+| 2   | Should a bin also appear on navigator chips?                         | No. One place, the editor header, as asked.                                                    |
 
 ## Implementation notes (2026-10-08)
 
@@ -211,4 +212,3 @@ setting.
 - The per-activity `sourcePath` from §2.2 was not needed.
 - The .drawio caveat stands: a page from a never-saved draw.io project is only removed from the
   document.
-

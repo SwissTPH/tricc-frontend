@@ -12,9 +12,16 @@ import {
   type TriccEdge,
   type TriccNode,
 } from '../model/types.js'
-import { NODE_TYPES, isExtensionTarget, isSelect, type NodeType } from './schema/node-types.js'
+import {
+  NODE_TYPES,
+  canonicalNodeType,
+  isExtensionTarget,
+  isSelect,
+  type NodeType,
+} from './schema/node-types.js'
 import { liftRootAttributes } from '../model/activity-kind.js'
 import { fromHtml, isStructured } from '../text/message.js'
+import { parseParamArg, parseParamShorthand } from '../params/drawio.js'
 
 /**
  * Open a draw.io file whose pages are either inline `mxGraphModel` XML or the
@@ -104,7 +111,8 @@ function graphOf(diagram: XmlNode): XmlNode {
   const inline = diagram.children.find((c) => c.tag.toLowerCase() === 'mxgraphmodel')
   if (inline) return inline
   const payload = diagram.text.trim()
-  if (!payload) throw new Error(`Draw.io page "${diagram.attrs['name'] ?? diagram.attrs['id']}" is empty.`)
+  if (!payload)
+    throw new Error(`Draw.io page "${diagram.attrs['name'] ?? diagram.attrs['id']}" is empty.`)
   if (payload.startsWith('<')) return parseXml(payload)
   const xml = inflateDiagram(payload)
   return parseXml(xml)
@@ -179,9 +187,22 @@ function pageToActivity(
   const groups = new Map<string, CanvasGroup>()
   // Embedded pictures, waiting for the edge that names their question or answer.
   const pictures = new Map<string, { contentType: ImageContentType; data: Uint8Array }>()
+  // The `parameters` shape declares the page's parameters; it is not a node of the flow.
+  const params: Activity['params'] = []
 
   for (const shape of shapes) {
     if (shape.edge || !shape.id || shape.id === '0' || shape.id === '1') continue
+    if (typeOf(shape) === 'parameters') {
+      for (const [key, raw] of Object.entries(shape.attrs)) {
+        if (!key.startsWith('param.')) continue
+        const name = key.slice('param.'.length)
+        if (params.some((p) => p.name === name)) {
+          throw new Error(`The page "${page.name}" declares the parameter "${name}" twice.`)
+        }
+        params.push(parseParamShorthand(name, raw, lang))
+      }
+      continue
+    }
     if (typeOf(shape) === 'container_page') {
       const group: CanvasGroup = {
         id: shape.id,
@@ -224,7 +245,12 @@ function pageToActivity(
       folded.add(shape.id)
       continue
     }
-    if (kind.type === 'select_option' && shape.parent && nodes[shape.parent] && isSelectNode(nodes[shape.parent]!)) {
+    if (
+      kind.type === 'select_option' &&
+      shape.parent &&
+      nodes[shape.parent] &&
+      isSelectNode(nodes[shape.parent]!)
+    ) {
       const parent = nodes[shape.parent]!
       const optionLabel = plain(shape.attrs['label'] ?? shape.value)
       const optionName = validName(shape.attrs['name'])
@@ -272,10 +298,14 @@ function pageToActivity(
     if (!picture) continue
     const answer = optionOf.get(shape.target)
     const node = nodes[answer ? answer.nodeId : shape.target]
-    const option: SelectOption | undefined = answer ? node?.options?.find((o) => o.id === shape.target) : undefined
+    const option: SelectOption | undefined = answer
+      ? node?.options?.find((o) => o.id === shape.target)
+      : undefined
     const item: TriccNode | SelectOption | undefined = option ?? node
     if (!item) continue
-    const base = option ? `${node?.name ?? 'answer'}-${option.name ?? option.id}` : (node?.name ?? 'image')
+    const base = option
+      ? `${node?.name ?? 'answer'}-${option.name ?? option.id}`
+      : (node?.name ?? 'image')
     const id = uniqueImageId(imageIdFrom(base), images)
     images[id] = { id, ...picture }
     item.media = { image: id }
@@ -293,7 +323,9 @@ function pageToActivity(
     const toComment = comments.get(shape.target)
     if (fromComment || toComment) {
       const comment = (fromComment ?? toComment)!
-      const other = optionOf.get(fromComment ? shape.target : shape.source)?.nodeId ?? (fromComment ? shape.target : shape.source)
+      const other =
+        optionOf.get(fromComment ? shape.target : shape.source)?.nodeId ??
+        (fromComment ? shape.target : shape.source)
       if (!comment.node && nodes[other]) comment.node = other
       continue
     }
@@ -327,6 +359,7 @@ function pageToActivity(
   }
   if (comments.size > 0) activity.ui = { comments: [...comments.values()] }
   if (groups.size > 0) activity.groups = [...groups.values()]
+  if (params.length > 0) activity.params = params
   // The start node is the activity: its label is the title, its name, process and
   // relevance are the activity's. The page name is only the fallback title.
   liftRootAttributes(activity)
@@ -372,8 +405,18 @@ function shapeToNode(
   ) {
     node.context = context
   }
+  if (kind.type === 'populate') {
+    if (shape.attrs['period']) node.period = shape.attrs['period']
+    const source = shape.attrs['source']?.trim()
+    if (source) node.source = source
+  }
   const severity = shape.attrs['severity']
-  if (severity === 'light' || severity === 'mild' || severity === 'moderate' || severity === 'severe') {
+  if (
+    severity === 'light' ||
+    severity === 'mild' ||
+    severity === 'moderate' ||
+    severity === 'severe'
+  ) {
     node.severity = severity
   }
   if (shape.attrs['save']) node.save = shape.attrs['save']
@@ -384,6 +427,14 @@ function shapeToNode(
     node.reference = reference
   }
   if (shape.attrs['link']) node.link = resolveLink(shape.attrs['link'], pageActivity, labelText)
+  // Values set for this call: one `param.<name>` attribute each, a literal or `{{name}}`.
+  if (kind.type === 'block' || kind.type === 'goto') {
+    const args: NonNullable<TriccNode['args']> = {}
+    for (const [key, raw] of Object.entries(shape.attrs)) {
+      if (key.startsWith('param.')) args[key.slice('param.'.length)] = parseParamArg(raw)
+    }
+    if (Object.keys(args).length > 0) node.args = args
+  }
   const min = num(shape.attrs['min'])
   const max = num(shape.attrs['max'])
   if (min !== undefined) node.min = min
@@ -422,7 +473,6 @@ function commentOf(shape: Shape, text: string, color: CanvasComment['color']): C
   return comment
 }
 
-
 function classify(
   rawType: string,
 ): 'skip' | 'hint' | 'help' | { type: NodeType; unmapped?: string; populateDefault?: boolean } {
@@ -434,10 +484,9 @@ function classify(
   // ODK acknowledge: a message the health worker must confirm they have read.
   // Drawings sometimes spell the type "aknowledge".
   if (rawType === 'acknowledge' || rawType === 'aknowledge') return { type: 'acknowledge' }
-  if (KNOWN.has(rawType)) return { type: rawType as NodeType }
+  if (KNOWN.has(canonicalNodeType(rawType))) return { type: canonicalNodeType(rawType) as NodeType }
   return { type: 'note', unmapped: rawType }
 }
-
 
 function isSelectNode(node: TriccNode): boolean {
   return isSelect(node.type)
@@ -502,7 +551,9 @@ function shapeFrom(
 }
 
 /** The picture of an image shape: `image=data:image/<type>[;base64],<payload>` in its style. */
-function embeddedImage(style: string | undefined): { contentType: ImageContentType; data: Uint8Array } | undefined {
+function embeddedImage(
+  style: string | undefined,
+): { contentType: ImageContentType; data: Uint8Array } | undefined {
   const match = /(?:^|;)image=data:(image\/[a-z+.-]+)(;base64)?,([^;]*)/i.exec(style ?? '')
   if (!match) return undefined
   const contentType = match[1]!.toLowerCase() as ImageContentType
@@ -578,14 +629,17 @@ function b64ToBytes(data: string): Uint8Array {
 }
 
 function parseXml(source: string): XmlNode {
-  const xml = source.replace(/<\?xml[\s\S]*?\?>/g, '').replace(/<!--[\s\S]*?-->/g, '').trim()
+  const xml = source
+    .replace(/<\?xml[\s\S]*?\?>/g, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .trim()
   let i = 0
   const skip = () => {
     while (i < xml.length && /\s/.test(xml[i]!)) i += 1
   }
   const readName = () => {
     const start = i
-    while (i < xml.length && /[A-Za-z0-9_:-]/.test(xml[i]!)) i += 1
+    while (i < xml.length && /[A-Za-z0-9_.:-]/.test(xml[i]!)) i += 1
     return xml.slice(start, i)
   }
   const parseNode = (): XmlNode | undefined => {

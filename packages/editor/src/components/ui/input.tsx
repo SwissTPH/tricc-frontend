@@ -21,7 +21,8 @@ const inputVariants = cva(
 
 // `size` is taken by the variant; the native attribute is still reachable as `htmlSize`.
 export interface InputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'>,
+  extends
+    Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'>,
     VariantProps<typeof inputVariants> {
   htmlSize?: number
 }

@@ -28,6 +28,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 async function newActivity(page: Page, name: string): Promise<void> {
+  await page.getByTestId('new-project').click()
   await page.getByTestId('new-project-name').fill(name)
   await page.getByTestId('create-project').click()
   await page.getByTestId('add-activity').click()
@@ -83,9 +84,7 @@ function editorPanes(): {
 
 /** Nodes and edges React Flow has measured and not hidden. A visibility of `hidden` is the blank canvas. */
 async function expectDiagramPainted(page: Page): Promise<void> {
-  await expect
-    .poll(async () => page.evaluate(hiddenDiagramIds))
-    .toEqual([])
+  await expect.poll(async () => page.evaluate(hiddenDiagramIds)).toEqual([])
 }
 
 function hiddenDiagramIds(): string[] {
@@ -93,7 +92,11 @@ function hiddenDiagramIds(): string[] {
     .filter((el) => {
       const style = getComputedStyle(el)
       const box = el.getBoundingClientRect()
-      return style.visibility === 'hidden' || style.display === 'none' || (box.width === 0 && box.height === 0)
+      return (
+        style.visibility === 'hidden' ||
+        style.display === 'none' ||
+        (box.width === 0 && box.height === 0)
+      )
     })
     .map((el) => el.getAttribute('data-id') ?? 'edge')
 }
@@ -105,10 +108,16 @@ async function watchDiagram(page: Page): Promise<void> {
     ;(window as unknown as { __diagramWatch: typeof state }).__diagramWatch = state
     const tick = () => {
       if (state.stop) return
-      const hidden = Array.from(document.querySelectorAll('.react-flow__node, .react-flow__edge')).some((el) => {
+      const hidden = Array.from(
+        document.querySelectorAll('.react-flow__node, .react-flow__edge'),
+      ).some((el) => {
         const style = getComputedStyle(el)
         const box = el.getBoundingClientRect()
-        return style.visibility === 'hidden' || style.display === 'none' || (box.width === 0 && box.height === 0)
+        return (
+          style.visibility === 'hidden' ||
+          style.display === 'none' ||
+          (box.width === 0 && box.height === 0)
+        )
       })
       if (hidden) state.frames += 1
       requestAnimationFrame(tick)
@@ -119,7 +128,8 @@ async function watchDiagram(page: Page): Promise<void> {
 
 async function hiddenFrames(page: Page): Promise<number> {
   return page.evaluate(() => {
-    const state = (window as unknown as { __diagramWatch?: { frames: number; stop: boolean } }).__diagramWatch
+    const state = (window as unknown as { __diagramWatch?: { frames: number; stop: boolean } })
+      .__diagramWatch
     if (state) state.stop = true
     return state?.frames ?? 0
   })
@@ -357,7 +367,9 @@ test('a select shows each answer, and a link from an answer follows it', async (
   })
   await page.reload()
   await page.getByTestId('nav-activity-activity').click()
-  await expect(page.getByTestId('edge-label-e-n-select_one-n-note')).toHaveText('Fever and a rash tod…')
+  await expect(page.getByTestId('edge-label-e-n-select_one-n-note')).toHaveText(
+    'Fever and a rash tod…',
+  )
   await expect(page.getByTestId('edge-label-e-n-select_one-n-note')).toHaveAttribute(
     'title',
     'Fever and a rash today',
@@ -476,6 +488,8 @@ test('the inspector shows details, nodes, and connection one at a time', async (
   expect(fit!.clipped).toEqual([])
 
   await page.setViewportSize({ width: 390, height: 700 })
+  // Shrinking collapses the panel; opened again, it covers the canvas.
+  await page.getByTestId('panel-toggle').click()
   const narrow = await page.evaluate(() => {
     const inspector = document.querySelector('.tricc-inspector')
     const tabs = document.querySelector('.tricc-inspector__tabs')
@@ -518,7 +532,9 @@ test('branch semantics are chosen, never typed', async ({ page }) => {
   await expect(page.getByTestId('field-branch-condition')).toBeVisible()
 })
 
-test('an edge from a yes/no or a rhombus asks for the branch before it is created', async ({ page }) => {
+test('an edge from a yes/no or a rhombus asks for the branch before it is created', async ({
+  page,
+}) => {
   await newActivity(page, 'Branch on connect')
   await placeNode(page, 'select_yesno')
   await placeNode(page, 'note')
@@ -628,7 +644,8 @@ test('Ctrl+Z undoes the last change and Ctrl+Shift+Z or Ctrl+Y restores it', asy
   await page.keyboard.press('Control+z')
   await expect(page.getByTestId('node-n-note')).toBeVisible()
 
-  await page.getByTestId('read-only-toggle').check()
+  await page.getByTestId('mode-menu').click()
+  await page.getByTestId('mode-viewing').click()
   await page.keyboard.press('Control+z')
   await expect(page.getByTestId('node-n-note')).toBeVisible()
 })
@@ -696,7 +713,9 @@ test('a palette drag released off the diagram adds nothing', async ({ page }) =>
   if (!source) throw new Error('palette missing')
   await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2)
   await page.mouse.down()
-  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2 + 48, { steps: 8 })
+  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2 + 48, {
+    steps: 8,
+  })
   await page.mouse.up()
   await expect(page.getByTestId('node-n-note')).toHaveCount(0)
   await expect(page.getByTestId('palette-drag-ghost')).toHaveCount(0)
@@ -712,7 +731,8 @@ test('read-only removes dragging and the palette but keeps the canvas readable',
   expect(writable.palette!.x).toBeGreaterThan(writable.canvas.right - 2)
 
   await placeNode(page, 'note')
-  await page.getByTestId('read-only-toggle').check()
+  await page.getByTestId('mode-menu').click()
+  await page.getByTestId('mode-viewing').click()
   await expect(page.getByTestId('activity-canvas')).toBeVisible()
   await expect(page.getByTestId('node-n-note')).toBeVisible()
   await expect(page.getByTestId('add-note')).toHaveCount(0)
@@ -739,11 +759,11 @@ test('read-only removes dragging and the palette but keeps the canvas readable',
   expect(Math.abs(after!.x - before.x)).toBeLessThan(4)
 
   await page.setViewportSize({ width: 390, height: 700 })
+  // Shrinking past 900px collapses the inspector to its rail on the right edge. The collapse
+  // follows the window's resize event, so wait for it.
+  await expect.poll(async () => (await page.evaluate(editorPanes)).inspector.width).toBeLessThan(40)
   const narrow = await page.evaluate(editorPanes)
   expect(narrow.palette).toBeNull()
-  expect(narrow.inspector.width).toBeGreaterThan(280)
-  expect(narrow.inspector.width).toBeLessThan(400)
-  expect(narrow.inspector.x).toBeGreaterThan(narrow.canvas.right - 2)
   expect(Math.abs(narrow.inspector.right - narrow.body.right)).toBeLessThan(2)
 })
 
@@ -779,8 +799,8 @@ test('a goto selects an activity, and never a process activity', async ({ page }
   await page.getByTestId('nav-overview').click()
   await page.getByTestId('tab-processes').click()
   await page.getByTestId('add-process').click()
-  await page.getByTestId('new-process-name').fill('triage')
-  await page.getByTestId('add-process-activity').click()
+  await page.getByTestId('new-segment-process').selectOption('triage')
+  await page.getByTestId('create-segment').click()
 
   await page.getByTestId('tab-activities').click()
   await page.getByTestId(`nav-activity-${FIRST_ACTIVITY}`).click()
@@ -823,32 +843,101 @@ async function visibleLines(page: Page, testId: string): Promise<number> {
   })
 }
 
-test('node text wraps to three lines by default, and the full text is on hover', async ({ page }) => {
+test('node text wraps to three lines by default, and the full text is on hover', async ({
+  page,
+}) => {
   await newActivity(page, 'Wrap guideline')
   await placeNode(page, 'integer')
   await page.getByTestId('field-label').fill(LONG_LABEL)
   const label = page.getByTestId('node-n-integer-label')
-  await expect(label).toHaveAttribute('title', LONG_LABEL)
+  await expect(label).toHaveText(LONG_LABEL)
   expect(await visibleLines(page, 'node-n-integer-label')).toBe(3)
   // Cut, not hidden: there is more text than fits.
   expect(await label.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true)
+  // The node's hover card has the full text. Move onto the node in steps, as a mouse does:
+  // Firefox does not report a single jump onto it as entering the node.
+  await page.mouse.move(0, 0)
+  const box = (await label.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 5 })
+  await expect(page.getByTestId('node-n-integer-details')).toContainText(LONG_LABEL)
 })
 
 test('the lines-per-node preference changes how much text a node shows', async ({ page }) => {
   await page.getByTestId('nav-preferences').click()
   await page.getByTestId('pref-label-lines').fill('5')
-  await page.goto('/')
+  await page.getByTestId('preferences-close').click()
   await newActivity(page, 'Five lines guideline')
   await placeNode(page, 'integer')
   await page.getByTestId('field-label').fill(LONG_LABEL)
-  await expect(page.getByTestId('node-n-integer-label')).toHaveAttribute('title', LONG_LABEL)
+  await expect(page.getByTestId('node-n-integer-label')).toHaveText(LONG_LABEL)
   expect(await visibleLines(page, 'node-n-integer-label')).toBe(5)
+})
+
+test('Preferences open over the activity and close back to it: button, icon and Escape', async ({
+  page,
+}) => {
+  await newActivity(page, 'Close preferences guideline')
+  await placeNode(page, 'integer')
+  await page.getByTestId('field-label').fill(LONG_LABEL)
+  expect(await visibleLines(page, 'node-n-integer-label')).toBe(3)
+  const crumb = page.getByTestId(`crumb-${FIRST_ACTIVITY}`)
+  await expect(crumb).toBeVisible()
+
+  // Button: the change shows on the diagram at once, and the activity and selection stay.
+  await page.getByTestId('nav-preferences').click()
+  await expect(page.getByTestId('preferences')).toBeVisible()
+  await expect(page.getByTestId('nav-preferences')).toHaveAttribute('aria-pressed', 'true')
+  await page.getByTestId('pref-label-lines').fill('5')
+  await page.getByTestId('preferences-close').click()
+  await expect(page.getByTestId('preferences')).toHaveCount(0)
+  await expect(crumb).toBeVisible()
+  await expect(page.getByTestId('field-label')).toHaveValue(LONG_LABEL)
+  expect(await visibleLines(page, 'node-n-integer-label')).toBe(5)
+
+  // The icon toggles.
+  await page.getByTestId('nav-preferences').click()
+  await expect(page.getByTestId('preferences')).toBeVisible()
+  await page.getByTestId('nav-preferences').click()
+  await expect(page.getByTestId('preferences')).toHaveCount(0)
+  await expect(page.getByTestId('field-label')).toHaveValue(LONG_LABEL)
+
+  // Escape.
+  await page.getByTestId('nav-preferences').click()
+  await expect(page.getByTestId('preferences')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('preferences')).toHaveCount(0)
+  await expect(crumb).toBeVisible()
+  await expect(page.getByTestId('field-label')).toHaveValue(LONG_LABEL)
+})
+
+test('Preferences are centred in the area under the top bar', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await page.getByTestId('nav-preferences').click()
+  const area = (await page.getByTestId('preferences').boundingBox())!
+  const close = (await page.getByTestId('preferences-close').boundingBox())!
+  const heading = (await page.locator('#preferences-heading').boundingBox())!
+  // The column is 60rem wide: the space left of the heading matches the space right of Close.
+  const left = heading.x - area.x
+  const right = area.x + area.width - (close.x + close.width)
+  expect(left).toBeGreaterThan(100)
+  expect(Math.abs(left - right)).toBeLessThan(24)
+})
+
+test('a direct link to Preferences opens them over the home page, and Close goes home', async ({
+  page,
+}) => {
+  await page.goto('/preferences')
+  await expect(page.getByTestId('preferences')).toBeVisible()
+  await page.getByTestId('preferences-close').click()
+  await expect(page.getByTestId('preferences')).toHaveCount(0)
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByTestId('new-project')).toBeVisible()
 })
 
 test('tidy layout spaces tall nodes without overlap', async ({ page }) => {
   await page.getByTestId('nav-preferences').click()
   await page.getByTestId('pref-label-lines').fill('6')
-  await page.goto('/')
+  await page.getByTestId('preferences-close').click()
   await newActivity(page, 'Tidy tall guideline')
   await placeNode(page, 'integer')
   await page.getByTestId('field-label').fill(LONG_LABEL)
@@ -860,11 +949,39 @@ test('tidy layout spaces tall nodes without overlap', async ({ page }) => {
   const [a, b] = boxes
   expect(a && b).toBeTruthy()
   const overlap =
-    a!.x < b!.x + b!.width && b!.x < a!.x + a!.width && a!.y < b!.y + b!.height && b!.y < a!.y + a!.height
+    a!.x < b!.x + b!.width &&
+    b!.x < a!.x + a!.width &&
+    a!.y < b!.y + b!.height &&
+    b!.y < a!.y + a!.height
   expect(overlap).toBe(false)
 })
 
-test('a goto opens its activity from the details, and by Ctrl+click on the diagram', async ({ page }) => {
+test('the node-gap preference sets how far apart tidy layout puts side-by-side nodes', async ({
+  page,
+}) => {
+  await page.getByTestId('nav-preferences').click()
+  await expect(page.getByTestId('pref-node-gap')).toHaveValue('108')
+  // A gap as wide as a node, so the check does not depend on the zoom.
+  await page.getByTestId('pref-node-gap').fill('200')
+  await page.getByTestId('preferences-close').click()
+  await newActivity(page, 'Wide tidy guideline')
+  await placeNode(page, 'integer')
+  await placeNode(page, 'decimal')
+  await page.getByTestId('tidy-layout').click()
+  // Unlinked nodes share one row, side by side.
+  const [a, b] = (
+    await Promise.all(
+      ['node-n-integer', 'node-n-decimal'].map((id) => page.getByTestId(id).boundingBox()),
+    )
+  ).sort((p, q) => p!.x - q!.x)
+  expect(Math.abs(a!.y - b!.y)).toBeLessThan(2)
+  const gap = b!.x - (a!.x + a!.width)
+  expect(gap / a!.width).toBeCloseTo(1, 1)
+})
+
+test('a goto opens its activity from the details and from the button on the node', async ({
+  page,
+}) => {
   await newActivity(page, 'Jump guideline')
   await page.getByTestId('nav-overview').click()
   await page.getByTestId('add-activity').click()
@@ -877,10 +994,16 @@ test('a goto opens its activity from the details, and by Ctrl+click on the diagr
   await page.getByTestId('field-repeat').fill('2')
 
   await page.getByTestId('goto-open').click()
-  await expect(page.getByTestId('nav-activity-activity-2')).toHaveAttribute('aria-current', /true|page/)
+  await expect(page.getByTestId('nav-activity-activity-2')).toHaveAttribute(
+    'aria-current',
+    /true|page/,
+  )
   await page.getByTestId(`nav-activity-${FIRST_ACTIVITY}`).click()
-  await page.getByTestId('node-n-goto').click({ modifiers: ['ControlOrMeta'] })
-  await expect(page.getByTestId('nav-activity-activity-2')).toHaveAttribute('aria-current', /true|page/)
+  await page.getByTestId('goto-follow-n-goto').click()
+  await expect(page.getByTestId('nav-activity-activity-2')).toHaveAttribute(
+    'aria-current',
+    /true|page/,
+  )
 })
 
 test('a comment says what it is about with a dashed line, never an edge', async ({ page }) => {
@@ -908,7 +1031,9 @@ test('a comment says what it is about with a dashed line, never an edge', async 
   await page.mouse.down()
   await page.mouse.move(before!.x + 120, before!.y + 60, { steps: 8 })
   await page.mouse.up()
-  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 })
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', {
+    timeout: 10_000,
+  })
   await page.reload()
   await page.getByTestId(`nav-activity-${FIRST_ACTIVITY}`).click()
   await expect(page.getByTestId('comment-comment')).toBeVisible()
@@ -916,7 +1041,12 @@ test('a comment says what it is about with a dashed line, never an edge', async 
 })
 
 /** Drag a canvas element by its centre to a point. */
-async function dragTo(page: Page, locator: ReturnType<Page['getByTestId']>, x: number, y: number): Promise<void> {
+async function dragTo(
+  page: Page,
+  locator: ReturnType<Page['getByTestId']>,
+  x: number,
+  y: number,
+): Promise<void> {
   const box = await locator.boundingBox()
   if (!box) throw new Error('nothing to drag')
   await page.mouse.move(box.x + box.width / 2, box.y + Math.min(12, box.height / 2))
@@ -925,7 +1055,9 @@ async function dragTo(page: Page, locator: ReturnType<Page['getByTestId']>, x: n
   await page.mouse.up()
 }
 
-test('a node dropped into a group joins it, moves with it, and leaves when dragged out', async ({ page }) => {
+test('a node dropped into a group joins it, moves with it, and leaves when dragged out', async ({
+  page,
+}) => {
   await newActivity(page, 'Group guideline')
   await placeNode(page, 'select_yesno')
   await page.getByTestId('tab-nodes').click()
@@ -945,7 +1077,12 @@ test('a node dropped into a group joins it, moves with it, and leaves when dragg
   // Moving the frame by its title moves the question with it.
   const before = (await page.getByTestId('node-n-select_yesno').boundingBox())!
   const title = (await page.getByTestId('group-group-title').boundingBox())!
-  await dragTo(page, page.getByTestId('group-group-title'), title.x + title.width / 2 + 80, title.y + 6 + 40)
+  await dragTo(
+    page,
+    page.getByTestId('group-group-title'),
+    title.x + title.width / 2 + 80,
+    title.y + 6 + 40,
+  )
   const after = (await page.getByTestId('node-n-select_yesno').boundingBox())!
   expect(after.x - before.x).toBeGreaterThan(40)
 
@@ -961,7 +1098,9 @@ test('a node dropped into a group joins it, moves with it, and leaves when dragg
   await page.locator('.react-flow__controls-fitview').click()
   await page.getByTestId('group-group-title').click()
   await expect(page.getByTestId('group-members')).toContainText('0 nodes')
-  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 })
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', {
+    timeout: 10_000,
+  })
 })
 
 // --- Refresh and palette drag (2026-10-11): reproductions first --------------------------
@@ -1001,7 +1140,9 @@ test('editing a concept updates the node text and its marks at once', async ({ p
   await expect(page.getByTestId('node-n-decimal-help')).toBeVisible()
 })
 
-test('comments, their line, and groups stay on screen while another node is dragged', async ({ page }) => {
+test('comments, their line, and groups stay on screen while another node is dragged', async ({
+  page,
+}) => {
   await newActivity(page, 'Refresh drag')
   await placeNode(page, 'decimal')
   await placeNode(page, 'note')
@@ -1057,12 +1198,17 @@ test('a link on an answer follows its row when an answer above it is removed', a
     page.getByTestId('node-n-select_one-answer-option-2').locator('.react-flow__handle'),
     'node-n-note',
   )
-  const edge = page.locator('[data-testid^="rf__edge-e-n-select_one-n-note"] path.react-flow__edge-path')
+  const edge = page.locator(
+    '[data-testid^="rf__edge-e-n-select_one-n-note"] path.react-flow__edge-path',
+  )
   await expect(edge).toHaveCount(1)
 
   await page.getByTestId('node-n-select_one').click()
   await page.getByTestId('remove-option-option').click()
-  const row = (await page.getByTestId('node-n-select_one-answer-option-2').locator('.react-flow__handle').boundingBox())!
+  const row = (await page
+    .getByTestId('node-n-select_one-answer-option-2')
+    .locator('.react-flow__handle')
+    .boundingBox())!
   // The edge must start at the handle of its (now first) answer row, not where it used to be.
   const start = await edge.evaluate((path) => {
     const p = (path as SVGPathElement).getPointAtLength(0)
@@ -1087,7 +1233,9 @@ test('comment and group can be dragged from the palette onto the diagram', async
   expect(Math.abs(group.y - groupAt.y)).toBeLessThan(40)
 })
 
-test('a validation issue links to its node, in the activity and from the overview', async ({ page }) => {
+test('a validation issue links to its node, in the activity and from the overview', async ({
+  page,
+}) => {
   await newActivity(page, 'Issue link guideline')
   await placeNode(page, 'select_one')
   const node = page.locator('.react-flow__node[data-id="n-select_one"]')
@@ -1113,19 +1261,36 @@ test('a validation issue links to its node, in the activity and from the overvie
     .poll(async () => {
       const n = (await node.boundingBox())!
       const c = (await page.getByTestId('activity-canvas').boundingBox())!
-      return n.x >= c.x && n.y >= c.y && n.x + n.width <= c.x + c.width && n.y + n.height <= c.y + c.height
+      return (
+        n.x >= c.x &&
+        n.y >= c.y &&
+        n.x + n.width <= c.x + c.width &&
+        n.y + n.height <= c.y + c.height
+      )
     })
     .toBe(true)
 
   // From the project overview, the same issue opens the activity on that node.
   await page.getByTestId('nav-overview').click()
+  await page.getByTestId('tab-validation').click()
   await page.getByTestId('issue-select.no-options').getByTestId('issue-link').click()
   await expect(page.getByTestId('activity-editor')).toBeVisible()
   await expect(node).toHaveClass(/selected/)
   await expect(page.getByTestId('tab-details')).toHaveAttribute('aria-selected', 'true')
 })
 
-test('a right-drag past 6 pixels selects the elements underneath', async ({ page }) => {
+/**
+ * Playwright's Firefox loses a right button held after a context menu event: a few moves into
+ * the drag it reports no buttons and never sends the release, so the marquee cannot finish.
+ * A real Firefox delivers the pointerup. Chromium covers these gestures.
+ */
+const RIGHT_RELEASE_LOST = 'Playwright Firefox never sends the right-button release after a drag'
+
+test('a right-drag past 6 pixels selects the elements underneath', async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName === 'firefox', RIGHT_RELEASE_LOST)
   await newActivity(page, 'Marquee')
   await placeNode(page, 'integer')
   await placeNode(page, 'note')
@@ -1165,7 +1330,73 @@ test('a right-drag past 6 pixels selects the elements underneath', async ({ page
   expect(after.y - before.y).toBeGreaterThan(24)
 })
 
-test('copy, cut and paste keep concepts and put a cut back with the same ids', async ({ page }) => {
+test('a right-drag selects only elements that sit fully inside the rectangle', async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName === 'firefox', RIGHT_RELEASE_LOST)
+  await newActivity(page, 'Partial')
+  await placeNode(page, 'integer')
+  const integer = page.locator('.react-flow__node[data-id="n-integer"]')
+  const box = (await integer.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down({ button: 'right' })
+  await page.mouse.move(box.x + box.width + 40, box.y + box.height + 40, { steps: 8 })
+  await page.mouse.up({ button: 'right' })
+  await expect(page.getByTestId('multi-selection')).toHaveCount(0)
+  await expect(integer).not.toHaveClass(/selected/)
+})
+
+test('Ctrl+click adds an element to the selection', async ({ page, browserName }) => {
+  test.skip(browserName === 'firefox', RIGHT_RELEASE_LOST)
+  await newActivity(page, 'Add')
+  await placeNode(page, 'integer')
+  await placeNode(page, 'note')
+  await placeNode(page, 'decimal')
+  const integer = page.locator('.react-flow__node[data-id="n-integer"]')
+  const note = page.locator('.react-flow__node[data-id="n-note"]')
+  const decimal = page.locator('.react-flow__node[data-id="n-decimal"]')
+  const a = (await integer.boundingBox())!
+  const b = (await note.boundingBox())!
+  await page.mouse.move(Math.min(a.x, b.x) - 12, Math.min(a.y, b.y) - 12)
+  await page.mouse.down({ button: 'right' })
+  await page.mouse.move(
+    Math.max(a.x + a.width, b.x + b.width) + 12,
+    Math.max(a.y + a.height, b.y + b.height) + 12,
+    { steps: 10 },
+  )
+  await page.mouse.up({ button: 'right' })
+  await expect(integer).toHaveClass(/selected/)
+  await expect(note).toHaveClass(/selected/)
+  await expect(decimal).not.toHaveClass(/selected/)
+
+  await decimal.click({ modifiers: ['Control'] })
+  await expect(page.getByTestId('multi-selection')).toContainText('3 elements selected')
+  await expect(integer).toHaveClass(/selected/)
+  await expect(note).toHaveClass(/selected/)
+  await expect(decimal).toHaveClass(/selected/)
+})
+
+test('a right-drag at the canvas edge pans the diagram', async ({ page }) => {
+  await newActivity(page, 'Pan')
+  await placeNode(page, 'note')
+  const note = page.locator('.react-flow__node[data-id="n-note"]')
+  const canvas = (await page.getByTestId('activity-canvas').boundingBox())!
+  const before = (await note.boundingBox())!
+  await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2)
+  await page.mouse.down({ button: 'right' })
+  await page.mouse.move(canvas.x + canvas.width - 4, canvas.y + canvas.height / 2, { steps: 15 })
+  await page.waitForTimeout(250)
+  const during = (await note.boundingBox())!
+  await page.mouse.up({ button: 'right' })
+  expect(before.x - (during?.x ?? before.x)).toBeGreaterThan(20)
+})
+
+test('copy, cut and paste keep concepts and put a cut back with the same ids', async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName === 'firefox', RIGHT_RELEASE_LOST)
   await newActivity(page, 'Clipboard')
   await placeNode(page, 'integer')
   await placeNode(page, 'note')
@@ -1175,7 +1406,11 @@ test('copy, cut and paste keep concepts and put a cut back with the same ids', a
   const b = (await note.boundingBox())!
   await page.mouse.move(Math.min(a.x, b.x) - 16, Math.min(a.y, b.y) - 16)
   await page.mouse.down({ button: 'right' })
-  await page.mouse.move(Math.max(a.x + a.width, b.x + b.width) + 16, Math.max(a.y + a.height, b.y + b.height) + 16, { steps: 12 })
+  await page.mouse.move(
+    Math.max(a.x + a.width, b.x + b.width) + 16,
+    Math.max(a.y + a.height, b.y + b.height) + 16,
+    { steps: 12 },
+  )
   await page.mouse.up({ button: 'right' })
   await expect(page.getByTestId('multi-selection')).toBeVisible()
 

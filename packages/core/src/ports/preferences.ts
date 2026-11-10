@@ -15,6 +15,8 @@ export interface EditorPreferences {
   imageMaxWidth: number
   /** How a Decision node is drawn: a rhombus (flowchart) or a rectangle (BPMN). */
   diagramStyle: DiagramStyle
+  /** Pixels between side-by-side nodes and branches when Tidy layout arranges a diagram. */
+  nodeGap: number
 }
 
 export const DIAGRAM_STYLES = ['flowchart', 'bpmn'] as const
@@ -60,6 +62,8 @@ export const LABEL_CHARS_MIN = 5
 export const LABEL_CHARS_MAX = 80
 export const IMAGE_WIDTH_MIN = 100
 export const IMAGE_WIDTH_MAX = 4000
+export const NODE_GAP_MIN = 16
+export const NODE_GAP_MAX = 600
 
 export const DEFAULT_PREFERENCES: EditorPreferences = {
   labelLines: 3,
@@ -67,6 +71,8 @@ export const DEFAULT_PREFERENCES: EditorPreferences = {
   conceptTypes: [...DEFAULT_CONCEPT_TYPES],
   imageMaxWidth: 800,
   diagramStyle: 'bpmn',
+  // Half the 200px node width plus 8: room for a Yes / No or answer label between branches.
+  nodeGap: 108,
 }
 
 export interface PreferencesPort {
@@ -76,10 +82,13 @@ export interface PreferencesPort {
 }
 
 /** Keep a stored or typed value inside what the editor can render. */
-export function normalizePreferences(raw: Partial<EditorPreferences> | undefined): EditorPreferences {
+export function normalizePreferences(
+  raw: Partial<EditorPreferences> | undefined,
+): EditorPreferences {
   const lines = Math.round(Number(raw?.labelLines))
   const chars = Math.round(Number(raw?.labelChars))
   const width = Math.round(Number(raw?.imageMaxWidth))
+  const gap = Math.round(Number(raw?.nodeGap))
   const types = Array.isArray(raw?.conceptTypes)
     ? raw.conceptTypes.map((t) => String(t).trim()).filter((t) => t !== '')
     : []
@@ -100,5 +109,9 @@ export function normalizePreferences(raw: Partial<EditorPreferences> | undefined
     diagramStyle: DIAGRAM_STYLES.includes(raw?.diagramStyle as DiagramStyle)
       ? (raw!.diagramStyle as DiagramStyle)
       : DEFAULT_PREFERENCES.diagramStyle,
+    nodeGap:
+      raw?.nodeGap !== undefined && Number.isFinite(gap)
+        ? Math.min(NODE_GAP_MAX, Math.max(NODE_GAP_MIN, gap))
+        : DEFAULT_PREFERENCES.nodeGap,
   }
 }

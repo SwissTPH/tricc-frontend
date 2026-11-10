@@ -3,6 +3,8 @@ import { activityKind, calledActivities } from '../model/activity-kind.js'
 import { IMPLEMENTED_TRIGGER_MODES } from '../format/schema/project.js'
 import { isOpenHandoff } from '../format/schema/expression.js'
 import { validateActivity, MACHINE_NAME } from './activity.js'
+import { validateParams } from './params.js'
+import { validateRetrievals } from './retrievals.js'
 import { issue, type Issue } from './types.js'
 import { designationInterventions, designationUse } from '../terminology/designation.js'
 import { designationText, imageRefs, references } from '../text/message.js'
@@ -23,6 +25,8 @@ export function validateProject(project: Project): Issue[] {
   issues.push(...validateCrossActivity(project))
   issues.push(...validateInterventions(project))
   issues.push(...validateTerminology(project))
+  issues.push(...validateParams(project))
+  issues.push(...validateRetrievals(project))
   return issues
 }
 
@@ -65,7 +69,7 @@ function validateCrossActivity(project: Project): Issue[] {
             issue(
               'goto.links-to-process-activity',
               'error',
-              `"${node.link}" starts a process, so it cannot also be jumped to. Point this at the activity that process calls.`,
+              `"${node.link}" is a segment, so it cannot also be jumped to. Point this at the activity that segment calls.`,
               { activityId, nodeId: node.id, field: 'link' },
             ),
           )
@@ -238,12 +242,16 @@ function validateInterventions(project: Project): Issue[] {
       usedActivities.add(ref.ref)
 
       const referenced = project.activities[ref.ref]
-      if (referenced && activityKind(referenced) === 'process' && calledActivities(referenced).length === 0) {
+      if (
+        referenced &&
+        activityKind(referenced) === 'process' &&
+        calledActivities(referenced).length === 0
+      ) {
         issues.push(
           issue(
             'process-activity.no-calls',
             'warning',
-            `"${ref.ref}" is a process activity but calls no activity, so opening it would do nothing.`,
+            `"${ref.ref}" is a segment but calls no activity, so opening it would do nothing.`,
             { ...loc, activityId: ref.ref },
           ),
         )
@@ -295,7 +303,13 @@ function validateInterventions(project: Project): Issue[] {
     for (const id of calledActivities(activity)) called.add(id)
   }
   for (const id of Object.keys(project.activities).sort()) {
-    if (usedActivities.has(id) || called.has(id)) continue
+    // A building block is used, never listed: an unused one is reported as such.
+    if (
+      usedActivities.has(id) ||
+      called.has(id) ||
+      activityKind(project.activities[id]!) === 'block'
+    )
+      continue
     issues.push(
       issue(
         'activity.unassigned',
@@ -390,7 +404,8 @@ function validateTerminology(project: Project): Issue[] {
         }
         seen.add(key)
       }
-      if (!c.dataType) {
+      // A retrieval's value type comes from its function or the concept it reads.
+      if (!c.dataType && !c.retrieval) {
         issues.push(
           issue(
             'concept.no-datatype',
@@ -412,7 +427,9 @@ function validateTerminology(project: Project): Issue[] {
   for (const id of Object.keys(project.images ?? {}).sort()) {
     if (!shown.has(id)) {
       issues.push(
-        issue('image.unused', 'info', `The image "${id}" is not shown by any text.`, { imageId: id }),
+        issue('image.unused', 'info', `The image "${id}" is not shown by any text.`, {
+          imageId: id,
+        }),
       )
     }
   }

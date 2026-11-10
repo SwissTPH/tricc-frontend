@@ -14,24 +14,28 @@
 @source '../../../packages/editor/src';
 
 :root {
+  /* shadcn tokens, derived from the DrawTricc palette (editor src/theme/tokens.ts). */
   --radius: 0.5rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  --background: var(--tricc-surface);
+  --foreground: var(--tricc-text);
+  --primary: var(--tricc-primary);
+  --primary-foreground: var(--tricc-on-primary);
+  --secondary: var(--tricc-subtle);
+  --secondary-foreground: var(--tricc-text);
+  --popover: var(--tricc-surface);
+  --popover-foreground: var(--tricc-text);
+  --muted: var(--tricc-subtle);
+  --muted-foreground: var(--tricc-text-muted);
+  --accent: var(--tricc-subtle);
+  --accent-foreground: var(--tricc-text);
+  --destructive: var(--tricc-error);
+  --border: var(--tricc-border);
+  --input: var(--tricc-border-strong);
+  --ring: var(--tricc-focus);
 }
+
+/* `dark:` utilities follow the scheme chosen in Preferences (or the OS). */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);

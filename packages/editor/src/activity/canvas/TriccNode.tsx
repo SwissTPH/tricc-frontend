@@ -13,6 +13,7 @@ import { useEditorPreferences } from '../../runtime/context.js'
 import { useImageUrl } from '../../media/images.js'
 import { FollowIcon } from '../../components/Dialog.js'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '../../components/ui/hover-card.js'
+import { ElementMark } from '../../discussion/ElementMark.js'
 
 /**
  * Opens the activity a goto goes to. Provided by the canvas, so the node data stays plain
@@ -38,8 +39,14 @@ export type TriccFlowNode = Node<
     answerPictures?: Record<string, string>
     /** On the root node: the activity title. The start node is the activity. */
     activityTitle?: string
-    /** Goto whose target activity is not in this project. */
+    /** Goto or Use block whose target is not in this project. */
     missing?: boolean
+    /** Use block: the title of the block it uses. */
+    callLabel?: string
+    /** Use block, Go to activity: the values set on the call ("Axillary · 37.5"). */
+    callSummary?: string
+    /** A required setting of the target has no value here, nor from above. */
+    needsValue?: boolean
   },
   'tricc'
 >
@@ -52,11 +59,21 @@ export type TriccFlowNode = Node<
  * (feature/20260825-activity-editor.md §3).
  */
 export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
-  const { model, lang, severity, conceptDisplay, activityTitle, missing } = data
+  const {
+    model,
+    lang,
+    severity,
+    conceptDisplay,
+    activityTitle,
+    missing,
+    callLabel,
+    callSummary,
+    needsValue,
+  } = data
   const visual = visualFor(model.type as NodeType)
   const { diagramStyle } = useEditorPreferences()
   const follow = useContext(FollowContext)
-  const display = activityTitle ?? displayText(model, lang, conceptDisplay)
+  const display = activityTitle ?? callLabel ?? displayText(model, lang, conceptDisplay)
   const answers =
     model.type === 'select_one' || model.type === 'select_multiple' ? (model.options ?? []) : []
   const confirm = model.type === 'acknowledge'
@@ -74,6 +91,11 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
           {display}
         </span>
         {model.concept && <span className="tricc-node__code">{model.concept.code}</span>}
+        {callSummary && (
+          <span className="tricc-node__code" data-testid={`node-${model.id}-args`}>
+            {callSummary}
+          </span>
+        )}
         {!model.concept &&
           model.name &&
           display !== model.name &&
@@ -93,14 +115,18 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
             Instance {model.instance}
           </span>
         )}
-        {follow && model.type === 'goto' && model.link && !missing && (
+        {follow && (model.type === 'goto' || model.type === 'block') && model.link && !missing && (
           <button
             type="button"
             // Not a drag or pan handle: a click here opens the activity, nothing else.
             className="tricc-node__follow nodrag nopan"
             data-testid={`goto-follow-${model.id}`}
-            aria-label="Open the activity this goes to"
-            title="Open the activity this goes to"
+            aria-label={
+              model.type === 'block' ? 'Open the block this uses' : 'Open the activity this goes to'
+            }
+            title={
+              model.type === 'block' ? 'Open the block this uses' : 'Open the activity this goes to'
+            }
             onClick={(event) => {
               event.stopPropagation()
               follow(model.link!)
@@ -112,7 +138,17 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
         {missing && (
           <span className="tricc-badge" data-testid="goto-missing">
             <span aria-hidden="true">⚠ </span>
-            Missing activity
+            {model.type === 'block' ? 'Missing block' : 'Missing activity'}
+          </span>
+        )}
+        {needsValue && (
+          <span
+            className="tricc-badge tricc-badge--warning"
+            data-testid={`node-${model.id}-needs-value`}
+            title="A required setting has no value"
+          >
+            <span aria-hidden="true">⚠ </span>
+            Needs a value
           </span>
         )}
         {severity && (
@@ -225,6 +261,8 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
               )}
             </span>
           )}
+
+          <ElementMark kind="node" id={model.id} />
 
           {visual.sources && (
             <Handle

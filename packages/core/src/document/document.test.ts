@@ -49,6 +49,24 @@ describe('projection', () => {
     expect(docOf(original).snapshot()).toEqual(original)
   })
 
+  it('keeps project labels and owner, and intervention labels', () => {
+    const original = sampleProject()
+    original.labels = ['child']
+    original.owner = { id: 'u-1', name: 'Ada' }
+    original.interventions[0]!.labels = ['triage', 'IMCI']
+    expect(docOf(original).snapshot()).toEqual(original)
+  })
+
+  it('sets project labels normalised, and removes them when empty', () => {
+    const doc = docOf(sampleProject())
+    doc.transact((tx) => tx.setProjectLabels([' child ', 'triage', 'child', '']))
+    expect(doc.snapshot().labels).toEqual(['child', 'triage'])
+    doc.transact((tx) => tx.setProjectLabels([]))
+    expect(doc.snapshot()).not.toHaveProperty('labels')
+    doc.transact((tx) => tx.setProjectOwner({ id: 'u-2', name: 'Grace' }))
+    expect(doc.snapshot().owner).toEqual({ id: 'u-2', name: 'Grace' })
+  })
+
   it('doc → files → doc round-trips', () => {
     const doc = docOf()
     const { project } = readProject(writeProject(doc.snapshot()))
@@ -303,7 +321,13 @@ describe('mutations', () => {
     )
     const cs = doc.snapshot().codeSystems[url]
     expect(cs?.concepts['fever']?.display).toBe('Fever')
-    expect(cs?.conceptOrder).toEqual(['weight', 'date_of_birth', 'convulsions', 'severe_disease', 'fever'])
+    expect(cs?.conceptOrder).toEqual([
+      'weight',
+      'date_of_birth',
+      'convulsions',
+      'severe_disease',
+      'fever',
+    ])
   })
 })
 
@@ -345,9 +369,13 @@ describe('comments', () => {
     const doc = docOf()
     const id = 'triage-danger-signs'
     const node = doc.snapshot().activities[id]!.nodeOrder[1]!
-    doc.transact((tx) => tx.setComment(id, { id: 'c', text: 'Check', color: 'yellow', x: 1, y: 2, node }))
+    doc.transact((tx) =>
+      tx.setComment(id, { id: 'c', text: 'Check', color: 'yellow', x: 1, y: 2, node }),
+    )
     doc.transact((tx) => tx.setActivityViewport(id, { x: 5, y: 5, zoom: 1 }))
-    doc.transact((tx) => tx.setComment(id, { id: 'c', text: 'Checked', color: 'green', x: 1, y: 2, node }))
+    doc.transact((tx) =>
+      tx.setComment(id, { id: 'c', text: 'Checked', color: 'green', x: 1, y: 2, node }),
+    )
     expect(doc.snapshot().activities[id]!.ui).toEqual({
       viewport: { x: 5, y: 5, zoom: 1 },
       comments: [{ id: 'c', text: 'Checked', color: 'green', x: 1, y: 2, node }],
@@ -364,9 +392,28 @@ describe('groups', () => {
     const doc = docOf()
     const id = 'triage-danger-signs'
     const node = doc.snapshot().activities[id]!.nodeOrder[1]!
-    doc.transact((tx) => tx.setGroup(id, { id: 'outer', name: 'triage', color: 'grey', x: 100, y: 100, width: 600, height: 400 }))
     doc.transact((tx) =>
-      tx.setGroup(id, { id: 'danger', name: 'danger_signs', color: 'pink', x: 20, y: 30, width: 300, height: 200, parent: 'outer' }),
+      tx.setGroup(id, {
+        id: 'outer',
+        name: 'triage',
+        color: 'grey',
+        x: 100,
+        y: 100,
+        width: 600,
+        height: 400,
+      }),
+    )
+    doc.transact((tx) =>
+      tx.setGroup(id, {
+        id: 'danger',
+        name: 'danger_signs',
+        color: 'pink',
+        x: 20,
+        y: 30,
+        width: 300,
+        height: 200,
+        parent: 'outer',
+      }),
     )
     doc.transact((tx) => tx.setNodeGroup(id, node, 'danger', 10, 15))
     const inGroup = doc.snapshot().activities[id]!.nodes[node]!
@@ -385,4 +432,3 @@ describe('groups', () => {
     expect(doc.snapshot().activities[id]!.groups).toBeUndefined()
   })
 })
-

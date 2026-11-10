@@ -19,7 +19,11 @@ export interface ProjectSearchResult {
   nodes: { activityId: string; activityTitle: string; nodeId: string; type: string; text: string }[]
 }
 
-export function searchProject(project: Project, query: string, opts: { limit?: number } = {}): ProjectSearchResult {
+export function searchProject(
+  project: Project,
+  query: string,
+  opts: { limit?: number } = {},
+): ProjectSearchResult {
   const q = query.trim().toLowerCase()
   const limit = opts.limit ?? 200
   const empty: ProjectSearchResult = { concepts: [], processes: [], activities: [], nodes: [] }

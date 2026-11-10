@@ -18,7 +18,8 @@ export function Breadcrumbs({
   trail: string[]
   /** A view open in place of an activity, such as the data dictionary. */
   extra?: string
-  onHome: () => void
+  /** Shows a home crumb first. Hosts whose top bar already links home leave it out. */
+  onHome?: () => void
   onProject: () => void
   /** Go back to the activity at this index of `trail`. */
   onCrumb: (index: number) => void
@@ -32,18 +33,20 @@ export function Breadcrumbs({
   return (
     <nav aria-label="Breadcrumb" className="tricc-crumbs" data-testid="breadcrumbs">
       <ol>
-        <li>
-          <button
-            type="button"
-            className="tricc-crumbs__home"
-            data-testid="nav-home"
-            aria-label="All projects"
-            title="All projects"
-            onClick={onHome}
-          >
-            <HomeIcon />
-          </button>
-        </li>
+        {onHome && (
+          <li>
+            <button
+              type="button"
+              className="tricc-crumbs__home"
+              data-testid="nav-home"
+              aria-label="All projects"
+              title="All projects"
+              onClick={onHome}
+            >
+              <HomeIcon />
+            </button>
+          </li>
+        )}
         <li>
           <button
             type="button"
@@ -90,7 +93,11 @@ export function Breadcrumbs({
  * An activity already on the trail cuts it back there, so following a loop of gotos
  * never grows the trail without bound.
  */
-export function nextTrail(trail: string[], id: string, mode: 'reset' | 'follow' | 'return'): string[] {
+export function nextTrail(
+  trail: string[],
+  id: string,
+  mode: 'reset' | 'follow' | 'return',
+): string[] {
   const at = trail.indexOf(id)
   if (mode === 'reset') return [id]
   if (at >= 0) return trail.slice(0, at + 1)

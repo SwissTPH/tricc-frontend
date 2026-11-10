@@ -1,4 +1,6 @@
 import {
+  effectiveParams,
+  paramEnvironments,
   conceptRichText,
   conceptText,
   defaultCodeSystem,
@@ -15,6 +17,7 @@ import {
   type Project,
 } from '@tricc/core'
 import { uniqueId } from '../../project/Overview.js'
+import { argSummary } from '../../blocks/ArgumentForm.js'
 import { answerLabel } from './answer.js'
 import { visualFor } from './node-visuals.js'
 import type { TriccFlowNode } from './TriccNode.js'
@@ -63,11 +66,23 @@ export interface CanvasKind {
   /** Store where it was moved to (relative to its group, as React Flow reports it). */
   commitMove(tx: Mutations, activityId: string, activity: Activity, flowId: string, at: Point): void
   /** Store a new size. Absent when the kind cannot be resized. */
-  commitResize?(tx: Mutations, activityId: string, activity: Activity, flowId: string, size: Size): void
+  commitResize?(
+    tx: Mutations,
+    activityId: string,
+    activity: Activity,
+    flowId: string,
+    size: Size,
+  ): void
   /** Delete from the keyboard. Absent when the kind must not be deleted that way. */
   remove?(tx: Mutations, activityId: string, flowId: string): void
   /** A connection dragged from it. Present only when it is not a guideline edge. */
-  connectFrom?(tx: Mutations, activityId: string, activity: Activity, sourceId: string, targetId: string): void
+  connectFrom?(
+    tx: Mutations,
+    activityId: string,
+    activity: Activity,
+    sourceId: string,
+    targetId: string,
+  ): void
   /** Create one, at a point or in a free spot; returns the flow id to select. */
   create?(tx: Mutations, activityId: string, activity: Activity, at?: Point): string
   /** Changes when the element's handles change, so React Flow re-reads where edges attach. */
@@ -125,7 +140,12 @@ const group: CanvasKind = {
   },
   commitResize(tx, activityId, activity, flowId, size) {
     const g = activity.groups?.find((x) => x.id === groupIdOf(flowId))
-    if (g) tx.setGroup(activityId, { ...g, width: Math.round(size.width), height: Math.round(size.height) })
+    if (g)
+      tx.setGroup(activityId, {
+        ...g,
+        width: Math.round(size.width),
+        height: Math.round(size.height),
+      })
   },
   // No keyboard delete: React Flow would delete the nodes inside too. Ungroup is in Details.
   create(tx, activityId, activity, at) {
@@ -150,6 +170,15 @@ function firstPicture(text: DisplayText | undefined): string | undefined {
   return text === undefined ? undefined : imageRefs(text)[0]
 }
 
+/**
+ * Whether a value left unset at a call on `callerId` arrives from above: every way an intervention
+ * reaches the caller gives it one. A page no intervention reaches yet is not flagged.
+ */
+function inheritsValue(project: Project, callerId: string, name: string): boolean {
+  const envs = paramEnvironments(project).get(callerId) ?? []
+  return envs.every((env) => env.values[name] !== undefined)
+}
+
 const tricc: CanvasKind = {
   owns: (id) => !id.startsWith(GROUP_PREFIX) && !id.startsWith(COMMENT_PREFIX),
   project(ctx) {
@@ -167,31 +196,65 @@ const tricc: CanvasKind = {
         // A text that is only a picture has no words: the node falls back to its own label.
         const text = conceptText(concept, 'q-display', lang, defaultLang)?.trim() || undefined
         const picture = firstPicture(conceptRichText(concept, 'q-display', lang, defaultLang))
-        const hint = conceptText(concept, 'hint', lang, defaultLang) ?? resolve(model.hint, lang, lang)
-        const help = conceptText(concept, 'help', lang, defaultLang) ?? resolve(model.help, lang, lang)
+        const hint =
+          conceptText(concept, 'hint', lang, defaultLang) ?? resolve(model.hint, lang, lang)
+        const help =
+          conceptText(concept, 'help', lang, defaultLang) ?? resolve(model.help, lang, lang)
         const answerTexts = model.options?.length
           ? Object.fromEntries(model.options.map((o) => [o.id, answerLabel(o, lang, project)]))
           : undefined
         const answerPictures = Object.fromEntries(
           (model.options ?? []).flatMap((o) => {
             const id = firstPicture(
-              conceptRichText(lookupConcept(project, optionConceptKey(project, o)), 'q-display', lang, defaultLang),
+              conceptRichText(
+                lookupConcept(project, optionConceptKey(project, o)),
+                'q-display',
+                lang,
+                defaultLang,
+              ),
             )
             return id ? [[o.id, id]] : []
           }),
         )
         const severity = ctx.severityByNode.get(model.id)
-        const missing = model.type === 'goto' && Boolean(model.link) && project.activities[model.link!] === undefined
+        const isCall = model.type === 'goto' || model.type === 'block'
+        const missing =
+          isCall && Boolean(model.link) && project.activities[model.link!] === undefined
+        // A Use block shows the block it uses and the values set on it ("Axillary · 37.5").
+        const target = isCall && model.link ? project.activities[model.link] : undefined
+        const callLabel =
+          model.type !== 'block'
+            ? undefined
+            : target
+              ? (resolve(target.title, lang, lang) ?? target.id)
+              : (model.link ?? 'Use block')
+        const callSummary = isCall ? argSummary(model.args) || undefined : undefined
+        const needsValue =
+          isCall && target
+            ? effectiveParams(project, target.id).some(
+                (p) =>
+                  p.param.required &&
+                  p.param.default === undefined &&
+                  model.args?.[p.name] === undefined &&
+                  !inheritsValue(project, activity.id, p.name),
+              )
+            : false
         const drag = ctx.drag(model.id)
         const measured = ctx.measured(model.id)
         return {
           id: model.id,
           type: 'tricc',
-          position: drag ?? (model.ui ? { x: model.ui.x, y: model.ui.y } : (ctx.layout.get(model.id) ?? { x: 0, y: 0 })),
+          position:
+            drag ??
+            (model.ui
+              ? { x: model.ui.x, y: model.ui.y }
+              : (ctx.layout.get(model.id) ?? { x: 0, y: 0 })),
           selected: marked(ctx, model.id),
           draggable: ctx.canWrite,
           deletable: ctx.canWrite,
-          ...(model.group && groupIds.has(model.group) ? { parentId: groupFlowId(model.group) } : {}),
+          ...(model.group && groupIds.has(model.group)
+            ? { parentId: groupFlowId(model.group) }
+            : {}),
           ...(measured ? { measured } : {}),
           ...(drag ? { dragging: true } : {}),
           data: {
@@ -206,6 +269,9 @@ const tricc: CanvasKind = {
             ...(Object.keys(answerPictures).length > 0 ? { answerPictures } : {}),
             ...(model.id === rootId ? { activityTitle } : {}),
             ...(missing ? { missing: true } : {}),
+            ...(callLabel ? { callLabel } : {}),
+            ...(callSummary ? { callSummary } : {}),
+            ...(needsValue ? { needsValue: true } : {}),
           },
         }
       })
@@ -262,7 +328,13 @@ const comment: CanvasKind = {
     const comments = activity.ui?.comments ?? []
     const id = uniqueId('comment', new Set(comments.map((c) => c.id)))
     const spot = at ?? freeSpot(activity, comments.length, 100)
-    tx.setComment(activityId, { id, text: '', color: 'yellow', x: Math.round(spot.x), y: Math.round(spot.y) })
+    tx.setComment(activityId, {
+      id,
+      text: '',
+      color: 'yellow',
+      x: Math.round(spot.x),
+      y: Math.round(spot.y),
+    })
     return commentFlowId(id)
   },
   handleSignature: () => 'about',
@@ -306,7 +378,14 @@ export function sameFlowNode(a: FlowNode, b: FlowNode): boolean {
     const x = da[key]
     const y = db[key]
     if (x === y) continue
-    if (key === 'model' || typeof x !== 'object' || x === null || typeof y !== 'object' || y === null) return false
+    if (
+      key === 'model' ||
+      typeof x !== 'object' ||
+      x === null ||
+      typeof y !== 'object' ||
+      y === null
+    )
+      return false
     if (JSON.stringify(x) !== JSON.stringify(y)) return false
   }
   return true

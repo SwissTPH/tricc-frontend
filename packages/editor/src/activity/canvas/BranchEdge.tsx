@@ -5,6 +5,10 @@ import {
   type EdgeProps,
   type Edge,
 } from '@xyflow/react'
+import { useProjectSnapshot } from '../../runtime/context.js'
+import { useDiagramDiscuss } from '../../discussion/context.js'
+import { ElementMark } from '../../discussion/ElementMark.js'
+import { discussCounts } from '../../discussion/marks.js'
 
 export type BranchKind = 'unconditional' | 'yes' | 'no' | 'continue' | 'score' | 'condition'
 
@@ -77,6 +81,10 @@ export function TriccEdgeView({
     (data?.display && data.value && data.display !== data.value
       ? `${data.display}\n${data.value}`
       : undefined)
+  const diagram = useDiagramDiscuss()
+  const project = useProjectSnapshot()
+  const discussed =
+    diagram && discussCounts(project, { kind: 'edge', activityId: diagram.activityId, edgeId: id })
 
   return (
     <>
@@ -86,7 +94,7 @@ export function TriccEdgeView({
         markerEnd={markerEnd}
         className={`tricc-edge tricc-edge--${kind} ${selected ? 'is-selected' : ''}`}
       />
-      {label && (
+      {(label || discussed) && (
         <EdgeLabelRenderer>
           <div
             className={`tricc-edge__label tricc-edge__label--${kind}`}
@@ -95,6 +103,7 @@ export function TriccEdgeView({
             title={tip}
           >
             {label}
+            <ElementMark kind="edge" id={id} />
           </div>
         </EdgeLabelRenderer>
       )}

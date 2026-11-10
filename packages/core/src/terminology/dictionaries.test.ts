@@ -4,7 +4,13 @@ import { readProject, writeProject } from '../format/serialize/index.js'
 import * as Y from 'yjs'
 import { projectFromDoc, projectToDoc } from '../document/codec.js'
 import type { Project, TriccNode } from '../model/types.js'
-import { calculateCodeSystem, dictionaryForType, emptyCodeSystem, projectDictionaries } from './dictionaries.js'
+import {
+  CALCULATE_ROLE_TAG,
+  calculateCodeSystem,
+  dictionaryForType,
+  emptyCodeSystem,
+  projectDictionaries,
+} from './dictionaries.js'
 import { searchProject } from './project-search.js'
 import { nodeConceptKey } from './usage.js'
 
@@ -14,7 +20,12 @@ function withCalculate(): Project {
   const project = sampleProject()
   const [, calc] = projectDictionaries(project)
   const cs = emptyCodeSystem(calc!)
-  cs.concepts['severe_pneumonia'] = { system: cs.url, code: 'severe_pneumonia', display: 'Severe pneumonia', designations: [] }
+  cs.concepts['severe_pneumonia'] = {
+    system: cs.url,
+    code: 'severe_pneumonia',
+    display: 'Severe pneumonia',
+    designations: [],
+  }
   cs.conceptOrder.push('severe_pneumonia')
   project.codeSystems[cs.url] = cs
   project.calculateCodeSystem = cs.url
@@ -22,12 +33,13 @@ function withCalculate(): Project {
 }
 
 describe('data dictionaries', () => {
-  it('lists the default and the calculate dictionary, the latter before it exists', () => {
+  it('lists the default, calculate and retrieve dictionaries, the last two before they exist', () => {
     const project = sampleProject()
     const all = projectDictionaries(project)
     expect(all.map((d) => [d.kind, d.id, d.url, Boolean(d.codeSystem)])).toEqual([
       ['default', 'tricc', DEFAULT, true],
       ['calculate', 'tricc-calculate', `${DEFAULT}-calculate`, false],
+      ['retrieve', 'tricc-retrieve', `${DEFAULT}-retrieve`, false],
     ])
     expect(dictionaryForType(project, 'calculate').kind).toBe('calculate')
     expect(dictionaryForType(project, 'diagnosis').kind).toBe('calculate')
@@ -39,7 +51,10 @@ describe('data dictionaries', () => {
     const project = withCalculate()
     expect(calculateCodeSystem(project)?.id).toBe('tricc-calculate')
     const node = { id: 'd', type: 'diagnosis', name: 'severe_pneumonia' } as TriccNode
-    expect(nodeConceptKey(project, node)).toEqual({ system: `${DEFAULT}-calculate`, code: 'severe_pneumonia' })
+    expect(nodeConceptKey(project, node)).toEqual({
+      system: `${DEFAULT}-calculate`,
+      code: 'severe_pneumonia',
+    })
     // A question of the same name does not look there.
     expect(nodeConceptKey(project, { ...node, type: 'select_yesno' } as TriccNode)).toBeUndefined()
   })
@@ -53,13 +68,41 @@ describe('data dictionaries', () => {
     projectToDoc(project, doc)
     expect(projectFromDoc(doc).calculateCodeSystem).toBe(`${DEFAULT}-calculate`)
   })
+
+  it('tags the calculate dictionary, keeps the tag, and finds it by the tag first', () => {
+    const project = withCalculate()
+    const url = `${DEFAULT}-calculate`
+    expect(project.codeSystems[url]!.meta?.tag).toEqual([CALCULATE_ROLE_TAG])
+    const json = (files: Record<string, unknown>) =>
+      JSON.parse(String(files['terminology/tricc-calculate.codesystem.json']))
+
+    // An existing calculate dictionary without the tag gets it when saved.
+    delete project.codeSystems[url]!.meta
+    const files = writeProject(project)
+    expect(json(files).meta).toEqual({ tag: [CALCULATE_ROLE_TAG] })
+    const back = readProject(files).project
+    expect(back.codeSystems[url]!.meta?.tag).toEqual([CALCULATE_ROLE_TAG])
+    const doc = new Y.Doc()
+    projectToDoc(back, doc)
+    expect(projectFromDoc(doc).codeSystems[url]!.meta?.tag).toEqual([CALCULATE_ROLE_TAG])
+
+    // The tag wins over the name tricc.yaml gives and over the -calculate guess.
+    const other = emptyCodeSystem({ url: 'http://x/dx', id: 'dx', kind: 'other' })
+    other.meta = { tag: [{ ...CALCULATE_ROLE_TAG }] }
+    back.codeSystems[other.url] = other
+    delete back.codeSystems[url]!.meta
+    expect(calculateCodeSystem(back)?.id).toBe('dx')
+  })
 })
 
 describe('project search', () => {
   it('finds concepts, activities and nodes, ignoring case', () => {
     const project = withCalculate()
     const result = searchProject(project, 'PNEUMONIA')
-    expect(result.concepts.map((c) => [c.dictionary, c.concept.code])).toContainEqual(['tricc-calculate', 'severe_pneumonia'])
+    expect(result.concepts.map((c) => [c.dictionary, c.concept.code])).toContainEqual([
+      'tricc-calculate',
+      'severe_pneumonia',
+    ])
     expect(searchProject(project, '').concepts).toEqual([])
   })
 })

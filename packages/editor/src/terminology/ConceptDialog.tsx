@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import {
   DATA_TYPES,
   DESIGNATION_USES,
+  PARAMETER_KIND,
+  paramConceptCode,
   INTERVENTION_SCOPE_URL,
   conceptUsage,
   designationInterventions,
@@ -11,7 +13,9 @@ import {
   findCodeSystem,
   isUnscoped,
   projectDictionaries,
+  RETRIEVAL_CODE,
   resolve,
+  retrievalUsage,
   scopeExtension,
   withConceptText,
   withDesignationText,
@@ -20,8 +24,14 @@ import {
   type Designation,
   type DesignationUse,
   type DisplayText,
+  type Project,
 } from '@tricc/core'
-import { useCanWrite, useEditorPreferences, useMutate, useProjectSnapshot } from '../runtime/context.js'
+import {
+  useCanWrite,
+  useEditorPreferences,
+  useMutate,
+  useProjectSnapshot,
+} from '../runtime/context.js'
 import { RichTextField } from '../text/RichTextField.js'
 import { ensureDictionary } from './codeSystems.js'
 import { draggingFiles, imageFiles, useAddImages } from '../media/images.js'
@@ -29,6 +39,7 @@ import { withPictureFirst } from '../media/attach.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
 import { Textarea } from '../components/ui/textarea.js'
+import { RetrievalFields } from './RetrievalFields.js'
 
 const CODE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 const USE_LABELS: Record<DesignationUse, string> = {
@@ -51,12 +62,15 @@ export function ConceptDialog({
   onClose,
   onSaved,
   onOpenNode,
+  onOpenActivity,
 }: {
   target: ConceptTarget
   onClose: () => void
   /** Called after Save with the saved concept. */
   onSaved?: (key: ConceptKey) => void
   onOpenNode?: (activityId: string, nodeId: string) => void
+  /** Open the page a parameter concept belongs to. */
+  onOpenActivity?: (activityId: string) => void
 }) {
   const project = useProjectSnapshot()
   const canWrite = useCanWrite()
@@ -71,17 +85,21 @@ export function ConceptDialog({
       ? target.draft.system
       : dictionaries[0]!.url,
   )
+  // The retrieval dictionary is offered only from itself: a node's concept is never a retrieval.
+  const startedInRetrieve =
+    isNew && dictionaries.find((d) => d.url === target.draft.system)?.kind === 'retrieve'
+  const offered = dictionaries.filter((d) => (d.kind === 'retrieve') === startedInRetrieve)
   const existingCs = findCodeSystem(project, isNew ? system : target.key.system)
   const existing = isNew ? undefined : existingCs?.concepts[target.key.code]
   const [draft, setDraft] = useState<Concept>(() =>
     existing
       ? structuredClone(existing)
-      : {
+      : ({
           code: '',
           designations: [],
           ...(isNew ? structuredClone(target.draft) : {}),
           system,
-        } as Concept,
+        } as Concept),
   )
   const cardRef = useRef<HTMLDivElement>(null)
   const addImages = useAddImages()
@@ -89,6 +107,10 @@ export function ConceptDialog({
   // Rows added in this dialog stay in the table, whatever language they get.
   const opened = useRef(draft.designations.length)
   const readOnly = !canWrite
+  // A parameter's concept is its declaration: edited in its page's settings, except its texts.
+  const owner = existing?.kind === PARAMETER_KIND ? paramOwner(project, existing.code) : undefined
+  const isParam = existing?.kind === PARAMETER_KIND
+  const locked = readOnly || isParam
 
   useEffect(() => {
     cardRef.current?.querySelector<HTMLElement>('input:not([disabled]), textarea, select')?.focus()
@@ -110,34 +132,46 @@ export function ConceptDialog({
   }
 
   const key = { system: existingCs?.url ?? draft.system, code: draft.code }
+  // A retrieval (feature/20261109-project-retrievals.md) says what it reads, not what to ask.
+  const isRetrieval =
+    dictionaries.find((d) => d.url === (isNew ? system : key.system))?.kind === 'retrieve'
+  const retrieval = draft.retrieval ?? { context: 'patient' as const }
   const uses = isNew ? [] : conceptUsage(project, key)
+  const retrievalUses = isNew || !isRetrieval ? [] : retrievalUsage(project, key.code)
+  const used = uses.length + retrievalUses.length
   const code = draft.code.trim()
   const missingLanguage = draft.designations.some((d) => !d.language.trim())
   const error = missingLanguage
     ? 'Give each text a language (en, fr, …).'
     : !isNew
-    ? !draft.display?.trim()
-      ? 'Give the concept a display.'
-      : undefined
-    : !code
-      ? 'Give the concept a code.'
-      : !CODE.test(code)
-        ? 'A code uses letters, digits, ".", "_" and "-".'
-        : existingCs?.concepts[code]
-          ? 'The dictionary already has this code.'
-          : !draft.display?.trim()
-            ? 'Give the concept a display.'
-            : undefined
+      ? !draft.display?.trim()
+        ? 'Give the concept a display.'
+        : undefined
+      : !code
+        ? 'Give the concept a code.'
+        : isRetrieval && !RETRIEVAL_CODE.test(code)
+          ? 'A retrieval code is # followed by lowercase letters, digits and _, like #age_months.'
+          : !isRetrieval && !CODE.test(code)
+            ? 'A code uses letters, digits, ".", "_" and "-".'
+            : existingCs?.concepts[code]
+              ? 'The dictionary already has this code.'
+              : !draft.display?.trim()
+                ? 'Give the concept a display.'
+                : undefined
 
   const set = (patch: Partial<Concept>) => {
     const next = { ...draft, ...patch } as Concept
     for (const [k, v] of Object.entries(patch)) {
-      if (v === undefined || v === '') delete (next as unknown as Record<string, unknown>)[k]
+      // The code stays, even empty: the field shows it and the checks read it.
+      if (k !== 'code' && (v === undefined || v === ''))
+        delete (next as unknown as Record<string, unknown>)[k]
     }
     setDraft(next)
   }
   const ownText = (use: DesignationUse): DisplayText => {
-    const d = draft.designations.find((x) => x.language === lang && isUnscoped(x) && designationUse(x) === use)
+    const d = draft.designations.find(
+      (x) => x.language === lang && isUnscoped(x) && designationUse(x) === use,
+    )
     return d ? designationText(d) : ''
   }
   const setText = (use: DesignationUse, text: DisplayText) =>
@@ -147,11 +181,14 @@ export function ConceptDialog({
   const main = new Set(
     RICH.map((use) =>
       draft.designations.findIndex(
-        (d, i) => i < opened.current && d.language === lang && isUnscoped(d) && designationUse(d) === use,
+        (d, i) =>
+          i < opened.current && d.language === lang && isUnscoped(d) && designationUse(d) === use,
       ),
     ).filter((i) => i >= 0),
   )
-  const others = draft.designations.map((d, index) => ({ d, index })).filter(({ index }) => !main.has(index))
+  const others = draft.designations
+    .map((d, index) => ({ d, index }))
+    .filter(({ index }) => !main.has(index))
   const updateAt = (index: number, d: Designation) =>
     setDraft({ ...draft, designations: draft.designations.map((x, i) => (i === index ? d : x)) })
 
@@ -160,6 +197,8 @@ export function ConceptDialog({
     mutate((tx) => {
       const cs = existingCs ?? ensureDictionary(project, tx, system)
       const concept: Concept = { ...draft, system: cs.url, code }
+      if (isRetrieval) concept.retrieval = retrieval
+      else delete concept.retrieval
       tx.upsertConcept(cs.url, concept)
       onSaved?.({ system: cs.url, code })
     })
@@ -188,7 +227,8 @@ export function ConceptDialog({
           setPictureOver(true)
         }}
         onDragLeave={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPictureOver(false)
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+            setPictureOver(false)
         }}
         onDrop={(event) => {
           if (!canWrite || !draggingFiles(event)) return
@@ -201,10 +241,44 @@ export function ConceptDialog({
         }}
       >
         <h2 id="concept-dialog-title">
-          {isNew ? 'New concept' : (existing?.display ?? existing?.code)}
+          {isNew
+            ? isRetrieval
+              ? 'New retrieval'
+              : 'New concept'
+            : (existing?.display ?? existing?.code)}
+          {isParam && (
+            <span className="tricc-badge" data-testid="concept-parameter-badge">
+              {' '}
+              Parameter
+            </span>
+          )}
         </h2>
+        {isParam && (
+          <p className="tricc-import-note" data-testid="concept-parameter-note">
+            A parameter of{' '}
+            {owner
+              ? (resolve(project.activities[owner]?.title, lang, lang) ?? owner)
+              : 'a page that no longer has it'}
+            . Its type, options and default are edited in that page's settings; only its texts are
+            edited here.{' '}
+            {owner && onOpenActivity && (
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                data-testid="concept-parameter-owner"
+                onClick={() => {
+                  onClose()
+                  onOpenActivity(owner)
+                }}
+              >
+                Open {resolve(project.activities[owner]?.title, lang, lang) ?? owner}
+              </Button>
+            )}
+          </p>
+        )}
         <form
-          className="tricc-concept__body"
+          className="tricc-form-grid tricc-concept__body"
           onSubmit={(e) => {
             e.preventDefault()
             save()
@@ -220,7 +294,7 @@ export function ConceptDialog({
                 disabled={readOnly}
                 onChange={(e) => setSystem(e.target.value)}
               >
-                {dictionaries.map((d) => (
+                {offered.map((d) => (
                   <option key={d.url} value={d.url}>
                     {dictionaryLabel(d)}
                   </option>
@@ -249,98 +323,112 @@ export function ConceptDialog({
           />
           <p>The short name in the dictionary and in CQL.</p>
 
-          <RichTextField
-            id="concept-q-display"
-            testId="concept-q-display"
-            label="Questionnaire text"
-            value={ownText('q-display')}
-            placeholder={draft.display ?? ''}
-            disabled={readOnly}
-            onChange={(t) => setText('q-display', t)}
-          />
-          <RichTextField
-            id="concept-hint"
-            testId="concept-hint"
-            label="Hint"
-            value={ownText('hint')}
-            disabled={readOnly}
-            onChange={(t) => setText('hint', t)}
-          />
-          <RichTextField
-            id="concept-help"
-            testId="concept-help"
-            label="Help"
-            value={ownText('help')}
-            disabled={readOnly}
-            onChange={(t) => setText('help', t)}
-          />
-
+          {!isRetrieval && (
+            <>
+              <RichTextField
+                id="concept-q-display"
+                testId="concept-q-display"
+                label="Questionnaire text"
+                value={ownText('q-display')}
+                placeholder={draft.display ?? ''}
+                disabled={readOnly}
+                onChange={(t) => setText('q-display', t)}
+              />
+              <RichTextField
+                id="concept-hint"
+                testId="concept-hint"
+                label="Hint"
+                value={ownText('hint')}
+                disabled={readOnly}
+                onChange={(t) => setText('hint', t)}
+              />
+              <RichTextField
+                id="concept-help"
+                testId="concept-help"
+                label="Help"
+                value={ownText('help')}
+                disabled={readOnly}
+                onChange={(t) => setText('help', t)}
+              />
+            </>
+          )}
           <label htmlFor="concept-definition">Definition</label>
           <Textarea
             id="concept-definition"
             data-testid="concept-definition"
             rows={2}
             value={draft.definition ?? ''}
-            disabled={readOnly}
+            disabled={locked}
             onChange={(e) => set({ definition: e.target.value })}
           />
 
-          <label htmlFor="concept-data-type">Data type</label>
-          <select
-            id="concept-data-type"
-            data-testid="concept-data-type"
-            value={draft.dataType ?? ''}
-            disabled={readOnly}
-            onChange={(e) => set({ dataType: e.target.value })}
-          >
-            <option value="">—</option>
-            {withCurrent(DATA_TYPES, draft.dataType).map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+          {isRetrieval ? (
+            <RetrievalFields
+              project={project}
+              value={retrieval}
+              disabled={readOnly}
+              onChange={(next) => setDraft({ ...draft, retrieval: next })}
+            />
+          ) : (
+            <>
+              <label htmlFor="concept-data-type">Data type</label>
+              <select
+                id="concept-data-type"
+                data-testid="concept-data-type"
+                value={draft.dataType ?? ''}
+                disabled={locked}
+                onChange={(e) => set({ dataType: e.target.value })}
+              >
+                <option value="">—</option>
+                {withCurrent(DATA_TYPES, draft.dataType).map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
 
-          <label htmlFor="concept-type">Concept type</label>
-          <select
-            id="concept-type"
-            data-testid="concept-type"
-            value={draft.conceptType ?? ''}
-            disabled={readOnly}
-            onChange={(e) => set({ conceptType: e.target.value })}
-          >
-            <option value="">—</option>
-            {withCurrent(conceptTypes, draft.conceptType).map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+              <label htmlFor="concept-type">Concept type</label>
+              <select
+                id="concept-type"
+                data-testid="concept-type"
+                value={draft.conceptType ?? ''}
+                disabled={locked}
+                onChange={(e) => set({ conceptType: e.target.value })}
+              >
+                <option value="">—</option>
+                {withCurrent(conceptTypes, draft.conceptType).map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
 
-          <label htmlFor="concept-unit">Unit</label>
-          <Input
-            id="concept-unit"
-            data-testid="concept-unit"
-            value={draft.unit ?? ''}
-            disabled={readOnly}
-            onChange={(e) => set({ unit: e.target.value })}
-          />
-          <label htmlFor="concept-target-resource">Stored in — resource</label>
-          <Input
-            id="concept-target-resource"
-            data-testid="concept-target-resource"
-            value={draft.targetResource ?? ''}
-            disabled={readOnly}
-            onChange={(e) => set({ targetResource: e.target.value })}
-          />
-          <label htmlFor="concept-target-path">Stored in — path</label>
-          <Input
-            id="concept-target-path"
-            data-testid="concept-target-path"
-            value={draft.targetPath ?? ''}
-            disabled={readOnly}
-            onChange={(e) => set({ targetPath: e.target.value })}
-          />
+              <label htmlFor="concept-unit">Unit</label>
+              <Input
+                id="concept-unit"
+                data-testid="concept-unit"
+                value={draft.unit ?? ''}
+                disabled={locked}
+                onChange={(e) => set({ unit: e.target.value })}
+              />
+              <label htmlFor="concept-target-resource">Stored in — resource</label>
+              <Input
+                id="concept-target-resource"
+                data-testid="concept-target-resource"
+                value={draft.targetResource ?? ''}
+                disabled={locked}
+                onChange={(e) => set({ targetResource: e.target.value })}
+              />
+              <label htmlFor="concept-target-path">Stored in — path</label>
+              <Input
+                id="concept-target-path"
+                data-testid="concept-target-path"
+                value={draft.targetPath ?? ''}
+                disabled={locked}
+                onChange={(e) => set({ targetPath: e.target.value })}
+              />
+            </>
+          )}
 
           <h3>Other languages and interventions</h3>
           <datalist id="concept-languages">
@@ -372,7 +460,10 @@ export function ConceptDialog({
                           value={use ?? 'other'}
                           disabled={readOnly || use === undefined}
                           onChange={(e) =>
-                            updateAt(index, { ...d, use: { ...DESIGNATION_USES[e.target.value as DesignationUse] } })
+                            updateAt(index, {
+                              ...d,
+                              use: { ...DESIGNATION_USES[e.target.value as DesignationUse] },
+                            })
                           }
                         >
                           {(Object.keys(USE_LABELS) as DesignationUse[]).map((u) => (
@@ -380,7 +471,9 @@ export function ConceptDialog({
                               {USE_LABELS[u]}
                             </option>
                           ))}
-                          {use === undefined && <option value="other">{d.use?.code ?? 'Other'}</option>}
+                          {use === undefined && (
+                            <option value="other">{d.use?.code ?? 'Other'}</option>
+                          )}
                         </select>
                       </td>
                       <td>
@@ -408,7 +501,10 @@ export function ConceptDialog({
                               const kept = (d.extension ?? []).filter(
                                 (x) => (x as { url?: string }).url !== INTERVENTION_SCOPE_URL,
                               )
-                              const extension = [...kept, ...scopeExtension(e.target.value ? [e.target.value] : [])]
+                              const extension = [
+                                ...kept,
+                                ...scopeExtension(e.target.value ? [e.target.value] : []),
+                              ]
                               const next: Designation = { ...d }
                               if (extension.length) next.extension = extension
                               else delete next.extension
@@ -453,7 +549,10 @@ export function ConceptDialog({
                             data-testid={`concept-text-${index}-remove`}
                             onClick={() => {
                               if (index < opened.current) opened.current -= 1
-                              setDraft({ ...draft, designations: draft.designations.filter((_, i) => i !== index) })
+                              setDraft({
+                                ...draft,
+                                designations: draft.designations.filter((_, i) => i !== index),
+                              })
                             }}
                           >
                             Remove
@@ -493,9 +592,47 @@ export function ConceptDialog({
           {!isNew && (
             <>
               <h3>Used by</h3>
-              {uses.length === 0 ? (
-                <p data-testid="concept-unused">No node uses this concept yet.</p>
-              ) : (
+              {retrievalUses.length > 0 && (
+                <ul data-testid="retrieval-uses">
+                  {retrievalUses.map((u, index) => {
+                    const activity = u.activityId ? project.activities[u.activityId] : undefined
+                    const node = u.nodeId ? activity?.nodes[u.nodeId] : undefined
+                    const iv = u.interventionId
+                      ? project.interventions.find((i) => i.id === u.interventionId)
+                      : undefined
+                    const where = iv
+                      ? `Intervention ${resolve(iv.title, lang, lang) ?? iv.id}`
+                      : `${resolve(activity?.title, lang, lang) ?? u.activityId} — ${
+                          node?.name ?? u.nodeId ?? 'applicability'
+                        }`
+                    return (
+                      <li key={index}>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="h-auto whitespace-normal p-0 text-left"
+                          type="button"
+                          data-testid={`retrieval-use-${index}`}
+                          disabled={!onOpenNode || !u.activityId || !u.nodeId}
+                          onClick={() => {
+                            onClose()
+                            onOpenNode?.(u.activityId!, u.nodeId!)
+                          }}
+                        >
+                          {where} ({u.field})
+                        </Button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+              {used === 0 ? (
+                <p data-testid="concept-unused">
+                  {isRetrieval
+                    ? 'No expression uses this retrieval yet, so no form loads it.'
+                    : 'No node uses this concept yet.'}
+                </p>
+              ) : uses.length === 0 ? null : (
                 <ul data-testid="concept-uses">
                   {uses.map((u) => {
                     const activity = project.activities[u.activityId]
@@ -514,7 +651,8 @@ export function ConceptDialog({
                             onOpenNode?.(u.activityId, u.nodeId)
                           }}
                         >
-                          {resolve(activity?.title, lang, lang) ?? u.activityId} — {node?.name ?? u.nodeId}
+                          {resolve(activity?.title, lang, lang) ?? u.activityId} —{' '}
+                          {node?.name ?? u.nodeId}
                           {u.optionId ? ' (answer)' : ''}
                         </Button>
                       </li>
@@ -531,14 +669,16 @@ export function ConceptDialog({
             </p>
           )}
           <div className="tricc-library-modal__actions">
-            {!isNew && canWrite && (
+            {!isNew && canWrite && !isParam && (
               <Button
                 variant="destructive"
                 size="sm"
                 type="button"
                 data-testid="concept-delete"
-                disabled={uses.length > 0}
-                title={uses.length > 0 ? `Used by ${uses.length}. Remove those uses first.` : 'Delete this concept'}
+                disabled={used > 0}
+                title={
+                  used > 0 ? `Used by ${used}. Remove those uses first.` : 'Delete this concept'
+                }
                 onClick={() => {
                   mutate((tx) => tx.removeConcept(key.system, key.code))
                   onClose()
@@ -575,12 +715,27 @@ export function ConceptDialog({
 }
 
 function withCurrent(list: readonly string[], current: string | undefined): string[] {
-  return current && !list.some((t) => t.toLowerCase() === current.toLowerCase()) ? [...list, current] : [...list]
+  return current && !list.some((t) => t.toLowerCase() === current.toLowerCase())
+    ? [...list, current]
+    : [...list]
 }
 
 /** A dictionary as the author sees it: its id, with what it is for. */
-export function dictionaryLabel(d: { id: string; kind: 'default' | 'calculate' | 'other' }): string {
+export function dictionaryLabel(d: {
+  id: string
+  kind: 'default' | 'calculate' | 'retrieve' | 'other'
+}): string {
   if (d.kind === 'default') return `${d.id} (default)`
   if (d.kind === 'calculate') return `${d.id} (calculations and diagnoses)`
+  if (d.kind === 'retrieve') return `${d.id} (retrievals)`
   return d.id
+}
+
+/** The page declaring the parameter whose concept has this code. */
+function paramOwner(project: Project, code: string): string | undefined {
+  for (const id of Object.keys(project.activities).sort()) {
+    const activity = project.activities[id]!
+    if ((activity.params ?? []).some((p) => paramConceptCode(activity, p.name) === code)) return id
+  }
+  return undefined
 }

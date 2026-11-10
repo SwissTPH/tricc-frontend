@@ -27,6 +27,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 async function createProject(page: Page, name: string): Promise<void> {
+  await page.getByTestId('new-project').click()
   await page.getByTestId('new-project-name').fill(name)
   await page.getByTestId('create-project').click()
   await expect(page.getByTestId('save-status')).toBeVisible()
@@ -164,13 +165,15 @@ test('read-only removes every mutating affordance and restores them', async ({ p
   await page.getByTestId('create-activity').click()
   await expect(page.getByTestId('add-note')).toBeVisible()
 
-  await page.getByTestId('read-only-toggle').check()
+  await page.getByTestId('mode-menu').click()
+  await page.getByTestId('mode-viewing').click()
   await expect(page.getByTestId('add-activity')).toHaveCount(0)
   await expect(page.getByTestId('import-activity')).toHaveCount(0)
   await expect(page.getByTestId('add-note')).toHaveCount(0)
   await expect(page.getByTestId('add-integer')).toHaveCount(0)
 
-  await page.getByTestId('read-only-toggle').uncheck()
+  await page.getByTestId('mode-menu').click()
+  await page.getByTestId('mode-editing').click()
   await expect(page.getByTestId('add-activity')).toBeVisible()
   await expect(page.getByTestId('import-activity')).toBeVisible()
   await expect(page.getByTestId('add-note')).toBeVisible()
@@ -209,7 +212,8 @@ test('undo and redo arrows sit in the single top bar', async ({ page }) => {
   })
   expect(headerOverflows).toBe(false)
 
-  await page.getByTestId('read-only-toggle').check()
+  await page.getByTestId('mode-menu').click()
+  await page.getByTestId('mode-viewing').click()
   await expect(page.getByTestId('undo')).toBeDisabled()
   await expect(page.getByTestId('redo')).toBeDisabled()
 })
@@ -257,8 +261,9 @@ test('preferences set a display name, with no account anywhere', async ({ page }
   await page.getByTestId('nav-preferences').click()
   await expect(page.getByTestId('display-name')).toHaveValue('Dr Adeline')
 
-  // No sign-in, password or account surface exists.
-  await expect(page.getByText(/sign in|log in|password|account/i)).toHaveCount(0)
+  // No sign-in, password or account surface exists. Whole words, so an icon's ligature name
+  // such as account_tree on the page under Preferences does not count.
+  await expect(page.getByText(/\b(sign in|log in|password|account)\b/i)).toHaveCount(0)
 })
 
 test('a project reopens from the project list', async ({ page }) => {
@@ -275,7 +280,9 @@ test('a project reopens from the project list', async ({ page }) => {
   await expect(page.getByTestId('nav-activity-activity')).toBeVisible()
 })
 
-test('the activity gear sets its name and applicability, and the bin deletes it', async ({ page }) => {
+test('the activity gear sets its name and applicability, and the bin deletes it', async ({
+  page,
+}) => {
   await createProject(page, 'Settings guideline')
   await page.getByTestId('add-activity').click()
   await page.getByTestId('create-activity').click()
@@ -296,11 +303,14 @@ test('the activity gear sets its name and applicability, and the bin deletes it'
   await expect(page.getByTestId('activity-canvas')).toHaveCount(0)
 })
 
-test('the activity bin is hidden when read-only, and the gear still shows the settings', async ({ page }) => {
+test('the activity bin is hidden when read-only, and the gear still shows the settings', async ({
+  page,
+}) => {
   await createProject(page, 'Read-only settings guideline')
   await page.getByTestId('add-activity').click()
   await page.getByTestId('create-activity').click()
-  await page.getByTestId('read-only-toggle').check()
+  await page.getByTestId('mode-menu').click()
+  await page.getByTestId('mode-viewing').click()
   await expect(page.getByTestId('delete-activity')).toHaveCount(0)
   await page.getByTestId('configure-activity').click()
   await expect(page.getByTestId('act-name')).toBeDisabled()
@@ -317,7 +327,9 @@ test('a question gets a concept, and the dictionary lists and edits it', async (
   await page.getByTestId('concept-create').click()
   await expect(page.getByTestId('concept-dialog')).toBeVisible()
   await expect(page.getByTestId('concept-code')).toHaveValue('weight_kg')
-  await page.getByTestId('concept-q-display').fill('Weigh the child and enter the weight in kilograms')
+  await page
+    .getByTestId('concept-q-display')
+    .fill('Weigh the child and enter the weight in kilograms')
   await page.getByTestId('concept-type').selectOption('Vital')
   await page.getByTestId('concept-dialog-save').click()
   await expect(page.getByTestId('concept-dialog')).toHaveCount(0)
@@ -340,7 +352,9 @@ test('a question gets a concept, and the dictionary lists and edits it', async (
   await expect(page.getByTestId('concept-delete')).toBeDisabled()
   await page.getByTestId('concept-use-activity-n-decimal').click()
   await expect(page.getByTestId('concept-card-code')).toHaveText('weight_kg')
-  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 })
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', {
+    timeout: 10_000,
+  })
 })
 
 test('a questionnaire text gets bold and data from an earlier answer', async ({ page }) => {
@@ -366,7 +380,9 @@ test('a questionnaire text gets bold and data from an earlier answer', async ({ 
   await page.getByTestId('concept-q-display-bold').click()
   await page.keyboard.type('Give ')
   // The data list reads "<code>: <display>".
-  await expect(page.getByTestId('concept-q-display-insert').locator('option[value="dose"]')).toHaveText('dose: Dose')
+  await expect(
+    page.getByTestId('concept-q-display-insert').locator('option[value="dose"]'),
+  ).toHaveText('dose: Dose')
   await page.getByTestId('concept-q-display-insert').selectOption('dose')
   await page.keyboard.type(' mg')
   await page.keyboard.press('Enter')
@@ -393,17 +409,75 @@ test('a questionnaire text gets bold and data from an earlier answer', async ({ 
   await expect(page.getByTestId('concept-q-display-modal')).toHaveCount(0)
   await expect(page.getByTestId('concept-dialog')).toBeVisible()
   await page.getByTestId('concept-dialog-cancel').click()
-  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 })
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', {
+    timeout: 10_000,
+  })
 })
 
 test('concept types come from the preferences', async ({ page }) => {
   await page.getByTestId('nav-preferences').click()
+  await page.getByTestId('pref-concept-types-edit').click()
   await page.getByTestId('pref-concept-types').fill('Vital\nCounselling')
-  await page.goto('/')
+  await page.getByTestId('pref-concept-types-save').click()
+  await page.getByTestId('preferences-close').click()
   await createProject(page, 'Types guideline')
   await page.getByTestId('tab-dictionary').click()
   await page.getByTestId('concept-add').click()
-  await expect(page.getByTestId('concept-type').locator('option')).toHaveText(['—', 'Vital', 'Counselling'])
+  await expect(page.getByTestId('concept-type').locator('option')).toHaveText([
+    '—',
+    'Vital',
+    'Counselling',
+  ])
+})
+
+test('concept types are edited in a dialog: Cancel keeps the list, Save keeps it after a reload', async ({
+  page,
+}) => {
+  await page.getByTestId('nav-preferences').click()
+  const summary = page.getByTestId('pref-concept-types-summary')
+  const before = await summary.textContent()
+  // The list is only in the dialog, not on the page.
+  await expect(page.getByTestId('pref-concept-types')).toHaveCount(0)
+
+  await page.getByTestId('pref-concept-types-edit').click()
+  await page.getByTestId('pref-concept-types').fill('Vital')
+  await page.getByTestId('pref-concept-types-cancel').click()
+  await expect(page.getByTestId('pref-concept-types-dialog')).toHaveCount(0)
+  await expect(summary).toHaveText(before ?? '')
+
+  await page.getByTestId('pref-concept-types-edit').click()
+  await page.getByTestId('pref-concept-types').fill('Vital')
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('pref-concept-types-dialog')).toHaveCount(0)
+  await expect(summary).toHaveText(before ?? '')
+
+  await page.getByTestId('pref-concept-types-edit').click()
+  await page.getByTestId('pref-concept-types').fill('Vital\nCounselling\nReferral\nDose')
+  await page.getByTestId('pref-concept-types-save').click()
+  await expect(summary).toHaveText('4 types: Vital, Counselling, Referral, …')
+
+  // Preferences open over the page, so a reload closes them.
+  await page.reload()
+  await page.getByTestId('nav-preferences').click()
+  await expect(page.getByTestId('pref-concept-types-summary')).toHaveText(
+    '4 types: Vital, Counselling, Referral, …',
+  )
+  await page.getByTestId('pref-concept-types-edit').click()
+  await expect(page.getByTestId('pref-concept-types')).toHaveValue(
+    'Vital\nCounselling\nReferral\nDose',
+  )
+})
+
+test('preferences stack into one column on a narrow window', async ({ page }) => {
+  await page.setViewportSize({ width: 600, height: 800 })
+  await page.getByTestId('nav-preferences').click()
+  const prefs = page.getByTestId('preferences')
+  await expect(page.getByTestId('pref-node-gap')).toBeVisible()
+  const overflow = await prefs.evaluate((el) => el.scrollWidth - el.clientWidth)
+  expect(overflow).toBeLessThanOrEqual(0)
+  const label = await page.locator('label[for="pref-node-gap"]').boundingBox()
+  const field = await page.getByTestId('pref-node-gap').boundingBox()
+  expect(field!.y).toBeGreaterThan(label!.y + label!.height - 1)
 })
 
 test('the project gear renames it, and the bin deletes it after confirmation', async ({ page }) => {
@@ -430,4 +504,3 @@ test('a renamed project shows its new name in the project list', async ({ page }
   await expect(page.getByText('New name')).toBeVisible()
   await expect(page.getByText('Old name')).toHaveCount(0)
 })
-

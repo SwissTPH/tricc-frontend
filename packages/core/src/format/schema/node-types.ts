@@ -4,7 +4,12 @@
  * Values match `TriccNodeType` in tricc_oo/models/base.py exactly — they are written to
  * the activity YAML and read by the Python side.
  */
-import { NODE_TYPE_SPECS, PALETTE_GROUPS, type NodeTypeSpec, type PaletteGroup } from './node-spec.js'
+import {
+  NODE_TYPE_SPECS,
+  PALETTE_GROUPS,
+  type NodeTypeSpec,
+  type PaletteGroup,
+} from './node-spec.js'
 
 export const NODE_TYPES = [
   // Flow
@@ -13,6 +18,9 @@ export const NODE_TYPES = [
   'activity_end',
   'end',
   'goto',
+  // Building blocks
+  'block_start',
+  'block',
   'link_in',
   'link_out',
   'bridge',
@@ -46,6 +54,15 @@ export const NODE_TYPES = [
 ] as const
 
 export type NodeType = (typeof NODE_TYPES)[number]
+
+/** Older spellings tricc_oo still reads. Read as their new type, never written. */
+export const NODE_TYPE_ALIASES: Readonly<Record<string, NodeType>> = {
+  snippet_start: 'block_start',
+  snippet: 'block',
+}
+
+/** The current spelling of a type read from a file. */
+export const canonicalNodeType = (raw: string): string => NODE_TYPE_ALIASES[raw] ?? raw
 
 /**
  * Types created by tricc_oo during graph processing. Their presence in an authored file
@@ -100,15 +117,17 @@ export const isCalculated = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]
 /**
  * It can carry `repeat` (collect again, in a new slot) and `instance` (the same collection
  * reached at several points). tricc_oo reads them on every node that holds a value, on a goto
- * (the called activity), and on an activity start (every value of the activity).
+ * (the called activity), on a Use block (its copy), and on an activity start (every value of
+ * the activity).
  */
 export const isRepeatable = (t: NodeType): boolean =>
-  Boolean(NODE_TYPE_SPECS[t]?.named) || t === 'goto' || t === 'activity_start'
+  Boolean(NODE_TYPE_SPECS[t]?.named) || t === 'goto' || t === 'block' || t === 'activity_start'
 export const isSelect = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.select)
 /** Sequence anchors keep their own label; everything else inherits its concept's display. */
 export const isSequenceNode = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.sequence)
 export const needsName = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.named)
-export const isExtensionTarget = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.extensionTarget)
+export const isExtensionTarget = (t: NodeType): boolean =>
+  Boolean(NODE_TYPE_SPECS[t]?.extensionTarget)
 export const isCapture = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.capture)
 /** Its name is an internal id: never shown, never edited, never checked. */
 export const hasInternalName = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.internalName)

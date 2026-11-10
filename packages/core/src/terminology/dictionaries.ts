@@ -8,30 +8,89 @@ import { defaultCodeSystem, findCodeSystem } from './usage.js'
  * - `default`: what the health worker reads (questions, answers, notes). Today's dictionary.
  * - `calculate`: values logic computes (calculations, counts, sums, diagnoses), the concepts a
  *   CQL library can define. Named after the default one, with `-calculate`.
+ * - `retrieve`: data read before the consultation, referenced as `"#code"`
+ *   (feature/20261109-project-retrievals.md). Named after the default one, with `-retrieve`.
  * - `other`: any other CodeSystem the project carries (a DAK, a shared dictionary).
  *
- * The default and calculate dictionaries are always listed. One that does not exist yet has
+ * The default, calculate and retrieve dictionaries are always listed. One that does not exist yet has
  * no `codeSystem` and is created with its first concept.
  */
 export interface Dictionary {
   url: string
   id: string
-  kind: 'default' | 'calculate' | 'other'
+  kind: 'default' | 'calculate' | 'retrieve' | 'other'
   codeSystem?: CodeSystem
 }
 
-/** The calculate dictionary: the one `tricc.yaml` names, or `<default id>-calculate`. */
+/** `meta.tag` system marking what a CodeSystem is for (tricc_oo block-params §5). */
+export const CODESYSTEM_ROLE = 'http://tricc.org/fhir/CodeSystem/codesystem-role'
+
+/** The role tag of the calculate dictionary. */
+export const CALCULATE_ROLE_TAG = { system: CODESYSTEM_ROLE, code: 'calculate' } as const
+
+/** The role tag of the retrieval dictionary. */
+export const RETRIEVE_ROLE_TAG = { system: CODESYSTEM_ROLE, code: 'retrieve' } as const
+
+export function hasRoleTag(cs: CodeSystem, code: string): boolean {
+  return (cs.meta?.tag ?? []).some((t) => t.system === CODESYSTEM_ROLE && t.code === code)
+}
+
+/** The CodeSystem with the calculate role tag added, or itself when it has it. */
+export function withCalculateTag(cs: CodeSystem): CodeSystem {
+  if (hasRoleTag(cs, 'calculate')) return cs
+  return { ...cs, meta: { ...cs.meta, tag: [...(cs.meta?.tag ?? []), { ...CALCULATE_ROLE_TAG }] } }
+}
+
+/** The CodeSystem with the retrieve role tag added, or itself when it has it. */
+export function withRetrieveTag(cs: CodeSystem): CodeSystem {
+  if (hasRoleTag(cs, 'retrieve')) return cs
+  return { ...cs, meta: { ...cs.meta, tag: [...(cs.meta?.tag ?? []), { ...RETRIEVE_ROLE_TAG }] } }
+}
+
+/**
+ * The calculate dictionary, found as tricc_oo finds it: the CodeSystem tagged with the
+ * calculate role, then the one `tricc.yaml` names, then one called `calculate` or
+ * `<default id>-calculate`.
+ */
 export function calculateCodeSystem(project: Project): CodeSystem | undefined {
+  const tagged = Object.keys(project.codeSystems)
+    .sort()
+    .map((url) => project.codeSystems[url]!)
+    .find((cs) => hasRoleTag(cs, 'calculate'))
+  if (tagged) return tagged
   const named = findCodeSystem(project, project.calculateCodeSystem)
   if (named) return named
   const base = defaultCodeSystem(project)
-  return base ? findCodeSystem(project, `${base.id}-calculate`) : undefined
+  return (
+    (base ? findCodeSystem(project, `${base.id}-calculate`) : undefined) ??
+    findCodeSystem(project, 'calculate')
+  )
 }
 
-/** Default first, then calculate, then the others by id. */
+/**
+ * The retrieval dictionary, found like the calculate one: the CodeSystem tagged with the
+ * retrieve role, then the one `tricc.yaml` names, then `<default id>-retrieve` or `retrieve`.
+ */
+export function retrieveCodeSystem(project: Project): CodeSystem | undefined {
+  const tagged = Object.keys(project.codeSystems)
+    .sort()
+    .map((url) => project.codeSystems[url]!)
+    .find((cs) => hasRoleTag(cs, 'retrieve'))
+  if (tagged) return tagged
+  const named = findCodeSystem(project, project.retrieveCodeSystem)
+  if (named) return named
+  const base = defaultCodeSystem(project)
+  return (
+    (base ? findCodeSystem(project, `${base.id}-retrieve`) : undefined) ??
+    findCodeSystem(project, 'retrieve')
+  )
+}
+
+/** Default first, then calculate, then retrieve, then the others by id. */
 export function projectDictionaries(project: Project): Dictionary[] {
   const def = defaultCodeSystem(project)
   const calc = calculateCodeSystem(project)
+  const ret = retrieveCodeSystem(project)
   const defUrl = def?.url ?? `https://tricc.org/CodeSystem/${project.id}`
   const defId = def?.id ?? project.id
   const out: Dictionary[] = [
@@ -42,9 +101,15 @@ export function projectDictionaries(project: Project): Dictionary[] {
       kind: 'calculate',
       ...(calc ? { codeSystem: calc } : {}),
     },
+    {
+      url: ret?.url ?? `${defUrl}-retrieve`,
+      id: ret?.id ?? `${defId}-retrieve`,
+      kind: 'retrieve',
+      ...(ret ? { codeSystem: ret } : {}),
+    },
   ]
   const others = Object.values(project.codeSystems)
-    .filter((cs) => cs !== def && cs !== calc)
+    .filter((cs) => cs !== def && cs !== calc && cs !== ret)
     .sort((a, b) => a.id.localeCompare(b.id))
   for (const cs of others) out.push({ url: cs.url, id: cs.id, kind: 'other', codeSystem: cs })
   return out
@@ -62,7 +127,11 @@ export function emptyCodeSystem(dictionary: Dictionary): CodeSystem {
     id: dictionary.id,
     url: dictionary.url,
     name: dictionary.id,
-    ...(dictionary.kind === 'calculate' ? { title: 'Calculations and diagnoses' } : {}),
+    ...(dictionary.kind === 'calculate'
+      ? { title: 'Calculations and diagnoses', meta: { tag: [{ ...CALCULATE_ROLE_TAG }] } }
+      : dictionary.kind === 'retrieve'
+        ? { title: 'Retrievals', meta: { tag: [{ ...RETRIEVE_ROLE_TAG }] } }
+        : {}),
     status: 'draft',
     content: 'complete',
     concepts: {},

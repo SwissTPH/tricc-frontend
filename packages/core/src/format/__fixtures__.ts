@@ -115,9 +115,21 @@ export function sampleProject(): Project {
             definition: 'Body weight measured at this encounter',
             designations: [
               { language: 'fr', value: 'Poids' },
-              { language: 'en', use: { system: 'https://tricc.org/CodeSystem/designation-use', code: 'q-display' }, value: 'Weight (kg)' },
-              { language: 'fr', use: { system: 'https://tricc.org/CodeSystem/designation-use', code: 'q-display' }, value: 'Poids (kg)' },
-              { language: 'en', use: { system: 'https://tricc.org/CodeSystem/designation-use', code: 'hint' }, value: 'Use a calibrated scale' },
+              {
+                language: 'en',
+                use: { system: 'https://tricc.org/CodeSystem/designation-use', code: 'q-display' },
+                value: 'Weight (kg)',
+              },
+              {
+                language: 'fr',
+                use: { system: 'https://tricc.org/CodeSystem/designation-use', code: 'q-display' },
+                value: 'Poids (kg)',
+              },
+              {
+                language: 'en',
+                use: { system: 'https://tricc.org/CodeSystem/designation-use', code: 'hint' },
+                value: 'Use a calibrated scale',
+              },
             ],
             dataType: 'decimal',
             conceptType: 'vital',

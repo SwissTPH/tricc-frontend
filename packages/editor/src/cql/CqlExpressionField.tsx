@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { effectiveParams, paramLabel, retrieveCodeSystem } from '@tricc/core'
 import { useProjectSnapshot } from '../runtime/context.js'
 import { expressionNames, truncateLabel, type ExpressionName } from './names.js'
 import { presentCql } from './present.js'
@@ -41,12 +42,28 @@ export function CqlExpressionField({
     [project, lang, activityId],
   )
   const { tokens, diagnostics } = presentCql(value)
+  const params = useMemo(
+    () => (activityId ? effectiveParams(project, activityId) : []),
+    [project, activityId],
+  )
+  const retrievals = useMemo(() => {
+    const cs = retrieveCodeSystem(project)
+    return (cs?.conceptOrder ?? []).map((code) => ({
+      code,
+      label: cs!.concepts[code]?.display ?? code,
+    }))
+  }, [project])
   const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const insert = (text: string) => {
+    const sep = value === '' || /\s$/.test(value) ? '' : ' '
+    onChange(`${value}${sep}${text}`)
+  }
 
   return (
     <div className="tricc-cql">
       <label htmlFor={id}>{label}</label>
-      <Textarea size="sm"
+      <Textarea
+        size="sm"
         id={id}
         rows={rows}
         className="tricc-cql__input"
@@ -57,6 +74,45 @@ export function CqlExpressionField({
         spellCheck={false}
         onChange={(e) => onChange(e.target.value)}
       />
+      {params.length > 0 && !readOnly && (
+        <select
+          className="tricc-cql__insert"
+          aria-label="Insert a setting"
+          data-testid={`${testId}-insert-param`}
+          value=""
+          onChange={(e) => {
+            if (!e.target.value) return
+            insert(`{{${e.target.value}}}`)
+          }}
+        >
+          <option value="">Insert a setting…</option>
+          <optgroup label="Parameters">
+            {params.map((p) => (
+              <option key={p.name} value={p.name}>
+                {paramLabel(project, p.declaredIn, p.param)}
+              </option>
+            ))}
+          </optgroup>
+        </select>
+      )}
+      {retrievals.length > 0 && !readOnly && (
+        <select
+          className="tricc-cql__insert"
+          aria-label="Insert a retrieval"
+          data-testid={`${testId}-insert-retrieval`}
+          value=""
+          onChange={(e) => {
+            if (e.target.value) insert(`"${e.target.value}"`)
+          }}
+        >
+          <option value="">Insert a retrieval…</option>
+          {retrievals.map((r) => (
+            <option key={r.code} value={r.code}>
+              {r.label} ({r.code})
+            </option>
+          ))}
+        </select>
+      )}
       {tokens.length > 0 && (
         <p className="tricc-cql__read" data-testid={`${testId}-display`}>
           {tokens.map((token, index) => {
@@ -72,6 +128,29 @@ export function CqlExpressionField({
                   onToggle={() => setOpenIndex((current) => (current === index ? null : index))}
                   onReveal={onReveal}
                 />
+              )
+            }
+            if (token.kind === 'param') {
+              const p = params.find((e) => e.name === token.label)
+              const shown = p ? paramLabel(project, p.declaredIn, p.param) : token.label!
+              return (
+                <span
+                  key={index}
+                  className={
+                    p
+                      ? 'tricc-cql__name tricc-cql__param'
+                      : 'tricc-cql__name tricc-cql__name--unknown'
+                  }
+                  data-testid={`${testId}-param-${index}`}
+                  data-param={token.label}
+                  title={
+                    p
+                      ? `Setting ${shown} — {{${token.label}}}, set where the page is used`
+                      : `{{${token.label}}} — this page has no such setting`
+                  }
+                >
+                  {shown}
+                </span>
               )
             }
             if (token.kind === 'text') return <span key={index}>{token.text}</span>
@@ -140,6 +219,7 @@ function NameChip({
           <span>{code}</span>
           {info?.definition && <span>{info.definition}</span>}
           {info?.system && <span>{info.system}</span>}
+          {info?.source === 'retrieval' && <span>Read before the consultation</span>}
           {info?.activityTitle && <span>Question in {info.activityTitle}</span>}
           {!info && <span>This name has no concept label in the project.</span>}
           {canShow && (

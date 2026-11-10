@@ -1,6 +1,7 @@
 import type { Activity, Project } from '../../model/types.js'
 import {
   activityPath,
+  blockPath,
   codeSystemPath,
   imagePath,
   imagesDir,
@@ -14,6 +15,14 @@ import {
 import { IMAGE_ID } from '../../text/message.js'
 import { decodeActivity, decodeCodeSystem, encodeActivity, encodeCodeSystem } from '../codec.js'
 import { moveTextsToConcepts } from '../../terminology/texts-to-concepts.js'
+import { isBlock } from '../../model/activity-kind.js'
+import { applyParamSync } from '../../params/sync.js'
+import {
+  calculateCodeSystem,
+  retrieveCodeSystem,
+  withCalculateTag,
+  withRetrieveTag,
+} from '../../terminology/dictionaries.js'
 import { fromJson, fromYaml, toJson, toYaml } from './yaml.js'
 import {
   encodeTriccYaml,
@@ -22,6 +31,12 @@ import {
   triccConfigText,
   triccTerminologyGlobs,
 } from './tricc-yaml.js'
+import {
+  discussionFromFile,
+  discussionToFile,
+  labelsFromFile,
+  labelsToFile,
+} from '../../discussion/files.js'
 import { FORMAT_VERSION } from '../schema/project.js'
 import { FormatVersionError } from '../migrations/index.js'
 
@@ -75,12 +90,20 @@ export function writeProject(project: Project): ProjectFiles {
   for (const id of Object.keys(project.activities).sort()) {
     const a = project.activities[id]
     if (!a) continue
-    files[activityPath(id)] = toYaml(encodeActivity(a, lang, project.formatVersion))
+    files[pagePath(a)] = toYaml(encodeActivity(a, lang, project.formatVersion))
   }
+  // The calculate and retrieve dictionaries always carry their role tag, so tricc_oo finds
+  // the same ones.
+  const calculate = calculateCodeSystem(project)
+  const retrieve = retrieveCodeSystem(project)
   for (const url of Object.keys(project.codeSystems).sort()) {
     const cs = project.codeSystems[url]
     if (!cs) continue
-    files[cs.path ?? codeSystemPath(cs.id)] = toJson(encodeCodeSystem(cs))
+    files[cs.path ?? codeSystemPath(cs.id)] = toJson(
+      encodeCodeSystem(
+        cs === calculate ? withCalculateTag(cs) : cs === retrieve ? withRetrieveTag(cs) : cs,
+      ),
+    )
   }
   for (const name of Object.keys(project.libraries).sort()) {
     files[libraryPath(name)] = project.libraries[name] as string
@@ -89,7 +112,64 @@ export function writeProject(project: Project): ProjectFiles {
     const image = project.images?.[id]
     if (image) files[imagePath(project, image)] = image.data
   }
+  writeDiscussions(project, files)
   return files
+}
+
+/** Where a page is saved: a building block under `blocks/`, any other activity under `activities/`. */
+export function pagePath(activity: Activity): string {
+  return isBlock(activity) ? blockPath(activity.id) : activityPath(activity.id)
+}
+
+/** Discussions are their own files. A project with none writes no `discussions/` folder. */
+function writeDiscussions(project: Project, files: ProjectFiles): void {
+  for (const [path, text] of Object.entries(project.discussionKeep ?? {}).sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    files[path] = text
+  }
+  for (const id of Object.keys(project.discussions ?? {}).sort()) {
+    const discussion = project.discussions?.[id]
+    if (!discussion) continue
+    files[`${PATHS.discussions}/${id}.discussion.yaml`] = toYaml(discussionToFile(discussion))
+  }
+  if (project.discussionLabels && project.discussionLabels.length > 0) {
+    files[`${PATHS.discussions}/labels.yaml`] = toYaml(labelsToFile(project.discussionLabels))
+  }
+}
+
+function readDiscussionsInto(project: Project, files: ProjectFiles): void {
+  const discussions: NonNullable<Project['discussions']> = {}
+  const keep: Record<string, string> = {}
+  for (const path of Object.keys(files).sort()) {
+    if (!path.startsWith(`${PATHS.discussions}/`)) continue
+    const text = fileText(files[path]) ?? ''
+    if (path === `${PATHS.discussions}/labels.yaml`) {
+      let labels
+      try {
+        labels = labelsFromFile(fromYaml(text))
+      } catch {
+        labels = undefined
+      }
+      if (labels) project.discussionLabels = labels
+      else keep[path] = text
+      continue
+    }
+    if (!path.endsWith('.discussion.yaml')) {
+      keep[path] = text
+      continue
+    }
+    let discussion
+    try {
+      discussion = discussionFromFile(fromYaml(text))
+    } catch {
+      discussion = undefined
+    }
+    if (discussion) discussions[discussion.id] = discussion
+    else keep[path] = text
+  }
+  if (Object.keys(discussions).length > 0) project.discussions = discussions
+  if (Object.keys(keep).length > 0) project.discussionKeep = keep
 }
 
 /** Serialize only what changed, given the previous file set. */
@@ -110,7 +190,8 @@ export function writeChanged(
   // when it was part of the baseline, because it is no longer the document.
   const images = `${imagesDir(project)}/`
   const removed = Object.keys(previous).filter(
-    (p) => !(p in files) && (isManaged(p) || (p.startsWith(images) && imageTypeOf(p) !== undefined)),
+    (p) =>
+      !(p in files) && (isManaged(p) || (p.startsWith(images) && imageTypeOf(p) !== undefined)),
   )
   return { files, changed, removed }
 }
@@ -122,12 +203,14 @@ function isManaged(path: string): boolean {
     path === PATHS.tricc ||
     path === 'tricc.yml' ||
     path.startsWith(`${PATHS.activities}/`) ||
+    path.startsWith(`${PATHS.blocks}/`) ||
     path.startsWith(`${PATHS.terminology}/`) ||
-    path.startsWith(`${PATHS.cql}/`)
+    path.startsWith(`${PATHS.cql}/`) ||
+    path.startsWith(`${PATHS.discussions}/`)
   )
 }
 
-const ACTIVITY_RE = /^activities\/[^/]+\.ya?ml$/
+const ACTIVITY_RE = /^(activities|blocks)\/[^/]+\.ya?ml$/
 const CODESYSTEM_RE = /^terminology\/(.+)\.codesystem\.json$/
 const LIBRARY_RE = /^cql\/(.+)\.cql$/
 
@@ -173,8 +256,11 @@ function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
   if (meta.version) loaded.version = meta.version
   if (meta.defaultCodeSystem) loaded.defaultCodeSystem = meta.defaultCodeSystem
   if (meta.calculateCodeSystem) loaded.calculateCodeSystem = meta.calculateCodeSystem
+  if (meta.retrieveCodeSystem) loaded.retrieveCodeSystem = meta.retrieveCodeSystem
   if (meta.mediaPath) loaded.mediaPath = meta.mediaPath
   if (meta.repository) loaded.repository = meta.repository
+  if (meta.labels) loaded.labels = meta.labels
+  if (meta.owner) loaded.owner = meta.owner
   const renamedImages = readImages(loaded, files)
   mergeImages(loaded, meta.drawioImages, Object.values(meta.drawioActivities))
   for (const [id, activity] of Object.entries(meta.drawioActivities)) {
@@ -185,9 +271,17 @@ function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
     }
     loaded.activities[id] = activity
   }
+  // A drawing lists its pages on the intervention; a building block is used, never listed.
+  for (const iv of loaded.interventions) {
+    iv.activities = iv.activities.filter(
+      (r) => !loaded.activities[r.ref] || !isBlock(loaded.activities[r.ref]!),
+    )
+  }
   migrateFormIds(loaded)
   // Texts move from the activity files to the concepts they stand for.
   const texts = moveTextsToConcepts(loaded)
+  // Computed parameters and parameter concepts follow the call graph, also after an outside edit.
+  const params = applyParamSync(loaded)
   const result: ReadResult = { project: loaded }
   // Opening a diagram is unsaved until activity YAML is written, so the next
   // save points tricc.yaml at those files and the edit is not lost.
@@ -195,11 +289,17 @@ function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
   // An activity file at another path than activities/<id>.activity.yaml is moved there on
   // the next save. Treating it as a migration keeps the baseline equal to the folder, so
   // the save renames it and rewrites tricc.yaml, instead of leaving two copies of one id.
-  else if ([...idByPath].some(([path, id]) => path !== activityPath(id))) {
+  else if (
+    [...idByPath].some(
+      ([path, id]) => loaded.activities[id] && path !== pagePath(loaded.activities[id]!),
+    )
+  ) {
     result.migratedFrom = 'activity-paths'
   }
   // Labels, hints and help moved into the CodeSystem: the first save writes both.
   else if (texts.touched.length > 0) result.migratedFrom = 'concept-texts'
+  // Computed parameters or their concepts were brought up to date: the next save writes them.
+  else if (params) result.migratedFrom = 'params'
   // An image file whose name is not a valid id is saved under its id, once.
   else if (renamedImages) result.migratedFrom = 'image-names'
   return result
@@ -261,7 +361,6 @@ function readImages(project: Project, files: ProjectFiles): boolean {
   if (Object.keys(images).length > 0) project.images = images
   return renamed
 }
-
 
 /**
  * `form_id` is a remnant of the time one drawing was one form. The intervention names
@@ -360,6 +459,7 @@ function attachFiles(
     const lm = LIBRARY_RE.exec(path)
     if (lm) project.libraries[lm[1] as string] = content
   }
+  readDiscussionsInto(project, files)
   return { project, idByPath }
 }
 
@@ -398,6 +498,26 @@ export function createActivity(opts: { id: string; title?: string; language?: st
       },
     },
     edges: {},
+  }
+  if (opts.title !== undefined) activity.title = { [lang]: opts.title }
+  return activity
+}
+
+/**
+ * A building block: rooted by `block_start`, ending at an activity end. Used with
+ * different settings from a Use block node.
+ */
+export function createBlock(opts: { id: string; title?: string; language?: string }): Activity {
+  const lang = opts.language ?? 'en'
+  const activity: Activity = {
+    id: opts.id,
+    nodeOrder: ['start', 'end'],
+    edgeOrder: ['e-start-end'],
+    nodes: {
+      start: { id: 'start', type: 'block_start', ui: { x: 80, y: 40 } },
+      end: { id: 'end', type: 'activity_end', ui: { x: 80, y: 200 } },
+    },
+    edges: { 'e-start-end': { id: 'e-start-end', source: 'start', target: 'end' } },
   }
   if (opts.title !== undefined) activity.title = { [lang]: opts.title }
   return activity
@@ -455,6 +575,5 @@ export function createProcessActivity(opts: {
 
   return activity
 }
-
 
 export { FormatVersionError, toYaml, fromYaml, toJson, fromJson }
