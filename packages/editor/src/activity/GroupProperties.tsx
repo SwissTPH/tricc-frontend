@@ -11,6 +11,7 @@ import { useMutate } from '../runtime/context.js'
 import { ensureDefaultCodeSystem } from '../terminology/codeSystems.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
+import { WrappingInput } from '../components/WrappingInput.js'
 
 const NAME = /^[A-Za-z][A-Za-z0-9_.-]*$/
 
@@ -63,7 +64,7 @@ export function GroupProperties({
         }}
       />
       <label htmlFor="group-title">Title</label>
-      <Input
+      <WrappingInput
         size="sm"
         id="group-title"
         data-testid="group-title"
