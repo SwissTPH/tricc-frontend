@@ -66,6 +66,7 @@ export function encodeTriccYaml(project: Project): Record<string, unknown> {
   if (project.contexts.length > 0) o['contexts'] = project.contexts.map((c) => ({ ...c }))
   put(o, 'default_code_system', project.defaultCodeSystem)
   put(o, 'calculate_code_system', project.calculateCodeSystem)
+  put(o, 'retrieve_code_system', project.retrieveCodeSystem)
   put(o, 'media_path', project.mediaPath)
   if (project.repository) o['repository'] = encodeRepository(project.repository)
   // Building blocks are listed like activities; interventions never list them.
@@ -142,6 +143,7 @@ export interface TriccYamlRead {
   contexts: Project['contexts']
   defaultCodeSystem?: string
   calculateCodeSystem?: string
+  retrieveCodeSystem?: string
   mediaPath?: string
   repository?: ProjectRepository
   labels?: string[]
@@ -237,6 +239,8 @@ export function readTriccYamlMeta(
     result.defaultCodeSystem = doc['default_code_system']
   if (typeof doc['calculate_code_system'] === 'string')
     result.calculateCodeSystem = doc['calculate_code_system']
+  if (typeof doc['retrieve_code_system'] === 'string')
+    result.retrieveCodeSystem = doc['retrieve_code_system']
   if (typeof doc['media_path'] === 'string') result.mediaPath = doc['media_path']
   const repository = readRepository(doc['repository'])
   if (repository) result.repository = repository

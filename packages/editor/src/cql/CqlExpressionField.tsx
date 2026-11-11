@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { effectiveParams, paramLabel } from '@tricc/core'
+import { effectiveParams, paramLabel, retrieveCodeSystem } from '@tricc/core'
 import { useProjectSnapshot } from '../runtime/context.js'
 import { expressionNames, truncateLabel, type ExpressionName } from './names.js'
 import { presentCql } from './present.js'
@@ -46,7 +46,18 @@ export function CqlExpressionField({
     () => (activityId ? effectiveParams(project, activityId) : []),
     [project, activityId],
   )
+  const retrievals = useMemo(() => {
+    const cs = retrieveCodeSystem(project)
+    return (cs?.conceptOrder ?? []).map((code) => ({
+      code,
+      label: cs!.concepts[code]?.display ?? code,
+    }))
+  }, [project])
   const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const insert = (text: string) => {
+    const sep = value === '' || /\s$/.test(value) ? '' : ' '
+    onChange(`${value}${sep}${text}`)
+  }
 
   return (
     <div className="tricc-cql">
@@ -71,8 +82,7 @@ export function CqlExpressionField({
           value=""
           onChange={(e) => {
             if (!e.target.value) return
-            const sep = value === '' || /\s$/.test(value) ? '' : ' '
-            onChange(`${value}${sep}{{${e.target.value}}}`)
+            insert(`{{${e.target.value}}}`)
           }}
         >
           <option value="">Insert a setting…</option>
@@ -83,6 +93,24 @@ export function CqlExpressionField({
               </option>
             ))}
           </optgroup>
+        </select>
+      )}
+      {retrievals.length > 0 && !readOnly && (
+        <select
+          className="tricc-cql__insert"
+          aria-label="Insert a retrieval"
+          data-testid={`${testId}-insert-retrieval`}
+          value=""
+          onChange={(e) => {
+            if (e.target.value) insert(`"${e.target.value}"`)
+          }}
+        >
+          <option value="">Insert a retrieval…</option>
+          {retrievals.map((r) => (
+            <option key={r.code} value={r.code}>
+              {r.label} ({r.code})
+            </option>
+          ))}
         </select>
       )}
       {tokens.length > 0 && (
@@ -191,6 +219,7 @@ function NameChip({
           <span>{code}</span>
           {info?.definition && <span>{info.definition}</span>}
           {info?.system && <span>{info.system}</span>}
+          {info?.source === 'retrieval' && <span>Read before the consultation</span>}
           {info?.activityTitle && <span>Question in {info.activityTitle}</span>}
           {!info && <span>This name has no concept label in the project.</span>}
           {canShow && (

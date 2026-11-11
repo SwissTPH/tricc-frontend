@@ -414,6 +414,7 @@ export function conceptToY(c: Concept): Y.Map<unknown> {
   setPlain(m, 'extra', c.extra)
   setPlain(m, 'stringProperties', c.stringProperties)
   setPlain(m, 'paramOptions', c.paramOptions)
+  setPlain(m, 'retrieval', c.retrieval)
   for (const k of CONCEPT_PLAIN) setScalar(m, k, c[k])
   return m
 }
@@ -426,6 +427,8 @@ export function conceptFromY(m: Y.Map<unknown>): Concept {
   }
   const extra = m.get('extra') as Concept['extra']
   if (extra) c.extra = structuredClone(extra)
+  const retrieval = m.get('retrieval') as Concept['retrieval']
+  if (retrieval) c.retrieval = structuredClone(retrieval)
   const paramOptions = m.get('paramOptions') as Concept['paramOptions']
   if (paramOptions?.length) c.paramOptions = [...paramOptions]
   const stringProperties = m.get('stringProperties') as Concept['stringProperties']
@@ -498,6 +501,7 @@ export function projectToDoc(project: Project, doc: Y.Doc): void {
       'mediaPath',
       'defaultCodeSystem',
       'calculateCodeSystem',
+      'retrieveCodeSystem',
     ] as const) {
       setScalar(meta, k, project[k])
     }
@@ -601,6 +605,7 @@ export function projectFromDoc(doc: Y.Doc): Project {
     'mediaPath',
     'defaultCodeSystem',
     'calculateCodeSystem',
+    'retrieveCodeSystem',
   ] as const) {
     const v = meta.get(k)
     if (v !== undefined) assign(project, k, v)

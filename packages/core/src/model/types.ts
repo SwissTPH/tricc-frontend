@@ -143,6 +143,11 @@ export interface TriccNode {
 
   context?: 'patient' | 'facility' | 'practitioner' | 'location' | 'encounter' | 'history'
   period?: string
+  /**
+   * Populate: the concept read. A code in the default dictionary, or a concept in another
+   * one. Without it, the concept named like the node (fix/20261109-populate-source-period.md).
+   */
+  source?: string | { system: string; code: string }
 
   /**
    * Legacy process-start form id. Read only: `readProject` moves it to the name of the
@@ -315,6 +320,32 @@ export interface Concept {
   paramOptions?: string[]
   /** A parameter concept: its default, as text. */
   paramDefault?: string
+  /** An entry of the retrieval dictionary (feature/20261109-project-retrievals.md §1). */
+  retrieval?: Retrieval
+}
+
+/** Where a retrieval reads. `custom` holds its own expressions. */
+export type RetrievalContext =
+  'patient' | 'facility' | 'practitioner' | 'location' | 'encounter' | 'history' | 'custom'
+
+/** One expression of a custom retrieval, as FHIR `Expression`. */
+export interface RetrievalExpression {
+  /** `text/cql` or `text/x-xlsform`. */
+  language: string
+  expression: string
+}
+
+/** What a retrieval reads (feature/20261109-project-retrievals.md §1). */
+export interface Retrieval {
+  context: RetrievalContext
+  /** Catalogue code (`terminology/retrieval.ts`). Missing: the context's default. */
+  function?: string
+  /** The concept read. */
+  reads?: { system: string; code: string }
+  /** ISO-8601, `encounter`, `history` and `custom` only. */
+  period?: string
+  /** `custom` only, one per export language. */
+  expressions?: RetrievalExpression[]
 }
 
 /** A FHIR Coding as found in `meta.tag`. */
@@ -440,6 +471,11 @@ export interface Project {
    * diagnoses, the values a CQL library can define. See feature/20261014-project-search-and-dictionaries.md.
    */
   calculateCodeSystem?: string
+  /**
+   * The retrieval dictionary (canonical url, id or name): data read before the consultation,
+   * referenced as `"#code"`. See feature/20261109-project-retrievals.md.
+   */
+  retrieveCodeSystem?: string
   /** Keyed by library name; value is the CQL source. */
   libraries: Record<string, string>
   /** Keyed by activity id. */

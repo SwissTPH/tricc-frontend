@@ -9,6 +9,7 @@ import type {
   TriccNode,
   Designation,
   CanvasGroup,
+  Retrieval,
 } from '../model/types.js'
 import {
   activitySchema,
@@ -23,7 +24,13 @@ import {
   type ProjectInput,
   type InterventionInput,
 } from './schema/project.js'
-import { codeSystemSchema, readProperty, type CodeSystemInput } from './schema/codesystem.js'
+import {
+  codeSystemSchema,
+  readProperty,
+  type CodeSystemInput,
+  type CsConceptInput,
+} from './schema/codesystem.js'
+import { RETRIEVAL_CONTEXTS } from '../terminology/retrieval.js'
 import { toLocalized, fromLocalized, sortKeys, type LocalizedText } from './schema/localized.js'
 import { toExpression, fromExpression, type Expression } from './schema/expression.js'
 import { liftRootAttributes, rootNode } from '../model/activity-kind.js'
@@ -256,6 +263,45 @@ function decodeIntervention(raw: InterventionInput, lang: string): Intervention 
 }
 
 const CONCEPT_KEYS = new Set(['code', 'display', 'definition', 'designation', 'property'])
+
+/** The extension holding one expression of a custom retrieval (project-retrievals §1). */
+export const RETRIEVE_EXPRESSION_URL =
+  'http://tricc.org/fhir/StructureDefinition/retrieve-expression'
+
+/** The retrieval of a concept: its `context` property and what goes with it. */
+function decodeRetrieval(c: CsConceptInput): {
+  retrieval?: Retrieval
+  otherExtensions?: unknown[]
+} {
+  const extensions = Array.isArray(c['extension']) ? (c['extension'] as unknown[]) : []
+  const isExpression = (
+    e: unknown,
+  ): e is { valueExpression?: { language?: unknown; expression?: unknown } } =>
+    !!e && typeof e === 'object' && (e as { url?: unknown }).url === RETRIEVE_EXPRESSION_URL
+  const others = extensions.filter((e) => !isExpression(e))
+  const raw = readProperty(c, 'context')
+  const context = RETRIEVAL_CONTEXTS.find((x) => x === raw)
+  const out: { retrieval?: Retrieval; otherExtensions?: unknown[] } = {}
+  if (others.length !== extensions.length || context !== undefined) {
+    const r: Retrieval = { context: context ?? 'custom' }
+    const f = readProperty(c, 'function')
+    if (f !== undefined) r.function = String(f)
+    const reads = c.property?.find((p) => p.code === 'reads')?.valueCoding
+    if (reads?.code) r.reads = { system: reads.system ?? '', code: reads.code }
+    const period = readProperty(c, 'period')
+    if (period !== undefined) r.period = String(period)
+    const expressions = extensions.filter(isExpression).flatMap((e) => {
+      const v = e.valueExpression
+      return v && typeof v.language === 'string' && typeof v.expression === 'string'
+        ? [{ language: v.language, expression: v.expression }]
+        : []
+    })
+    if (expressions.length > 0) r.expressions = expressions
+    out.retrieval = r
+  }
+  if (others.length !== extensions.length) out.otherExtensions = others
+  return out
+}
 /** TRICC properties written as `valueCode` unless the file had `valueString`. */
 const CODE_PROPERTIES = new Set(['dataType', 'conceptType', 'targetResource', 'kind'])
 
@@ -271,7 +317,13 @@ export function decodeCodeSystem(input: unknown): CodeSystem {
       return out
     })
     const concept: Concept = { system: raw.url, code: c.code, designations }
+    const { retrieval, otherExtensions } = decodeRetrieval(c)
     const extra = Object.fromEntries(Object.entries(c).filter(([key]) => !CONCEPT_KEYS.has(key)))
+    if (otherExtensions !== undefined) {
+      if (otherExtensions.length > 0) extra['extension'] = otherExtensions
+      else delete extra['extension']
+    }
+    if (retrieval) concept.retrieval = retrieval
     if (Object.keys(extra).length > 0) concept.extra = structuredClone(extra)
     const asString = (c.property ?? [])
       .filter((p) => p.valueString !== undefined && CODE_PROPERTIES.has(p.code))
@@ -344,6 +396,7 @@ export function decodeProjectMeta(
   if (d) p.description = d
   if (raw.terminology.default !== undefined) p.defaultCodeSystem = raw.terminology.default
   if (raw.terminology.calculate !== undefined) p.calculateCodeSystem = raw.terminology.calculate
+  if (raw.terminology.retrieve !== undefined) p.retrieveCodeSystem = raw.terminology.retrieve
   if (raw.mediaPath !== undefined) p.mediaPath = raw.mediaPath
   return p
 }
@@ -497,6 +550,7 @@ export function encodeProjectMeta(p: Project): Record<string, unknown> {
   put(term, 'codeSystems', csPaths)
   put(term, 'default', p.defaultCodeSystem)
   put(term, 'calculate', p.calculateCodeSystem)
+  put(term, 'retrieve', p.retrieveCodeSystem)
   put(o, 'terminology', term)
   put(
     o,
@@ -558,6 +612,24 @@ export function encodeCodeSystem(cs: CodeSystem): Record<string, unknown> {
       codeProp('kind', c.kind)
       for (const option of c.paramOptions ?? []) props.push({ code: 'option', valueCode: option })
       strProp('default', c.paramDefault)
+      const r = c.retrieval
+      if (r) {
+        props.push({ code: 'context', valueCode: r.context })
+        if (r.function !== undefined) props.push({ code: 'function', valueCode: r.function })
+        if (r.reads)
+          props.push({ code: 'reads', valueCoding: { system: r.reads.system, code: r.reads.code } })
+        strProp('period', r.period)
+        if (r.expressions?.length) {
+          const kept = Array.isArray(co['extension']) ? (co['extension'] as unknown[]) : []
+          co['extension'] = [
+            ...kept,
+            ...r.expressions.map((e) => ({
+              url: RETRIEVE_EXPRESSION_URL,
+              valueExpression: { language: e.language, expression: e.expression },
+            })),
+          ]
+        }
+      }
       put(co, 'property', props)
       return co
     })

@@ -33,12 +33,13 @@ function withCalculate(): Project {
 }
 
 describe('data dictionaries', () => {
-  it('lists the default and the calculate dictionary, the latter before it exists', () => {
+  it('lists the default, calculate and retrieve dictionaries, the last two before they exist', () => {
     const project = sampleProject()
     const all = projectDictionaries(project)
     expect(all.map((d) => [d.kind, d.id, d.url, Boolean(d.codeSystem)])).toEqual([
       ['default', 'tricc', DEFAULT, true],
       ['calculate', 'tricc-calculate', `${DEFAULT}-calculate`, false],
+      ['retrieve', 'tricc-retrieve', `${DEFAULT}-retrieve`, false],
     ])
     expect(dictionaryForType(project, 'calculate').kind).toBe('calculate')
     expect(dictionaryForType(project, 'diagnosis').kind).toBe('calculate')

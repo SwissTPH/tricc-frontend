@@ -22,29 +22,18 @@ import {
   writeProject,
   type OpenProject,
   type ProjectRef,
-  type ConceptKey,
-  type Anchor,
   type DiagramStyle,
 } from '@tricc/core'
 import {
-  ActivityEditor,
-  ActivityNavigator,
-  BlocksView,
-  Breadcrumbs,
   Button,
   Dialog,
-  DictionaryView,
   DiscussionsButton,
   Input,
-  MediaView,
   NotificationBell,
   HistoryButtons,
-  OpenProjectProvider,
-  ProjectOverview,
+  ProjectWorkspace,
   Textarea,
-  TERMS,
   TriccRuntimeProvider,
-  nextTrail,
   useSave,
   useThemeMode,
   Icon,
@@ -103,7 +92,7 @@ export function App({ local }: { local: LocalRuntime }) {
           <Route
             path="/project/:id/*"
             element={
-              <ProjectWorkspace
+              <ProjectPage
                 local={local}
                 storageLabel={storageLabel}
                 onStorageLabel={setStorageLabel}
@@ -205,7 +194,8 @@ function defaultStorageLabel(local: LocalRuntime): string {
     : 'This browser cannot write to a folder, so projects are kept in browser storage'
 }
 
-function ProjectWorkspace({
+/** Opens the project from the URL, then hands it to the shared workspace. */
+function ProjectPage({
   local,
   storageLabel,
   onStorageLabel,
@@ -226,99 +216,7 @@ function ProjectWorkspace({
   const [generation, setGeneration] = useState(0)
   /** The project whose copy-or-branch choice is made: open it without asking again. */
   const [chosenFor, setChosenFor] = useState<string | undefined>(undefined)
-  /** Activities reached, outermost first; the last one is open. Empty: the overview. */
-  const [trail, setTrail] = useState<string[]>([])
-  const activityId = trail[trail.length - 1]
-  const [focus, setFocus] = useState<{
-    activityId: string
-    nodeId?: string
-    edgeId?: string
-  } | null>(null)
-  const [discussJump, setDiscussJump] = useState<{
-    seq: number
-    kind: 'node' | 'edge' | 'group' | 'comment' | 'activity'
-    id: string
-    discussionId: string
-  } | null>(null)
   const navigate = useNavigate()
-  const [dictionary, setDictionary] = useState(false)
-  const [media, setMedia] = useState(false)
-  const [blocks, setBlocks] = useState(false)
-  const [concept, setConcept] = useState<ConceptKey | undefined>(undefined)
-  /** The dictionary on screen (canonical url); undefined until one is chosen. */
-  const [dictionarySystem, setDictionarySystem] = useState<string | undefined>(undefined)
-  const openNode = useCallback((nextActivity: string, nodeId: string) => {
-    setDictionary(false)
-    setMedia(false)
-    setBlocks(false)
-    setConcept(undefined)
-    setFocus({ activityId: nextActivity, nodeId })
-    setTrail((t) => nextTrail(t, nextActivity, 'reset'))
-  }, [])
-  const openEdge = useCallback((nextActivity: string, edgeId: string) => {
-    setDictionary(false)
-    setMedia(false)
-    setBlocks(false)
-    setConcept(undefined)
-    setFocus({ activityId: nextActivity, edgeId })
-    setTrail((t) => nextTrail(t, nextActivity, 'reset'))
-  }, [])
-  const openConcept = useCallback((key: ConceptKey) => {
-    setConcept(key)
-    setDictionarySystem(key.system)
-    setMedia(false)
-    setBlocks(false)
-    setDictionary(true)
-  }, [])
-  const openActivity = useCallback((id: string | undefined) => {
-    setDictionary(false)
-    setMedia(false)
-    setBlocks(false)
-    setConcept(undefined)
-    setFocus(null)
-    setTrail(id ? [id] : [])
-  }, [])
-  const showDiscussion = useCallback(
-    (anchor: Anchor, discussionId: string) => {
-      const seq = Date.now()
-      if (anchor.kind === 'node') {
-        openNode(anchor.activityId, anchor.nodeId)
-        setDiscussJump({ seq, kind: 'node', id: anchor.nodeId, discussionId })
-      } else if (anchor.kind === 'edge') {
-        openEdge(anchor.activityId, anchor.edgeId)
-        setDiscussJump({ seq, kind: 'edge', id: anchor.edgeId, discussionId })
-      } else if (anchor.kind === 'group') {
-        openActivity(anchor.activityId)
-        setDiscussJump({ seq, kind: 'group', id: anchor.groupId, discussionId })
-      } else if (anchor.kind === 'comment') {
-        openActivity(anchor.activityId)
-        setDiscussJump({ seq, kind: 'comment', id: anchor.commentId, discussionId })
-      } else if (anchor.kind === 'activity') {
-        openActivity(anchor.activityId)
-        setDiscussJump({ seq, kind: 'activity', id: anchor.activityId, discussionId })
-      }
-    },
-    [openActivity, openEdge, openNode],
-  )
-  /** Through a goto: the activity is added to the breadcrumb. */
-  const followActivity = useCallback((next: string) => {
-    setDictionary(false)
-    setMedia(false)
-    setBlocks(false)
-    setFocus(null)
-    setTrail((t) => nextTrail(t, next, 'follow'))
-  }, [])
-  /** Back to a goto that leads here: on the breadcrumb if it came from there. */
-  const openCaller = useCallback((caller: string, nodeId: string) => {
-    setFocus({ activityId: caller, nodeId })
-    setTrail((t) => nextTrail(t, caller, 'return'))
-  }, [])
-  const showView = useCallback((view: 'dictionary' | 'media' | 'blocks' | null) => {
-    setDictionary(view === 'dictionary')
-    setMedia(view === 'media')
-    setBlocks(view === 'blocks')
-    setConcept(undefined)
-  }, [])
 
   useEffect(() => {
     if (settingsOnOpen) setSearch({}, { replace: true })
@@ -414,114 +312,41 @@ function ProjectWorkspace({
   }
 
   return (
-    <OpenProjectProvider project={open}>
-      <Shell
-        local={local}
-        storageLabel={storageLabel}
-        crumbs={
-          <Breadcrumbs
-            trail={dictionary || media || blocks ? [] : trail}
-            extra={
-              dictionary ? 'Data dictionary' : media ? 'Media' : blocks ? TERMS.blocks : undefined
-            }
-            onProject={() => {
-              showView(null)
-              setFocus(null)
-              setTrail([])
-            }}
-            onCrumb={(index) => {
-              showView(null)
-              setFocus(null)
-              setTrail((t) => t.slice(0, index + 1))
-            }}
-          />
-        }
-        bell={
-          <NotificationBell
-            projectId={open.ref.id}
-            onOpen={(n) => n.anchor && n.discussionId && showDiscussion(n.anchor, n.discussionId)}
-          />
-        }
-        tools={
-          <>
-            <SaveIndicator />
-            <HistoryButtons />
-            <DiscussionsButton onShow={showDiscussion} />
-            <ExportButton open={open} />
-            <RepoTools
-              local={local}
-              open={open}
-              onReplace={(fetched) => void replaceWith(open.ref, fetched)}
+    <ProjectWorkspace
+      project={open}
+      initialSettingsOpen={settingsOnOpen}
+      onRename={(name) => void local.catalog.rename(open.ref, name)}
+      deleteNote={deleteNote(local, open.ref)}
+      onDelete={() => void deleteProject(local, open.ref, () => navigate('/'))}
+      frame={({ crumbs, body, showDiscussion }) => (
+        <Shell
+          local={local}
+          storageLabel={storageLabel}
+          crumbs={crumbs}
+          bell={
+            <NotificationBell
+              projectId={open.ref.id}
+              onOpen={(n) => n.anchor && n.discussionId && showDiscussion(n.anchor, n.discussionId)}
             />
-          </>
-        }
-      >
-        <ActivityNavigator
-          onSelect={openActivity}
-          selected={dictionary || media || blocks ? undefined : activityId}
-          dictionaryOpen={dictionary}
-          dictionarySystem={dictionary ? dictionarySystem : undefined}
-          onOpenDictionary={(system) => {
-            setMedia(false)
-            setBlocks(false)
-            setConcept(undefined)
-            setDictionarySystem(system)
-            setDictionary(true)
-          }}
-          onOpenConcept={openConcept}
-          onOpenNode={openNode}
-          mediaOpen={media}
-          onOpenMedia={() => {
-            setDictionary(false)
-            setBlocks(false)
-            setMedia(true)
-          }}
-          blocksOpen={blocks}
-          onOpenBlocks={() => showView('blocks')}
-        />
-        {blocks ? (
-          <BlocksView onOpenBlock={openActivity} onOpenNode={openNode} />
-        ) : media ? (
-          <MediaView onOpenConcept={openConcept} />
-        ) : dictionary ? (
-          <DictionaryView
-            system={dictionarySystem}
-            open={concept}
-            onOpen={setConcept}
-            onOpenNode={openNode}
-            onOpenActivity={openActivity}
-          />
-        ) : activityId ? (
-          <ActivityEditor
-            activityId={activityId}
-            focusNodeId={focus?.activityId === activityId ? focus.nodeId : undefined}
-            focusEdgeId={focus?.activityId === activityId ? focus.edgeId : undefined}
-            onOpen={openNode}
-            onOpenEdge={openEdge}
-            onOpenActivity={followActivity}
-            onOpenCaller={openCaller}
-            focusDiscussion={discussJump ?? undefined}
-            onDeleted={() => {
-              const gone = activityId
-              setFocus(null)
-              setTrail((t) => t.filter((a) => a !== gone))
-            }}
-          />
-        ) : (
-          <ProjectOverview
-            onOpen={openNode}
-            onOpenEdge={openEdge}
-            onOpenConcept={openConcept}
-            onSelect={openActivity}
-            onRename={(name) => void local.catalog.rename(open.ref, name)}
-            onShowView={showView}
-            initialSettingsOpen={settingsOnOpen}
-            deleteNote={deleteNote(local, open.ref)}
-            onDelete={() => void deleteProject(local, open.ref, () => navigate('/'))}
-          />
-        )}
-      </Shell>
-    </OpenProjectProvider>
+          }
+          tools={
+            <>
+              <SaveIndicator />
+              <HistoryButtons />
+              <DiscussionsButton onShow={showDiscussion} />
+              <ExportButton open={open} />
+              <RepoTools
+                local={local}
+                open={open}
+                onReplace={(fetched) => void replaceWith(open.ref, fetched)}
+              />
+            </>
+          }
+        >
+          {body}
+        </Shell>
+      )}
+    />
   )
 }
 

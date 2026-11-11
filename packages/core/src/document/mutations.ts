@@ -33,6 +33,7 @@ import {
 import { syncedParamConcepts, syncedParams, paramConceptCode } from '../params/sync.js'
 import { coerceArg, planParamRename } from '../params/rename.js'
 import { calculateCodeSystem } from '../terminology/dictionaries.js'
+import { planMoveToRetrieval } from '../terminology/retrieval-migration.js'
 import {
   expressionToY,
   localizedToY,
@@ -427,6 +428,28 @@ export class Mutations {
 
   // ------------------------------------------------------------- terminology
 
+  /**
+   * Move a prefilled value to the retrieval dictionary: the entry is created (or an identical
+   * one reused), references become `"#code"`, the node's edges are bridged and the node is
+   * removed (feature/20261109-project-retrievals.md §5). Returns the retrieval code.
+   */
+  moveToRetrieval(activityId: string, nodeId: string): string {
+    const move = planMoveToRetrieval(projectFromDoc(this.doc), activityId, nodeId)
+    if (move.createCodeSystem) {
+      this.addCodeSystem(move.createCodeSystem)
+      this.setMeta('retrieveCodeSystem', move.createCodeSystem.url)
+    }
+    if (move.concept) this.upsertConcept(move.system, move.concept)
+    for (const { activityId: a, node } of move.nodes) this.updateNodeOnly(a, node)
+    for (const { activityId: a, edge } of move.edges) this.updateEdge(a, edge)
+    for (const { activityId: a, expression } of move.applicability)
+      this.setActivityApplicability(a, expression)
+    for (const iv of move.interventions) this.updateIntervention(iv)
+    this.removeNode(activityId, nodeId)
+    for (const bridge of move.bridges) this.addEdge(activityId, bridge)
+    return move.code
+  }
+
   addCodeSystem(cs: CodeSystem): void {
     const m = this.doc.getMap<Y.Map<unknown>>('codeSystems')
     if (m.has(cs.url)) throw new Error(`code system already exists: ${cs.url}`)
@@ -535,7 +558,14 @@ export class Mutations {
   }
 
   setMeta(
-    key: 'system' | 'code' | 'version' | 'mediaPath' | 'defaultCodeSystem' | 'calculateCodeSystem',
+    key:
+      | 'system'
+      | 'code'
+      | 'version'
+      | 'mediaPath'
+      | 'defaultCodeSystem'
+      | 'calculateCodeSystem'
+      | 'retrieveCodeSystem',
     value: string | undefined,
   ): void {
     setScalar(this.doc.getMap<unknown>('meta'), key, value)

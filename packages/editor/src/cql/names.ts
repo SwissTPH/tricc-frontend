@@ -16,7 +16,7 @@ import { presentCql } from './present.js'
 export interface ExpressionName {
   code: string
   label: string
-  source: 'concept' | 'question'
+  source: 'concept' | 'question' | 'retrieval'
   system?: string
   definition?: string
   activityId?: string
@@ -56,7 +56,7 @@ export function expressionNames(
       map.set(concept.code, {
         code: concept.code,
         label,
-        source: 'concept',
+        source: concept.retrieval ? 'retrieval' : 'concept',
         system: system.title || system.name || concept.system,
         definition: concept.definition,
         activityId: existing?.activityId,
