@@ -79,6 +79,7 @@ import { useAddImages } from '../media/images.js'
 import { showPictureOn } from '../media/attach.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
+import { WrappingInput } from '../components/WrappingInput.js'
 import { Textarea } from '../components/ui/textarea.js'
 import { DiscussionSection } from '../discussion/Discussion.js'
 import { ArgumentForm, inheritedAtCall, rowsFor } from '../blocks/ArgumentForm.js'
@@ -896,7 +897,7 @@ export function NodeProperties({
       {!textConcept && (
         <>
           <label htmlFor="node-label">Label</label>
-          <Input
+          <WrappingInput
             size="sm"
             id="node-label"
             data-testid="field-label"
