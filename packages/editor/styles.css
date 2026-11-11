@@ -2413,6 +2413,89 @@ ol.tricc-segment-rows > li::before {
   font-size: 12px;
 }
 
+/* The Segments and Activities tabs: the list as a grid in the main area. */
+.tricc-library {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 24px;
+}
+.tricc-library__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+.tricc-library__header h1 {
+  margin: 0;
+  font-size: 18px;
+}
+.tricc-library__header input[type='search'] {
+  flex: 0 1 20em;
+  min-width: 0;
+}
+.tricc-library__count {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--tricc-text-muted);
+}
+.tricc-library__empty {
+  color: var(--tricc-text-muted);
+  font-size: 13px;
+}
+.tricc-library__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: 10px;
+}
+.tricc-library__card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--tricc-border-strong);
+  border-radius: 6px;
+  background: var(--tricc-surface);
+  color: var(--tricc-text);
+  text-align: left;
+  cursor: pointer;
+}
+.tricc-library__card:hover,
+.tricc-library__card:focus-visible {
+  border-color: var(--tricc-primary);
+  box-shadow: 0 0 0 1px var(--tricc-primary);
+}
+.tricc-library__card[data-kind='process'] {
+  border-left: 3px solid var(--tricc-text);
+}
+.tricc-library__title {
+  font-weight: 600;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.tricc-library__id {
+  font-size: 11px;
+  color: var(--tricc-text-muted);
+  overflow-wrap: anywhere;
+}
+.tricc-library__process {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--tricc-border);
+}
+.tricc-library__meta {
+  font-size: 11px;
+  color: var(--tricc-text-muted);
+}
+
 .tricc-blocks {
   padding: 16px;
   overflow: auto;

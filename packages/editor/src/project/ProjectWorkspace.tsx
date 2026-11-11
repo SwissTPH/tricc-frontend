@@ -8,6 +8,7 @@ import { OpenProjectProvider } from '../runtime/context.js'
 import { DictionaryView } from '../terminology/DictionaryView.js'
 import { ActivityNavigator } from './ActivityNavigator.js'
 import { Breadcrumbs, nextTrail } from './Breadcrumbs.js'
+import { LibraryView, type LibraryKind } from './LibraryView.js'
 import { ProjectOverview, type OverviewView } from './Overview.js'
 
 /** What the host places in its own top bar and main area. */
@@ -74,6 +75,8 @@ export function ProjectWorkspace({
   const [dictionary, setDictionary] = useState(false)
   const [media, setMedia] = useState(false)
   const [blocks, setBlocks] = useState(false)
+  /** The Segments or Activities grid, from its navigator tab. */
+  const [library, setLibrary] = useState<LibraryKind | null>(null)
   const [concept, setConcept] = useState<ConceptKey | undefined>(undefined)
   /** The dictionary on screen (canonical url); undefined until one is chosen. */
   const [dictionarySystem, setDictionarySystem] = useState<string | undefined>(undefined)
@@ -82,6 +85,7 @@ export function ProjectWorkspace({
     setDictionary(false)
     setMedia(false)
     setBlocks(false)
+    setLibrary(null)
     setConcept(undefined)
     setFocus({ activityId: nextActivity, nodeId })
     setTrail((t) => nextTrail(t, nextActivity, 'reset'))
@@ -90,6 +94,7 @@ export function ProjectWorkspace({
     setDictionary(false)
     setMedia(false)
     setBlocks(false)
+    setLibrary(null)
     setConcept(undefined)
     setFocus({ activityId: nextActivity, edgeId })
     setTrail((t) => nextTrail(t, nextActivity, 'reset'))
@@ -99,12 +104,14 @@ export function ProjectWorkspace({
     setDictionarySystem(key.system)
     setMedia(false)
     setBlocks(false)
+    setLibrary(null)
     setDictionary(true)
   }, [])
   const openActivity = useCallback((id: string | undefined) => {
     setDictionary(false)
     setMedia(false)
     setBlocks(false)
+    setLibrary(null)
     setConcept(undefined)
     setFocus(null)
     setTrail(id ? [id] : [])
@@ -136,6 +143,7 @@ export function ProjectWorkspace({
     setDictionary(false)
     setMedia(false)
     setBlocks(false)
+    setLibrary(null)
     setFocus(null)
     setTrail((t) => nextTrail(t, next, 'follow'))
   }, [])
@@ -148,14 +156,27 @@ export function ProjectWorkspace({
     setDictionary(view === 'dictionary')
     setMedia(view === 'media')
     setBlocks(view === 'blocks')
+    setLibrary(null)
     setConcept(undefined)
   }, [])
 
-  const sideView = dictionary || media || blocks
+  const sideView = dictionary || media || blocks || library !== null
   const crumbs = project ? (
     <Breadcrumbs
       trail={sideView ? [] : trail}
-      extra={dictionary ? 'Data dictionary' : media ? 'Media' : blocks ? TERMS.blocks : undefined}
+      extra={
+        dictionary
+          ? 'Data dictionary'
+          : media
+            ? 'Media'
+            : blocks
+              ? TERMS.blocks
+              : library === 'process'
+                ? 'Segments'
+                : library === 'activity'
+                  ? 'Activities'
+                  : undefined
+      }
       {...(onHome ? { onHome } : {})}
       onProject={() => {
         showView(null)
@@ -180,6 +201,7 @@ export function ProjectWorkspace({
         onOpenDictionary={(system) => {
           setMedia(false)
           setBlocks(false)
+          setLibrary(null)
           setConcept(undefined)
           setDictionarySystem(system)
           setDictionary(true)
@@ -190,12 +212,20 @@ export function ProjectWorkspace({
         onOpenMedia={() => {
           setDictionary(false)
           setBlocks(false)
+          setLibrary(null)
           setMedia(true)
         }}
         blocksOpen={blocks}
         onOpenBlocks={() => showView('blocks')}
+        libraryOpen={library ?? undefined}
+        onOpenLibrary={(kind) => {
+          showView(null)
+          setLibrary(kind)
+        }}
       />
-      {blocks ? (
+      {library ? (
+        <LibraryView kind={library} onOpen={openActivity} />
+      ) : blocks ? (
         <BlocksView onOpenBlock={openActivity} onOpenNode={openNode} />
       ) : media ? (
         <MediaView onOpenConcept={openConcept} />

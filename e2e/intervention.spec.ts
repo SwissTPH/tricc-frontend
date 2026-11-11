@@ -309,12 +309,17 @@ test('overview, processes, and activities use the full browser width', async ({ 
   await page.getByTestId('nav-activity-triage-process').click()
   await expect(page.getByTestId('activity-editor')).toBeVisible()
 
-  await page.getByTestId('tab-activities').click()
-  const activities = await page.getByTestId('activity-navigator').boundingBox()
-  expect(activities!.width).toBeLessThanOrEqual(root.width + 1)
   const editor = await page.getByTestId('activity-editor').boundingBox()
   expect(editor!.width).toBeLessThanOrEqual(root.width + 1)
   expect(editor!.width).toBeGreaterThanOrEqual(1680 - 32)
+
+  // The Activities tab shows the activities as a grid across the main area.
+  await page.getByTestId('tab-activities').click()
+  const activities = await page.getByTestId('activity-navigator').boundingBox()
+  expect(activities!.width).toBeLessThanOrEqual(root.width + 1)
+  const grid = await page.getByTestId('library-view-activity').boundingBox()
+  expect(grid!.width).toBeLessThanOrEqual(root.width + 1)
+  expect(grid!.width).toBeGreaterThanOrEqual(1680 - 32)
 })
 
 test('the intervention table lists segments as sub-rows, filters, and opens one', async ({

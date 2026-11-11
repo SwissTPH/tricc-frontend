@@ -22,6 +22,7 @@ import { ProjectSearchDialog } from './ProjectSearch.js'
 import { dictionaryLabel } from '../terminology/ConceptDialog.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
+import { Icon } from '../theme/Icon.js'
 import { TERMS } from '../blocks/terms.js'
 import {
   EMPTY_SEGMENT,
@@ -51,8 +52,9 @@ interface ImportPreview {
  * Processes and activities live on two tabs.
  *
  * A process activity is the entry point for a segment of care. A normal activity is the
- * reusable page it calls. One tab is open at a time. Search narrows that tab. Expand
- * opens the rest of the list downward instead of running off the side of the window.
+ * reusable page it calls. One tab is open at a time. Search narrows that tab. The row
+ * scrolls sideways (a mouse wheel scrolls it too); Expand opens the rest of the list downward.
+ * Clicking the Segments or Activities tab also shows that list as a grid in the main area.
  */
 export function ActivityNavigator({
   selected,
@@ -66,6 +68,8 @@ export function ActivityNavigator({
   onOpenNode,
   blocksOpen,
   onOpenBlocks,
+  libraryOpen,
+  onOpenLibrary,
 }: {
   selected: string | undefined
   onSelect: (id: string | undefined) => void
@@ -90,6 +94,10 @@ export function ActivityNavigator({
   blocksOpen?: boolean
   /** Shows the Building blocks list in the main area, from its tab. */
   onOpenBlocks?: () => void
+  /** The Segments or Activities grid open in the main area. */
+  libraryOpen?: 'process' | 'activity'
+  /** Shows the Segments or Activities grid in the main area, from its tab. */
+  onOpenLibrary?: (kind: 'process' | 'activity') => void
 }) {
   const project = useProjectSnapshot()
   const canWrite = useCanWrite()
@@ -140,11 +148,12 @@ export function ActivityNavigator({
     if (dictionaryOpen) setTab('dictionary')
     else if (mediaOpen) setTab('media')
     else if (blocksOpen) setTab('block')
+    else if (libraryOpen) setTab(libraryOpen)
     else
       setTab((current) =>
         current === 'dictionary' || current === 'media' ? (selectedKind ?? 'activity') : current,
       )
-  }, [dictionaryOpen, mediaOpen, blocksOpen, selectedKind])
+  }, [dictionaryOpen, mediaOpen, blocksOpen, libraryOpen, selectedKind])
 
   const label = (id: string) => resolve(project.activities[id]?.title, lang, lang) ?? id
   const usedBy = (id: string) => {
@@ -288,7 +297,26 @@ export function ActivityNavigator({
   const setQuery =
     tab === 'activity' ? setActivityQuery : tab === 'block' ? setBlockQuery : setProcessQuery
   const addLabel =
-    tab === 'activity' ? 'Add an activity' : tab === 'block' ? TERMS.newBlock : 'Add a segment'
+    tab === 'activity' ? 'New activity' : tab === 'block' ? TERMS.newBlock : 'New segment'
+  const importLabel = `Import ${tab === 'activity' ? 'an activity' : tab === 'block' ? 'a block' : 'a segment'}`
+  // Expand sits at the end of the list row: collapsed, the row scrolls sideways.
+  const expandButton = (
+    <Button
+      variant="outline"
+      size="icon-sm"
+      type="button"
+      className="tricc-nav__expand"
+      data-testid="nav-expand"
+      aria-expanded={expanded}
+      aria-controls={`${tab}-panel`}
+      aria-label={expanded ? 'Collapse the list' : 'Expand the list'}
+      title={expanded ? 'Collapse the list' : 'Show the whole list'}
+      disabled={!expanded && !overflows}
+      onClick={() => setExpanded((open) => !open)}
+    >
+      <Icon name={expanded ? 'unfold_less' : 'unfold_more'} size={18} />
+    </Button>
+  )
 
   return (
     <nav data-testid="activity-navigator" data-expanded={expanded ? 'true' : 'false'}>
@@ -301,7 +329,10 @@ export function ActivityNavigator({
             aria-selected={tab === 'process'}
             aria-controls="process-panel"
             data-testid="tab-processes"
-            onClick={() => setTab('process')}
+            onClick={() => {
+              setTab('process')
+              onOpenLibrary?.('process')
+            }}
           >
             Segments
             <span className="tricc-nav__count">{processActivities.length}</span>
@@ -313,7 +344,10 @@ export function ActivityNavigator({
             aria-selected={tab === 'activity'}
             aria-controls="activity-panel"
             data-testid="tab-activities"
-            onClick={() => setTab('activity')}
+            onClick={() => {
+              setTab('activity')
+              onOpenLibrary?.('activity')
+            }}
           >
             Activities
             <span className="tricc-nav__count">{normalActivities.length}</span>
@@ -386,23 +420,11 @@ export function ActivityNavigator({
         />
         {tab !== 'dictionary' && tab !== 'media' && (
           <>
-            <Button
-              variant="outline"
-              size="sm"
-              type="button"
-              data-testid="nav-expand"
-              aria-expanded={expanded}
-              aria-controls={`${tab}-panel`}
-              disabled={!expanded && !overflows}
-              onClick={() => setExpanded((open) => !open)}
-            >
-              {expanded ? 'Collapse' : 'Expand'}
-            </Button>
             {canWrite && (
               <span className="tricc-nav__create">
                 <Button
                   variant="outline"
-                  size="icon-sm"
+                  size="sm"
                   type="button"
                   data-testid={
                     tab === 'activity'
@@ -411,24 +433,25 @@ export function ActivityNavigator({
                         ? 'add-building-block'
                         : 'add-process'
                   }
-                  aria-label={addLabel}
                   title={addLabel}
                   onClick={() => {
                     setPreview(null)
                     openDraft(tab)
                   }}
                 >
-                  +
+                  <Icon name="add" size={16} />
+                  {addLabel}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   type="button"
                   data-testid={`import-${tab}`}
-                  aria-label={`Import ${tab === 'activity' ? 'an activity' : `a ${tab}`}`}
-                  title={`Import ${tab === 'activity' ? 'an activity' : `a ${tab}`}`}
+                  aria-label={importLabel}
+                  title={importLabel}
                   onClick={openImport}
                 >
+                  <Icon name="upload_file" size={16} />
                   Import
                 </Button>
                 <input
@@ -499,11 +522,12 @@ export function ActivityNavigator({
             />
           }
           expanded={expanded}
+          action={expandButton}
           itemLabel={label}
           onOverflow={setOverflows}
           empty={
-            <p data-testid="no-blocks">
-              No building blocks yet. Use + to make one. {TERMS.blockOrGoto}
+            <p className="tricc-nav__hint" data-testid="no-blocks">
+              No building blocks yet. Use + New block to make one. {TERMS.blockOrGoto}
             </p>
           }
           renderItem={(id) => {
@@ -547,13 +571,14 @@ export function ActivityNavigator({
             />
           }
           expanded={expanded}
+          action={expandButton}
           itemLabel={(id) => `${label(id)} ${processOf(project.activities[id]!) ?? ''}`}
           onOverflow={setOverflows}
           empty={
             processActivities.length === 0 ? (
-              <p data-testid="no-process-activities">
-                No segments yet. Use + to add the entry point for a segment of care, or Import to
-                bring one in from a file.
+              <p className="tricc-nav__hint" data-testid="no-process-activities">
+                No segments yet. Use + New segment to add the entry point for a segment of care, or
+                Import to bring one in from a file.
               </p>
             ) : null
           }
@@ -595,8 +620,15 @@ export function ActivityNavigator({
             />
           }
           expanded={expanded}
+          action={expandButton}
           itemLabel={label}
           onOverflow={setOverflows}
+          empty={
+            <p className="tricc-nav__hint" data-testid="no-activities">
+              No activities yet. Use + New activity to add a reusable page that segments call, or
+              Import to bring one in from a file.
+            </p>
+          }
           renderItem={(id) => (
             <button
               type="button"
@@ -659,6 +691,7 @@ function LibraryPanel({
   expanded,
   itemLabel,
   onOverflow,
+  action,
   empty,
   filter,
   renderItem,
@@ -672,6 +705,8 @@ function LibraryPanel({
   expanded: boolean
   itemLabel: (id: string) => string
   onOverflow: (overflows: boolean) => void
+  /** A control at the end of the list row, after the chips. */
+  action?: ReactNode
   empty?: ReactNode
   /** The search over this list, at the start of its row. */
   filter?: ReactNode
@@ -695,6 +730,20 @@ function LibraryPanel({
     observer?.observe(el)
     return () => observer?.disconnect()
   }, [signature, expanded, onOverflow])
+
+  // Collapsed, the row scrolls sideways: a vertical wheel moves it left and right.
+  useEffect(() => {
+    const el = listRef.current
+    if (!el || expanded) return
+    const onWheel = (event: WheelEvent) => {
+      if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return
+      if (el.scrollWidth <= el.clientWidth) return
+      event.preventDefault()
+      el.scrollLeft += event.deltaY
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [expanded])
 
   useEffect(() => {
     const el = listRef.current
@@ -730,6 +779,7 @@ function LibraryPanel({
             <li key={id}>{renderItem(id)}</li>
           ))}
         </ul>
+        {action}
       </div>
       {shown.length === 0 && needle !== '' && (
         <p className="tricc-nav__empty" data-testid={`${tab}-no-match`}>

@@ -78,6 +78,44 @@ describe('ProjectWorkspace', () => {
     expect(screen.getByTestId('project-overview')).toBeInTheDocument()
   })
 
+  it('shows the segments and activities as a grid from their tabs, and opens a card', async () => {
+    const user = userEvent.setup()
+    const { runtime, open } = await openProject()
+    render(
+      <TriccRuntimeProvider runtime={runtime}>
+        <ProjectWorkspace
+          project={open}
+          frame={({ crumbs, body }) => (
+            <div>
+              <header>{crumbs}</header>
+              <main>{body}</main>
+            </div>
+          )}
+        />
+      </TriccRuntimeProvider>,
+    )
+
+    await user.click(screen.getByTestId('tab-processes'))
+    expect(screen.getByTestId('library-view-process')).toBeInTheDocument()
+    expect(screen.getByTestId('crumb-extra')).toHaveTextContent('Segments')
+
+    await user.click(screen.getByTestId('tab-activities'))
+    expect(screen.getByTestId('library-view-activity')).toBeInTheDocument()
+    expect(screen.getByTestId('crumb-extra')).toHaveTextContent('Activities')
+    expect(screen.getByTestId('library-grid-activity')).toContainElement(
+      screen.getByTestId('library-card-triage'),
+    )
+
+    await user.type(screen.getByTestId('library-search-activity'), 'nothing like it')
+    expect(screen.getByTestId('library-no-match-activity')).toBeInTheDocument()
+    await user.clear(screen.getByTestId('library-search-activity'))
+
+    await user.click(screen.getByTestId('library-card-triage'))
+    expect(screen.queryByTestId('library-view-activity')).not.toBeInTheDocument()
+    expect(screen.getByTestId('activity-editor')).toBeInTheDocument()
+    expect(screen.getByTestId('crumb-triage')).toHaveTextContent('Triage')
+  })
+
   it('opens the building blocks and names them in the breadcrumbs', async () => {
     const user = userEvent.setup()
     const { runtime, open } = await openProject()
