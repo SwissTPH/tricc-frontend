@@ -156,7 +156,7 @@ export function ProjectWorkspace({
     setDictionary(view === 'dictionary')
     setMedia(view === 'media')
     setBlocks(view === 'blocks')
-    setLibrary(null)
+    setLibrary(view === 'segments' ? 'process' : view === 'activities' ? 'activity' : null)
     setConcept(undefined)
   }, [])
 
@@ -218,10 +218,7 @@ export function ProjectWorkspace({
         blocksOpen={blocks}
         onOpenBlocks={() => showView('blocks')}
         libraryOpen={library ?? undefined}
-        onOpenLibrary={(kind) => {
-          showView(null)
-          setLibrary(kind)
-        }}
+        onOpenLibrary={(kind) => showView(kind === 'process' ? 'segments' : 'activities')}
       />
       {library ? (
         <LibraryView kind={library} onOpen={openActivity} />

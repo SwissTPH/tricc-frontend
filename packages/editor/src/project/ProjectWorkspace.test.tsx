@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createProject, createTriccRuntime, type OpenProject, type Project } from '@tricc/core'
 import {
@@ -114,6 +114,34 @@ describe('ProjectWorkspace', () => {
     expect(screen.queryByTestId('library-view-activity')).not.toBeInTheDocument()
     expect(screen.getByTestId('activity-editor')).toBeInTheDocument()
     expect(screen.getByTestId('crumb-triage')).toHaveTextContent('Triage')
+  })
+
+  it('opens the segments and activities grids from the overview Info panel', async () => {
+    const user = userEvent.setup()
+    const { runtime, open } = await openProject()
+    render(
+      <TriccRuntimeProvider runtime={runtime}>
+        <ProjectWorkspace
+          project={open}
+          frame={({ crumbs, body }) => (
+            <div>
+              <header>{crumbs}</header>
+              <main>{body}</main>
+            </div>
+          )}
+        />
+      </TriccRuntimeProvider>,
+    )
+
+    const info = () => screen.getByTestId('project-info')
+    await user.click(within(info()).getByRole('button', { name: 'Segments' }))
+    expect(screen.getByTestId('library-view-process')).toBeInTheDocument()
+    expect(screen.getByTestId('tab-processes')).toHaveAttribute('aria-selected', 'true')
+
+    await user.click(screen.getByTestId('nav-overview'))
+    await user.click(within(info()).getByRole('button', { name: 'Activities' }))
+    expect(screen.getByTestId('library-view-activity')).toBeInTheDocument()
+    expect(screen.getByTestId('tab-activities')).toHaveAttribute('aria-selected', 'true')
   })
 
   it('opens the building blocks and names them in the breadcrumbs', async () => {
