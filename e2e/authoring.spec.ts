@@ -504,3 +504,45 @@ test('a renamed project shows its new name in the project list', async ({ page }
   await expect(page.getByText('New name')).toBeVisible()
   await expect(page.getByText('Old name')).toHaveCount(0)
 })
+
+test('a long label wraps in its field and is still whole after leaving the node', async ({
+  page,
+}) => {
+  await createProject(page, 'Wrapping guideline')
+  await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
+  await page.getByTestId('add-select_one').click()
+
+  const label = page.getByTestId('field-label')
+  await label.fill('Fever')
+  const oneLine = (await label.boundingBox())!.height
+
+  const long =
+    'Does the child have chest indrawing when calm, or stridor, or any other general danger sign seen today?'
+  expect(long.length).toBeGreaterThan(100)
+  await label.fill(long)
+
+  // Away to another node, then back: the whole label is shown, wrapped, with nothing to scroll.
+  await page.getByTestId('tab-nodes').click()
+  await page.getByTestId('add-note').click()
+  await page.getByTestId('node-n-select_one').click()
+  await expect(label).toHaveValue(long)
+  const box = await label.evaluate((el) => ({
+    height: el.getBoundingClientRect().height,
+    scrollWidth: el.scrollWidth,
+    clientWidth: el.clientWidth,
+    scrollHeight: el.scrollHeight,
+    clientHeight: el.clientHeight,
+  }))
+  // At least one more line of 12px text than the one-line box.
+  expect(box.height).toBeGreaterThanOrEqual(oneLine + 12)
+  expect(box.scrollWidth).toBeLessThanOrEqual(box.clientWidth)
+  expect(box.scrollHeight).toBeLessThanOrEqual(box.clientHeight + 1)
+
+  // Enter does not break the label; a short label is one line again.
+  await label.press('End')
+  await label.press('Enter')
+  await expect(label).toHaveValue(long)
+  await label.fill('Fever')
+  await expect.poll(async () => (await label.boundingBox())!.height).toBeLessThan(oneLine + 1)
+})

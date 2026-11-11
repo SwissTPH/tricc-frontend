@@ -13,6 +13,7 @@ import { RepeatFields } from './RepeatFields.js'
 import { ConfirmDelete, Dialog, mergeExpression } from '../components/Dialog.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
+import { WrappingInput } from '../components/WrappingInput.js'
 import { ParamsSection } from '../blocks/ParamsSection.js'
 
 /** The fallback `tricc_oo` uses when an activity has no name. */
@@ -174,7 +175,7 @@ export function ActivitySettings({
       >
         <div className="tricc-intervention">
           <label htmlFor="act-title">Title</label>
-          <Input
+          <WrappingInput
             size="sm"
             id="act-title"
             data-testid="act-title"

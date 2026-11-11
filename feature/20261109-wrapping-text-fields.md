@@ -2,7 +2,7 @@
 
 | Field             | Value                                                                                   |
 | ----------------- | --------------------------------------------------------------------------------------- |
-| **Status**        | Approved (2026-11-09, RFC #36)                                                          |
+| **Status**        | Implemented (2026-11-11, RFC #36)                                                       |
 | **RFC**           | [#36](https://github.com/SwissTPH/tricc-frontend/issues/36)                             |
 | **Branch target** | `feature/wrapping-text-fields` → `develop`                                              |
 | **Scope**         | `@tricc/editor`                                                                         |

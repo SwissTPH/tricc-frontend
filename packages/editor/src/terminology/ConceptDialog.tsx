@@ -38,6 +38,7 @@ import { draggingFiles, imageFiles, useAddImages } from '../media/images.js'
 import { withPictureFirst } from '../media/attach.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
+import { WrappingInput } from '../components/WrappingInput.js'
 import { Textarea } from '../components/ui/textarea.js'
 import { RetrievalFields } from './RetrievalFields.js'
 
@@ -314,7 +315,7 @@ export function ConceptDialog({
           />
 
           <label htmlFor="concept-display">Display</label>
-          <Input
+          <WrappingInput
             id="concept-display"
             data-testid="concept-display"
             value={draft.display ?? ''}
@@ -531,7 +532,7 @@ export function ConceptDialog({
                             onChange={(t) => updateAt(index, withDesignationText(d, t))}
                           />
                         ) : (
-                          <Input
+                          <WrappingInput
                             data-testid={`concept-text-${index}-value`}
                             aria-label="Text"
                             value={d.value}
