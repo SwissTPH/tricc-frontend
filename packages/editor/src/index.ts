@@ -7,6 +7,7 @@ export {
   type IssueLinks,
   type OverviewView,
 } from './project/Overview.js'
+export { ProjectWorkspace, type ProjectWorkspaceFrame } from './project/ProjectWorkspace.js'
 export { InterventionDialog, segmentsOf } from './project/InterventionEditor.js'
 export { InterventionTable } from './project/InterventionTable.js'
 export { ActivityNavigator } from './project/ActivityNavigator.js'
