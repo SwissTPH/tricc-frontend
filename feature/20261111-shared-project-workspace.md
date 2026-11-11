@@ -2,7 +2,7 @@
 
 | Field             | Value                                                                                                                                                                                                                           |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**        | Approved (2026-11-11, RFC #41)                                                                                                                                                                                                  |
+| **Status**        | Implemented (2026-11-11, RFC #41)                                                                                                                                                                                               |
 | **RFC**           | [#41](https://github.com/SwissTPH/tricc-frontend/issues/41)                                                                                                                                                                     |
 | **Branch target** | `feature/shared-project-workspace` → `develop`                                                                                                                                                                                  |
 | **Scope**         | `@tricc/editor`, `apps/local`                                                                                                                                                                                                   |
