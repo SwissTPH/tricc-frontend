@@ -807,21 +807,27 @@ function ProposeDialog({
     let cancelled = false
     setError(undefined)
     setProposal(undefined)
-    prepare(open, repository, state)
-      .then((p) => {
-        if (cancelled) return
-        setProposal(p)
-        setTitle((t) => t || defaultTitle(p, projectTitle))
-        setBody(
-          (b) =>
-            b ||
-            `Proposed with DrawTricc by ${local.identity.current().displayName}.\n\n` +
-              p.plan.apply.map((c) => `- ${c.path} (${KIND_LABEL[c.kind]})`).join('\n'),
-        )
-      })
-      .catch((e) => !cancelled && setError(message(e)))
+    // A retry (e.g. after the token changes) waits a moment so typing doesn't fire a fetch per key.
+    const timer = setTimeout(
+      () =>
+        void prepare(open, repository, state)
+          .then((p) => {
+            if (cancelled) return
+            setProposal(p)
+            setTitle((t) => t || defaultTitle(p, projectTitle))
+            setBody(
+              (b) =>
+                b ||
+                `Proposed with DrawTricc by ${local.identity.current().displayName}.\n\n` +
+                  p.plan.apply.map((c) => `- ${c.path} (${KIND_LABEL[c.kind]})`).join('\n'),
+            )
+          })
+          .catch((e) => !cancelled && setError(message(e))),
+      attempt === 0 ? 0 : 400,
+    )
     return () => {
       cancelled = true
+      clearTimeout(timer)
     }
   }, [open, repository, state, attempt, local, projectTitle, done])
 
@@ -907,7 +913,11 @@ function ProposeDialog({
           </p>
         ) : (
           <>
-            <TokenField kind={loc.host} origin={loc.origin} onChange={() => setError(undefined)} />
+            <TokenField
+              kind={loc.host}
+              origin={loc.origin}
+              onChange={() => setAttempt((n) => n + 1)}
+            />
             {!proposal && !error && <p>Comparing with {target}…</p>}
             {proposal && (
               <>
