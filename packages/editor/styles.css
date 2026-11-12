@@ -157,7 +157,8 @@
   position: absolute;
   z-index: 5;
   border: 1px solid var(--tricc-primary);
-  background: var(--tricc-primary-soft-strong);
+  /* See-through, so the elements being selected stay visible under it. */
+  background: color-mix(in srgb, var(--tricc-primary) 12%, transparent);
   pointer-events: none;
 }
 
