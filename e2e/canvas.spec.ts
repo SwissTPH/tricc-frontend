@@ -1438,3 +1438,67 @@ test('copy, cut and paste keep concepts and put a cut back with the same ids', a
   await expect(page.locator('.react-flow__node[data-id="n-integer-2"]')).toBeVisible()
   await expect(page.locator('.react-flow__node[data-id="n-note-2"]')).toBeVisible()
 })
+
+// --- Selection hides what is under it (fix/…-selected-group-covers-canvas, #35) ---------------
+
+/** The alpha of a computed CSS colour: `rgba(…, a)`, `rgb(… / a)`, `color(… / a)`; 1 if none. */
+function alphaOf(css: string): number {
+  const slash = css.match(/\/\s*([\d.]+%?)\s*\)$/)
+  if (slash) return slash[1]!.endsWith('%') ? parseFloat(slash[1]!) / 100 : parseFloat(slash[1]!)
+  const rgba = css.match(/^rgba\((?:[^,]+,){3}\s*([\d.]+)\s*\)$/)
+  if (rgba) return parseFloat(rgba[1]!)
+  return css === 'transparent' ? 0 : 1
+}
+
+test('the right-drag rectangle lets the elements under it show through', async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName === 'firefox', RIGHT_RELEASE_LOST)
+  await newActivity(page, 'See-through marquee')
+  const canvas = (await page.getByTestId('activity-canvas').boundingBox())!
+  await page.mouse.move(canvas.x + 20, canvas.y + 20)
+  await page.mouse.down({ button: 'right' })
+  await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2, { steps: 12 })
+  const marquee = page.getByTestId('selection-marquee')
+  await expect(marquee).toBeVisible()
+  const fill = await marquee.evaluate((el) => getComputedStyle(el).backgroundColor)
+  await page.mouse.up({ button: 'right' })
+  expect(alphaOf(fill), `fill ${fill}`).toBeLessThan(0.5)
+})
+
+test('a selected group stays under the comments and nodes drawn on it', async ({ page }) => {
+  await newActivity(page, 'Group under comment')
+  await page.getByTestId('tab-nodes').click()
+  await dropFromPalette(page, 'add-group', 0.15, 0.15)
+  const frame = (await page.getByTestId('group-group').boundingBox())!
+  const canvas = (await page.getByTestId('activity-canvas').boundingBox())!
+
+  // A comment dropped on the frame lies on it (a comment never joins a group), away from the
+  // minimap in the bottom-right corner.
+  await page.getByTestId('tab-nodes').click()
+  await dropFromPalette(
+    page,
+    'add-comment',
+    (frame.x + 40 - canvas.x) / canvas.width,
+    (frame.y + frame.height / 2 - canvas.y) / canvas.height,
+  )
+  const groupNode = page
+    .locator('.react-flow__node')
+    .filter({ has: page.getByTestId('group-group') })
+  const commentNode = page
+    .locator('.react-flow__node')
+    .filter({ has: page.getByTestId('comment-comment') })
+  const z = (node: typeof groupNode) =>
+    node.evaluate((el) => Number(getComputedStyle(el).zIndex) || 0)
+
+  await page.getByTestId('group-group-title').click()
+  await expect(groupNode).toHaveClass(/selected/)
+  expect(await z(commentNode)).toBeGreaterThan(await z(groupNode))
+
+  // The comment is still the one under the pointer.
+  const c = (await page.getByTestId('comment-comment').boundingBox())!
+  await page.mouse.click(c.x + c.width / 2, c.y + Math.min(10, c.height / 2))
+  await expect(page.getByTestId('comment-comment')).toHaveClass(/is-selected/)
+  await expect(groupNode).not.toHaveClass(/selected/)
+})

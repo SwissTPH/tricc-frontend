@@ -840,6 +840,9 @@ function CanvasInner({
           nodesDraggable={canWrite}
           nodesConnectable={canWrite}
           elementsSelectable
+          // Selecting draws an outline only. Raising the selected element would lift a group frame
+          // over the comments and loose nodes lying on it, hiding them under its tint.
+          elevateNodesOnSelect={false}
           deleteKeyCode={canWrite ? DELETE_KEYS : null}
           snapToGrid
           snapGrid={[8, 8]}
