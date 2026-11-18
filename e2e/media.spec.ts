@@ -148,7 +148,8 @@ test('a picture dropped on a node shows on top of it, is saved, and is exported'
     timeout: 10_000,
   })
   await page.reload()
-  await page.getByTestId('nav-activity-activity').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-card-activity').click()
   await expect(page.getByTestId('node-n-decimal-picture').locator('img')).toBeVisible()
 
   // Exported: the archive carries the file next to the YAML.
@@ -193,7 +194,7 @@ test('the picker opens above the text editor and a library picture is clicked in
     .setInputFiles({ name: 'rash.png', mimeType: 'image/png', buffer: DOT })
   await expect(page.getByTestId('media-image-rash')).toBeVisible()
   await page.getByTestId('tab-activities').click()
-  await page.getByTestId(`nav-activity-activity`).click()
+  await page.getByTestId(`library-card-activity`).click()
   await weightQuestion(page)
   await page.getByTestId('concept-edit').click()
   await page.getByTestId('concept-q-display-format').click()

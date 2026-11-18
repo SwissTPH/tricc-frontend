@@ -206,7 +206,8 @@ async function importDemo(page: Page) {
 }
 
 async function addInteger(page: Page, name: string) {
-  await page.getByTestId('nav-activity-screening').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-card-screening').click()
   if ((await page.getByTestId('add-integer').count()) === 0)
     await page.getByTestId('tab-nodes').click()
   await page.getByTestId('add-integer').click()
@@ -436,7 +437,8 @@ test('a copy whose browser data was deleted can be loaded again from its proposa
   await expect(page.getByTestId('repo-path')).toHaveValue('projects/demo')
   await page.getByTestId('repo-import').click()
   await expect(page.getByTestId('project-overview')).toBeVisible()
-  await page.getByTestId('nav-activity-screening').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-card-screening').click()
   await expect(page.getByText('age_years').first()).toBeVisible()
 
   // The old entry went with the new copy: home no longer reports it.

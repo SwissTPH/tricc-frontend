@@ -233,11 +233,14 @@ test('the two kinds of activity are listed and marked separately', async ({ page
   await page.getByTestId('create-activity').click()
   await page.getByTestId('nav-overview').click()
 
-  await expect(page.getByTestId('nav-activity-activity')).toHaveAttribute('data-kind', 'activity')
+  await page.getByTestId('tab-activities').click()
+  await expect(page.getByTestId('library-card-activity')).toHaveAttribute('data-kind', 'activity')
+  await expect(page.getByTestId('library-card-triage-process')).toHaveCount(0)
   await page.getByTestId('tab-processes').click()
-  const processEntry = page.getByTestId('nav-activity-triage-process')
-  await expect(page.getByTestId('process-activity-list')).toContainText('triage')
+  const processEntry = page.getByTestId('library-card-triage-process')
+  await expect(page.getByTestId('library-grid-process')).toContainText('triage')
   await expect(processEntry).toHaveAttribute('data-kind', 'process')
+  await expect(page.getByTestId('library-card-activity')).toHaveCount(0)
 
   // The editor says which kind is open, and only a process activity names a process.
   await processEntry.click()
@@ -245,7 +248,7 @@ test('the two kinds of activity are listed and marked separately', async ({ page
   await expect(page.getByTestId('activity-process')).toHaveValue('triage')
 
   await page.getByTestId('tab-activities').click()
-  await page.getByTestId('nav-activity-activity').click()
+  await page.getByTestId('library-card-activity').click()
   await expect(page.getByTestId('activity-kind')).toHaveText('Activity')
   await expect(page.getByTestId('activity-process')).toHaveCount(0)
 })
@@ -288,7 +291,7 @@ test('creates a process activity straight from the intervention', async ({ page 
   ).toBeVisible()
   await closeEditor(page)
   await page.getByTestId('tab-processes').click()
-  await expect(page.getByTestId('nav-activity-registration-process')).toHaveAttribute(
+  await expect(page.getByTestId('library-card-registration-process')).toHaveAttribute(
     'data-kind',
     'process',
   )
@@ -306,7 +309,7 @@ test('overview, processes, and activities use the full browser width', async ({ 
   await page.getByTestId('tab-processes').click()
   const processes = await page.getByTestId('activity-navigator').boundingBox()
   expect(processes!.width).toBeLessThanOrEqual(root.width + 1)
-  await page.getByTestId('nav-activity-triage-process').click()
+  await page.getByTestId('library-card-triage-process').click()
   await expect(page.getByTestId('activity-editor')).toBeVisible()
 
   const editor = await page.getByTestId('activity-editor').boundingBox()

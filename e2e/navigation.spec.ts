@@ -59,12 +59,15 @@ test('the breadcrumb follows gotos and resets from the activity list', async ({ 
   await addActivity(page) // activity-3
 
   // activity → activity-2 → activity-3, each through a goto.
-  await page.getByTestId('nav-activity-activity').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-card-activity').click()
   await addGoto(page, 'activity-2')
-  await page.getByTestId('nav-activity-activity-2').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-card-activity-2').click()
   await addGoto(page, 'activity-3')
 
-  await page.getByTestId('nav-activity-activity').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-card-activity').click()
   await expect(crumbs(page)).toHaveCount(2)
   await page.getByTestId('goto-follow-n-goto').click()
   await expect(page.getByTestId('crumb-activity-2')).toHaveAttribute('aria-current', 'page')
@@ -80,7 +83,8 @@ test('the breadcrumb follows gotos and resets from the activity list', async ({ 
   // From the list: only that activity after the project.
   await page.getByTestId('goto-follow-n-goto').click()
   await expect(crumbs(page)).toHaveCount(3)
-  await page.getByTestId('nav-activity-activity-3').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-card-activity-3').click()
   await expect(crumbs(page)).toHaveCount(2)
   await expect(page.getByTestId('crumb-activity-3')).toBeVisible()
   await expect(page.getByTestId('crumb-activity')).toHaveCount(0)
@@ -97,7 +101,8 @@ test('an activity lists the gotos that lead to it, and each opens its caller', a
   await createProject(page, 'Callers guideline')
   await addActivity(page) // activity
   await addActivity(page) // activity-2
-  await page.getByTestId('nav-activity-activity').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-card-activity').click()
   await addGoto(page, 'activity-2')
 
   await page.getByTestId('goto-follow-n-goto').click()
@@ -109,7 +114,8 @@ test('an activity lists the gotos that lead to it, and each opens its caller', a
   await expect(page.getByTestId('field-link-current')).toContainText('activity-2')
 
   // The same list in the activity settings.
-  await page.getByTestId('nav-activity-activity-2').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-card-activity-2').click()
   await page.locator('[data-node-type="activity_start"]').click()
   await page.getByTestId('root-activity-settings').click()
   await page.getByTestId('activity-settings').getByTestId('called-by-activity-n-goto').click()

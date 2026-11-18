@@ -85,8 +85,7 @@ test('the project search shows hits by source and opens a node', async ({ page }
   await placeNode(page, 'decimal')
   await newConcept(page, 'weight_kg', 'Weight')
 
-  // The list filter moved to the list row; the bar searches the project.
-  await expect(page.getByTestId('activity-search')).toBeVisible()
+  // The bar searches the project.
   await page.getByTestId('nav-overview').click()
   await page.getByTestId('project-search').fill('WEIGHT')
   await page.getByTestId('project-search').press('Enter')

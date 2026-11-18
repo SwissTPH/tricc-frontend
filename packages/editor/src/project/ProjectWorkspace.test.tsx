@@ -62,7 +62,8 @@ describe('ProjectWorkspace', () => {
     expect(screen.getByTestId('project-overview')).toBeInTheDocument()
     expect(screen.getByTestId('nav-overview')).toHaveTextContent('Test guideline')
 
-    await user.click(screen.getByTestId('nav-activity-triage'))
+    await user.click(screen.getByTestId('tab-activities'))
+    await user.click(screen.getByTestId('library-card-triage'))
     expect(screen.getByTestId('activity-editor')).toBeInTheDocument()
     expect(screen.getByTestId('crumb-triage')).toHaveTextContent('Triage')
 
@@ -165,9 +166,9 @@ describe('ProjectWorkspace', () => {
     expect(screen.getByTestId('blocks-view')).toBeInTheDocument()
     expect(screen.getByTestId('crumb-extra')).toHaveTextContent(TERMS.blocks)
 
-    // An activity opened from the navigator leaves the blocks view.
+    // An activity opened from the Activities grid leaves the blocks view.
     await user.click(screen.getByTestId('tab-activities'))
-    await user.click(screen.getByTestId('nav-activity-triage'))
+    await user.click(screen.getByTestId('library-card-triage'))
     expect(screen.queryByTestId('blocks-view')).not.toBeInTheDocument()
     expect(screen.getByTestId('activity-editor')).toBeInTheDocument()
   })
@@ -216,7 +217,8 @@ describe('ProjectWorkspace', () => {
         />
       </TriccRuntimeProvider>,
     )
-    await user.click(screen.getByTestId('nav-activity-triage'))
+    await user.click(screen.getByTestId('tab-activities'))
+    await user.click(screen.getByTestId('library-card-triage'))
 
     rerender(
       <TriccRuntimeProvider runtime={runtime}>

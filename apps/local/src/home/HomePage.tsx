@@ -99,33 +99,46 @@ export function HomePage({ local }: { local: LocalRuntime }) {
     [projects, query, sort],
   )
 
-  /** Adopt an imported file set as a new browser-backed project. */
+  /**
+   * Adopt an imported file set as a new browser-backed project and open it. Throws when it
+   * cannot, so the caller can say why where the author is looking.
+   */
+  const adoptFiles = async (files: ProjectFiles, fallbackName: string): Promise<ProjectRef> => {
+    // Before the first await, while the click still counts as the author's.
+    void requestDurableStorage()
+    const normalized = normalizeImport(files)
+    // Parse before adopting: importing something unreadable and only discovering it on
+    // open would leave a broken entry in the project list.
+    let project: ReturnType<typeof readProject>['project']
+    try {
+      project = readProject(normalized).project
+    } catch (e) {
+      throw new Error(
+        `That does not look like a TRICC project: ${e instanceof Error ? e.message : String(e)}`,
+      )
+    }
+    const label = resolveName(project.title, project.languages.default) ?? fallbackName
+    const ref = await local.catalog.create(label)
+    await local.persistence.write(ref, {
+      files: normalized,
+      changed: Object.keys(normalized),
+      removed: [],
+    })
+    await refresh()
+    navigate(`/project/${ref.id}`)
+    return ref
+  }
+
+  /** {@link adoptFiles}, reporting a failure on the page. */
   const importFiles = async (
     files: ProjectFiles,
     fallbackName: string,
   ): Promise<ProjectRef | undefined> => {
     setError(undefined)
-    // Before the first await, while the click still counts as the author's.
-    void requestDurableStorage()
-    const normalized = normalizeImport(files)
     try {
-      // Parse before adopting: importing something unreadable and only discovering it on
-      // open would leave a broken entry in the project list.
-      const { project } = readProject(normalized)
-      const label = resolveName(project.title, project.languages.default) ?? fallbackName
-      const ref = await local.catalog.create(label)
-      await local.persistence.write(ref, {
-        files: normalized,
-        changed: Object.keys(normalized),
-        removed: [],
-      })
-      await refresh()
-      navigate(`/project/${ref.id}`)
-      return ref
+      return await adoptFiles(files, fallbackName)
     } catch (e) {
-      setError(
-        e instanceof Error ? `That does not look like a TRICC project: ${e.message}` : String(e),
-      )
+      setError(e instanceof Error ? e.message : String(e))
       return undefined
     }
   }
@@ -514,11 +527,8 @@ export function HomePage({ local }: { local: LocalRuntime }) {
             initialUrl={reloading.url}
             onClose={() => setReloading(undefined)}
             onImport={async (files, fallbackName) => {
-              const ref = await importFiles(files, fallbackName)
-              if (!ref) {
-                setError(undefined)
-                return undefined
-              }
+              // Throws on failure, which the dialog shows.
+              const ref = await adoptFiles(files, fallbackName)
               // The new copy has its own state now; the lost one's is no longer needed.
               forgetRepoState(reloading.projectId)
               return ref
@@ -529,12 +539,9 @@ export function HomePage({ local }: { local: LocalRuntime }) {
         {repoOpen && (
           <ImportFromRepoDialog
             onClose={() => setRepoOpen(false)}
-            onImport={async (files, fallbackName) => {
-              // A repository import names its own errors in its dialog, not on the page.
-              const ref = await importFiles(files, fallbackName)
-              if (!ref) setError(undefined)
-              return ref
-            }}
+            // A repository import names its own errors in its dialog, not on the page:
+            // adoptFiles throws, and the dialog shows what it threw.
+            onImport={(files, fallbackName) => adoptFiles(files, fallbackName)}
           />
         )}
 
