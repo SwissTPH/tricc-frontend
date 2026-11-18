@@ -393,3 +393,67 @@ test('a link to a folder without a project says so', async ({ page }) => {
   await page.getByTestId('repo-look').click()
   await expect(page.getByTestId('repo-error')).toContainText('tricc.yaml is missing')
 })
+
+/** What a browser does to a best-effort site when the disk runs low: IndexedDB goes, localStorage stays. */
+async function evictIndexedDb(page: Page) {
+  await page.goto('/')
+  await page.evaluate(async () => {
+    const dbs = (await indexedDB.databases?.()) ?? []
+    await Promise.all(
+      dbs.map(
+        (db) =>
+          new Promise<void>((resolve) => {
+            if (!db.name) return resolve()
+            const req = indexedDB.deleteDatabase(db.name)
+            req.onsuccess = req.onerror = req.onblocked = () => resolve()
+          }),
+      ),
+    )
+  })
+  await page.reload()
+}
+
+test('a copy whose browser data was deleted can be loaded again from its proposal', async ({
+  page,
+}) => {
+  const repo = new FakeRepo(SOURCE)
+  await fakeGitHub(page, repo)
+  await importDemo(page)
+  await addInteger(page, 'age_years')
+  await page.getByTestId('propose-changes').click()
+  await page.getByTestId('propose-create').click()
+  await expect(page.getByTestId('propose-link')).toHaveText('https://github.com/o/r/pull/1')
+  const id = new URL(page.url()).pathname.split('/')[2]!
+
+  await evictIndexedDb(page)
+  const notice = page.getByTestId(`lost-project-${id}`)
+  await expect(notice).toContainText('github.com/o/r, branch tricc/')
+  await expect(notice).toContainText('https://github.com/o/r/pull/1')
+
+  await page.getByTestId(`lost-project-reload-${id}`).click()
+  // The dialog looks the link up as it opens: no need to press Find.
+  await expect(page.getByTestId('repo-branch')).toHaveValue(/^tricc\//)
+  await expect(page.getByTestId('repo-path')).toHaveValue('projects/demo')
+  await page.getByTestId('repo-import').click()
+  await expect(page.getByTestId('project-overview')).toBeVisible()
+  await page.getByTestId('nav-activity-screening').click()
+  await expect(page.getByText('age_years').first()).toBeVisible()
+
+  // The old entry went with the new copy: home no longer reports it.
+  await page.goto('/')
+  await expect(page.getByTestId(`lost-project-${id}`)).toHaveCount(0)
+})
+
+test('a lost copy can be dismissed', async ({ page }) => {
+  await page.goto('/')
+  await page.evaluate(() =>
+    localStorage.setItem('tricc.repo.gone', JSON.stringify({ branch: 'main', baseCommit: 'c1' })),
+  )
+  await page.reload()
+  await expect(page.getByTestId('lost-project-gone')).toContainText('branch main')
+  // Nothing says where it came from, so there is nothing to load it from.
+  await expect(page.getByTestId('lost-project-reload-gone')).toHaveCount(0)
+  await page.getByTestId('lost-project-dismiss-gone').click()
+  await expect(page.getByTestId('lost-project-gone')).toHaveCount(0)
+  expect(await page.evaluate(() => localStorage.getItem('tricc.repo.gone'))).toBeNull()
+})

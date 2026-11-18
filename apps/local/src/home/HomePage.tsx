@@ -40,7 +40,15 @@ import {
   type ProjectSummary,
 } from '@tricc/core'
 import { ConfirmDelete, Icon, LabelsField } from '@tricc/editor'
+import { requestDurableStorage } from '@tricc/adapters-local'
 import type { LocalRuntime } from '../adapters.js'
+import {
+  forgetRepoState,
+  listRepoStates,
+  sourceOf,
+  treeLink,
+  type RepoState,
+} from '../git/index.js'
 import { ImportFromRepoDialog } from '../git/ui.js'
 import {
   deleteNote,
@@ -67,12 +75,22 @@ export function HomePage({ local }: { local: LocalRuntime }) {
   const [creating, setCreating] = useState(false)
   const [importAnchor, setImportAnchor] = useState<HTMLElement | null>(null)
   const [repoOpen, setRepoOpen] = useState(false)
+  /** Copies from a repository this browser has state for but no longer has the files of. */
+  const [lost, setLost] = useState<LostCopy[]>([])
+  /** The lost copy being loaded again, and the link it is loaded from. */
+  const [reloading, setReloading] = useState<{ projectId: string; url: string } | undefined>(
+    undefined,
+  )
   const archiveInput = useRef<HTMLInputElement>(null)
   const folderInput = useRef<HTMLInputElement>(null)
   const readOnly = useReadOnly(local)
   const cancelDelete = useCallback(() => setDeleting(undefined), [])
 
-  const refresh = useCallback(async () => setProjects(await local.catalog.list()), [local])
+  const refresh = useCallback(async () => {
+    const list = await local.catalog.list()
+    setProjects(list)
+    setLost(lostCopies(list))
+  }, [local])
   useEffect(() => void refresh(), [refresh])
 
   const allLabels = useMemo(() => collectLabels(projects.map((p) => p.labels)), [projects])
@@ -87,6 +105,8 @@ export function HomePage({ local }: { local: LocalRuntime }) {
     fallbackName: string,
   ): Promise<ProjectRef | undefined> => {
     setError(undefined)
+    // Before the first await, while the click still counts as the author's.
+    void requestDurableStorage()
     const normalized = normalizeImport(files)
     try {
       // Parse before adopting: importing something unreadable and only discovering it on
@@ -163,6 +183,42 @@ export function HomePage({ local }: { local: LocalRuntime }) {
             {error}
           </Alert>
         )}
+
+        {lost.map(({ projectId, state, source }) => (
+          <Alert
+            key={projectId}
+            severity="warning"
+            data-testid={`lost-project-${projectId}`}
+            sx={{ mb: 2 }}
+            action={
+              <Stack direction="row" spacing={1}>
+                {source && !readOnly && (
+                  <Button
+                    color="inherit"
+                    size="small"
+                    data-testid={`lost-project-reload-${projectId}`}
+                    onClick={() => setReloading({ projectId, url: treeLink(source) })}
+                  >
+                    Load again
+                  </Button>
+                )}
+                <Button
+                  color="inherit"
+                  size="small"
+                  data-testid={`lost-project-dismiss-${projectId}`}
+                  onClick={() => {
+                    forgetRepoState(projectId)
+                    void refresh()
+                  }}
+                >
+                  Dismiss
+                </Button>
+              </Stack>
+            }
+          >
+            {lostMessage(state, source)}
+          </Alert>
+        ))}
 
         {projects.length === 0 ? (
           <Paper variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
@@ -352,6 +408,7 @@ export function HomePage({ local }: { local: LocalRuntime }) {
               onClick={async () => {
                 setImportAnchor(null)
                 setError(undefined)
+                void requestDurableStorage()
                 const ref = await local.catalog.open()
                 // Undefined means the user cancelled the picker, which is not an error.
                 if (!ref) return
@@ -452,6 +509,23 @@ export function HomePage({ local }: { local: LocalRuntime }) {
           }}
         />
 
+        {reloading && (
+          <ImportFromRepoDialog
+            initialUrl={reloading.url}
+            onClose={() => setReloading(undefined)}
+            onImport={async (files, fallbackName) => {
+              const ref = await importFiles(files, fallbackName)
+              if (!ref) {
+                setError(undefined)
+                return undefined
+              }
+              // The new copy has its own state now; the lost one's is no longer needed.
+              forgetRepoState(reloading.projectId)
+              return ref
+            }}
+          />
+        )}
+
         {repoOpen && (
           <ImportFromRepoDialog
             onClose={() => setRepoOpen(false)}
@@ -469,6 +543,7 @@ export function HomePage({ local }: { local: LocalRuntime }) {
             suggestions={allLabels}
             onClose={() => setCreating(false)}
             onCreate={async ({ name, code, labels }) => {
+              void requestDurableStorage()
               const project = createProject({ id: slug(code || name), title: name })
               if (code) project.code = code
               if (labels.length) project.labels = labels
@@ -482,6 +557,34 @@ export function HomePage({ local }: { local: LocalRuntime }) {
       </Box>
     </Box>
   )
+}
+
+interface LostCopy {
+  projectId: string
+  state: RepoState
+  source: ReturnType<typeof sourceOf>
+}
+
+/**
+ * Repository state with no project behind it. The browser deletes a best-effort site's
+ * IndexedDB when the disk runs low and leaves localStorage alone, so this is what is left
+ * of a copy whose files are gone.
+ */
+export function lostCopies(projects: readonly { id: string }[]): LostCopy[] {
+  const held = new Set(projects.map((p) => p.id))
+  return listRepoStates()
+    .filter(({ projectId }) => !held.has(projectId))
+    .map(({ projectId, state }) => ({ projectId, state, source: sourceOf(state) }))
+}
+
+function lostMessage(state: RepoState, source: LostCopy['source']): string {
+  const where = source
+    ? `${source.url.replace(/^https?:\/\//, '')}, branch ${source.branch}`
+    : `branch ${state.proposal?.branch ?? state.branch}`
+  const safe = state.proposal
+    ? `What you proposed in ${state.proposal.url} is safe in the repository.`
+    : 'What is on that branch is safe in the repository.'
+  return `A copy of ${where} is no longer in this browser. The browser may have deleted its data, for example when the disk ran low. ${safe} Changes that were only in this browser are lost.`
 }
 
 function SortHead({

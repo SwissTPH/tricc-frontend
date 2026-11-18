@@ -8,7 +8,7 @@ import {
   withConflicts,
 } from './changes.js'
 import { GitHubHost } from './github.js'
-import { canRememberTokens } from './links.js'
+import { canRememberTokens, sourceOf, treeLink } from './links.js'
 import { GitLabHost } from './gitlab.js'
 import {
   fromBase64,
@@ -388,5 +388,50 @@ describe('GitLab', () => {
       url: 'https://gitlab.example.org/g/s/r/-/merge_requests/3',
     })
     expect(await host.requestState(GL, 3)).toBe('merged')
+  })
+})
+
+describe('finding a lost copy again', () => {
+  const proposal = {
+    branch: 'tricc/demo-20261118-1100',
+    number: 7,
+    url: 'https://github.com/o/r/pull/7',
+    target: 'main',
+    pushed: {},
+  }
+
+  it('loads the branch the work was pushed to, in the folder it came from', () => {
+    const source = sourceOf({
+      branch: 'main',
+      baseCommit: 'c1',
+      repository: { host: 'github', url: 'https://github.com/o/r', branch: 'main', path: 'p/x' },
+      proposal,
+    })
+    expect(source).toEqual({
+      host: 'github',
+      url: 'https://github.com/o/r',
+      branch: 'tricc/demo-20261118-1100',
+      path: 'p/x',
+    })
+    expect(treeLink(source!)).toBe('https://github.com/o/r/tree/tricc/demo-20261118-1100/p/x')
+  })
+
+  it('falls back on the proposal address for entries without a repository', () => {
+    expect(sourceOf({ branch: 'main', baseCommit: 'c1', proposal })).toEqual({
+      host: 'github',
+      url: 'https://github.com/o/r',
+      branch: 'tricc/demo-20261118-1100',
+    })
+    const gitlab = sourceOf({
+      branch: 'dev',
+      baseCommit: 'c1',
+      proposal: { ...proposal, url: 'https://gitlab.com/g/s/r/-/merge_requests/3' },
+    })
+    expect(gitlab?.url).toBe('https://gitlab.com/g/s/r')
+    expect(treeLink(gitlab!)).toBe('https://gitlab.com/g/s/r/-/tree/tricc/demo-20261118-1100')
+  })
+
+  it('cannot say where a copy without either came from', () => {
+    expect(sourceOf({ branch: 'main', baseCommit: 'c1' })).toBeUndefined()
   })
 })

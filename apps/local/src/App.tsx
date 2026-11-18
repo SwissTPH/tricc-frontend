@@ -41,6 +41,7 @@ import {
 } from '@tricc/editor'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
+import { requestDurableStorage } from '@tricc/adapters-local'
 import type { LocalRuntime } from './adapters.js'
 import { TopBar } from './shell/TopBar.js'
 import { PreferencesContext, usePreferencesPanel } from './shell/preferences-panel.js'
@@ -114,9 +115,14 @@ export function App({ local }: { local: LocalRuntime }) {
   )
 }
 
+/** Shown beside the storage label while the browser may delete what it keeps. */
+const MAY_BE_DELETED =
+  'This browser has not agreed to keep its data: it may delete this project when disk space runs low. Export a copy, or save it to a folder, to keep it safe.'
+
 function Shell({
   local,
   storageLabel,
+  storageWarning,
   tools,
   crumbs,
   bell,
@@ -124,6 +130,8 @@ function Shell({
 }: {
   local: LocalRuntime
   storageLabel: string
+  /** Why what the label names may not last; shown as a warning next to it. */
+  storageWarning?: string
   tools?: ReactNode
   /** Where the author is, in place of the app name: inside a project. */
   crumbs?: ReactNode
@@ -137,6 +145,7 @@ function Shell({
       <TopBar
         local={local}
         storageLabel={storageLabel}
+        storageWarning={storageWarning}
         tools={tools}
         crumbs={crumbs}
         bell={bell ?? <AllProjectsBell />}
@@ -210,6 +219,7 @@ function ProjectPage({
   const [settingsOnOpen] = useState(() => search.get('settings') === '1')
   const [open, setOpen] = useState<OpenProject | undefined>(undefined)
   const [error, setError] = useState<string | undefined>(undefined)
+  const [storageWarning, setStorageWarning] = useState<string | undefined>(undefined)
   /** A copy from a repository whose branch has something to decide before it opens. */
   const [choice, setChoice] = useState<{ ref: ProjectRef; check: CopyCheck } | undefined>(undefined)
   /** Bumped to open the project again, after its files were replaced by a branch. */
@@ -245,12 +255,17 @@ function ProjectPage({
         }
         const result = await local.runtime.open(ref)
         if (!cancelled) {
+          const inBrowser = local.storeFor(ref) === 'browser'
           setOpen(result)
-          onStorageLabel(
-            local.storeFor(ref) === 'folder'
-              ? 'Saving to your project folder'
-              : 'Saved in this browser',
-          )
+          onStorageLabel(inBrowser ? 'Saved in this browser' : 'Saving to your project folder')
+          setStorageWarning(undefined)
+          // A project kept only in this browser is lost if the browser clears its storage,
+          // which it does to best-effort sites when the disk runs low. Ask it not to.
+          if (inBrowser) {
+            const durability = await requestDurableStorage()
+            if (!cancelled)
+              setStorageWarning(durability === 'persisted' ? undefined : MAY_BE_DELETED)
+          }
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e))
@@ -322,6 +337,7 @@ function ProjectPage({
         <Shell
           local={local}
           storageLabel={storageLabel}
+          storageWarning={storageWarning}
           crumbs={crumbs}
           bell={
             <NotificationBell

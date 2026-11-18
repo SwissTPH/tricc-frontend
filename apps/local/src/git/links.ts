@@ -1,3 +1,4 @@
+import type { ProjectRepository } from '@tricc/core'
 import type { HostKind } from './host.js'
 
 /**
@@ -9,6 +10,13 @@ import type { HostKind } from './host.js'
 export interface RepoState {
   branch: string
   baseCommit: string
+  /**
+   * Where the copy came from, as `tricc.yaml` records it. Kept here as well because this
+   * outlives the files: a browser that deletes a project's storage under disk pressure
+   * leaves localStorage behind, and this is then all that says where to load it from.
+   * Absent in entries saved before it was added.
+   */
+  repository?: ProjectRepository
   proposal?: {
     branch: string
     number: number
@@ -20,7 +28,59 @@ export interface RepoState {
   }
 }
 
-const stateKey = (projectId: string) => `tricc.repo.${projectId}`
+const STATE_PREFIX = 'tricc.repo.'
+const stateKey = (projectId: string) => `${STATE_PREFIX}${projectId}`
+
+/** Every project this browser holds repository state for, whether or not it still has it. */
+export function listRepoStates(): { projectId: string; state: RepoState }[] {
+  const out: { projectId: string; state: RepoState }[] = []
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (!key?.startsWith(STATE_PREFIX)) continue
+      const state = loadRepoState(key.slice(STATE_PREFIX.length))
+      if (state && typeof state.branch === 'string') {
+        out.push({ projectId: key.slice(STATE_PREFIX.length), state })
+      }
+    }
+  } catch {
+    // No storage: nothing to list.
+  }
+  return out
+}
+
+/**
+ * The repository a copy came from, and the branch its work is on: the proposal's branch
+ * when there is one, since that is where it was pushed. Entries from before `repository`
+ * was kept fall back on the proposal's address, which names the repository but not the
+ * folder.
+ */
+export function sourceOf(
+  state: RepoState,
+): { host: HostKind; url: string; branch: string; path?: string } | undefined {
+  const branch = state.proposal?.branch ?? state.branch
+  if (state.repository) {
+    const { host, url, path } = state.repository
+    return path ? { host, url, branch, path } : { host, url, branch }
+  }
+  const request = state.proposal?.url
+  const gitlab = request ? /^(.+)\/-\/merge_requests\/\d+\/?$/.exec(request) : null
+  if (gitlab) return { host: 'gitlab', url: gitlab[1]!, branch }
+  const github = request ? /^(.+)\/pull\/\d+\/?$/.exec(request) : null
+  if (github) return { host: 'github', url: github[1]!, branch }
+  return undefined
+}
+
+/** A link to a source's folder on its branch, as the import dialog reads one. */
+export function treeLink(source: {
+  host: HostKind
+  url: string
+  branch: string
+  path?: string
+}): string {
+  const tree = source.host === 'gitlab' ? '/-/tree/' : '/tree/'
+  return `${source.url}${tree}${source.branch}${source.path ? `/${source.path}` : ''}`
+}
 
 export function loadRepoState(projectId: string): RepoState | undefined {
   try {
