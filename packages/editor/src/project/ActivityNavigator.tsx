@@ -8,7 +8,6 @@ import {
   createBlock,
   effectiveParams,
   mergeImages,
-  processOf,
   projectDictionaries,
   readActivityFile,
   resolve,
@@ -108,8 +107,6 @@ export function ActivityNavigator({
   const fileRef = useRef<HTMLInputElement>(null)
   const [tab, setTab] = useState<LibraryTab | 'dictionary' | 'media'>('activity')
   const [expanded, setExpanded] = useState(false)
-  const [activityQuery, setActivityQuery] = useState('')
-  const [processQuery, setProcessQuery] = useState('')
   const [blockQuery, setBlockQuery] = useState('')
   const [overflows, setOverflows] = useState(false)
   const [projectQuery, setProjectQuery] = useState('')
@@ -127,7 +124,6 @@ export function ActivityNavigator({
       if (n.type === 'block' && n.link) blockUses.set(n.link, (blockUses.get(n.link) ?? 0) + 1)
     }
   }
-  const usage = activityUsage(project)
   const conceptCount = Object.values(project.codeSystems).reduce(
     (n, cs) => n + cs.conceptOrder.length,
     0,
@@ -156,16 +152,6 @@ export function ActivityNavigator({
   }, [dictionaryOpen, mediaOpen, blocksOpen, libraryOpen, selectedKind])
 
   const label = (id: string) => resolve(project.activities[id]?.title, lang, lang) ?? id
-  const usedBy = (id: string) => {
-    const users = usage.get(id) ?? []
-    if (users.length === 0) return null
-    return (
-      <span className="tricc-nav__used" data-testid={`used-by-${id}`}>
-        {users.length > 1 ? 'Shared. ' : ''}Used by {users.join(', ')}
-      </span>
-    )
-  }
-
   const taken = new Set(ids)
 
   const openDraft = (kind: LibraryTab) => {
@@ -293,9 +279,6 @@ export function ActivityNavigator({
     onSelect(first.activity.id)
   }
 
-  const query = tab === 'activity' ? activityQuery : tab === 'block' ? blockQuery : processQuery
-  const setQuery =
-    tab === 'activity' ? setActivityQuery : tab === 'block' ? setBlockQuery : setProcessQuery
   const addLabel =
     tab === 'activity' ? 'New activity' : tab === 'block' ? TERMS.newBlock : 'New segment'
   const importLabel = `Import ${tab === 'activity' ? 'an activity' : tab === 'block' ? 'a block' : 'a segment'}`
@@ -327,7 +310,6 @@ export function ActivityNavigator({
             role="tab"
             id="tab-processes"
             aria-selected={tab === 'process'}
-            aria-controls="process-panel"
             data-testid="tab-processes"
             onClick={() => {
               setTab('process')
@@ -335,14 +317,15 @@ export function ActivityNavigator({
             }}
           >
             Segments
-            <span className="tricc-nav__count">{processActivities.length}</span>
+            <span className="tricc-nav__count" data-testid="tab-processes-count">
+              {processActivities.length}
+            </span>
           </button>
           <button
             type="button"
             role="tab"
             id="tab-activities"
             aria-selected={tab === 'activity'}
-            aria-controls="activity-panel"
             data-testid="tab-activities"
             onClick={() => {
               setTab('activity')
@@ -350,7 +333,9 @@ export function ActivityNavigator({
             }}
           >
             Activities
-            <span className="tricc-nav__count">{normalActivities.length}</span>
+            <span className="tricc-nav__count" data-testid="tab-activities-count">
+              {normalActivities.length}
+            </span>
           </button>
           <button
             type="button"
@@ -517,8 +502,8 @@ export function ActivityNavigator({
               data-testid="block-search"
               aria-label="Find a block"
               placeholder="Filter"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              value={blockQuery}
+              onChange={(e) => setBlockQuery(e.target.value)}
             />
           }
           expanded={expanded}
@@ -551,105 +536,7 @@ export function ActivityNavigator({
             )
           }}
         />
-      ) : tab === 'process' ? (
-        <LibraryPanel
-          tab="process"
-          panelLabel="Segments"
-          listTestId="process-activity-list"
-          ids={processActivities}
-          selected={selected}
-          query={processQuery}
-          filter={
-            <Input
-              size="sm"
-              type="search"
-              data-testid="process-search"
-              aria-label="Find a segment"
-              placeholder="Filter"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          }
-          expanded={expanded}
-          action={expandButton}
-          itemLabel={(id) => `${label(id)} ${processOf(project.activities[id]!) ?? ''}`}
-          onOverflow={setOverflows}
-          empty={
-            processActivities.length === 0 ? (
-              <p className="tricc-nav__hint" data-testid="no-process-activities">
-                No segments yet. Use + New segment to add the entry point for a segment of care, or
-                Import to bring one in from a file.
-              </p>
-            ) : null
-          }
-          renderItem={(id) => (
-            <button
-              type="button"
-              className="tricc-chip"
-              data-testid={`nav-activity-${id}`}
-              data-kind="process"
-              aria-current={selected === id}
-              title={`Starts the ${processOf(project.activities[id]!) ?? 'unnamed'} process`}
-              onClick={() => onSelect(id)}
-            >
-              {label(id)}
-              <span className="tricc-nav__process">
-                {processOf(project.activities[id]!) ?? 'no process'}
-              </span>
-              {usedBy(id)}
-            </button>
-          )}
-        />
-      ) : (
-        <LibraryPanel
-          tab="activity"
-          panelLabel="Activities"
-          listTestId="activity-list"
-          ids={normalActivities}
-          selected={selected}
-          query={activityQuery}
-          filter={
-            <Input
-              size="sm"
-              type="search"
-              data-testid="activity-search"
-              aria-label="Find an activity"
-              placeholder="Filter"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          }
-          expanded={expanded}
-          action={expandButton}
-          itemLabel={label}
-          onOverflow={setOverflows}
-          empty={
-            <p className="tricc-nav__hint" data-testid="no-activities">
-              No activities yet. Use + New activity to add a reusable page that segments call, or
-              Import to bring one in from a file.
-            </p>
-          }
-          renderItem={(id) => (
-            <button
-              type="button"
-              className="tricc-chip"
-              data-testid={`nav-activity-${id}`}
-              data-kind="activity"
-              aria-current={selected === id}
-              title={label(id)}
-              onClick={() => onSelect(id)}
-            >
-              {label(id)}
-              {usedBy(id)}
-              {(usage.get(id)?.length ?? 0) > 1 && (
-                <span className="tricc-nav__shared" data-testid={`library-shared-${id}`}>
-                  One copy in the library
-                </span>
-              )}
-            </button>
-          )}
-        />
-      )}
+      ) : null}
       {draft && canWrite && (
         <LibraryDraftDialog
           project={project}
@@ -1115,14 +1002,4 @@ function listOverflows(el: HTMLElement, expanded: boolean): boolean {
 
 function cssEscape(value: string): string {
   return typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(value) : value.replace(/"/g, '\\"')
-}
-
-function activityUsage(project: Project): Map<string, string[]> {
-  const map = new Map<string, string[]>()
-  for (const iv of project.interventions) {
-    for (const ref of iv.activities) {
-      map.set(ref.ref, [...(map.get(ref.ref) ?? []), iv.id])
-    }
-  }
-  return map
 }

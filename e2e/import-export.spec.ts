@@ -74,7 +74,8 @@ test('exports a project and imports it back unchanged', async ({ page }) => {
   await page.getByTestId('import-archive').setInputFiles(path)
 
   await expect(page.getByTestId('project-overview')).toBeVisible()
-  await page.getByTestId('nav-activity-activity').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-card-activity').click()
   await expect(page.getByTestId('node-n-integer')).toContainText('weight')
 })
 
@@ -151,7 +152,8 @@ test('imports a project directory from disk', async ({ page }) => {
     await page.getByTestId('import-files').setInputFiles(dir)
     await expect(page.getByTestId('project-overview')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Loaded from disk' })).toBeVisible()
-    await expect(page.getByTestId('nav-activity-screening')).toBeVisible()
+    await page.getByTestId('tab-activities').click()
+    await expect(page.getByTestId('library-card-screening')).toBeVisible()
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

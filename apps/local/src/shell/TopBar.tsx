@@ -24,12 +24,14 @@ export const APP_NAME = 'DrawTricc'
 export function TopBar({
   local,
   storageLabel,
+  storageWarning,
   tools,
   crumbs,
   bell,
 }: {
   local: LocalRuntime
   storageLabel: string
+  storageWarning?: string
   tools?: ReactNode
   /** Where the author is, after the app name: inside a project. */
   crumbs?: ReactNode
@@ -81,6 +83,28 @@ export function TopBar({
         >
           {storageLabel}
         </Typography>
+        {storageWarning && (
+          <Tooltip title={storageWarning}>
+            <Box
+              component="span"
+              role="note"
+              aria-label={storageWarning}
+              data-testid="storage-warning"
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.5,
+                color: 'warning.main',
+                typography: 'caption',
+              }}
+            >
+              <Icon name="warning" size={18} />
+              <Box component="span" sx={{ display: { xs: 'none', md: 'inline' } }}>
+                May be deleted
+              </Box>
+            </Box>
+          </Tooltip>
+        )}
         <div className="tricc-topbar__project">{tools}</div>
         <ModeMenu local={local} />
         {bell}

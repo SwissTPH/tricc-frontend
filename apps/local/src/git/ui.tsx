@@ -198,11 +198,14 @@ export function ImportFromRepoButton({
 export function ImportFromRepoDialog({
   onImport,
   onClose,
+  initialUrl,
 }: {
   onImport: (files: ProjectFiles, fallbackName: string) => Promise<ProjectRef | undefined>
   onClose: () => void
+  /** A link to start from, looked up as soon as the dialog opens. */
+  initialUrl?: string
 }) {
-  const [url, setUrl] = useState('')
+  const [url, setUrl] = useState(initialUrl ?? '')
   const [kind, setKind] = useState<HostKind | ''>('')
   const [found, setFound] = useState<Found | undefined>(undefined)
   const [branch, setBranch] = useState('')
@@ -245,6 +248,11 @@ export function ImportFromRepoDialog({
     }
   }
 
+  // Look up a link the dialog was opened with, once, as if the author had pressed Find.
+  useEffect(() => {
+    if (initialUrl) void look()
+  }, [])
+
   const importNow = async () => {
     if (!found) return
     setBusy(true)
@@ -255,7 +263,11 @@ export function ImportFromRepoDialog({
       const name = loc.path.split('/').pop() || loc.repo.split('/').pop() || 'Imported project'
       const ref = await onImport(files, name)
       if (ref) {
-        saveRepoState(ref.id, { branch: loc.branch, baseCommit: head })
+        saveRepoState(ref.id, {
+          branch: loc.branch,
+          baseCommit: head,
+          repository: repositoryOf(loc),
+        })
         onClose()
       }
     } catch (e) {
@@ -477,6 +489,7 @@ export async function writeBranch(
   await local.collaboration.forget(ref)
   const previous = loadRepoState(ref.id)
   const state: RepoState = { branch, baseCommit: head }
+  if (previous?.repository) state.repository = previous.repository
   if (previous?.proposal && previous.proposal.target === branch) state.proposal = previous.proposal
   saveRepoState(ref.id, state)
 }
@@ -642,6 +655,14 @@ export function RepoTools({
   const [state, setState] = useState(() => loadRepoState(open.ref.id))
   const [dialog, setDialog] = useState<'propose' | 'branch' | undefined>(undefined)
   const [check, setCheck] = useState<CopyCheck | undefined>(undefined)
+  // Entries saved before RepoState kept the repository: fill it in from tricc.yaml now, so
+  // the copy can still be found again if this browser later loses its files.
+  useEffect(() => {
+    if (!repository || !state || state.repository) return
+    const next = { ...state, repository }
+    saveRepoState(open.ref.id, next)
+    setState(next)
+  }, [repository, state, open.ref.id])
   if (!repository) return null
   const loc = locationOf(repository, state?.branch)
   if (!loc) return null

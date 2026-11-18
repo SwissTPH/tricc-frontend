@@ -4,8 +4,8 @@ import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 
 /**
- * Processes and activities are two tabs. Search narrows the open tab. Expand opens the
- * rest of that list downward, and an expression that is already CQL is shown and checked.
+ * Segments and activities are two tabs; each opens a grid of cards whose search narrows it.
+ * New and Import work from the open tab.
  */
 
 test.beforeEach(async ({ page }) => {
@@ -42,7 +42,7 @@ async function expectInsideViewport(page: Page, testId: string): Promise<void> {
   expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1)
 }
 
-test('search and expand reach an activity or process that does not fit', async ({ page }) => {
+test('the grid search reaches an activity or segment in a long list', async ({ page }) => {
   await createProject(page, 'Long list')
 
   for (let i = 0; i < 24; i++) {
@@ -51,20 +51,12 @@ test('search and expand reach an activity or process that does not fit', async (
   }
   await expectInsideViewport(page, 'activity-navigator')
   await expect(page.getByTestId('tab-activities')).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByTestId('nav-expand')).toBeEnabled()
 
-  const nav = page.getByTestId('activity-navigator')
-  const collapsed = await nav.evaluate((el) => el.getBoundingClientRect().height)
-  await page.getByTestId('nav-expand').click()
-  await expect(nav).toHaveAttribute('data-expanded', 'true')
-  await expect
-    .poll(() => nav.evaluate((el) => el.getBoundingClientRect().height))
-    .toBeGreaterThan(collapsed + 16)
-
-  await page.getByTestId('activity-search').fill('activity-15')
-  await expect(page.getByTestId('nav-activity-activity-15')).toBeVisible()
-  await expect(page.getByTestId('activity-list').locator('li')).toHaveCount(1)
-  await page.getByTestId('nav-activity-activity-15').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-search-activity').fill('activity-15')
+  await expect(page.getByTestId('library-card-activity-15')).toBeVisible()
+  await expect(page.getByTestId('library-grid-activity').locator('li')).toHaveCount(1)
+  await page.getByTestId('library-card-activity-15').click()
   await expect(page.getByTestId('activity-editor')).toBeVisible()
 
   await page.getByTestId('tab-processes').click()
@@ -91,11 +83,11 @@ test('search and expand reach an activity or process that does not fit', async (
     await page.getByTestId('create-segment').click()
   }
   await expect(page.getByTestId('tab-processes')).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByTestId('activity-navigator')).toHaveAttribute('data-expanded', 'true')
 
-  await page.getByTestId('process-search').fill('hotel')
-  await expect(page.getByTestId('nav-activity-hotel-segment-process')).toBeVisible()
-  await expect(page.getByTestId('process-activity-list').locator('li')).toHaveCount(1)
+  await page.getByTestId('tab-processes').click()
+  await page.getByTestId('library-search-process').fill('hotel')
+  await expect(page.getByTestId('library-card-hotel-segment-process')).toBeVisible()
+  await expect(page.getByTestId('library-grid-process').locator('li')).toHaveCount(1)
   await expectInsideViewport(page, 'activity-navigator')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     (page.viewportSize()?.width ?? 0) + 1,
@@ -111,22 +103,10 @@ test('the same controls still reach an entry on a narrow window', async ({ page 
   }
 
   await expectInsideViewport(page, 'activity-navigator')
-  await expect(page.getByTestId('nav-expand')).toBeEnabled()
-  const collapsed = await page
-    .getByTestId('activity-navigator')
-    .evaluate((el) => el.getBoundingClientRect().height)
-  await page.getByTestId('nav-expand').click()
-  await expect
-    .poll(() =>
-      page.getByTestId('activity-navigator').evaluate((el) => el.getBoundingClientRect().height),
-    )
-    .toBeGreaterThan(collapsed + 16)
-  await expectInsideViewport(page, 'activity-navigator')
-  await page.getByTestId('nav-expand').click()
-
-  await page.getByTestId('activity-search').fill('activity-8')
-  await expect(page.getByTestId('nav-activity-activity-8')).toBeVisible()
-  await page.getByTestId('nav-activity-activity-8').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-search-activity').fill('activity-8')
+  await expect(page.getByTestId('library-card-activity-8')).toBeVisible()
+  await page.getByTestId('library-card-activity-8').click()
   await expect(page.getByTestId('activity-editor')).toBeVisible()
 })
 
@@ -139,22 +119,20 @@ test('a plus opens a dialog and nothing is created until it is confirmed', async
   await expect(modal).toContainText('New activity')
   await page.getByTestId('library-cancel').click()
   await expect(modal).toHaveCount(0)
-  await expect(page.getByTestId('activity-list').locator('li')).toHaveCount(0)
+  await expect(page.getByTestId('tab-activities-count')).toHaveText('0')
 
   await page.getByTestId('add-activity').click()
   await page.keyboard.press('Escape')
   await expect(modal).toHaveCount(0)
-  await expect(page.getByTestId('activity-list').locator('li')).toHaveCount(0)
+  await expect(page.getByTestId('tab-activities-count')).toHaveText('0')
 
   await page.getByTestId('add-activity').click()
   await page.getByTestId('new-activity-name').fill('Weight measurement')
   await expect(page.getByTestId('new-activity-id')).toHaveText('weight-measurement')
   await page.getByTestId('create-activity').click()
   await expect(modal).toHaveCount(0)
-  await expect(page.getByTestId('nav-activity-weight-measurement')).toContainText(
-    'Weight measurement',
-  )
   await expect(page.getByTestId('activity-editor')).toBeVisible()
+  await expect(page.locator('.tricc-editor__header h1')).toHaveText('Weight measurement')
 
   await page.getByTestId('tab-processes').click()
   await page.getByTestId('add-process').click()
@@ -162,13 +140,13 @@ test('a plus opens a dialog and nothing is created until it is confirmed', async
   await expect(page.getByTestId('create-segment')).toBeDisabled()
   await page.getByTestId('library-modal-backdrop').click({ position: { x: 8, y: 8 } })
   await expect(modal).toHaveCount(0)
-  await expect(page.getByTestId('no-process-activities')).toBeVisible()
+  await expect(page.getByTestId('library-none-process')).toBeVisible()
 
   await page.getByTestId('add-process').click()
   await page.getByTestId('new-segment-process').selectOption('registration')
   await expect(page.getByTestId('new-segment-id')).toHaveText('registration-process')
   await page.getByTestId('create-segment').click()
-  await expect(page.getByTestId('nav-activity-registration-process')).toBeVisible()
+  await expect(page.getByTestId('activity-editor')).toBeVisible()
   await expect(page.getByTestId('activity-process')).toHaveValue('registration')
 })
 
@@ -187,7 +165,7 @@ test('a new segment takes a custom process and a name at creation', async ({ pag
   await expect(page.getByTestId('new-segment-id')).toHaveText('first-home-visit')
   await page.getByTestId('create-segment').click()
 
-  await expect(page.getByTestId('nav-activity-first-home-visit')).toContainText('First home visit')
+  await expect(page.locator('.tricc-editor__header h1')).toHaveText('First home visit')
   await page.getByTestId('configure-activity').click()
   await expect(page.getByTestId('act-title')).toHaveValue('First home visit')
   await expect(page.getByTestId('act-process')).toHaveValue('home-visit')
@@ -257,12 +235,12 @@ test('import adds a file to the open tab and waits for confirmation', async ({ p
   await expect(page.getByTestId('import-id-cough')).toHaveText('cough')
   await page.getByTestId('import-cancel').click()
   await expect(modal).toHaveCount(0)
-  await expect(page.getByTestId('activity-list').locator('li')).toHaveCount(0)
+  await expect(page.getByTestId('tab-activities-count')).toHaveText('0')
 
   await page.getByTestId('import-activity-file').setInputFiles(cough)
   await page.keyboard.press('Escape')
   await expect(modal).toHaveCount(0)
-  await expect(page.getByTestId('activity-list').locator('li')).toHaveCount(0)
+  await expect(page.getByTestId('tab-activities-count')).toHaveText('0')
 
   // A process file started from the Activities tab is listed as a process, not skipped.
   await page.getByTestId('import-activity-file').setInputFiles(airway)
@@ -273,22 +251,22 @@ test('import adds a file to the open tab and waits for confirmation', async ({ p
 
   await page.getByTestId('import-activity-file').setInputFiles(cough)
   await page.getByTestId('import-confirm').click()
-  await expect(page.getByTestId('nav-activity-cough')).toContainText('Cough')
+  await expect(page.locator('.tricc-editor__header h1')).toHaveText('Cough')
   await expect(page.getByTestId('node-n1')).toContainText('Ask about cough')
 
   await page.keyboard.press('Control+z')
-  await expect(page.getByTestId('nav-activity-cough')).toHaveCount(0)
+  await expect(page.getByTestId('tab-activities-count')).toHaveText('0')
 
   await page.getByTestId('import-activity-file').setInputFiles(drawing)
   await expect(page.getByTestId('import-item-village-visit')).toBeVisible()
   await page.getByTestId('import-confirm').click()
-  await expect(page.getByTestId('nav-activity-village-visit')).toBeVisible()
+  await expect(page.getByTestId('crumb-village-visit')).toBeVisible()
   await expect(page.getByTestId('node-s')).toBeVisible()
 
   await page.getByTestId('tab-processes').click()
   await page.getByTestId('import-process-file').setInputFiles(airway)
   await page.getByTestId('import-confirm').click()
-  await expect(page.getByTestId('nav-activity-airway-process')).toBeVisible()
+  await expect(page.locator('.tricc-editor__header h1')).toHaveText('Airway')
   await page.getByTestId('node-start').click()
   // form_id is retired: the intervention name names the form. The root node shows the activity.
   await expect(page.getByTestId('field-form-id')).toHaveCount(0)
@@ -350,12 +328,11 @@ test('one draw.io import lands each page as a process or an activity', async ({ 
 
   // The process opens first, titled from its start shape, not from the page tab.
   await expect(page.getByTestId('tab-processes')).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByTestId('nav-activity-page-1')).toHaveAttribute('data-kind', 'process')
   await expect(page.locator('.tricc-editor__header h1')).toHaveText('Registration')
   await expect(page.getByTestId('activity-process')).toHaveValue('registration')
 
   await page.getByTestId('tab-activities').click()
-  await page.getByTestId('nav-activity-page-2').click()
+  await page.getByTestId('library-card-page-2').click()
   await expect(page.locator('.tricc-editor__header h1')).toHaveText('Weight measurement')
   await expect(page.getByTestId('node-ws-label')).toHaveText('Weight measurement')
 })

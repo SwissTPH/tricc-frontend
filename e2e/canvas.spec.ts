@@ -280,7 +280,8 @@ test('dragging a node persists its position through save and reload', async ({ p
     timeout: 10_000,
   })
   await page.reload()
-  await page.getByTestId('nav-activity-activity').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-card-activity').click()
 
   const reloaded = await page.getByTestId('node-n-note').boundingBox()
   const startAfter = await page.getByTestId('node-start').boundingBox()
@@ -366,7 +367,8 @@ test('a select shows each answer, and a link from an answer follows it', async (
     timeout: 10_000,
   })
   await page.reload()
-  await page.getByTestId('nav-activity-activity').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-card-activity').click()
   await expect(page.getByTestId('edge-label-e-n-select_one-n-note')).toHaveText(
     'Fever and a rash tod…',
   )
@@ -639,8 +641,8 @@ test('Ctrl+Z undoes the last change and Ctrl+Shift+Z or Ctrl+Y restores it', asy
   await page.keyboard.press('Control+y')
   await expect(page.getByTestId('node-n-note')).toBeVisible()
 
-  // The activity search is not a document edit, so its undo must not remove the node.
-  await page.getByTestId('activity-search').fill('note')
+  // The project search is not a document edit, so its undo must not remove the node.
+  await page.getByTestId('project-search').fill('note')
   await page.keyboard.press('Control+z')
   await expect(page.getByTestId('node-n-note')).toBeVisible()
 
@@ -781,7 +783,8 @@ test('a quantity keeps its unit', async ({ page }) => {
     timeout: 10_000,
   })
   await page.reload()
-  await page.getByTestId('nav-activity-activity').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-card-activity').click()
   await page.getByTestId('node-n-quantity').click()
   await expect(page.getByTestId('field-unit')).toHaveValue('kg')
   await expect(page.getByTestId('field-unit-system')).toHaveValue('http://unitsofmeasure.org')
@@ -803,7 +806,7 @@ test('a goto selects an activity, and never a process activity', async ({ page }
   await page.getByTestId('create-segment').click()
 
   await page.getByTestId('tab-activities').click()
-  await page.getByTestId(`nav-activity-${FIRST_ACTIVITY}`).click()
+  await page.getByTestId(`library-card-${FIRST_ACTIVITY}`).click()
   await placeNode(page, 'goto')
 
   const picker = page.getByTestId('field-link')
@@ -987,23 +990,18 @@ test('a goto opens its activity from the details and from the button on the node
   await page.getByTestId('add-activity').click()
   await page.getByTestId('create-activity').click()
   await page.getByTestId('tab-activities').click()
-  await page.getByTestId(`nav-activity-${FIRST_ACTIVITY}`).click()
+  await page.getByTestId(`library-card-${FIRST_ACTIVITY}`).click()
   await placeNode(page, 'goto')
   await page.getByTestId('field-link').click()
   await page.getByTestId('field-link-option-activity-2').click()
   await page.getByTestId('field-repeat').fill('2')
 
   await page.getByTestId('goto-open').click()
-  await expect(page.getByTestId('nav-activity-activity-2')).toHaveAttribute(
-    'aria-current',
-    /true|page/,
-  )
-  await page.getByTestId(`nav-activity-${FIRST_ACTIVITY}`).click()
+  await expect(page.getByTestId('crumb-activity-2')).toHaveAttribute('aria-current', 'page')
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId(`library-card-${FIRST_ACTIVITY}`).click()
   await page.getByTestId('goto-follow-n-goto').click()
-  await expect(page.getByTestId('nav-activity-activity-2')).toHaveAttribute(
-    'aria-current',
-    /true|page/,
-  )
+  await expect(page.getByTestId('crumb-activity-2')).toHaveAttribute('aria-current', 'page')
 })
 
 test('a comment says what it is about with a dashed line, never an edge', async ({ page }) => {
@@ -1035,7 +1033,8 @@ test('a comment says what it is about with a dashed line, never an edge', async 
     timeout: 10_000,
   })
   await page.reload()
-  await page.getByTestId(`nav-activity-${FIRST_ACTIVITY}`).click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId(`library-card-${FIRST_ACTIVITY}`).click()
   await expect(page.getByTestId('comment-comment')).toBeVisible()
   await expect(page.locator('.tricc-edge--about')).toHaveCount(1)
 })

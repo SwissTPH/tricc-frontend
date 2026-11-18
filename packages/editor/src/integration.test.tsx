@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import {
   activityKind,
   createActivity,
@@ -27,6 +28,7 @@ import { ProjectOverview } from './project/Overview.js'
 import { ActivityEditor } from './activity/ActivityEditor.js'
 import { HistoryButtons } from './project/HistoryButtons.js'
 import { ActivityNavigator } from './project/ActivityNavigator.js'
+import { LibraryView, type LibraryKind } from './project/LibraryView.js'
 import { DictionaryView } from './terminology/DictionaryView.js'
 import { goToCallers } from './activity/ActivitySettings.js'
 import { nextTrail } from './project/Breadcrumbs.js'
@@ -837,6 +839,17 @@ nodes:
 edges: []
 `
 
+/** The navigator with the Segments or Activities grid its tabs open, as the workspace shows them. */
+function NavigatorWithLibrary() {
+  const [kind, setKind] = useState<LibraryKind>('activity')
+  return (
+    <>
+      <ActivityNavigator selected={undefined} onSelect={() => {}} onOpenLibrary={setKind} />
+      <LibraryView key={kind} kind={kind} onOpen={() => {}} />
+    </>
+  )
+}
+
 describe('process activities versus activities', () => {
   it('creates the two kinds with different roots', async () => {
     const user = userEvent.setup()
@@ -888,35 +901,29 @@ describe('process activities versus activities', () => {
   it('lists the two kinds separately', async () => {
     const user = userEvent.setup()
     const h = await harness()
-    renderWith(h, <ActivityNavigator selected={undefined} onSelect={() => {}} />)
+    renderWith(h, <NavigatorWithLibrary />)
 
     await user.click(screen.getByTestId('tab-processes'))
     await user.click(screen.getByTestId('add-process'))
     await user.selectOptions(screen.getByTestId('new-segment-process'), 'triage')
     await user.click(screen.getByTestId('create-segment'))
 
-    // Each kind appears on its own tab, not in one undifferentiated pile.
-    expect(screen.getByTestId('process-activity-list')).toContainElement(
-      screen.getByTestId('nav-activity-triage-process'),
+    // Each kind appears in its own grid, not in one undifferentiated pile.
+    expect(screen.getByTestId('library-grid-process')).toContainElement(
+      screen.getByTestId('library-card-triage-process'),
     )
-    expect(screen.queryByTestId('activity-list')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('library-card-triage')).not.toBeInTheDocument()
     await user.click(screen.getByTestId('tab-activities'))
-    expect(screen.getByTestId('activity-list')).toContainElement(
-      screen.getByTestId('nav-activity-triage'),
+    expect(screen.getByTestId('library-grid-activity')).toContainElement(
+      screen.getByTestId('library-card-triage'),
     )
-    expect(screen.queryByTestId('process-activity-list')).not.toBeInTheDocument()
-    expect(screen.getByTestId('nav-activity-triage')).toHaveAttribute('data-kind', 'activity')
-    await user.click(screen.getByTestId('tab-processes'))
-    expect(screen.getByTestId('nav-activity-triage-process')).toHaveAttribute(
-      'data-kind',
-      'process',
-    )
+    expect(screen.queryByTestId('library-card-triage-process')).not.toBeInTheDocument()
   })
 
   it('imports after confirmation, and takes a process file from either tab as a process', async () => {
     const user = userEvent.setup()
     const h = await harness()
-    renderWith(h, <ActivityNavigator selected={undefined} onSelect={() => {}} />)
+    renderWith(h, <NavigatorWithLibrary />)
 
     const cough = new File([COUGH_YAML], 'cough.activity.yaml', { type: 'text/yaml' })
     const airway = new File([AIRWAY_YAML], 'airway.activity.yaml', { type: 'text/yaml' })
@@ -938,7 +945,7 @@ describe('process activities versus activities', () => {
     expect(h.open.document.snapshot().activities.cough?.nodes.n1?.label).toEqual({
       en: 'Ask about cough',
     })
-    expect(screen.getByTestId('nav-activity-cough')).toBeInTheDocument()
+    expect(screen.getByTestId('library-card-cough')).toBeInTheDocument()
 
     await user.upload(screen.getByTestId('import-activity-file', { hidden: true }), cough)
     await waitFor(() =>
@@ -954,7 +961,8 @@ describe('process activities versus activities', () => {
     expect(screen.queryByTestId('import-group-activity')).not.toBeInTheDocument()
     await user.click(screen.getByTestId('import-confirm'))
     expect(activityKind(h.open.document.snapshot().activities['airway-process']!)).toBe('process')
-    expect(screen.getByTestId('nav-activity-airway-process')).toHaveAttribute(
+    await user.click(screen.getByTestId('tab-processes'))
+    expect(screen.getByTestId('library-card-airway-process')).toHaveAttribute(
       'data-kind',
       'process',
     )
@@ -968,10 +976,10 @@ describe('process activities versus activities', () => {
     expect(screen.queryByTestId('add-activity')).not.toBeInTheDocument()
   })
 
-  it('searches the activity tab and the process tab', async () => {
+  it('searches the activities grid and the segments grid', async () => {
     const user = userEvent.setup()
     const h = await harness()
-    renderWith(h, <ActivityNavigator selected={undefined} onSelect={() => {}} />)
+    renderWith(h, <NavigatorWithLibrary />)
 
     await user.click(screen.getByTestId('add-activity'))
     await user.click(screen.getByTestId('create-activity'))
@@ -986,21 +994,20 @@ describe('process activities versus activities', () => {
     await user.type(screen.getByTestId('new-segment-custom-process'), 'followup')
     await user.click(screen.getByTestId('create-segment'))
 
-    expect(screen.getByTestId('nav-expand')).toBeDisabled()
     await user.click(screen.getByTestId('tab-activities'))
-    await user.type(screen.getByTestId('activity-search'), 'activity-2')
-    expect(screen.getByTestId('nav-activity-activity-2')).toBeInTheDocument()
-    expect(screen.queryByTestId('nav-activity-activity')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('nav-activity-triage')).not.toBeInTheDocument()
+    await user.type(screen.getByTestId('library-search-activity'), 'activity-2')
+    expect(screen.getByTestId('library-card-activity-2')).toBeInTheDocument()
+    expect(screen.queryByTestId('library-card-activity')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('library-card-triage')).not.toBeInTheDocument()
 
-    await user.clear(screen.getByTestId('activity-search'))
-    await user.type(screen.getByTestId('activity-search'), 'no-such-activity')
-    expect(screen.getByTestId('activity-no-match')).toBeInTheDocument()
+    await user.clear(screen.getByTestId('library-search-activity'))
+    await user.type(screen.getByTestId('library-search-activity'), 'no-such-activity')
+    expect(screen.getByTestId('library-no-match-activity')).toBeInTheDocument()
 
     await user.click(screen.getByTestId('tab-processes'))
-    await user.type(screen.getByTestId('process-search'), 'followup')
-    expect(screen.getByTestId('nav-activity-followup-process')).toBeInTheDocument()
-    expect(screen.queryByTestId('nav-activity-registration-process')).not.toBeInTheDocument()
+    await user.type(screen.getByTestId('library-search-process'), 'followup')
+    expect(screen.getByTestId('library-card-followup-process')).toBeInTheDocument()
+    expect(screen.queryByTestId('library-card-registration-process')).not.toBeInTheDocument()
   })
 
   it('lists a normal activity on an intervention', async () => {

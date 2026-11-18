@@ -221,7 +221,7 @@ export function ProjectWorkspace({
         onOpenLibrary={(kind) => showView(kind === 'process' ? 'segments' : 'activities')}
       />
       {library ? (
-        <LibraryView kind={library} onOpen={openActivity} />
+        <LibraryView key={library} kind={library} onOpen={openActivity} />
       ) : blocks ? (
         <BlocksView onOpenBlock={openActivity} onOpenNode={openNode} />
       ) : media ? (

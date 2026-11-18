@@ -60,7 +60,8 @@ test('adds an activity, adds a node, and the work survives a reload', async ({ p
   })
 
   await page.reload()
-  await page.getByTestId('nav-activity-activity').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-card-activity').click()
   await expect(page.getByTestId('node-n-integer')).toContainText('weight')
 })
 
@@ -118,7 +119,8 @@ test('a continue with node keeps the intervention, condition, and ISO delay', as
     timeout: 10_000,
   })
   await page.reload()
-  await page.getByTestId('nav-activity-activity').click()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-card-activity').click()
   await page.getByTestId('node-n-continue_with').click()
   await expect(page.getByTestId('field-continue-intervention')).toHaveValue('intervention')
   await expect(page.getByTestId('field-continue-condition')).toHaveValue('AgeInMonths() >= 2')
@@ -277,7 +279,8 @@ test('a project reopens from the project list', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByTestId('project-list')).toBeVisible()
   await page.getByRole('button', { name: 'Reopen guideline', exact: true }).click()
-  await expect(page.getByTestId('nav-activity-activity')).toBeVisible()
+  await page.getByTestId('tab-activities').click()
+  await expect(page.getByTestId('library-card-activity')).toBeVisible()
 })
 
 test('the activity gear sets its name and applicability, and the bin deletes it', async ({

@@ -11,3 +11,8 @@ export { IndexedDbCollaboration } from './collaboration.js'
 export { type DirHandle, type FileHandle, readAll, resolveFile } from './fs.js'
 export { LocalPreferences } from './preferences.js'
 export { localReadState } from './notifications.js'
+export {
+  requestDurableStorage,
+  storageDurability,
+  type StorageDurability,
+} from './storage-durability.js'

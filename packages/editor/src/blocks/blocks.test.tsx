@@ -91,9 +91,7 @@ describe('the Building blocks tab', () => {
         onOpenBlocks={() => {}}
       />,
     )
-    expect(
-      within(screen.getByTestId('activity-list')).queryByTestId('nav-activity-temp'),
-    ).toBeNull()
+    expect(screen.queryByTestId('nav-activity-temp')).toBeNull()
     await userEvent.click(screen.getByTestId('tab-blocks'))
     expect(
       within(screen.getByTestId('block-list')).getByTestId('nav-activity-temp').textContent,
