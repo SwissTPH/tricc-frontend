@@ -16,6 +16,7 @@ import {
 import { useCanWrite, useCapability, useMutate, useProjectSnapshot } from '../runtime/context.js'
 import { InterventionTable } from './InterventionTable.js'
 import { BinIcon, ConfirmDelete, GearIcon } from '../components/Dialog.js'
+import { AliasSettings } from '../tables/AliasSettings.js'
 import { LabelSettings } from '../discussion/LabelSettings.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
@@ -639,6 +640,7 @@ function ProjectSettings({
         />
         <p>Labels and owner help find the project while authoring; tricc_oo ignores them.</p>
         <LabelSettings />
+        <AliasSettings />
         <div className="tricc-library-modal__actions">
           {!readOnly && (
             <Button size="sm" type="submit" data-testid="project-settings-save" disabled={!name}>

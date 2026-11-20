@@ -2776,3 +2776,32 @@ ol.tricc-segment-rows > li::before {
   font-weight: 400;
   color: var(--tricc-text-muted);
 }
+.tricc-cql__complete {
+  list-style: none;
+  margin: 2px 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.tricc-cql__complete button {
+  border: 1px solid var(--tricc-border-strong);
+  border-radius: 4px;
+  background: var(--tricc-surface);
+  color: var(--tricc-text);
+  padding: 1px 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tricc-cql__complete button:hover,
+.tricc-cql__complete button:focus-visible {
+  background: var(--tricc-primary-soft);
+}
+.tricc-cql__signature {
+  margin: 2px 0;
+  font-size: 12px;
+  color: var(--tricc-text-muted);
+}
+.tricc-cql__signature strong {
+  color: var(--tricc-text);
+}

@@ -24,6 +24,12 @@ test.beforeEach(async ({ page }) => {
   await page.reload()
 })
 
+async function placeNode(page: Page, type: string): Promise<void> {
+  const button = page.getByTestId(`add-${type}`)
+  if ((await button.count()) === 0) await page.getByTestId('tab-nodes').click()
+  await button.click()
+}
+
 async function cell(page: Page, row: number, column: number, value: string): Promise<void> {
   const input = page.getByTestId(`table-cell-${row}-${column}`)
   await input.fill(value)
@@ -88,4 +94,32 @@ test('a dosing table is made, tested and reordered', async ({ page }) => {
   await page.getByTestId('table-back').click()
   await expect(page.getByTestId('table-row-diazepam')).toContainText('List')
   await expect(page.getByTestId('tab-tables')).toContainText('1')
+})
+
+test('a calculation calls a table, completed from its name', async ({ page }) => {
+  await page.getByTestId('new-project').click()
+  await page.getByTestId('new-project-name').fill('Dosing')
+  await page.getByTestId('create-project').click()
+  await page.getByTestId('tab-tables').click()
+  await page.getByTestId('table-add').click()
+  await page.getByTestId('table-id').fill('diazepam')
+  await page.getByTestId('table-id').press('Enter')
+  await expect(page.getByTestId('table-unused')).toBeVisible()
+
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
+  await placeNode(page, 'calculate')
+  const field = page.getByTestId('field-calculate')
+  await field.pressSequentially("DMN('dia")
+  await page.getByTestId('field-calculate-table-diazepam').click()
+  await expect(field).toHaveValue("DMN('diazepam'")
+  await field.pressSequentially(', 12, 3)')
+  await expect(page.getByTestId('field-calculate-lint')).toContainText('takes up to 1 value (')
+  await field.fill("DMN('diazepam', 12)")
+  await expect(page.getByTestId('field-calculate-lint')).toHaveCount(0)
+
+  await page.getByTestId('tab-tables').click()
+  await page.getByTestId('table-row-diazepam').click()
+  await expect(page.getByTestId('table-usage')).toContainText("DMN('diazepam', 12)")
 })

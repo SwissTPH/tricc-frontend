@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
-import { effectiveParams, paramLabel, retrieveCodeSystem } from '@tricc/core'
+import { useMemo, useRef, useState } from 'react'
+import { effectiveParams, expressionTableIssues, paramLabel, retrieveCodeSystem } from '@tricc/core'
+import { TableAssist, tableCallText } from './TableAssist.js'
 import { useProjectSnapshot } from '../runtime/context.js'
 import { expressionNames, truncateLabel, type ExpressionName } from './names.js'
 import { presentCql } from './present.js'
@@ -54,9 +55,28 @@ export function CqlExpressionField({
     }))
   }, [project])
   const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const [cursor, setCursor] = useState<number | null>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const tables = Object.values(project.decisionTables ?? {}).sort((a, b) =>
+    a.id.localeCompare(b.id),
+  )
+  const tableIssues = useMemo(() => expressionTableIssues(project, value), [project, value])
   const insert = (text: string) => {
     const sep = value === '' || /\s$/.test(value) ? '' : ' '
     onChange(`${value}${sep}${text}`)
+  }
+  const track = (el: HTMLTextAreaElement) =>
+    setCursor(el.selectionStart === el.selectionEnd ? el.selectionStart : null)
+  /** Replace `[from, cursor)` by `text` and put the cursor after it. */
+  const complete = (from: number, text: string) => {
+    const at = cursor ?? value.length
+    onChange(value.slice(0, from) + text + value.slice(at))
+    const next = from + text.length
+    setCursor(next)
+    requestAnimationFrame(() => {
+      inputRef.current?.focus()
+      inputRef.current?.setSelectionRange(next, next)
+    })
   }
 
   return (
@@ -72,8 +92,42 @@ export function CqlExpressionField({
         readOnly={readOnly}
         disabled={readOnly}
         spellCheck={false}
-        onChange={(e) => onChange(e.target.value)}
+        ref={inputRef}
+        onChange={(e) => {
+          onChange(e.target.value)
+          track(e.target)
+        }}
+        onSelect={(e) => track(e.currentTarget)}
+        onBlur={() => setCursor(null)}
       />
+      {!readOnly && (
+        <TableAssist
+          project={project}
+          text={value}
+          cursor={cursor}
+          testId={testId}
+          onComplete={complete}
+        />
+      )}
+      {tables.length > 0 && !readOnly && (
+        <select
+          className="tricc-cql__insert"
+          aria-label="Insert a decision table"
+          data-testid={`${testId}-insert-table`}
+          value=""
+          onChange={(e) => {
+            const table = tables.find((t) => t.id === e.target.value)
+            if (table) insert(tableCallText(table))
+          }}
+        >
+          <option value="">Insert a table…</option>
+          {tables.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.title ? `${t.title} (${t.id})` : t.id}
+            </option>
+          ))}
+        </select>
+      )}
       {params.length > 0 && !readOnly && (
         <select
           className="tricc-cql__insert"
@@ -162,11 +216,16 @@ export function CqlExpressionField({
           })}
         </p>
       )}
-      {diagnostics.length > 0 && (
+      {(diagnostics.length > 0 || tableIssues.length > 0) && (
         <ul className="tricc-cql__lint" data-testid={`${testId}-lint`}>
           {diagnostics.map((d) => (
             <li key={d.message} data-severity={d.severity}>
               {d.message}
+            </li>
+          ))}
+          {tableIssues.map((i) => (
+            <li key={`${i.rule}-${i.message}`} data-severity={i.severity} data-rule={i.rule}>
+              {i.message}
             </li>
           ))}
         </ul>

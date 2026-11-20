@@ -195,3 +195,24 @@ describe('decision table validation', () => {
     )
   })
 })
+
+describe('result type at the call', () => {
+  const rules = (expression: string, policy: 'first' | 'rule_order' = 'first') => {
+    const p = project(expression)
+    p.decisionTables!['diazepam']!.hitPolicy = policy
+    return validateTables(p).map((i) => i.rule)
+  }
+
+  it('flags a list compared or added as one value', () => {
+    expect(rules(`DMNList('diazepam') > 1`)).toEqual(['E_DMN_TYPE'])
+    expect(rules(`1 + DMN('diazepam')`, 'rule_order')).toEqual(['E_DMN_TYPE'])
+    expect(rules(`Count(DMNList('diazepam')) > 1`)).toEqual([])
+    expect(rules(`exists(DMN('diazepam'))`, 'rule_order')).toEqual([])
+  })
+
+  it('flags one value handed to a list function', () => {
+    expect(rules(`Count(DMN('diazepam'))`)).toEqual(['E_DMN_TYPE'])
+    expect(rules(`Count(DMNFirst('diazepam'))`, 'rule_order')).toEqual(['E_DMN_TYPE'])
+    expect(rules(`DMN('diazepam') > 1`)).toEqual([])
+  })
+})

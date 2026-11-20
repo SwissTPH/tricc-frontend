@@ -1,6 +1,6 @@
 import type { DecisionTable, Project } from '../model/types.js'
 import { projectExpressions } from '../terminology/retrieval.js'
-import { boundArguments, tableCalls, type TableCall } from '../decision-table/calls.js'
+import { boundArguments, callPolicy, tableCalls, type TableCall } from '../decision-table/calls.js'
 import { tableProblems } from '../decision-table/evaluate.js'
 import { issue, type Issue, type IssueLocation } from './types.js'
 
@@ -23,7 +23,7 @@ export function validateTables(project: Project): Issue[] {
       ...(site.interventionId ? { interventionId: site.interventionId } : {}),
       field: site.field,
     }
-    issues.push(...callIssues(call, tables, where))
+    issues.push(...callIssues(call, tables, where, site.text))
   }
 
   for (const id of Object.keys(tables).sort()) {
@@ -56,10 +56,46 @@ export function validateTables(project: Project): Issue[] {
   return issues
 }
 
+/** The problems of the table calls in one expression, for the expression field. */
+export function expressionTableIssues(
+  project: Project,
+  text: string,
+  where: IssueLocation = {},
+): Issue[] {
+  const tables = project.decisionTables ?? {}
+  return tableCalls(text, project.aliases).flatMap((call) => callIssues(call, tables, where, text))
+}
+
+/** Functions that take a list: a call there must give a list, and a list goes nowhere else. */
+const LIST_FUNCTIONS =
+  /(?:^|[^\w.])(Count|exists|Sum|Min|Max|Avg|Median|Mode|AllTrue|AnyTrue|First|Last|flatten|distinct|Length|IndexOf|Combine|singleton\s+from)\s*\(\s*$/
+const OPERATOR_BEFORE = /(?:[<>=!~+\-*/]|\b(?:and|or|xor|implies|div|mod))\s*$/
+const OPERATOR_AFTER = /^\s*(?:[<>=!~+\-*/]|(?:and|or|xor|implies|div|mod|in)\b)/
+
+/**
+ * Where the policy's result type clashes with its place: a list (`rule_order`, `DMNList`)
+ * compared or added like one value, or one value handed to a list function.
+ */
+function resultTypeIssue(call: TableCall, table: DecisionTable, text: string): string | undefined {
+  const list = callPolicy(call, table) === 'rule_order'
+  const before = text.slice(0, call.start)
+  const after = text.slice(call.end)
+  const inList = LIST_FUNCTIONS.test(before)
+  if (list && !inList && (OPERATOR_BEFORE.test(before) || OPERATOR_AFTER.test(after))) {
+    return `${call.name}('${table.id}', …) gives a list (every matching row), so it cannot be compared or added as one value. Use Count(…), exists(…), Sum(…) or First(…) on it, or DMNFirst for one value.`
+  }
+  if (!list && inList) {
+    const fn = LIST_FUNCTIONS.exec(before)?.[1]
+    return `${call.name}('${table.id}', …) gives one value (hit policy "${table.hitPolicy}"), and ${fn} takes a list. Use DMNList for every matching row.`
+  }
+  return undefined
+}
+
 function callIssues(
   call: TableCall,
   tables: Record<string, DecisionTable>,
   where: IssueLocation,
+  text: string,
 ): Issue[] {
   if (!call.table) {
     return [
@@ -120,11 +156,13 @@ function callIssues(
       issue(
         'E_DMN_ARITY',
         'error',
-        `${call.name}('${table.id}', …) takes up to ${table.inputs.length} values (${table.inputs.map((c) => c.name).join(', ')}); this call passes ${call.args.length - 1}.`,
+        `${call.name}('${table.id}', …) takes up to ${table.inputs.length} value${table.inputs.length === 1 ? '' : 's'} (${table.inputs.map((c) => c.name).join(', ')}); this call passes ${call.args.length - 1}.`,
         where,
       ),
     )
   }
+  const mismatch = resultTypeIssue(call, table, text)
+  if (mismatch) out.push(issue('E_DMN_TYPE', 'error', mismatch, where))
   const bound = boundArguments(call, table)
   table.inputs.forEach((col, i) => {
     if (bound[i] !== undefined && bound[i] !== '') return
