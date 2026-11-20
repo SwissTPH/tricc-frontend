@@ -2,10 +2,10 @@
 
 | Field             | Value                                                                                                                                                                                                                                                                                                                                                          |
 | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**        | Approved (2026-11-20, RFC #51)                                                                                                                                                                                                                                                                                                                                 |
+| **Status**        | Implemented (2026-11-20, RFC #51, issue #54)                                                                                                                                                                                                                                                                                                                   |
 | **RFC**           | [#51](https://github.com/SwissTPH/tricc-frontend/issues/51)                                                                                                                                                                                                                                                                                                    |
 | **Branch target** | `feature/decision-table-editor` → `develop`                                                                                                                                                                                                                                                                                                                    |
-| **Scope**         | `@tricc/core` (project format, table model), `@tricc/editor` (table view), `@tricc/cql` (`DMN` completion and checks), `tricc_oo` (cross-repo)                                                                                                                                                                                                                 |
+| **Scope**         | `@tricc/core` (project format, table model), `@tricc/editor` (table view), `@tricc/editor` `cql/` (`DMN` completion and checks), `tricc_oo` (cross-repo)                                                                                                                                                                                                       |
 | **Related**       | `tricc/feature/20261118-decision-tables.md` (the format and the export; mirror on approval), `20260825-project-format.md` (new `tables/` folder and `tricc.yaml` keys), `20260825-cql-authoring.md` (function completion), `20261008-data-dictionary-and-concept-texts.md` (concept picker), `20261108-preferences-layout.md` (aliases in project preferences) |
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
@@ -177,6 +177,25 @@ Changing a table's hit policy re-checks every call to it (the result type may ch
 3. `DMN` completion and checks in expression fields; aliases in preferences.
 4. CSV / XLSX / DMN XML import and export.
 
+### 5. Implementation notes (2026-11-20)
+
+- Code: `packages/core/src/decision-table/` (cells, evaluation, file, calls, interchange),
+  `validate/tables.ts`; `packages/editor/src/tables/` (list, grid, test panel, aliases, files),
+  `cql/TableAssist.tsx`. There is no separate `@tricc/cql` package; the expression field lives
+  in the editor.
+- Shared vectors for `tricc_oo`: `packages/core/src/decision-table/__vectors__/cells.json` and
+  `tables.json` (copy them unchanged).
+- Codes added beside the `tricc_oo` ones: `E_DMN_SHAPE` (row width, missing input or output,
+  duplicate column names), `E_DMN_CONCEPT` (a column concept not in any dictionary),
+  `dmn.unused` (warning). `E_DMN_TYPE` also covers a result used against its hit policy (a list
+  compared as one value, one value given to `Count`…).
+- Table files list explicit paths under `decision_tables`; globs are read. Comments in a table
+  file are not kept on save.
+- CSV / XLSX: row 1 names the columns, row 2 gives `input|output <type> [concept]`; a sheet
+  without row 2 is read with the last column as the output and the types guessed.
+- Global `drugs.js` has 33 drugs (not 31). The generated tables give the same dose as `drugs.js`
+  on a grid of weights and ages, except two `drugs.js` quirks the tables do not copy: age 0 gives no dose there, even with a weight, and neither age nor weight gives the last age class (diazepam: 1.7).
+
 ---
 
 ## Open questions
@@ -190,3 +209,4 @@ None.
 - 2026-11-20: tables are used only through expressions, never as a drawing node (@delcroip)
 - 2026-11-20: hit policies `first` (default), `unique` and `rule_order` (list); `DMNFirst` /
   `DMNList` override at the call; no `last` or boolean "any": built from the list (@delcroip)
+- 2026-11-20: implemented in four phases (#54); CSV/XLSX carry the column kinds in row 2 (@delcroip)

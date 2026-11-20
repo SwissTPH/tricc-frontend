@@ -108,6 +108,7 @@ my-guideline/
 ├── activities/*.activity.yaml          # one file per activity, positions included
 ├── terminology/*.codesystem.json       # FHIR R4 CodeSystem — the concepts, stored locally
 ├── cql/*.cql                           # shared libraries
+├── tables/*.yaml                       # decision tables (doses…), called as DMN('name', …)
 └── media/
 ```
 
@@ -125,6 +126,13 @@ own expression syntax is retired as an authoring surface.
 Concepts are referenced by code and displayed by name. Typing `"` opens a picker over the project's
 concept dictionary; the reference is inserted coded and rendered as an inline chip showing the
 concept's display, with a summary card on hover and a link to its full page.
+
+Lookups such as dosing tables are **decision tables** (DMN): inputs, outputs and rows of simple
+FEEL tests (`>= 20`, `[3..6)`, `-`), edited in a grid with a test panel and called from any
+expression as `DMN('diazepam', "weight", "age")`. A table's hit policy says whether the first
+matching row or the list of every matching row is the result; `DMNFirst` and `DMNList` override
+it at the call. See
+[`feature/20261120-decision-table-editor.md`](./feature/20261120-decision-table-editor.md).
 
 The editor accepts a defined **portable subset** of CQL. TRICC exports to ODK, CHT, OpenMRS and
 DHIS2 as well as FHIR, and those targets have no CQL engine — their logic is arithmetic and
