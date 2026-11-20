@@ -8,9 +8,10 @@ import { PARAM_TYPES } from '../../model/types.js'
 /**
  * Identifier fragment used for node `name` — what CQL references and what exports mangle.
  * A `-` is allowed so a name can be a terminology code: CQL quotes names, and `tricc_oo`
- * exports a `-` as `_`.
+ * exports a `-` as `_`. A name may start with a digit, like a concept code (`2nd_dose`): CQL
+ * quotes names, and `tricc_oo` prefixes such a name with `id_` where the form needs a letter first.
  */
-export const NAME_RE = /^[A-Za-z_][A-Za-z0-9_.-]*$/
+export const NAME_RE = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/
 
 /**
  * A name in a building block or a parameterized page may hold `{{param}}`, substituted when the
@@ -19,10 +20,10 @@ export const NAME_RE = /^[A-Za-z_][A-Za-z0-9_.-]*$/
 export const TEMPLATE_NAME_RE =
   /^(?:[A-Za-z0-9_.-]|\{\{\s*[a-z][a-z0-9_]*\s*(?:\|\s*raw\s*)?\}\})+$/
 
-/** `text` made into a valid name: each other character becomes `_`, a leading digit gets a `_`. */
+/** `text` made into a valid name: each other character becomes `_`, a leading `.` or `-` gets a `_`. */
 export function toName(text: string): string {
   const name = text.replace(/[^A-Za-z0-9_.-]/g, '_')
-  return /^[0-9.-]/.test(name) ? `_${name}` : name
+  return /^[.-]/.test(name) ? `_${name}` : name
 }
 
 /**
