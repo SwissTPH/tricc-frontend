@@ -1,0 +1,66 @@
+{
+  "name": "json-colour-bold",
+  "input": {
+    "json": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Danger",
+              "marks": [
+                {
+                  "type": "bold"
+                },
+                {
+                  "type": "textStyle",
+                  "attrs": {
+                    "color": "#d32f2f"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "text": " sign"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              },
+              {
+                "type": "textStyle",
+                "attrs": {
+                  "color": "#d32f2f"
+                }
+              }
+            ],
+            "text": "Danger"
+          },
+          {
+            "type": "text",
+            "text": " sign"
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "Danger sign",
+  "markdown": "**<span style=\"color:#d32f2f\">Danger</span>** sign",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><strong><span style=\"color: #d32f2f\">Danger</span></strong> sign</p></div>"
+}

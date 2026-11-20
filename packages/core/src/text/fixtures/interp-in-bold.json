@@ -1,0 +1,48 @@
+{
+  "name": "interp-in-bold",
+  "input": {
+    "html": "<b>Give ${dose} mg</b>"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "Give "
+          },
+          {
+            "type": "interp",
+            "attrs": {
+              "name": "dose"
+            },
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": " mg"
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "Give ${dose} mg",
+  "markdown": "**Give ${dose} mg**",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><strong>Give <span data-interp=\"dose\">${dose}</span> mg</strong></p></div>"
+}

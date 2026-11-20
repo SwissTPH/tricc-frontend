@@ -1,0 +1,32 @@
+{
+  "name": "typed-bold",
+  "input": {
+    "html": "**Danger** sign"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "Danger"
+          },
+          {
+            "type": "text",
+            "text": " sign"
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "Danger sign",
+  "markdown": "**Danger** sign",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><strong>Danger</strong> sign</p></div>"
+}

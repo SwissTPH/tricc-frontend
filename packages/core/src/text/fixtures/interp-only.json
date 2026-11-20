@@ -1,0 +1,25 @@
+{
+  "name": "interp-only",
+  "input": {
+    "html": "${age}"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "interp",
+            "attrs": {
+              "name": "age"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "${age}",
+  "markdown": "${age}",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><span data-interp=\"age\">${age}</span></p></div>"
+}

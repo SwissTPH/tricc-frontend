@@ -1,0 +1,47 @@
+{
+  "name": "bullet-list",
+  "input": {
+    "html": "<ul><li>Fever</li><li>Cough</li></ul>"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Fever"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Cough"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "• Fever\n• Cough",
+  "markdown": "- Fever\n- Cough",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><ul><li><p>Fever</p></li><li><p>Cough</p></li></ul></div>"
+}

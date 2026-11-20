@@ -1,0 +1,56 @@
+{
+  "name": "convulsion-note",
+  "input": {
+    "html": "<b>${dose} ml</b> <b>Diazepam</b> rectal"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "interp",
+            "attrs": {
+              "name": "dose"
+            },
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": " ml"
+          },
+          {
+            "type": "text",
+            "text": " "
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "Diazepam"
+          },
+          {
+            "type": "text",
+            "text": " rectal"
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "${dose} ml Diazepam rectal",
+  "markdown": "**${dose} ml** **Diazepam** rectal",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><strong><span data-interp=\"dose\">${dose}</span> ml</strong> <strong>Diazepam</strong> rectal</p></div>"
+}
