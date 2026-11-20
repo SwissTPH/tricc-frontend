@@ -21,6 +21,7 @@ export class UndoController {
       doc.getMap('activities'),
       doc.getMap('codeSystems'),
       doc.getMap('libraries'),
+      doc.getMap('decisionTables'),
       doc.getArray('contexts'),
     ]
     this.manager = new Y.UndoManager(scope, {

@@ -98,6 +98,7 @@ export { LOCAL_ORIGIN } from './document/codec.js'
 
 // Validation
 export * from './validate/index.js'
+export * from './decision-table/index.js'
 
 // Terminology
 export * from './terminology/index.js'
