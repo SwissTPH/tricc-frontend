@@ -29,13 +29,23 @@ them, so other exports have no dose.
     and a type (the call then always passes the value); drag to reorder (the order is the
     argument order of `DMN()`); the type comes from the concept when there is one.
   - **Output columns**: a name and a type (text, number, yes/no), or a concept.
-  - **Rows**: drag to reorder; the first matching row wins (or "unique", checked). Input
+  - **Hit policy** (how matching rows give the result), chosen in the table header:
+    - **First**: the first matching row, from the top; row order matters (the default).
+    - **Unique**: at most one row may match; order does not matter, and rows that can both
+      match are flagged.
+    - **List** (DMN "rule order"): every matching row, in row order. Counting rows, "does any
+      row match" or adding scores are done on the list in the expression (`Count`, `exists`,
+      `Sum`).
+  - **Rows**: drag to reorder. Input
     cells use the DMN (FEEL) notation for simple tests, the same as in the `tricc` spec (see
     Part II): `-` (any), `null` (empty), a comparison (`>= 20`), a range (`[3..6)`), a value
     or a list. Invalid cells are underlined with the reason.
-  - A **test panel**: enter input values, see which row matches and the result.
+  - A **test panel**: enter input values, see every matching row, which one the hit policy
+    keeps, and the result.
 - In any expression field, `DMN('` completes table names, then shows the input columns as
-  argument hints; a wrong table name or argument count is an error in place.
+  argument hints; a wrong table name or argument count is an error in place. `DMN` uses the
+  table's hit policy; `DMNFirst` and `DMNList` override it for one call (for example the
+  list of all matching rows of a table that is "first" by default).
 - Project preferences list **aliases** (`DrugDosage` → `DMN(table, age, weight)`), so
   existing `DrugDosage('diazepam', age, weight)` calls keep working.
 - **Migrating `drugs.js`**: the `tricc` migration tool writes one table per drug (weight rows,
@@ -64,7 +74,8 @@ The age rows apply when no weight row matches: no weight entered, or a weight be
 
 - zscore tables (they stay built-in; a read-only view can come later).
 - Full DMN modelling: decision requirement graphs, FEEL beyond the simple tests above (no
-  arithmetic, functions or references in cells), hit policies other than first and unique.
+  arithmetic, functions or references in cells), hit policies other than first, unique and rule order (no `last`, DMN `any`, `priority`,
+  `output order` or `collect` aggregations: those are built from the list).
 - A table as a node in the drawing: tables are used only through expressions; they are not
   flow.
 
@@ -123,20 +134,28 @@ The age rows apply when no weight row matches: no weight entered, or a weight be
   `evaluateTable` give the test panel result with the same semantics as the `tricc_oo`
   expansion to `IFS`.
 
+- **Hit policy**: `hit_policy: first | unique | rule_order` in the table YAML, default
+  `first` (DMN XML `FIRST`, `UNIQUE`, `RULE ORDER`). The call decides the policy actually
+  used: `DMN` takes the table's, `DMNFirst` forces `first`, `DMNList` forces `rule_order`
+  (`unique` is a table check, not a call option). The result type follows: one value of the
+  output column type for `first` / `unique`, `List<T>` for `rule_order`. `evaluateTable`
+  takes the policy as a parameter so the test panel and the call checks share it.
 - **Model** (`@tricc/core`): `DecisionTable` in the Yjs document (`Y.Map` per table, rows as
   `Y.Array` of `Y.Array<string>`), a cell parser shared with the validator, and the same
   error codes as `tricc_oo` (`E_DMN_CELL`, `E_DMN_TYPE`, `E_DMN_OVERLAP`, `E_DMN_ARITY`).
   Shared test vectors with `tricc_oo` for the cell parser and the row match.
 - **Editor** (`@tricc/editor`): grid view with column header concept pickers, row drag
   handles, cell validation, test panel; tables appear in project search and navigation.
-- **CQL** (`@tricc/cql`): `DMN` in the TRICC domain functions of the generated helper
-  library; completion of table ids and argument hints from the open project; aliases
-  declared from preferences.
+- **CQL** (`@tricc/cql`): `DMN`, `DMNFirst` and `DMNList` in the TRICC domain functions of
+  the generated helper library; completion of table ids and argument hints from the open
+  project; the result type from the policy, so `DMN('t', …) > 1` on a `rule_order` table
+  is a type error in place; aliases declared from preferences.
 
 ### 2. Validation and errors
 
 The `tricc_oo` codes, shown on the cell, the column or the call. A concept removed from the
 dictionary turns its column into an error. A table no expression calls is a warning.
+Changing a table's hit policy re-checks every call to it (the result type may change).
 
 ### 3. Tests
 
@@ -146,7 +165,10 @@ dictionary turns its column into an error. A table no expression calls is a warn
   no weight and 24 months → 1.2, 2 kg and 24 months → 1.2, no weight and 1 month → empty.
 - Editor: Playwright: create a table, pick concepts, reorder rows, see the test panel result
   change; import a CSV.
-- CQL: completion and arity error for `DMN('diazepam', …)`.
+- Core: `evaluateTable` on the same inputs under each policy (diazepam, 2 kg and 24 months:
+  `first` → 1.2, `rule_order` → [1.2]; 25 kg and 40 months: `first` → 2.5, `rule_order` →
+  [2.5, 1.7]); `unique` flags the diazepam table (weight and age rows overlap).
+- CQL: completion and arity error for `DMN('diazepam', …)`; `DMNList` typed as a list.
 
 ### 4. Phases
 
@@ -166,3 +188,5 @@ None.
 - 2026-11-20: an input column may have no concept (name and type only); the concept is a
   default argument, not required (@delcroip)
 - 2026-11-20: tables are used only through expressions, never as a drawing node (@delcroip)
+- 2026-11-20: hit policies `first` (default), `unique` and `rule_order` (list); `DMNFirst` /
+  `DMNList` override at the call; no `last` or boolean "any": built from the list (@delcroip)
