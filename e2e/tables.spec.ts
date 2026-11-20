@@ -123,3 +123,27 @@ test('a calculation calls a table, completed from its name', async ({ page }) =>
   await page.getByTestId('table-row-diazepam').click()
   await expect(page.getByTestId('table-usage')).toContainText("DMN('diazepam', 12)")
 })
+
+test('a CSV is imported as a table and exported again', async ({ page }) => {
+  await page.getByTestId('new-project').click()
+  await page.getByTestId('new-project-name').fill('Dosing')
+  await page.getByTestId('create-project').click()
+  await page.getByTestId('tab-tables').click()
+  const csv = 'weight,age,dose\n>= 20,-,2.5\n[3..20),-,1.2\n-,>= 12,0.4\n'
+  await page.getByTestId('table-import-file').setInputFiles({
+    name: 'Diazepam.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv),
+  })
+  await expect(page.getByTestId('table-editor')).toContainText(`DMN('diazepam', weight, age)`)
+  await expect(page.getByTestId('table-cell-1-0')).toHaveValue('[3..20)')
+
+  await page.getByTestId('table-test-weight').fill('2')
+  await page.getByTestId('table-test-age').fill('24')
+  await expect(page.getByTestId('table-test-result')).toContainText('Row 3 gives 0.4')
+
+  const download = page.waitForEvent('download')
+  await page.getByTestId('table-export-csv').click()
+  const file = await download
+  expect(file.suggestedFilename()).toBe('diazepam.csv')
+})

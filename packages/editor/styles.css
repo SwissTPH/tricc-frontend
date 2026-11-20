@@ -2805,3 +2805,8 @@ ol.tricc-segment-rows > li::before {
 .tricc-cql__signature strong {
   color: var(--tricc-text);
 }
+.tricc-table-editor__export {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+}

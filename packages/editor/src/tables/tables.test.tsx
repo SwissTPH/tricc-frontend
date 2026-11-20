@@ -238,3 +238,65 @@ describe('decision tables view', () => {
     expect(screen.getByTestId('no-tables')).toBeInTheDocument()
   })
 })
+
+describe('decision table files', () => {
+  it('imports a CSV as a new table and opens it', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h)
+    const csv = 'weight,dose\ninput decimal weight,output string\n>= 20,2.5\n"[3..20)",1.2\n'
+    await user.upload(
+      screen.getByTestId('table-import-file'),
+      new File([csv], 'Diazepam.csv', { type: 'text/csv' }),
+    )
+    expect(await screen.findByTestId('table-editor')).toHaveTextContent(`DMN('diazepam_2', weight)`)
+    expect(table(h, 'diazepam_2')?.rules).toEqual([
+      ['>= 20', '2.5'],
+      ['[3..20)', '1.2'],
+    ])
+  })
+
+  it('says why a file cannot be read', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h)
+    await user.upload(
+      screen.getByTestId('table-import-file'),
+      new File(['only'], 'x.csv', { type: 'text/csv' }),
+    )
+    expect(await screen.findByTestId('table-import-note')).toHaveTextContent('name the columns')
+  })
+
+  it('exports the open table', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    const blobs: Blob[] = []
+    const names: string[] = []
+    URL.createObjectURL = (b: Blob) => {
+      blobs.push(b)
+      return 'blob:x'
+    }
+    URL.revokeObjectURL = () => {}
+    const click = HTMLAnchorElement.prototype.click
+    HTMLAnchorElement.prototype.click = function (this: HTMLAnchorElement) {
+      names.push(this.download)
+    }
+    try {
+      renderWith(h, 'diazepam')
+      await user.click(screen.getByTestId('table-export-csv'))
+      await user.click(screen.getByTestId('table-export-dmn'))
+      await user.click(screen.getByTestId('table-export-xlsx'))
+    } finally {
+      HTMLAnchorElement.prototype.click = click
+    }
+    expect(names).toEqual(['diazepam.csv', 'diazepam.dmn', 'diazepam.xlsx'])
+    const text = (b: Blob) =>
+      new Promise<string>((resolve) => {
+        const r = new FileReader()
+        r.onload = () => resolve(r.result as string)
+        r.readAsText(b)
+      })
+    expect(await text(blobs[0]!)).toContain('weight,age,dose\r\ninput decimal weight')
+    expect(await text(blobs[1]!)).toContain('hitPolicy="FIRST"')
+  })
+})

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   HIT_POLICIES,
   TABLE_COLUMN_TYPES,
@@ -20,6 +20,7 @@ import { ConfirmDelete } from '../components/Dialog.js'
 import { Typeahead, type TypeaheadOption } from '../components/Typeahead.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
+import { TABLE_FILE_ACCEPT, downloadTable, readTableFile, type TableFormat } from './files.js'
 
 /** How each hit policy reads to an author. */
 export const POLICY_TEXT: Record<HitPolicy, { label: string; help: string }> = {
@@ -71,6 +72,8 @@ function TableList({ onOpen }: { onOpen: (id: string) => void }) {
   const canWrite = useCanWrite()
   const mutate = useMutate()
   const [query, setQuery] = useState('')
+  const [importNote, setImportNote] = useState<{ error: boolean; text: string } | undefined>()
+  const fileRef = useRef<HTMLInputElement>(null)
   const issues = useMemo(() => validateTables(project), [project])
   const tables = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -83,6 +86,27 @@ function TableList({ onOpen }: { onOpen: (id: string) => void }) {
     const id = freeId(project, 'table')
     mutate((tx) => tx.addDecisionTable(newTable(id)))
     onOpen(id)
+  }
+
+  /** New tables from files. A name already taken gets _2, _3…; nothing is replaced. */
+  const importFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    try {
+      const taken = { ...(project.decisionTables ?? {}) }
+      const tables: DecisionTable[] = []
+      for (const file of Array.from(files)) {
+        for (const table of await readTableFile(file)) {
+          const id = freeId({ ...project, decisionTables: taken }, table.id)
+          taken[id] = { ...table, id }
+          tables.push({ ...table, id })
+        }
+      }
+      mutate((tx) => tables.forEach((t) => tx.addDecisionTable(t)))
+      setImportNote({ error: false, text: `Imported ${tables.map((t) => t.id).join(', ')}.` })
+      if (tables.length === 1) onOpen(tables[0]!.id)
+    } catch (e) {
+      setImportNote({ error: true, text: e instanceof Error ? e.message : String(e) })
+    }
   }
 
   return (
@@ -103,11 +127,44 @@ function TableList({ onOpen }: { onOpen: (id: string) => void }) {
           onChange={(e) => setQuery(e.target.value)}
         />
         {canWrite && (
-          <Button variant="outline" size="sm" type="button" data-testid="table-add" onClick={add}>
-            + Table
-          </Button>
+          <>
+            <Button variant="outline" size="sm" type="button" data-testid="table-add" onClick={add}>
+              + Table
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              data-testid="table-import"
+              title="A CSV or Excel sheet (one row per rule), or a DMN file"
+              onClick={() => fileRef.current?.click()}
+            >
+              Import
+            </Button>
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              hidden
+              accept={TABLE_FILE_ACCEPT}
+              data-testid="table-import-file"
+              onChange={(e) => {
+                void importFiles(e.target.files)
+                e.target.value = ''
+              }}
+            />
+          </>
         )}
       </header>
+      {importNote && (
+        <p
+          role={importNote.error ? 'alert' : 'status'}
+          className={importNote.error ? 'tricc-tables__error' : 'tricc-nav__note'}
+          data-testid="table-import-note"
+        >
+          {importNote.text}
+        </p>
+      )}
       <div className="tricc-dictionary__scroll">
         {tables.length === 0 ? (
           <p className="tricc-dictionary__empty" data-testid="no-tables">
@@ -315,6 +372,21 @@ function TableEditor({
             DMN('{table.id}', {table.inputs.map((c) => c.name).join(', ')})
           </code>
         </h1>
+        <span className="tricc-table-editor__export" role="group" aria-label="Export">
+          {(['csv', 'xlsx', 'dmn'] as TableFormat[]).map((format) => (
+            <Button
+              key={format}
+              variant="outline"
+              size="sm"
+              type="button"
+              data-testid={`table-export-${format}`}
+              title={`Save the table as ${format === 'xlsx' ? 'an Excel workbook' : format === 'csv' ? 'CSV' : 'DMN XML'}`}
+              onClick={() => downloadTable(table, format)}
+            >
+              {format === 'xlsx' ? 'Excel' : format.toUpperCase()}
+            </Button>
+          ))}
+        </span>
         {canWrite && (
           <Button
             variant="outline"
