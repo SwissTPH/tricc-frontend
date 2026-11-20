@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { fromHtml, fromJson, fromMarkdown } from './parse.js'
+import { fromHtml, docFromJson, fromMarkdown } from './parse.js'
 import { toMarkdown, toPlain } from './render.js'
 import type { PmDoc } from './schema.js'
 
@@ -27,7 +27,7 @@ const fixtures = readdirSync(dir)
 function read(input: Fixture['input']): PmDoc {
   if (input.html !== undefined) return fromHtml(input.html)
   if (input.markdown !== undefined) return fromMarkdown(input.markdown)
-  return fromJson(input.json)
+  return docFromJson(input.json)
 }
 
 describe('display text matches tricc_oo (shared fixtures)', () => {

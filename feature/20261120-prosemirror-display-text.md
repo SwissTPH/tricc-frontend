@@ -1,10 +1,10 @@
 # Display text as ProseMirror documents
 
-| Field             | Value |
-| ----------------- | ----- |
-| **Status**        | Approved (2026-11-20, in conversation) |
-| **Branch target** | `feature/prosemirror-display-text` → `develop` |
-| **Scope**         | `@tricc/core`, `@tricc/editor`, `tricc_oo` (cross-repo) |
+| Field             | Value                                                                                                                                                                                                                                                                                                                                                                                          |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**        | Approved (2026-11-20, in conversation)                                                                                                                                                                                                                                                                                                                                                         |
+| **Branch target** | `feature/prosemirror-display-text` → `develop`                                                                                                                                                                                                                                                                                                                                                 |
+| **Scope**         | `@tricc/core`, `@tricc/editor`, `tricc_oo` (cross-repo)                                                                                                                                                                                                                                                                                                                                        |
 | **Related**       | `20261008-data-dictionary-and-concept-texts.md` §2.7 (the `designation-message` tree, superseded here). `20261012-images.md` (`image` nodes, kept). `tricc_oo`: `feature/20260909-display-message-ast.md` (the tree this replaces), mirror spec `feature/20261120-prosemirror-display-text.md` (same schema, fixtures and storage), `fix/20261120-fhir-text-format.md` (PR SwissTPH/tricc#94). |
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
@@ -57,7 +57,7 @@ writes by hand, and the two have drifted before (spacing, split bold, Markdown t
 
 - `schema.ts` — `textSchema` (`prosemirror-model` `Schema`), the source of truth on this side.
 - `parse.ts` — `fromHtml` (draw.io labels: DOM import → `${name}` split → typed Markdown re-read,
-  as `tricc_oo` §1.2), `fromMarkdown`, `fromJson` (schema-checked), `fromMessageJson` (old
+  as `tricc_oo` §1.2), `fromMarkdown`, `docFromJson` (schema-checked; core already exports `fromJson` for project files), `fromMessageJson` (old
   `designation-message` tree, read-only).
 - `render.ts` — `toPlain`, `toMarkdown` (`MarkdownSerializer`), `references`, `imageRefs`,
   `retargetImage`, `prependImage`, `isStructured`, `simplify` (a document with one plain
@@ -69,16 +69,17 @@ writes by hand, and the two have drifted before (spacing, split bold, Markdown t
 
 **`@tricc/editor`.** `RichTextEditor` stores `editor.getJSON()` directly and builds its
 extensions from the same schema names (StarterKit + `TextStyle`/`Color` + the existing image node
-+ an `interp` node). `text/prosemirror.ts` (`toDoc`/`fromDoc`) is deleted. `RichTextField`,
-`ConceptCard`, `ConceptDialog` and `activity/canvas/elements.ts` use `toPlain` / `toMarkdown` /
-`isStructured` from core as today.
+
+- an `interp` node). `text/prosemirror.ts` (`toDoc`/`fromDoc`) is deleted. `RichTextField`,
+  `ConceptCard`, `ConceptDialog` and `activity/canvas/elements.ts` use `toPlain` / `toMarkdown` /
+  `isStructured` from core as today.
 
 **draw.io import** (`format/drawio.ts`): `labelMessage` becomes `labelDoc: PmDoc` from
 `fromHtml`; `terminology/texts-to-concepts.ts` writes it with `withDesignationText`.
 
 ### 2. Validation and errors
 
-- `fromJson` rejects a document that does not fit the schema; the designation falls back to
+- `docFromJson` rejects a document that does not fit the schema; the designation falls back to
   `value` and `validate/project.ts` reports it once per concept.
 - `textStyle.color` keeps the `isColor` check; `image.src` keeps the `Binary/<id>` check.
 

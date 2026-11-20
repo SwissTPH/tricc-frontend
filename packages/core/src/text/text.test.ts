@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fromHtml, fromJson, fromMarkdown, fromMessageJson } from './parse.js'
+import { fromHtml, docFromJson, fromMarkdown, fromMessageJson } from './parse.js'
 import {
   fromPlain,
   imageRefs,
@@ -63,11 +63,11 @@ describe('the editor document is the stored document', () => {
 
   it('reads its own JSON back, and rejects anything else', () => {
     const doc = fromHtml('<b>Give ${dose}</b><ul><li>with food</li></ul>')
-    expect(fromJson(JSON.parse(JSON.stringify(doc)))).toEqual(doc)
-    expect(() => fromJson({ type: 'doc', content: [{ type: 'script' }] })).toThrow()
-    expect(() => fromJson({ type: 'message', children: [] })).toThrow()
+    expect(docFromJson(JSON.parse(JSON.stringify(doc)))).toEqual(doc)
+    expect(() => docFromJson({ type: 'doc', content: [{ type: 'script' }] })).toThrow()
+    expect(() => docFromJson({ type: 'message', children: [] })).toThrow()
     expect(() =>
-      fromJson({
+      docFromJson({
         type: 'doc',
         content: [
           { type: 'paragraph', content: [{ type: 'image', attrs: { src: 'http://x/y.png' } }] },
@@ -75,7 +75,7 @@ describe('the editor document is the stored document', () => {
       }),
     ).toThrow()
     expect(() =>
-      fromJson({
+      docFromJson({
         type: 'doc',
         content: [{ type: 'bulletList', content: [{ type: 'paragraph' }] }],
       }),

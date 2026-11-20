@@ -1,5 +1,5 @@
 import type { Designation } from '../model/types.js'
-import { fromJson, fromMarkdown, fromMessageJson } from './parse.js'
+import { docFromJson, fromMarkdown, fromMessageJson } from './parse.js'
 import { fromPlain, isStructured, simplify, toMarkdown } from './render.js'
 import type { DisplayText } from './schema.js'
 
@@ -23,7 +23,7 @@ export function designationDocError(d: Designation): string | undefined {
   const raw = extensionString(d, DESIGNATION_DOC_URL)
   if (raw === undefined) return undefined
   try {
-    fromJson(JSON.parse(raw))
+    docFromJson(JSON.parse(raw))
     return undefined
   } catch (error) {
     return error instanceof Error ? error.message : String(error)
@@ -38,7 +38,7 @@ export function designationText(d: Designation): DisplayText {
   const doc = extensionString(d, DESIGNATION_DOC_URL)
   if (doc !== undefined) {
     try {
-      return simplify(fromJson(JSON.parse(doc)))
+      return simplify(docFromJson(JSON.parse(doc)))
     } catch {
       // A broken document falls back to the readable value.
     }

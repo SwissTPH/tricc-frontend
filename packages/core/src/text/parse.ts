@@ -22,7 +22,7 @@ const EMPTY: PmDoc = { type: 'doc', content: [{ type: 'paragraph' }] }
  * content, a colour that is not one and a picture outside the image library are rejected,
  * not half-read.
  */
-export function fromJson(raw: unknown): PmDoc {
+export function docFromJson(raw: unknown): PmDoc {
   if (typeof raw !== 'object' || raw === null || (raw as PmNode).type !== 'doc')
     throw new Error('Not a display-text document.')
   const node = textSchema.nodeFromJSON(raw)
@@ -127,7 +127,7 @@ export function fromHtml(raw: string): PmDoc {
   const { document } = parseHTML(`<!doctype html><html><body>${trimmed}</body></html>`)
   const parsed = domParser.parse(document.body as unknown as globalThis.Node).toJSON() as PmDoc
   const tidy = mapTextblocks(parsed, tidyInline) as PmDoc
-  return fromJson(readTypedMarkdown(tidy))
+  return docFromJson(readTypedMarkdown(tidy))
 }
 
 function mapTextblocks(node: PmNode, f: (inline: PmNode[]) => PmNode[]): PmNode {
@@ -394,7 +394,7 @@ export function fromMessageJson(raw: unknown): PmDoc {
   flush()
   // A break that only separated a paragraph from a list shows nothing.
   for (const b of blocks) if (b.type === 'paragraph') b.content = tidyEdges(b.content ?? [])
-  return fromJson({ type: 'doc', content: blocks.length ? blocks : [{ type: 'paragraph' }] })
+  return docFromJson({ type: 'doc', content: blocks.length ? blocks : [{ type: 'paragraph' }] })
 }
 
 function tidyEdges(nodes: PmNode[]): PmNode[] {

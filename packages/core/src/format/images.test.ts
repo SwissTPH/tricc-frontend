@@ -8,7 +8,7 @@ import { ProjectDocument } from '../document/doc.js'
 import { moveTextsToConcepts } from '../terminology/texts-to-concepts.js'
 import { validateProject } from '../validate/project.js'
 import { designationText, withDesignationText } from '../text/designation.js'
-import { fromJson } from '../text/parse.js'
+import { docFromJson } from '../text/parse.js'
 import { imageRefs, prependImage, retargetImage, toMarkdown, toPlain } from '../text/render.js'
 import type { PmDoc } from '../text/schema.js'
 import type { Project } from '../model/types.js'
@@ -54,7 +54,7 @@ describe('the image node', () => {
       'Look at the chest ![indrawing](Binary/chest)\nIs there indrawing?',
     )
     expect(toPlain(withPicture)).toBe('Look at the chest indrawing\nIs there indrawing?')
-    expect(fromJson(JSON.parse(JSON.stringify(withPicture)))).toEqual(withPicture)
+    expect(docFromJson(JSON.parse(JSON.stringify(withPicture)))).toEqual(withPicture)
     expect(imageRefs(withPicture)).toEqual(['chest'])
   })
 
