@@ -7,29 +7,27 @@ import { readActivityFile } from './import-activity.js'
 import { ProjectDocument } from '../document/doc.js'
 import { moveTextsToConcepts } from '../terminology/texts-to-concepts.js'
 import { validateProject } from '../validate/project.js'
-import {
-  designationText,
-  imageRefs,
-  messageFromJson,
-  prependImage,
-  retargetImage,
-  toMarkdown,
-  toPlain,
-  withDesignationText,
-  type Message,
-} from '../text/message.js'
+import { designationText, withDesignationText } from '../text/designation.js'
+import { fromJson } from '../text/parse.js'
+import { imageRefs, prependImage, retargetImage, toMarkdown, toPlain } from '../text/render.js'
+import type { PmDoc } from '../text/schema.js'
 import type { Project } from '../model/types.js'
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])
 const CS = 'http://tricc.org/CodeSystem/tricc'
 
-const withPicture: Message = {
-  type: 'message',
-  children: [
-    { type: 'text', value: 'Look at the chest ' },
-    { type: 'image', src: 'Binary/chest', alt: 'indrawing' },
-    { type: 'break' },
-    { type: 'text', value: 'Is there indrawing?' },
+const withPicture: PmDoc = {
+  type: 'doc',
+  content: [
+    {
+      type: 'paragraph',
+      content: [
+        { type: 'text', text: 'Look at the chest ' },
+        { type: 'image', attrs: { src: 'Binary/chest', alt: 'indrawing' } },
+        { type: 'hardBreak' },
+        { type: 'text', text: 'Is there indrawing?' },
+      ],
+    },
   ],
 }
 
@@ -55,8 +53,8 @@ describe('the image node', () => {
     expect(toMarkdown(withPicture)).toBe(
       'Look at the chest ![indrawing](Binary/chest)\nIs there indrawing?',
     )
-    expect(toPlain(withPicture)).toBe('Look at the chest  Is there indrawing?')
-    expect(messageFromJson(JSON.parse(JSON.stringify(withPicture)))).toEqual(withPicture)
+    expect(toPlain(withPicture)).toBe('Look at the chest indrawing\nIs there indrawing?')
+    expect(fromJson(JSON.parse(JSON.stringify(withPicture)))).toEqual(withPicture)
     expect(imageRefs(withPicture)).toEqual(['chest'])
   })
 

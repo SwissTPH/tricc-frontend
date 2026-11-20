@@ -1,6 +1,6 @@
 import type { Designation } from '../model/types.js'
 import { fromJson, fromMarkdown, fromMessageJson } from './parse.js'
-import { isStructured, simplify, toMarkdown } from './render.js'
+import { fromPlain, isStructured, simplify, toMarkdown } from './render.js'
 import type { DisplayText } from './schema.js'
 
 /** A designation whose text has structure carries its document here (compact JSON). */
@@ -51,7 +51,9 @@ export function designationText(d: Designation): DisplayText {
       // As above.
     }
   }
-  return simplify(fromMarkdown(d.value))
+  // Plain text is kept exactly as typed (Markdown would trim it); anything else is read.
+  const text = simplify(fromMarkdown(d.value))
+  return typeof text === 'string' ? fromPlain(d.value) : text
 }
 
 /**

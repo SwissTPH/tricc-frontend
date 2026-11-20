@@ -4,13 +4,14 @@ import {
   conceptText,
   fromPlain,
   imageIdOf,
+  isColor,
   isStructured,
   lookupConcept,
   nodeConceptKey,
   resolve,
   toPlain,
   type DisplayText,
-  type MessageNode,
+  type PmNode,
   type Project,
 } from '@tricc/core'
 import { useEditorPreferences, useProjectSnapshot } from '../runtime/context.js'
@@ -178,44 +179,73 @@ function RichTextModal({
   )
 }
 
-/** A formatted text, read-only: bold, colour, lists, and `${name}` chips. */
+/** A formatted text, read-only: bold, colour, lists, pictures and `${name}` chips. */
 export function MessageView({ text }: { text: DisplayText }): ReactNode {
   if (typeof text === 'string') return text
-  return <>{text.children.map((node, i) => renderNode(node, i))}</>
+  return <>{(text.content ?? []).map((block, i) => renderBlock(block, i))}</>
 }
 
-function renderNode(node: MessageNode, key: number): ReactNode {
+function renderBlock(block: PmNode, key: number): ReactNode {
+  const content = block.content ?? []
+  switch (block.type) {
+    case 'paragraph':
+      return <div key={key}>{content.map((node, i) => renderInline(node, i))}</div>
+    case 'bulletList':
+      return <ul key={key}>{content.map((item, i) => renderBlock(item, i))}</ul>
+    case 'orderedList': {
+      const start = typeof block.attrs?.['start'] === 'number' ? block.attrs['start'] : 1
+      return (
+        <ol key={key} start={start}>
+          {content.map((item, i) => renderBlock(item, i))}
+        </ol>
+      )
+    }
+    case 'listItem':
+      return <li key={key}>{content.map((b, i) => renderBlock(b, i))}</li>
+    default:
+      return null
+  }
+}
+
+function renderInline(node: PmNode, key: number): ReactNode {
+  let out: ReactNode
   switch (node.type) {
     case 'text':
-      return node.value
-    case 'break':
+      out = node.text ?? ''
+      break
+    case 'hardBreak':
       return <br key={key} />
-    case 'interp':
-      return (
-        <span key={key} className="tricc-interp" data-interp={node.name}>
-          {`\${${node.name}}`}
+    case 'interp': {
+      const name = String(node.attrs?.['name'] ?? '')
+      out = (
+        <span className="tricc-interp" data-interp={name}>
+          {`\${${name}}`}
         </span>
       )
-    case 'mark': {
-      const inner = node.children.map((child, i) => renderNode(child, i))
-      if (node.kind === 'strong') return <strong key={key}>{inner}</strong>
-      if (node.kind === 'em') return <em key={key}>{inner}</em>
-      if (node.kind === 'u') return <u key={key}>{inner}</u>
+      break
+    }
+    case 'image': {
+      const alt = node.attrs?.['alt']
       return (
-        <span key={key} style={{ color: node.color }}>
-          {inner}
-        </span>
+        <TextImage
+          key={key}
+          src={String(node.attrs?.['src'] ?? '')}
+          alt={typeof alt === 'string' ? alt : undefined}
+        />
       )
     }
-    case 'list': {
-      const items = node.items.map((item, i) => (
-        <li key={i}>{item.children.map((c, j) => renderNode(c, j))}</li>
-      ))
-      return node.ordered ? <ol key={key}>{items}</ol> : <ul key={key}>{items}</ul>
-    }
-    case 'image':
-      return <TextImage key={key} src={node.src} alt={node.alt} />
+    default:
+      return null
   }
+  // Marks wrap the leaf, outermost first, as the schema orders them.
+  for (const mark of [...(node.marks ?? [])].reverse()) {
+    if (mark.type === 'bold') out = <strong>{out}</strong>
+    else if (mark.type === 'italic') out = <em>{out}</em>
+    else if (mark.type === 'underline') out = <u>{out}</u>
+    else if (mark.type === 'textStyle' && isColor(mark.attrs?.['color']))
+      out = <span style={{ color: mark.attrs['color'] }}>{out}</span>
+  }
+  return <span key={key}>{out}</span>
 }
 
 /** A picture of a text, from the image library. A missing one says so instead of breaking. */

@@ -1,23 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { designationText, imageRefs, toMarkdown, type Concept, type Message } from '@tricc/core'
-import { fromDoc, toDoc } from '../text/prosemirror.js'
+import { designationText, imageRefs, toMarkdown, type Concept } from '@tricc/core'
 import { prepareImage, ImageFileError, imageFiles } from './images.js'
 import { withPictureFirst } from './attach.js'
 
-const withPicture: Message = {
-  type: 'message',
-  children: [
-    { type: 'image', src: 'Binary/chest', alt: 'indrawing' },
-    { type: 'break' },
-    { type: 'mark', kind: 'strong', children: [{ type: 'text', value: 'Is there indrawing?' }] },
-  ],
-}
-
 describe('pictures in the editor document', () => {
-  it('round-trip, and a picture never takes the marks around it', () => {
-    expect(fromDoc(toDoc(withPicture))).toEqual(withPicture)
+  it('never take the marks around them', () => {
     const doc = {
-      type: 'doc',
+      type: 'doc' as const,
       content: [
         {
           type: 'paragraph',
@@ -29,7 +18,7 @@ describe('pictures in the editor document', () => {
         },
       ],
     }
-    expect(toMarkdown(fromDoc(doc))).toBe('**See **![](Binary/rash)** here**')
+    expect(toMarkdown(doc)).toBe('**See** ![](Binary/rash) **here**')
   })
 })
 

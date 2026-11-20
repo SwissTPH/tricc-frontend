@@ -1,5 +1,7 @@
 import { activitiesFromDrawio } from '../format/drawio.js'
-import { fromHtml, fromPlain, withDesignationText } from '../text/message.js'
+import { withDesignationText } from '../text/designation.js'
+import { fromHtml } from '../text/parse.js'
+import { fromPlain } from '../text/render.js'
 import { createProject, readProject, writeProject } from '../format/serialize/index.js'
 import { moveTextsToConcepts } from './texts-to-concepts.js'
 import { validateActivity } from '../validate/activity.js'
@@ -405,7 +407,7 @@ describe('formatted texts', () => {
     expect(concept.display).toBe('Give ${dose} mg')
     expect(conceptRichText(concept, 'q-display', 'en')).toEqual(fromHtml('<b>Give ${dose} mg</b>'))
     expect(concept.designations[0]?.value).toBe('**Give ${dose} mg**')
-    expect(project.activities['dose']!.nodes['n']).not.toHaveProperty('labelMessage')
+    expect(project.activities['dose']!.nodes['n']).not.toHaveProperty('labelDoc')
     expect(validateProject(project).filter((i) => i.rule === 'text.unknown-reference')).toEqual([])
   })
 
