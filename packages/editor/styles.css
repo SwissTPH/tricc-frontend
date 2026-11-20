@@ -2605,3 +2605,174 @@ ol.tricc-segment-rows > li::before {
 .tricc-discussion-panel > ul > li {
   border-bottom: 1px solid var(--tricc-border);
 }
+
+/* Decision tables (feature/20261120-decision-table-editor.md) */
+.tricc-table-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.tricc-table-editor .tricc-editor__header h1 code {
+  font-size: 15px;
+}
+.tricc-table-editor__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tricc-table-editor__fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px 16px;
+}
+.tricc-table-editor__fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--tricc-text-muted);
+}
+.tricc-table-editor__fields select,
+.tricc-table-grid select {
+  height: 28px;
+  border: 1px solid var(--tricc-border-strong);
+  border-radius: 4px;
+  background: var(--tricc-surface);
+  color: var(--tricc-text);
+  font-size: 13px;
+}
+.tricc-table-editor__grid-wrap {
+  overflow-x: auto;
+}
+.tricc-table-grid {
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.tricc-table-grid th,
+.tricc-table-grid td {
+  border: 1px solid var(--tricc-border);
+  padding: 2px;
+  vertical-align: top;
+}
+.tricc-table-grid thead th {
+  background: var(--tricc-subtle);
+  min-width: 9rem;
+  text-align: left;
+}
+.tricc-table-grid thead th:first-child,
+.tricc-table-grid thead th:last-child {
+  min-width: 0;
+}
+/* The double rule between inputs and outputs, as in DMN. */
+.tricc-table-grid th.tricc-table-grid__output:nth-child(1 of .tricc-table-grid__output),
+.tricc-table-grid td.tricc-table-grid__output:nth-child(1 of .tricc-table-grid__output) {
+  border-left: 3px double var(--tricc-border-strong);
+}
+.tricc-table-grid__column {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px;
+}
+.tricc-table-grid__kind {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--tricc-text-muted);
+  text-transform: uppercase;
+}
+.tricc-table-grid__concept {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.tricc-table-grid__concept code[data-missing='true'] {
+  color: var(--tricc-error-text);
+  text-decoration: line-through;
+}
+.tricc-table-grid__clear,
+.tricc-table-grid__column-actions button {
+  border: none;
+  background: none;
+  color: var(--tricc-text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+}
+.tricc-table-grid__column-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.tricc-table-grid__handle {
+  cursor: grab;
+  color: var(--tricc-text-muted);
+  font-weight: 400;
+  white-space: nowrap;
+  padding: 4px 6px;
+}
+.tricc-table-grid__handle span {
+  margin-right: 4px;
+}
+.tricc-table-grid td input {
+  border-color: transparent;
+  box-shadow: none;
+  font-family: ui-monospace, monospace;
+  min-width: 6rem;
+}
+.tricc-table-grid td input:focus {
+  border-color: var(--tricc-primary);
+}
+.tricc-table-grid__invalid,
+.tricc-table-grid td input.tricc-table-grid__invalid {
+  text-decoration: wavy underline var(--tricc-error);
+  text-underline-offset: 3px;
+}
+.tricc-table-grid tr[data-match='true'] td {
+  background: var(--tricc-primary-soft);
+}
+.tricc-table-grid tr[data-kept='true'] td {
+  background: var(--tricc-primary-soft-strong);
+}
+.tricc-table-grid__actions {
+  white-space: nowrap;
+}
+.tricc-table-editor__add {
+  display: flex;
+  gap: 8px;
+}
+.tricc-table-editor__test {
+  border: 1px solid var(--tricc-border-strong);
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: var(--tricc-surface);
+}
+.tricc-table-editor__test h2,
+.tricc-table-editor h2 {
+  font-size: 14px;
+  margin: 0 0 6px;
+}
+.tricc-tables__problems,
+.tricc-tables__error,
+.tricc-tables__errors {
+  color: var(--tricc-error-text);
+}
+.tricc-tables__problems {
+  margin: 0;
+  padding-left: 18px;
+}
+.tricc-table-editor__scroll > * {
+  flex-shrink: 0;
+}
+.tricc-table-editor .tricc-nav__note {
+  font-size: 13px;
+  margin: 0;
+}
+.tricc-table-grid__column label {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--tricc-text-muted);
+}

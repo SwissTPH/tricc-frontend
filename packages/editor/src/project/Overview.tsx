@@ -270,7 +270,7 @@ export function ProjectOverview({
 }
 
 /** The project-wide views the Info panel can open. */
-export type OverviewView = 'segments' | 'activities' | 'blocks' | 'dictionary' | 'media'
+export type OverviewView = 'segments' | 'activities' | 'blocks' | 'dictionary' | 'media' | 'tables'
 
 /** What the project holds, at a glance; each count opens its view when the host has one. */
 function ProjectInfo({
@@ -319,6 +319,13 @@ function ProjectInfo({
         {row('extension', 'Building blocks', blocks, 'blocks', 'blocks')}
         {row('menu_book', 'Data dictionary concepts', concepts, 'dictionary', 'dictionary')}
         {row('image', 'Media', images, 'media', 'media')}
+        {row(
+          'table',
+          'Decision tables',
+          Object.keys(project.decisionTables ?? {}).length,
+          'tables',
+          'tables',
+        )}
         {unassigned > 0 && row('help_center', 'Not on any intervention', unassigned, 'unassigned')}
       </ul>
       <h3>Project</h3>

@@ -4,6 +4,7 @@ import { ActivityEditor } from '../activity/ActivityEditor.js'
 import { BlocksView } from '../blocks/BlocksView.js'
 import { TERMS } from '../blocks/terms.js'
 import { MediaView } from '../media/MediaView.js'
+import { TablesView } from '../tables/TablesView.js'
 import { OpenProjectProvider } from '../runtime/context.js'
 import { DictionaryView } from '../terminology/DictionaryView.js'
 import { ActivityNavigator } from './ActivityNavigator.js'
@@ -74,6 +75,9 @@ export function ProjectWorkspace({
   const [discussJump, setDiscussJump] = useState<DiscussionJump | null>(null)
   const [dictionary, setDictionary] = useState(false)
   const [media, setMedia] = useState(false)
+  /** The decision tables view, and the table open in it. */
+  const [tables, setTables] = useState(false)
+  const [tableId, setTableId] = useState<string | undefined>(undefined)
   const [blocks, setBlocks] = useState(false)
   /** The Segments or Activities grid, from its navigator tab. */
   const [library, setLibrary] = useState<LibraryKind | null>(null)
@@ -84,6 +88,7 @@ export function ProjectWorkspace({
   const openNode = useCallback((nextActivity: string, nodeId: string) => {
     setDictionary(false)
     setMedia(false)
+    setTables(false)
     setBlocks(false)
     setLibrary(null)
     setConcept(undefined)
@@ -93,6 +98,7 @@ export function ProjectWorkspace({
   const openEdge = useCallback((nextActivity: string, edgeId: string) => {
     setDictionary(false)
     setMedia(false)
+    setTables(false)
     setBlocks(false)
     setLibrary(null)
     setConcept(undefined)
@@ -103,6 +109,7 @@ export function ProjectWorkspace({
     setConcept(key)
     setDictionarySystem(key.system)
     setMedia(false)
+    setTables(false)
     setBlocks(false)
     setLibrary(null)
     setDictionary(true)
@@ -110,6 +117,7 @@ export function ProjectWorkspace({
   const openActivity = useCallback((id: string | undefined) => {
     setDictionary(false)
     setMedia(false)
+    setTables(false)
     setBlocks(false)
     setLibrary(null)
     setConcept(undefined)
@@ -142,6 +150,7 @@ export function ProjectWorkspace({
   const followActivity = useCallback((next: string) => {
     setDictionary(false)
     setMedia(false)
+    setTables(false)
     setBlocks(false)
     setLibrary(null)
     setFocus(null)
@@ -155,12 +164,14 @@ export function ProjectWorkspace({
   const showView = useCallback((view: OverviewView | null) => {
     setDictionary(view === 'dictionary')
     setMedia(view === 'media')
+    setTables(view === 'tables')
+    if (view !== 'tables') setTableId(undefined)
     setBlocks(view === 'blocks')
     setLibrary(view === 'segments' ? 'process' : view === 'activities' ? 'activity' : null)
     setConcept(undefined)
   }, [])
 
-  const sideView = dictionary || media || blocks || library !== null
+  const sideView = dictionary || media || tables || blocks || library !== null
   const crumbs = project ? (
     <Breadcrumbs
       trail={sideView ? [] : trail}
@@ -169,13 +180,17 @@ export function ProjectWorkspace({
           ? 'Data dictionary'
           : media
             ? 'Media'
-            : blocks
-              ? TERMS.blocks
-              : library === 'process'
-                ? 'Segments'
-                : library === 'activity'
-                  ? 'Activities'
-                  : undefined
+            : tables
+              ? tableId
+                ? `Decision tables › ${tableId}`
+                : 'Decision tables'
+              : blocks
+                ? TERMS.blocks
+                : library === 'process'
+                  ? 'Segments'
+                  : library === 'activity'
+                    ? 'Activities'
+                    : undefined
       }
       {...(onHome ? { onHome } : {})}
       onProject={() => {
@@ -200,6 +215,8 @@ export function ProjectWorkspace({
         dictionarySystem={dictionary ? dictionarySystem : undefined}
         onOpenDictionary={(system) => {
           setMedia(false)
+          setTables(false)
+          setTables(false)
           setBlocks(false)
           setLibrary(null)
           setConcept(undefined)
@@ -215,6 +232,10 @@ export function ProjectWorkspace({
           setLibrary(null)
           setMedia(true)
         }}
+        tablesOpen={tables}
+        onOpenTables={() => {
+          showView('tables')
+        }}
         blocksOpen={blocks}
         onOpenBlocks={() => showView('blocks')}
         libraryOpen={library ?? undefined}
@@ -226,6 +247,8 @@ export function ProjectWorkspace({
         <BlocksView onOpenBlock={openActivity} onOpenNode={openNode} />
       ) : media ? (
         <MediaView onOpenConcept={openConcept} />
+      ) : tables ? (
+        <TablesView open={tableId} onOpen={setTableId} onOpenNode={openNode} />
       ) : dictionary ? (
         <DictionaryView
           system={dictionarySystem}
