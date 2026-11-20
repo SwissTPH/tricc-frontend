@@ -54,7 +54,9 @@ a node still says only which concept and which repeat.
   so only one text is ever shown.
 - Generating "first"/"second" automatically. Ordinals differ by language and grammar; authors
   write each text, as they do for translations.
-- Per-repeat hint, help and display. Only the questionnaire text is scoped (see Open question 2).
+- Hint, help and display per repeat. Only the questionnaire text is scoped. Hint and help
+  belong to the question rather than the concept and may move off the concept; that is a
+  separate RFC (see Decisions).
 - Per-node text overrides in the activity file. The codes-only rule
   (`20261008-data-dictionary-and-concept-texts.md` §2.0) stays.
 
@@ -99,8 +101,9 @@ designation. No codec change: `Designation.extension` already round-trips as wri
   scope (`ConceptDialog.tsx` ~l.507) keep the other scope and any unknown extensions instead of
   replacing `extension` wholesale.
 - `conceptText` / `conceptRichText` take an options object for the scope
-  (`{ interventionId?, repeat? }`), replacing the positional `interventionId`. Lookup for
-  `q-display`, per language:
+  (`{ interventionId?, repeat? }`), replacing the positional `interventionId`. The repeat scope
+  applies to `q-display` only; for `hint`, `help` and `display` a repeat-scoped designation is
+  ignored. Lookup for `q-display`, per language:
   1. intervention + repeat
   2. repeat
   3. intervention
@@ -159,16 +162,21 @@ In `validate/activity.ts`, next to `node.duplicate-name` (which already groups b
 
 ---
 
+## Decisions
+
+- 2026-11-20: the repeat scope applies to the questionnaire text only. Hint and help depend on
+  the question, not the concept, and may be separated from the concept in a later RFC; this RFC
+  does not scope them and does not add them to the repeat field in the concept card.
+
+---
+
 ## Open questions
 
 1. **Repeat `-1`** ("collect here only, inherit nothing"). Recommendation: treat `-1` as its own
    scope key (`valueInteger: -1`), falling back to the unscoped text like any other repeat.
-2. **Hint and help per repeat.** Recommendation: allow the same scope on hint and help in the
-   resolver (it costs nothing), but show only the questionnaire-text field in the concept card for
-   now.
-3. **Repeat on an activity or goto.** When a whole activity is repeated, its nodes' slots come
+2. **Repeat on an activity or goto.** When a whole activity is repeated, its nodes' slots come
    from the activity, not the node. Recommendation: the resolver uses the node's own repeat only
    in this RFC; inheriting the activity's repeat follows if authors ask for it, together with
    `tricc_oo`.
-4. **Extension URL.** Recommendation: `https://tricc.org/StructureDefinition/designation-repeat`,
+3. **Extension URL.** Recommendation: `https://tricc.org/StructureDefinition/designation-repeat`,
    alongside `designation-intervention`. To confirm with the `tricc_oo` side.
