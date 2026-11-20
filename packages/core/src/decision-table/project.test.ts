@@ -189,6 +189,16 @@ describe('decision table validation', () => {
     ])
   })
 
+  it('takes a calculation name as a column concept', () => {
+    const p = project(`DMN('diazepam', 12)`)
+    delete p.codeSystems[dictionary.url]!.concepts['age_in_months']
+    expect(validateTables(p).map((i) => i.message)).toEqual([
+      expect.stringContaining('"age_in_months" is not in any dictionary, and no question'),
+    ])
+    p.decisionTables!['diazepam']!.inputs[1]!.concept = 'dose'
+    expect(validateTables(p)).toEqual([])
+  })
+
   it('runs with the project validation', () => {
     expect(validateProject(project(`DMN('nope')`)).map((i) => i.rule)).toContain(
       'E_DMN_TABLE_UNKNOWN',

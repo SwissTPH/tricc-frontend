@@ -210,7 +210,7 @@ function columnIssues(project: Project, table: DecisionTable): Issue[] {
         issue(
           'E_DMN_CONCEPT',
           'error',
-          `Table "${table.id}", column "${col.name}": the concept "${col.concept}" is not in any dictionary. Pick another concept, or clear it.`,
+          `Table "${table.id}", column "${col.name}": "${col.concept}" is not in any dictionary, and no question or calculation has that name. Pick another concept, or clear it.`,
           at(i),
         ),
       )
@@ -219,7 +219,13 @@ function columnIssues(project: Project, table: DecisionTable): Issue[] {
   return out
 }
 
-/** Whether a concept code is in one of the project's dictionaries. */
+/**
+ * Whether a column concept names something an expression can read: a concept in one of the
+ * project's dictionaries, or the name of a question or calculation (`age_in_months`).
+ */
 export function conceptExists(project: Project, code: string): boolean {
-  return Object.values(project.codeSystems).some((cs) => code in cs.concepts)
+  if (Object.values(project.codeSystems).some((cs) => code in cs.concepts)) return true
+  return Object.values(project.activities).some((a) =>
+    Object.values(a.nodes).some((n) => n.name === code),
+  )
 }

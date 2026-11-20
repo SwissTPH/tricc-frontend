@@ -186,7 +186,8 @@ Changing a table's hit policy re-checks every call to it (the result type may ch
 - Shared vectors for `tricc_oo`: `packages/core/src/decision-table/__vectors__/cells.json` and
   `tables.json` (copy them unchanged).
 - Codes added beside the `tricc_oo` ones: `E_DMN_SHAPE` (row width, missing input or output,
-  duplicate column names), `E_DMN_CONCEPT` (a column concept not in any dictionary),
+  duplicate column names), `E_DMN_CONCEPT` (a column concept that is neither in a dictionary nor the name of a
+  question or calculation, such as `age_in_months`),
   `dmn.unused` (warning). `E_DMN_TYPE` also covers a result used against its hit policy (a list
   compared as one value, one value given to `Count`…).
 - Table files list explicit paths under `decision_tables`; globs are read. Comments in a table
