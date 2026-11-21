@@ -43,7 +43,8 @@ import {
   updateLocalized,
 } from './ytypes.js'
 import type { Expression } from '../format/schema/expression.js'
-import { designationText, retargetImage, withDesignationText } from '../text/message.js'
+import { designationText, withDesignationText } from '../text/designation.js'
+import { retargetImage } from '../text/render.js'
 import type { LocalizedText } from '../format/schema/localized.js'
 
 /**

@@ -1,0 +1,32 @@
+{
+  "name": "vitamin-space-in-bold",
+  "input": {
+    "html": "<b>VITAMIN </b>A"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "VITAMIN "
+          },
+          {
+            "type": "text",
+            "text": "A"
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "VITAMIN A",
+  "markdown": "**VITAMIN** A",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><strong>VITAMIN </strong>A</p></div>"
+}

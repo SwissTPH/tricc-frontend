@@ -1,5 +1,6 @@
 import type { CodeSystem, Concept, Project, SelectOption, TriccNode } from '../model/types.js'
-import { designationText, imageRefs } from '../text/message.js'
+import { designationText } from '../text/designation.js'
+import { imageRefs } from '../text/render.js'
 import { isCalculated } from '../format/schema/node-types.js'
 import { calculateCodeSystem } from './dictionaries.js'
 

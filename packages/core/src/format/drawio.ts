@@ -20,7 +20,8 @@ import {
   type NodeType,
 } from './schema/node-types.js'
 import { liftRootAttributes } from '../model/activity-kind.js'
-import { fromHtml, isStructured } from '../text/message.js'
+import { fromHtml } from '../text/parse.js'
+import { isStructured, simplify } from '../text/render.js'
 import { parseParamArg, parseParamShorthand } from '../params/drawio.js'
 
 /**
@@ -382,7 +383,7 @@ function shapeToNode(
   if (labelText) node.label = { [lang]: labelText }
   // Keep the formatting the drawing had; the text migration puts it on the concept.
   const rich = kind.unmapped ? undefined : fromHtml(shape.attrs['label'] ?? shape.value ?? '')
-  if (rich && isStructured(rich)) node.labelMessage = rich
+  if (rich && isStructured(simplify(rich))) node.labelDoc = rich
   if (kind.type === 'start') {
     const formId = shape.attrs['form_id'] ?? shape.attrs['formId']
     if (formId) node.form_id = formId

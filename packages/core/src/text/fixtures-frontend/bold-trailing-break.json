@@ -1,0 +1,28 @@
+{
+  "name": "bold-trailing-break",
+  "input": {
+    "html": "<b>HIV exposed:<br></b>"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "HIV exposed:"
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "HIV exposed:",
+  "markdown": "**HIV exposed:**",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><strong>HIV exposed:</strong></p></div>"
+}

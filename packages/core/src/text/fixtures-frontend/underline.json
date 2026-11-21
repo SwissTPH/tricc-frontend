@@ -1,0 +1,32 @@
+{
+  "name": "underline",
+  "input": {
+    "html": "<u>Underlined</u> text"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "underline"
+              }
+            ],
+            "text": "Underlined"
+          },
+          {
+            "type": "text",
+            "text": " text"
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "Underlined text",
+  "markdown": "Underlined text",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><u>Underlined</u> text</p></div>"
+}

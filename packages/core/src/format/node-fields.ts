@@ -53,7 +53,7 @@ export const NODE_FIELDS = {
   /** Legacy: read on a process start, moved to the intervention name, never written. */
   form_id: 'custom',
   /** Transient formatted label from a drawing; the text migration moves it to the concept. */
-  labelMessage: 'transient',
+  labelDoc: 'transient',
 } as const satisfies Record<keyof TriccNode, FieldKind>
 
 export type FieldKind =

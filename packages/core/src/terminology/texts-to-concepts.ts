@@ -8,14 +8,9 @@ import {
   type TriccNode,
 } from '../model/types.js'
 import type { LocalizedText } from '../format/schema/localized.js'
-import {
-  designationText,
-  imageRefs,
-  prependImage,
-  toMarkdown,
-  withDesignationText,
-  type Message,
-} from '../text/message.js'
+import { designationText, withDesignationText } from '../text/designation.js'
+import { imageRefs, prependImage, toMarkdown } from '../text/render.js'
+import type { PmDoc } from '../text/schema.js'
 import { isTextNode, type NodeType } from '../format/schema/node-types.js'
 import { NODE_TYPE_SPECS } from '../format/schema/node-spec.js'
 import { DESIGNATION_USES, designationUse, isUnscoped, type DesignationUse } from './designation.js'
@@ -92,14 +87,14 @@ export function moveTextsToConcepts(
     }
     const { parentType: _parentType, ...place } = where
     const drop = (text: string) => result.dropped.push({ ...place, text })
-    const rich = 'labelMessage' in item ? item.labelMessage : undefined
+    const rich = 'labelDoc' in item ? item.labelDoc : undefined
     for (const [language, text] of Object.entries(texts.label ?? {})) {
       if (!text.trim()) continue
       // A formatted label: its plain text names the concept, the formatted one is what the form shows.
       if (rich && language === lang) placeRichLabel(concept, language, rich, text, lang, drop)
       else placeLabel(concept, language, text, lang, drop)
     }
-    if ('labelMessage' in item) delete item.labelMessage
+    if ('labelDoc' in item) delete item.labelDoc
     for (const use of ['hint', 'help'] as const) {
       for (const [language, text] of Object.entries(texts[use] ?? {})) {
         if (!text.trim()) continue
@@ -214,7 +209,7 @@ function placeLabel(
 function placeRichLabel(
   concept: Concept,
   language: string,
-  rich: Message,
+  rich: PmDoc,
   plain: string,
   defaultLang: string,
   drop: (text: string) => void,
