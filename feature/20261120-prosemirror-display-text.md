@@ -46,9 +46,12 @@ writes by hand, and the two have drifted before (spacing, split bold, Markdown t
 
 **Libraries in `@tricc/core`:**
 
-- `prosemirror-model`: `Schema`, `Node.fromJSON`, `DOMParser`, `DOMSerializer`.
-- `prosemirror-markdown`: `MarkdownParser` over `markdown-it`, with an `interp` inline rule for
-  `${name}` (the same token table as `tricc_oo`), and `MarkdownSerializer` for `value`.
+- `prosemirror-model`: `Schema`, `Node.fromJSON`, `DOMParser`.
+- `markdown-it` (preset `zero` + `list`, `emphasis`, `newline`, `image`), with an `interp` inline
+  rule for `${name}`; its tokens are mapped to nodes and marks the way `tricc_oo` maps them
+  (a blank line between top-level blocks is an empty paragraph). `prosemirror-markdown` is not
+  used: its parser cannot see the blank lines and its serializer separates blocks with a blank
+  line, while `tricc_oo` writes blocks as lines (see Decisions).
 - `linkedom`: a DOM for `DOMParser` in Node and in the browser alike, so the import gives the same
   result in the app, in tests and in `scripts/check-tricc-project.mjs`. The hand-written HTML
   tokenizer in `text/message.ts` is removed.
@@ -56,10 +59,13 @@ writes by hand, and the two have drifted before (spacing, split bold, Markdown t
 **`packages/core/src/text/`** (`message.ts` is replaced by):
 
 - `schema.ts` — `textSchema` (`prosemirror-model` `Schema`), the source of truth on this side.
+- `normalize.ts` — `normalize`, the canonical form every reader returns (as `tricc_oo`
+  `normalize`).
 - `parse.ts` — `fromHtml` (draw.io labels: DOM import → `${name}` split → typed Markdown re-read,
   as `tricc_oo` §1.2), `fromMarkdown`, `docFromJson` (schema-checked; core already exports `fromJson` for project files), `fromMessageJson` (old
   `designation-message` tree, read-only).
-- `render.ts` — `toPlain`, `toMarkdown` (`MarkdownSerializer`), `references`, `imageRefs`,
+- `render.ts` — `toPlain`, `toMarkdown` (blocks as lines, as `tricc_oo/text/render.py`),
+  `inlineMarkdown`, `references`, `imageRefs`,
   `retargetImage`, `prependImage`, `isStructured`, `simplify` (a document with one plain
   paragraph becomes a `string`).
 - `designation.ts` — `designationText` reads `designation-doc`, then `designation-message`, then
@@ -114,3 +120,4 @@ None open; see Decisions.
 - 2026-11-20: new extension URL `designation-doc`; `designation-message` read, never written.
 - 2026-11-20 (implementation): the text parser is exported as `docFromJson`, since core already exports `fromJson` for project files. The editor saves `getJSON()` through `docFromJson`, which keeps it as is apart from dropping TipTap's unused `orderedList.type` and sorting marks in schema order.
 - 2026-11-20 (implementation): a designation `value` with no extension is read as Markdown, but a value that reads as plain text is kept exactly as typed (Markdown would trim spaces while an author types in a plain field).
+- 2026-11-20 (implementation): Markdown is read with `markdown-it` and written by a port of `tricc_oo/text/render.py` (blocks are lines, an empty paragraph is a blank line, underline and colour have no Markdown), not with `prosemirror-markdown`, so the shared fixtures match; the colour `<span>` the old tree wrote into `value` is gone (the document keeps the colour).

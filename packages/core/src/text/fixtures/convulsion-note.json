@@ -22,12 +22,12 @@
           },
           {
             "type": "text",
+            "text": " ml",
             "marks": [
               {
                 "type": "bold"
               }
-            ],
-            "text": " ml"
+            ]
           },
           {
             "type": "text",
@@ -35,12 +35,12 @@
           },
           {
             "type": "text",
+            "text": "Diazepam",
             "marks": [
               {
                 "type": "bold"
               }
-            ],
-            "text": "Diazepam"
+            ]
           },
           {
             "type": "text",

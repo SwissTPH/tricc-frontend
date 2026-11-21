@@ -16,6 +16,9 @@
         ]
       },
       {
+        "type": "paragraph"
+      },
+      {
         "type": "paragraph",
         "content": [
           {
@@ -35,5 +38,5 @@
   },
   "plain": "First\n\nSecond line\nThird",
   "markdown": "First\n\nSecond line\nThird",
-  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>First</p><p>Second line<br>Third</p></div>"
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>First</p><p></p><p>Second line<br>Third</p></div>"
 }

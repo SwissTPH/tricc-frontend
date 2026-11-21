@@ -26,7 +26,7 @@
       }
     ]
   },
-  "plain": "Check the child\n\nThen weigh",
-  "markdown": "Check the child\n\nThen weigh",
+  "plain": "Check the child\nThen weigh",
+  "markdown": "Check the child\nThen weigh",
   "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>Check the child</p><p>Then weigh</p></div>"
 }

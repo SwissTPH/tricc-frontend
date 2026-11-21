@@ -1,13 +1,5 @@
-import { MarkdownSerializer } from 'prosemirror-markdown'
-import {
-  imageIdOf,
-  imageSrc,
-  isColor,
-  textSchema,
-  type DisplayText,
-  type PmDoc,
-  type PmNode,
-} from './schema.js'
+import { isEmptyParagraph, normalize, paragraph } from './normalize.js'
+import { imageIdOf, imageSrc, type DisplayText, type PmDoc, type PmNode } from './schema.js'
 
 /**
  * Everything read from a display text walks its document: plain text, Markdown, the names it
@@ -27,18 +19,13 @@ function* walk(node: PmNode): Generator<PmNode> {
   for (const child of node.content ?? []) yield* walk(child)
 }
 
-function isEmptyParagraph(node: PmNode): boolean {
-  return node.type === 'paragraph' && (node.content ?? []).length === 0
-}
-
 /**
  * A plain string when the document is one paragraph of unmarked text and `${name}` (the string
- * form says the same, so it costs no extension); `''` when it is empty. Empty top-level
- * paragraphs are dropped: they only ever add blank lines.
+ * form says the same, so it costs no extension); `''` when it is empty.
  */
 export function simplify(doc: PmDoc): DisplayText {
-  const blocks = (doc.content ?? []).filter((b) => !isEmptyParagraph(b))
-  if (blocks.length === 0) return ''
+  const blocks = doc.content ?? []
+  if (blocks.length === 0 || (blocks.length === 1 && isEmptyParagraph(blocks[0]!))) return ''
   const only = blocks.length === 1 ? blocks[0]! : undefined
   if (
     only?.type === 'paragraph' &&
@@ -49,47 +36,40 @@ export function simplify(doc: PmDoc): DisplayText {
     return (only.content ?? [])
       .map((n) => (n.type === 'text' ? (n.text ?? '') : `\${${String(n.attrs?.['name'])}}`))
       .join('')
-  return blocks.length === (doc.content ?? []).length ? doc : { ...doc, content: blocks }
+  return doc
+}
+
+type Interp = (name: string) => string
+const asToken: Interp = (name) => `\${${name}}`
+const LIST_TYPES = new Set(['bulletList', 'orderedList'])
+
+// ------------------------------------------------------------------ blocks as lines
+
+/**
+ * Blocks are lines, as `tricc_oo/text/render.py` writes them: each paragraph or list item
+ * starts a line, an empty paragraph is a blank line, a `hardBreak` a line break; the lines
+ * of a list item are indented under its marker.
+ */
+function renderBlocks(blocks: PmNode[], inline: (c: PmNode[]) => string, bullet: string): string {
+  const lines: string[] = []
+  for (const block of blocks) {
+    if (block.type === 'paragraph') lines.push(inline(block.content ?? []))
+    else if (LIST_TYPES.has(block.type)) {
+      const start = typeof block.attrs?.['start'] === 'number' ? block.attrs['start'] : 1
+      ;(block.content ?? []).forEach((item, i) => {
+        const prefix = block.type === 'orderedList' ? `${start + i}. ` : bullet
+        const body = renderBlocks(item.content ?? [], inline, bullet)
+        lines.push(prefix + body.replace(/\n/g, `\n${' '.repeat(prefix.length)}`))
+      })
+    }
+  }
+  return lines.join('\n')
 }
 
 // ------------------------------------------------------------------ plain text
 
-/**
- * The text without any markup: line breaks kept, paragraphs apart by a blank line, list items
- * as `• ` / `1. `, `${name}` as `interp(name)`, pictures as their `alt` (or nothing).
- */
-export function toPlain(
-  text: DisplayText,
-  interp: (name: string) => string = (name) => `\${${name}}`,
-): string {
-  if (typeof text === 'string') return text.replace(TOKEN, (_, name: string) => interp(name.trim()))
-  return blocksPlain(text.content ?? [], interp).trim()
-}
-
-function blocksPlain(blocks: PmNode[], interp: (name: string) => string): string {
-  return blocks
-    .map((b) => blockPlain(b, interp))
-    .filter((s) => s !== '')
-    .join('\n\n')
-}
-
-function blockPlain(block: PmNode, interp: (name: string) => string): string {
-  if (block.type === 'paragraph') return inlinePlain(block.content ?? [], interp)
-  if (block.type === 'bulletList' || block.type === 'orderedList') {
-    const start = typeof block.attrs?.['start'] === 'number' ? block.attrs['start'] : 1
-    return (block.content ?? [])
-      .map((item, i) => {
-        const prefix = block.type === 'orderedList' ? `${start + i}. ` : '• '
-        const body = (item.content ?? []).map((b) => blockPlain(b, interp)).join('\n')
-        return prefix + body.replace(/\n/g, '\n  ')
-      })
-      .join('\n')
-  }
-  return ''
-}
-
-function inlinePlain(nodes: PmNode[], interp: (name: string) => string): string {
-  return nodes
+function inlinePlain(content: PmNode[], interp: Interp): string {
+  return content
     .map((n) =>
       n.type === 'text'
         ? (n.text ?? '')
@@ -98,71 +78,143 @@ function inlinePlain(nodes: PmNode[], interp: (name: string) => string): string 
           : n.type === 'interp'
             ? interp(String(n.attrs?.['name'] ?? ''))
             : n.type === 'image'
-              ? typeof n.attrs?.['alt'] === 'string'
-                ? n.attrs['alt']
-                : ''
+              ? String(n.attrs?.['alt'] || '')
               : '',
     )
     .join('')
 }
 
+/**
+ * The text without any markup: line breaks kept, list items `• ` / `1. `, `${name}` as
+ * `interp(name)` (as written by default), a picture as its `alt` (or nothing).
+ */
+export function toPlain(text: DisplayText, interp: Interp = asToken): string {
+  if (typeof text === 'string') return text.replace(TOKEN, (_, name: string) => interp(name.trim()))
+  return renderBlocks(text.content ?? [], (c) => inlinePlain(c, interp), '• ').trim()
+}
+
 // ------------------------------------------------------------------ Markdown
 
-/**
- * Markdown as ODK and CHT render it: `**bold**`, `_italic_`, `- ` / `1. ` lists, a line break
- * as a newline, paragraphs apart by a blank line, `${name}` as is, pictures as
- * `![alt](Binary/<id>)`. Text is not escaped, as `tricc_oo` writes it. Underline has no
- * Markdown and is dropped; a colour is an inline `<span>` ODK and CHT understand.
- */
-const serializer = new MarkdownSerializer(
-  {
-    doc: (state, node) => state.renderContent(node),
-    paragraph: (state, node) => {
-      state.renderInline(node)
-      state.closeBlock(node)
-    },
-    bulletList: (state, node) => state.renderList(node, '  ', () => '- '),
-    orderedList: (state, node) => {
-      const start = (node.attrs['start'] as number | undefined) ?? 1
-      state.renderList(node, '   ', (i) => `${start + i}. `)
-    },
-    listItem: (state, node) => state.renderContent(node),
-    text: (state, node) => state.text(node.text ?? '', false),
-    hardBreak: (state) => state.write('\n'),
-    interp: (state, node) => state.write(`\${${String(node.attrs['name'])}}`),
-    image: (state, node) =>
-      state.write(
-        `![${String(node.attrs['alt'] ?? '').replace(/[[\]]/g, '')}](${String(node.attrs['src'])})`,
-      ),
-  },
-  {
-    bold: { open: '**', close: '**', mixable: true, expelEnclosingWhitespace: true },
-    italic: { open: '_', close: '_', mixable: true, expelEnclosingWhitespace: true },
-    underline: { open: '', close: '' },
-    textStyle: {
-      open: (_state, mark) =>
-        isColor(mark.attrs['color']) ? `<span style="color:${mark.attrs['color']}">` : '',
-      close: (_state, mark) => (isColor(mark.attrs['color']) ? '</span>' : ''),
-    },
-  },
-  { hardBreakNodeName: 'hardBreak', strict: false },
-)
+/** Marks Markdown can write, outermost first. */
+const MARKDOWN_MARKS = ['bold', 'italic'] as const
 
-export function toMarkdown(text: DisplayText): string {
+interface Segment {
+  marks: Set<string>
+  text: string
+  /** Text whose edge spaces may leave its marks. */
+  isText: boolean
+}
+
+function segments(content: PmNode[], interp: Interp): Segment[] {
+  return content.flatMap((node): Segment[] => {
+    const marks = new Set(
+      (node.marks ?? [])
+        .map((m) => m.type)
+        .filter((t) => (MARKDOWN_MARKS as readonly string[]).includes(t)),
+    )
+    if (node.type === 'text') return [{ marks, text: node.text ?? '', isText: true }]
+    if (node.type === 'interp')
+      return [{ marks, text: interp(String(node.attrs?.['name'] ?? '')), isText: false }]
+    if (node.type === 'hardBreak') return [{ marks: new Set(), text: '\n', isText: false }]
+    if (node.type === 'image') {
+      const alt = String(node.attrs?.['alt'] ?? '').replace(/[[\]]/g, '')
+      return [
+        { marks: new Set(), text: `![${alt}](${String(node.attrs?.['src'])})`, isText: false },
+      ]
+    }
+    return []
+  })
+}
+
+const both = (a: Set<string>, b: Set<string>) => new Set([...a].filter((m) => b.has(m)))
+const sameSet = (a: Set<string>, b: Set<string>) =>
+  a.size === b.size && [...a].every((m) => b.has(m))
+
+/**
+ * Spaces at the edge of a marked run go outside the markers: the leading spaces of a node
+ * keep only the marks it shares with the node before, the trailing ones those it shares with
+ * the node after.
+ */
+function expelWhitespace(segs: Segment[]): { marks: Set<string>; text: string }[] {
+  const none = new Set<string>()
+  const out: { marks: Set<string>; text: string }[] = []
+  segs.forEach(({ marks, text, isText }, i) => {
+    if (!isText || marks.size === 0) {
+      out.push({ marks, text })
+      return
+    }
+    const before = i > 0 ? segs[i - 1]!.marks : none
+    const after = i + 1 < segs.length ? segs[i + 1]!.marks : none
+    const core = text.trim()
+    if (!core) {
+      out.push({ marks: both(both(marks, before), after), text })
+      return
+    }
+    const lead = text.slice(0, text.length - text.trimStart().length)
+    const trail = text.slice(text.trimEnd().length)
+    if (lead) out.push({ marks: both(marks, before), text: lead })
+    out.push({ marks, text: core })
+    if (trail) out.push({ marks: both(marks, after), text: trail })
+  })
+  const merged: { marks: Set<string>; text: string }[] = []
+  for (const seg of out) {
+    const last = merged[merged.length - 1]
+    if (last && sameSet(last.marks, seg.marks)) last.text += seg.text
+    else merged.push({ ...seg })
+  }
+  return merged
+}
+
+/**
+ * Markdown of a paragraph's content: marks opened and closed around runs, so
+ * `**Give ${dose} mg**` stays one span; bold outside italic; underline and colour have no
+ * Markdown and are dropped; text is not escaped. `italic` is `*` when the Markdown is read
+ * again (an intraword `_` is not emphasis).
+ */
+export function inlineMarkdown(
+  content: PmNode[],
+  italic: '_' | '*' = '_',
+  interp: Interp = asToken,
+): string {
+  const wrap: Record<string, string> = { bold: '**', italic }
+  const out: string[] = []
+  const stack: string[] = []
+  for (const { marks, text } of expelWhitespace(segments(content, interp))) {
+    let keep = 0
+    while (keep < stack.length && marks.has(stack[keep]!)) keep++
+    while (stack.length > keep) out.push(wrap[stack.pop()!]!)
+    for (const mark of MARKDOWN_MARKS)
+      if (marks.has(mark) && !stack.includes(mark)) {
+        stack.push(mark)
+        out.push(wrap[mark]!)
+      }
+    out.push(text)
+  }
+  while (stack.length) out.push(wrap[stack.pop()!]!)
+  return out.join('')
+}
+
+/**
+ * Markdown as ODK and CHT render it: `**bold**`, `_italic_`, `- ` / `1. ` list items, a line
+ * break as a newline, an empty paragraph as a blank line, `${name}` as `interp(name)` (as
+ * written by default), a picture as `![alt](Binary/<id>)`. A plain string is its own Markdown.
+ */
+export function toMarkdown(text: DisplayText, interp: Interp = asToken): string {
   if (typeof text === 'string') return text
-  return serializer.serialize(textSchema.nodeFromJSON(text), { tightLists: true }).trim()
+  return renderBlocks(text.content ?? [], (c) => inlineMarkdown(c, '_', interp), '- ')
 }
 
 // ------------------------------------------------------------------ references and pictures
 
-/** Names injected with `${name}`, in reading order. */
+/** Names injected with `${name}`, in reading order, each once. */
 export function references(text: DisplayText): string[] {
-  if (typeof text === 'string')
-    return [...text.matchAll(TOKEN)].map((m) => (m[1] ?? '').trim()).filter(Boolean)
-  const out: string[] = []
-  for (const n of walk(text))
-    if (n.type === 'interp' && typeof n.attrs?.['name'] === 'string') out.push(n.attrs['name'])
-  return out
+  const names =
+    typeof text === 'string'
+      ? [...text.matchAll(TOKEN)].map((m) => (m[1] ?? '').trim()).filter(Boolean)
+      : [...walk(text)].flatMap((n) =>
+          n.type === 'interp' && typeof n.attrs?.['name'] === 'string' ? [n.attrs['name']] : [],
+        )
+  return [...new Set(names)]
 }
 
 /** Image ids shown by the text, in reading order (a repeat is listed once). */
@@ -193,7 +245,7 @@ export function retargetImage(
     if (!node.content) return [node]
     return [{ ...node, content: node.content.flatMap(map) }]
   }
-  return simplify(map(text)[0] as PmDoc)
+  return simplify(normalize(map(text)[0] as PmDoc))
 }
 
 /** The text with a picture first, on its own line. */
@@ -226,10 +278,8 @@ export function fromPlainDoc(text: string): PmDoc {
     }
     if (last < line.length) content.push({ type: 'text', text: line.slice(last) })
   })
-  return {
-    type: 'doc',
-    content: [content.length ? { type: 'paragraph', content } : { type: 'paragraph' }],
-  }
+  // Not normalised: a plain field keeps its spaces while the author types.
+  return { type: 'doc', content: [paragraph(content)] }
 }
 
 /** Plain text with optional `${name}` tokens, as a display text. */

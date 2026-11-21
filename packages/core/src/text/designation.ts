@@ -1,5 +1,6 @@
 import type { Designation } from '../model/types.js'
 import { docFromJson, fromMarkdown, fromMessageJson } from './parse.js'
+import { normalize } from './normalize.js'
 import { fromPlain, isStructured, simplify, toMarkdown } from './render.js'
 import type { DisplayText } from './schema.js'
 
@@ -62,7 +63,7 @@ export function designationText(d: Designation): DisplayText {
  * nothing. The old tree is dropped.
  */
 export function withDesignationText(d: Designation, text: DisplayText): Designation {
-  const simple = isStructured(text) ? simplify(text) : text
+  const simple = isStructured(text) ? simplify(normalize(text)) : text
   const others = (d.extension ?? []).filter((e) => {
     const url = (e as { url?: unknown }).url
     return url !== DESIGNATION_DOC_URL && url !== DESIGNATION_MESSAGE_URL

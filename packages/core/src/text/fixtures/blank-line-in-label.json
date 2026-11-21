@@ -1,0 +1,35 @@
+{
+  "name": "blank-line-in-label",
+  "input": {
+    "html": "<div>Check the child</div><div><br></div><div>Then weigh</div>"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Check the child"
+          }
+        ]
+      },
+      {
+        "type": "paragraph"
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Then weigh"
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "Check the child\n\nThen weigh",
+  "markdown": "Check the child\n\nThen weigh",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>Check the child</p><p></p><p>Then weigh</p></div>"
+}

@@ -11,12 +11,12 @@
         "content": [
           {
             "type": "text",
+            "text": "Danger",
             "marks": [
               {
                 "type": "bold"
               }
-            ],
-            "text": "Danger"
+            ]
           },
           {
             "type": "text",

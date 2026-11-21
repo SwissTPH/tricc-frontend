@@ -31,7 +31,7 @@ describe('designation-doc', () => {
   it('stores Markdown in the value and the document in the extension, and reads it back', () => {
     const doc = fromHtml('<b>Give ${dose} mg</b><ul><li>with food</li></ul>')
     const rich = withDesignationText(base, doc)
-    expect(rich.value).toBe('**Give ${dose} mg**\n\n- with food')
+    expect(rich.value).toBe('**Give ${dose} mg**\n- with food')
     expect(rich.extension).toEqual([{ url: DESIGNATION_DOC_URL, valueString: JSON.stringify(doc) }])
     expect(designationText(rich)).toEqual(doc)
   })
@@ -125,9 +125,7 @@ describe('designation-doc', () => {
       extension: [{ url: DESIGNATION_MESSAGE_URL, valueString: JSON.stringify(tree) }, scope],
     }
     const text = designationText(old)
-    expect(toMarkdown(text)).toBe(
-      '**Give ${dose}**\n\n- with food\n\n<span style="color:#d32f2f">Danger</span>',
-    )
+    expect(toMarkdown(text)).toBe('**Give ${dose}**\n- with food\nDanger')
     const saved = withDesignationText(old, text)
     expect(saved.extension?.map((e) => (e as { url: string }).url)).toEqual([
       scope.url,

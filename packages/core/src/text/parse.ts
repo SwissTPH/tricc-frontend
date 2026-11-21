@@ -1,46 +1,57 @@
 import MarkdownIt from 'markdown-it'
+import type Token from 'markdown-it/lib/token.mjs'
 import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs'
 import { parseHTML } from 'linkedom'
-import { MarkdownParser } from 'prosemirror-markdown'
-import { DOMParser as PmDOMParser, type Node as PmModelNode } from 'prosemirror-model'
-import { toMarkdown } from './render.js'
+import { DOMParser as PmDOMParser } from 'prosemirror-model'
+import {
+  cleanInline,
+  emptyDoc,
+  interpNode,
+  mapParagraphs,
+  normalize,
+  paragraph,
+  textNode,
+} from './normalize.js'
+import { inlineMarkdown } from './render.js'
 import { imageIdOf, isColor, textSchema, type PmDoc, type PmMark, type PmNode } from './schema.js'
 
 /**
  * Reading display text into a document: draw.io label HTML, Markdown (YAML labels, typed
  * Markdown, a designation's `value`), stored JSON, and the old `designation-message` tree.
- * The rules follow `tricc_oo/text/parse.py` (feature/20261120-prosemirror-display-text.md §1.2).
+ * Every reader returns the canonical form (`normalize`). The rules are those of
+ * `tricc_oo/text/parse.py` (feature/20261120-prosemirror-display-text.md §1.2); the shared
+ * fixtures hold both sides to them.
  */
 
 const TOKEN = /\$\{([^}]+)\}/g
-const EMPTY: PmDoc = { type: 'doc', content: [{ type: 'paragraph' }] }
 
 // ------------------------------------------------------------------ JSON
 
-/**
- * A stored document, checked against the schema: unknown nodes, marks or attributes, invalid
- * content, a colour that is not one and a picture outside the image library are rejected,
- * not half-read.
- */
-export function docFromJson(raw: unknown): PmDoc {
+function checkNode(raw: unknown): void {
   if (typeof raw !== 'object' || raw === null || (raw as PmNode).type !== 'doc')
     throw new Error('Not a display-text document.')
   const node = textSchema.nodeFromJSON(raw)
   node.check()
   node.descendants((n) => {
     for (const mark of n.marks)
-      if (
-        mark.type.name === 'textStyle' &&
-        mark.attrs['color'] !== null &&
-        !isColor(mark.attrs['color'])
-      )
+      if (mark.type.name === 'textStyle' && !isColor(mark.attrs['color']))
         throw new Error(`Not a colour: ${JSON.stringify(mark.attrs['color'])}`)
     if (n.type.name === 'image' && !imageIdOf(n.attrs['src']))
       throw new Error(`Not a project image: ${JSON.stringify(n.attrs['src'])}`)
-    if (n.type.name === 'interp' && (typeof n.attrs['name'] !== 'string' || !n.attrs['name']))
+    if (n.type.name === 'interp' && !String(n.attrs['name'] ?? '').trim())
       throw new Error('A data reference without a name.')
   })
-  return node.toJSON() as PmDoc
+}
+
+/**
+ * A stored document (the editor's JSON) in canonical form, checked against the schema:
+ * unknown nodes or marks, invalid content, a colour that is not one and a picture outside the
+ * image library are rejected, not half-read. Attributes the schema does not know (TipTap's
+ * `orderedList.type`) are dropped. (Core already exports `fromJson` for project files.)
+ */
+export function docFromJson(raw: unknown): PmDoc {
+  checkNode(raw)
+  return normalize(textSchema.nodeFromJSON(raw).toJSON() as PmDoc)
 }
 
 // ------------------------------------------------------------------ Markdown
@@ -56,140 +67,170 @@ function interpRule(state: StateInline, silent: boolean): boolean {
   if (!name) return false
   if (!silent) {
     const token = state.push('interp', '', 0)
-    token.content = name
+    token.meta = { name }
   }
   state.pos = end + 1
   return true
 }
 
-const tokenizer = new MarkdownIt('zero', { breaks: true }).enable([
-  'list',
-  'emphasis',
-  'newline',
-  'image',
-])
+/**
+ * markdown-it, preset `zero` with lists, emphasis, line breaks and pictures, plus `${name}`.
+ * Headings, links, code, escapes and entities stay text.
+ */
+const tokenizer = new MarkdownIt('zero').enable(['list', 'emphasis', 'newline', 'image'])
 tokenizer.inline.ruler.before('text', 'interp', interpRule)
 
-const markdownParser = new MarkdownParser(textSchema, tokenizer, {
-  paragraph: { block: 'paragraph' },
-  list_item: { block: 'listItem' },
-  bullet_list: { block: 'bulletList' },
-  ordered_list: {
-    block: 'orderedList',
-    getAttrs: (tok) => ({ start: Number(tok.attrGet('start')) || 1 }),
-  },
-  hardbreak: { node: 'hardBreak' },
-  softbreak: { node: 'hardBreak' },
-  em: { mark: 'italic' },
-  strong: { mark: 'bold' },
-  image: {
-    node: 'image',
-    getAttrs: (tok) => ({
-      src: tok.attrGet('src'),
-      alt: (tok.children?.[0]?.content ?? '') || null,
-    }),
-  },
-  interp: { node: 'interp', noCloseToken: true, getAttrs: (tok) => ({ name: tok.content }) },
-})
-
-/**
- * Markdown as `tricc_oo` reads it (markdown-it, preset `zero` plus lists, emphasis, newlines
- * and images, a newline being a line break), with `${name}` as data. No HTML, no escapes.
- */
-export function fromMarkdown(markdown: string): PmDoc {
-  const doc = markdownParser.parse(markdown.replace(/ /g, ' ')) as PmModelNode
-  return dropForeignImages(doc.toJSON() as PmDoc)
+const MARK_OF: Record<string, string> = {
+  strong_open: 'bold',
+  strong_close: 'bold',
+  em_open: 'italic',
+  em_close: 'italic',
 }
 
-/** A picture typed in Markdown that is not in the image library is not ours to show. */
-function dropForeignImages(doc: PmDoc): PmDoc {
-  const map = (node: PmNode): PmNode[] => {
-    if (node.type === 'image' && !imageIdOf(node.attrs?.['src'])) return []
-    if (!node.content) return [node]
-    return [{ ...node, content: node.content.flatMap(map) }]
+function inlineFromTokens(tokens: Token[]): PmNode[] {
+  const content: PmNode[] = []
+  const marks: string[] = []
+  const current = (): PmMark[] => marks.map((type) => ({ type }))
+  for (const token of tokens) {
+    const kind = token.type
+    if (kind === 'strong_open' || kind === 'em_open') marks.push(MARK_OF[kind]!)
+    else if (kind === 'strong_close' || kind === 'em_close') {
+      const at = marks.lastIndexOf(MARK_OF[kind]!)
+      if (at >= 0) marks.splice(at, 1)
+    } else if (kind === 'softbreak' || kind === 'hardbreak') content.push({ type: 'hardBreak' })
+    else if (kind === 'interp') content.push(interpNode(String(token.meta?.name), current()))
+    else if (kind === 'image') {
+      const src = token.attrGet('src')
+      if (imageIdOf(src))
+        content.push({ type: 'image', attrs: { src, alt: token.content || null } })
+      // A picture that is not in the image library stays as typed.
+      else content.push(textNode(`![${token.content}](${src ?? ''})`, current()))
+    } else if (token.content) content.push(textNode(token.content, current()))
   }
-  return map(doc)[0] as PmDoc
+  return cleanInline(content)
+}
+
+interface Frame {
+  blocks: PmNode[]
+  lines: [number, number][]
+  type?: string
+  attrs?: Record<string, unknown>
+  items?: PmNode[]
+  start?: number
+  end?: number
+}
+
+/**
+ * Blocks from markdown-it block tokens. Top-level blocks the source keeps apart by a blank
+ * line get an empty paragraph between them (the canonical blank line).
+ */
+function blocksFromTokens(tokens: Token[]): PmNode[] {
+  const frames: Frame[] = [{ blocks: [], lines: [] }]
+  for (const token of tokens) {
+    const frame = frames[frames.length - 1]!
+    const map = token.map ?? [0, 0]
+    if (token.type === 'paragraph_open') {
+      frame.blocks.push(paragraph())
+      frame.lines.push([map[0], map[1]])
+    } else if (token.type === 'inline') {
+      frame.blocks[frame.blocks.length - 1] = paragraph(inlineFromTokens(token.children ?? []))
+      // Where the text ends (a list's map counts the blank line after it).
+      for (const outer of frames) outer.end = map[1]
+    } else if (token.type === 'bullet_list_open' || token.type === 'ordered_list_open') {
+      const ordered = token.type === 'ordered_list_open'
+      frames.push({
+        blocks: [],
+        lines: [],
+        type: ordered ? 'orderedList' : 'bulletList',
+        ...(ordered ? { attrs: { start: Number(token.attrGet('start') ?? 1) || 1 } } : {}),
+        items: [],
+        start: map[0],
+      })
+    } else if (token.type === 'list_item_open') frames.push({ blocks: [], lines: [] })
+    else if (token.type === 'list_item_close') {
+      const item = frames.pop()!
+      frames[frames.length - 1]!.items!.push({ type: 'listItem', content: item.blocks })
+    } else if (token.type === 'bullet_list_close' || token.type === 'ordered_list_close') {
+      const list = frames.pop()!
+      const node: PmNode = { type: list.type!, content: list.items! }
+      if (list.attrs) node.attrs = list.attrs
+      const parent = frames[frames.length - 1]!
+      parent.blocks.push(node)
+      parent.lines.push([list.start!, list.end ?? list.start!])
+    }
+  }
+  const top = frames[0]!
+  const out: PmNode[] = []
+  let previousEnd: number | undefined
+  top.blocks.forEach((block, i) => {
+    const [start, end] = top.lines[i]!
+    if (previousEnd !== undefined && start > previousEnd) out.push(paragraph())
+    out.push(block)
+    previousEnd = end
+  })
+  return out
+}
+
+/**
+ * Markdown (a YAML label, a designation's `value`, Markdown typed in a label) as a document:
+ * a newline is a line break, a blank line an empty paragraph, `${name}` is data.
+ */
+export function fromMarkdown(markdown: string): PmDoc {
+  if (!markdown.trim()) return emptyDoc()
+  return normalize({ type: 'doc', content: blocksFromTokens(tokenizer.parse(markdown, {})) })
 }
 
 // ------------------------------------------------------------------ HTML
 
 const domParser = PmDOMParser.fromSchema(textSchema)
 
-/**
- * A draw.io label (HTML) as a document: the schema's parse rules keep what it can hold and
- * drop the rest (as the browser editor does); `&nbsp;` is a space; `${name}` becomes data even
- * when split over elements; a trailing `<br>` goes; a paragraph with Markdown typed in it is
- * read again as Markdown (§1.2).
- */
-export function fromHtml(raw: string): PmDoc {
-  const trimmed = raw.trim()
-  if (!trimmed) return EMPTY
-  const { document } = parseHTML(`<!doctype html><html><body>${trimmed}</body></html>`)
-  const parsed = domParser.parse(document.body as unknown as globalThis.Node).toJSON() as PmDoc
-  const tidy = mapTextblocks(parsed, tidyInline) as PmDoc
-  return docFromJson(readTypedMarkdown(tidy))
-}
-
-function mapTextblocks(node: PmNode, f: (inline: PmNode[]) => PmNode[]): PmNode {
-  if (node.type === 'paragraph') {
-    const content = f(node.content ?? [])
-    const { content: _, ...rest } = node
-    return content.length ? { ...rest, content } : rest
-  }
-  if (!node.content) return node
-  return { ...node, content: node.content.map((c) => mapTextblocks(c, f)) }
-}
-
-const sameMarks = (a: PmMark[] | undefined, b: PmMark[] | undefined) =>
-  JSON.stringify(a ?? []) === JSON.stringify(b ?? [])
-
-function textNode(text: string, marks: PmMark[] | undefined): PmNode {
-  return marks?.length ? { type: 'text', text, marks } : { type: 'text', text }
-}
-
-/** Neighbouring text with the same marks is one text node, as ProseMirror keeps it. */
-function joinText(nodes: PmNode[]): PmNode[] {
-  const out: PmNode[] = []
-  for (const node of nodes) {
-    if (node.type === 'text' && !node.text) continue
-    const last = out[out.length - 1]
-    if (last?.type === 'text' && node.type === 'text' && sameMarks(last.marks, node.marks))
-      out[out.length - 1] = textNode((last.text ?? '') + (node.text ?? ''), last.marks)
-    else out.push(node)
-  }
-  return out
-}
-
-function tidyInline(inline: PmNode[]): PmNode[] {
-  let nodes = joinText(
-    inline.map((n) =>
-      n.type === 'text' ? textNode((n.text ?? '').replace(/ /g, ' '), n.marks) : n,
-    ),
-  )
-  nodes = splitTokens(nodes)
-  // Line breaks and spaces at the edges of a paragraph show nothing.
-  while (nodes.length && nodes[nodes.length - 1]!.type === 'hardBreak') nodes.pop()
-  while (nodes.length && nodes[0]!.type === 'hardBreak') nodes.shift()
-  const first = nodes[0]
-  if (first?.type === 'text') nodes[0] = textNode((first.text ?? '').trimStart(), first.marks)
-  const last = nodes[nodes.length - 1]
-  if (last?.type === 'text')
-    nodes[nodes.length - 1] = textNode((last.text ?? '').trimEnd(), last.marks)
-  return joinText(nodes)
+/** A non-breaking space is a space, before the parser collapses white space. */
+function plainSpaces(node: globalThis.Node): void {
+  if (node.nodeType === 3 && node.nodeValue?.includes('\u00a0'))
+    node.nodeValue = node.nodeValue.replace(/\u00a0/g, ' ')
+  node.childNodes.forEach(plainSpaces)
 }
 
 /**
- * `${name}` tokens in a run of text nodes become `interp` nodes, even when the token spans
- * several nodes (`<span>$</span>{dose}`); the data takes the marks of its `$`.
+ * `${name}` in text becomes an `interp` node, also when the token spans several text nodes
+ * (`<span>$</span>{dose}`); it takes the marks of the text holding its `$`.
  */
-function splitTokens(nodes: PmNode[]): PmNode[] {
+function splitInterpsInline(content: PmNode[]): PmNode[] {
   const out: PmNode[] = []
   let run: PmNode[] = []
   const flush = () => {
-    if (run.length) out.push(...splitRun(run))
+    if (!run.length) return
+    const source = run.map((n) => n.text ?? '').join('')
+    if (!source.includes('${')) {
+      out.push(...run)
+      run = []
+      return
+    }
+    const owner: PmMark[][] = []
+    for (const n of run) for (let i = 0; i < (n.text ?? '').length; i++) owner.push(n.marks ?? [])
+    const same = (a: PmMark[], b: PmMark[]) => JSON.stringify(a) === JSON.stringify(b)
+    const addText = (start: number, end: number) => {
+      let i = start
+      while (i < end) {
+        let j = i
+        while (j < end && same(owner[j]!, owner[i]!)) j++
+        out.push(textNode(source.slice(i, j), owner[i]))
+        i = j
+      }
+    }
+    let last = 0
+    for (const match of source.matchAll(TOKEN)) {
+      const name = (match[1] ?? '').trim()
+      if (!name) continue
+      const start = match.index ?? 0
+      addText(last, start)
+      out.push(interpNode(name, owner[start]))
+      last = start + match[0].length
+    }
+    addText(last, source.length)
     run = []
   }
-  for (const node of nodes) {
+  for (const node of content) {
     if (node.type === 'text') run.push(node)
     else {
       flush()
@@ -197,209 +238,149 @@ function splitTokens(nodes: PmNode[]): PmNode[] {
     }
   }
   flush()
-  return out
+  return cleanInline(out)
 }
 
-function splitRun(run: PmNode[]): PmNode[] {
-  const text = run.map((n) => n.text ?? '').join('')
-  if (!text.includes('${')) return run
-  // The marks of each character, to cut the run back into text nodes.
-  const marksAt: (PmMark[] | undefined)[] = []
-  for (const n of run) for (let i = 0; i < (n.text ?? '').length; i++) marksAt.push(n.marks)
-  const out: PmNode[] = []
-  const pushText = (from: number, to: number) => {
-    for (let i = from; i < to; i++) out.push(textNode(text[i]!, marksAt[i]))
+/** Every `${name}` in the text of `doc` as an `interp` node. */
+export function splitInterps(doc: PmDoc): PmDoc {
+  return {
+    ...doc,
+    content: mapParagraphs(doc.content ?? [], (block) => [
+      paragraph(splitInterpsInline(block.content ?? [])),
+    ]),
   }
-  let last = 0
-  for (const match of text.matchAll(TOKEN)) {
-    const start = match.index ?? 0
-    const name = (match[1] ?? '').trim()
-    if (!name) continue
-    pushText(last, start)
-    const marks = marksAt[start]
-    out.push(
-      marks?.length
-        ? { type: 'interp', attrs: { name }, marks }
-        : { type: 'interp', attrs: { name } },
-    )
-    last = start + match[0].length
-  }
-  pushText(last, text.length)
-  return joinText(out)
 }
 
-/** Markdown markers: `*` or `_` (emphasis) or a line starting a list item. */
-const TYPED_MARKDOWN = /[*_]|(?:^|\n)[ \t]*(?:[-+]|\d{1,9}[.)])[ \t]/
+/**
+ * A draw.io label (HTML) as a document: the schema's parse rules keep what it can hold and
+ * drop the rest (as the browser editor does); `&nbsp;` is a space; `${name}` becomes data;
+ * Markdown typed in a paragraph is read as Markdown (§1.2).
+ */
+export function fromHtml(raw: string): PmDoc {
+  if (!raw.trim()) return emptyDoc()
+  const { document } = parseHTML(`<!doctype html><html><body>${raw}</body></html>`)
+  const body = document.body as unknown as globalThis.Node
+  plainSpaces(body)
+  const parsed = domParser.parse(body).toJSON() as PmDoc
+  return normalize(readTypedMarkdown(normalize(splitInterps(parsed))))
+}
 
-function paragraphText(p: PmNode): string {
-  return (p.content ?? [])
-    .map((n) => (n.type === 'text' ? (n.text ?? '') : n.type === 'hardBreak' ? '\n' : ''))
+// ------------------------------------------------------------------ typed Markdown (§1.2)
+
+/** A paragraph is read again as typed Markdown when its text holds one of these. */
+const TYPED_MARKDOWN = /[*_]|(^|\n)[ \t]*([-+]|\d{1,9}[.)])[ \t]/
+const NON_MARKDOWN_MARKS = new Set(['underline', 'textStyle'])
+
+function plainOf(content: PmNode[]): string {
+  return content
+    .map((n) => (n.type === 'text' ? (n.text ?? '') : n.type === 'hardBreak' ? '\n' : 'x'))
     .join('')
 }
 
 /**
- * A top-level paragraph whose text holds Markdown markers is written as Markdown with its own
- * marks (so markers spread over several HTML elements meet) and read again. A paragraph with
- * a colour or an underline is kept as is: Markdown would lose them.
+ * Markdown typed into the paragraphs of an imported label (`**bold**`, `* item`, `1. item`)
+ * read as marks and lists. The paragraph is written as Markdown with its own marks first, so
+ * markers spread over several elements meet. A paragraph with underline or a colour is kept
+ * as typed (Markdown has neither); one in a list item only when it stays one paragraph.
  */
-function readTypedMarkdown(doc: PmDoc): PmDoc {
-  const blocks: PmNode[] = []
-  let lastRead = false
-  for (const block of doc.content ?? []) {
-    const marks = (block.content ?? []).flatMap((n) => n.marks ?? [])
-    const typed =
-      block.type === 'paragraph' &&
-      TYPED_MARKDOWN.test(paragraphText(block)) &&
-      !marks.some((m) => m.type === 'textStyle' || m.type === 'underline')
-    if (!typed) {
-      blocks.push(block)
-      lastRead = false
-      continue
-    }
-    const reread = fromMarkdown(toMarkdown({ type: 'doc', content: [block] })).content ?? []
-    for (const b of reread) {
-      const prev = blocks[blocks.length - 1]
-      // `* a` and `* b` in two lines of the label are one list.
-      if (lastRead && prev && prev.type === b.type && b.type === 'bulletList')
-        blocks[blocks.length - 1] = {
-          ...prev,
-          content: [...(prev.content ?? []), ...(b.content ?? [])],
-        }
-      else if (lastRead && prev && prev.type === b.type && b.type === 'orderedList')
-        blocks[blocks.length - 1] = {
-          ...prev,
-          content: [...(prev.content ?? []), ...(b.content ?? [])],
-        }
-      else blocks.push(b)
-      lastRead = true
-    }
+export function readTypedMarkdown(doc: PmDoc): PmDoc {
+  const fn = (block: PmNode, top: boolean): PmNode[] => {
+    const content = block.content ?? []
+    if (!TYPED_MARKDOWN.test(plainOf(content))) return [block]
+    if (content.some((n) => (n.marks ?? []).some((m) => NON_MARKDOWN_MARKS.has(m.type))))
+      return [block]
+    const tokens = tokenizer.parse(inlineMarkdown(content, '*'), {})
+    const typed = tokens.some(
+      (t) =>
+        t.type === 'bullet_list_open' ||
+        t.type === 'ordered_list_open' ||
+        (t.children ?? []).some((c) => c.type === 'strong_open' || c.type === 'em_open'),
+    )
+    if (!typed) return [block]
+    const blocks = blocksFromTokens(tokens)
+    if (!top && (blocks.length !== 1 || blocks[0]!.type !== 'paragraph')) return [block]
+    return blocks.length ? blocks : [block]
   }
-  return { ...doc, content: blocks }
+  return { ...doc, content: mapParagraphs(doc.content ?? [], fn) }
 }
 
-// ------------------------------------------------------------------ the old tree
+// ------------------------------------------------------------------ the old tree (§1.3)
 
-type OldNode =
-  | { type: 'text'; value: string }
-  | { type: 'interp'; name: string }
-  | { type: 'break' }
-  | { type: 'mark'; kind: 'strong' | 'em' | 'u' | 'color'; color?: string; children: OldNode[] }
-  | { type: 'list'; ordered: boolean; items: OldNode[][] }
-  | { type: 'image'; src: string; alt?: string }
+type Json = Record<string, unknown>
+const OLD_MARKS: Record<string, string> = { strong: 'bold', em: 'italic', u: 'underline' }
 
-function oldTree(raw: unknown): OldNode[] {
-  const node = (v: unknown): OldNode => {
-    const o = v as Record<string, unknown>
-    switch (o?.['type']) {
-      case 'text':
-        if (typeof o['value'] !== 'string') break
-        return { type: 'text', value: o['value'] }
-      case 'interp':
-        if (typeof o['name'] !== 'string' || !o['name']) break
-        return { type: 'interp', name: o['name'] }
-      case 'break':
-        return { type: 'break' }
-      case 'mark':
-        if (o['kind'] === 'color') {
-          if (!isColor(o['color'])) break
-          return { type: 'mark', kind: 'color', color: o['color'], children: list(o['children']) }
-        }
-        if (o['kind'] !== 'strong' && o['kind'] !== 'em' && o['kind'] !== 'u') break
-        return { type: 'mark', kind: o['kind'], children: list(o['children']) }
-      case 'image':
-        if (!imageIdOf(o['src'])) break
-        return typeof o['alt'] === 'string' && o['alt']
-          ? { type: 'image', src: o['src'] as string, alt: o['alt'] }
-          : { type: 'image', src: o['src'] as string }
-      case 'list':
-        return {
-          type: 'list',
-          ordered: o['ordered'] === true,
-          items: (Array.isArray(o['items']) ? o['items'] : []).map((item) =>
-            list((item as Record<string, unknown>)['children']),
-          ),
-        }
-    }
-    throw new Error(`Not a display-text node: ${JSON.stringify(v)}`)
-  }
-  const list = (v: unknown): OldNode[] => (Array.isArray(v) ? v.map(node) : [])
-  const o = raw as Record<string, unknown>
-  if (o?.['type'] !== 'message') throw new Error('Not a display-text message.')
-  return list(o['children'])
+function oldMark(node: Json): PmMark | undefined {
+  const kind = node['kind']
+  if (kind === 'color')
+    return isColor(node['color'])
+      ? { type: 'textStyle', attrs: { color: node['color'] } }
+      : undefined
+  if (typeof kind === 'string' && OLD_MARKS[kind]) return { type: OLD_MARKS[kind]! }
+  throw new Error(`Unknown mark kind ${JSON.stringify(kind)}.`)
 }
 
-function oldMark(node: { kind: string; color?: string }): PmMark {
-  if (node.kind === 'color') return { type: 'textStyle', attrs: { color: node.color } }
-  return { type: node.kind === 'strong' ? 'bold' : node.kind === 'em' ? 'italic' : 'underline' }
+function asNodes(value: unknown): Json[] {
+  if (value === undefined || value === null) return []
+  if (!Array.isArray(value)) throw new Error('Message children are not a list.')
+  return value as Json[]
 }
 
-/** Marks in schema order, as ProseMirror sorts them. */
-const MARK_RANK = ['bold', 'italic', 'underline', 'textStyle']
-const sortMarks = (marks: PmMark[]) =>
-  [...marks].sort((a, b) => MARK_RANK.indexOf(a.type) - MARK_RANK.indexOf(b.type))
-
-function oldInline(nodes: OldNode[], marks: PmMark[]): PmNode[] {
-  const withMarks = marks.length ? { marks: sortMarks(marks) } : {}
-  const out: PmNode[] = []
-  for (const node of nodes) {
-    if (node.type === 'text' && node.value)
-      out.push({ type: 'text', text: node.value, ...withMarks })
-    else if (node.type === 'interp')
-      out.push({ type: 'interp', attrs: { name: node.name }, ...withMarks })
-    else if (node.type === 'break') out.push({ type: 'hardBreak' })
-    else if (node.type === 'image')
-      out.push({ type: 'image', attrs: { src: node.src, alt: node.alt ?? null } })
-    else if (node.type === 'mark') out.push(...oldInline(node.children, [...marks, oldMark(node)]))
-    else if (node.type === 'list') {
-      // A list inside a phrase cannot be one in a document: keep its items as lines.
-      node.items.forEach((item, i) => {
-        out.push({ type: 'hardBreak' }, { type: 'text', text: node.ordered ? `${i + 1}. ` : '- ' })
-        out.push(...oldInline(item, marks))
+function oldInline(nodes: unknown, marks: PmMark[], out: PmNode[]): void {
+  for (const node of asNodes(nodes)) {
+    if (typeof node !== 'object' || node === null) throw new Error('Message node is not an object.')
+    const kind = node['type']
+    if (kind === 'text') {
+      if (node['value']) out.push(textNode(String(node['value']), marks))
+    } else if (kind === 'interp') out.push(interpNode(String(node['name']), marks))
+    else if (kind === 'break') out.push({ type: 'hardBreak' })
+    else if (kind === 'image') {
+      if (imageIdOf(node['src']))
+        out.push({ type: 'image', attrs: { src: node['src'], alt: node['alt'] || null } })
+    } else if (kind === 'mark') {
+      const mark = oldMark(node)
+      oldInline(node['children'], mark ? [...marks, mark] : marks, out)
+    } else if (kind === 'list') {
+      // A list inside a phrase cannot be one in a document: its items stay as lines.
+      asNodes(node['items']).forEach((item, i) => {
+        out.push({ type: 'hardBreak' }, textNode(node['ordered'] ? `${i + 1}. ` : '- ', marks))
+        oldInline(item['children'], marks, out)
       })
-    }
+    } else throw new Error(`Unknown message node type ${JSON.stringify(kind)}.`)
   }
-  return joinText(out)
 }
 
 /**
- * The old `designation-message` tree (read only, never written): top-level runs become one
- * paragraph each side of a list, a mark goes onto every leaf under it.
+ * The old `designation-message` tree (read only, never written). A list at the top is a
+ * block; one inside a phrase keeps its items as lines; a mark goes onto every leaf under it.
+ * An unknown node or mark is rejected; a colour that is not one, or a picture outside the
+ * image library, is dropped.
  */
 export function fromMessageJson(raw: unknown): PmDoc {
+  const data = raw as Json
+  if (typeof data !== 'object' || data === null || data['type'] !== 'message')
+    throw new Error('Not a display-text message.')
   const blocks: PmNode[] = []
-  let inline: OldNode[] = []
+  let inline: PmNode[] = []
   const flush = () => {
-    const content = oldInline(inline, [])
-    if (content.length) blocks.push({ type: 'paragraph', content })
+    blocks.push(paragraph(inline))
     inline = []
   }
-  for (const node of oldTree(raw)) {
-    if (node.type !== 'list') {
-      inline.push(node)
-      continue
-    }
-    flush()
-    blocks.push({
-      type: node.ordered ? 'orderedList' : 'bulletList',
-      ...(node.ordered ? { attrs: { start: 1 } } : {}),
-      content: node.items.map((item) => {
-        const content = oldInline(item, [])
-        return {
-          type: 'listItem',
-          content: [content.length ? { type: 'paragraph', content } : { type: 'paragraph' }],
-        }
-      }),
-    })
+  for (const node of asNodes(data['children'])) {
+    if (node?.['type'] === 'list') {
+      if (inline.length) flush()
+      const items = asNodes(node['items']).map((item) => {
+        const content: PmNode[] = []
+        oldInline(item['children'], [], content)
+        return { type: 'listItem', content: [paragraph(content)] }
+      })
+      if (items.length)
+        blocks.push(
+          node['ordered']
+            ? { type: 'orderedList', attrs: { start: 1 }, content: items }
+            : { type: 'bulletList', content: items },
+        )
+    } else oldInline([node], [], inline)
   }
-  flush()
-  // A break that only separated a paragraph from a list shows nothing.
-  for (const b of blocks) if (b.type === 'paragraph') b.content = tidyEdges(b.content ?? [])
-  return docFromJson({ type: 'doc', content: blocks.length ? blocks : [{ type: 'paragraph' }] })
-}
-
-function tidyEdges(nodes: PmNode[]): PmNode[] {
-  const out = [...nodes]
-  while (out.length && out[out.length - 1]!.type === 'hardBreak') out.pop()
-  while (out.length && out[0]!.type === 'hardBreak') out.shift()
-  return out
+  if (inline.length || !blocks.length) flush()
+  return normalize({ type: 'doc', content: blocks })
 }

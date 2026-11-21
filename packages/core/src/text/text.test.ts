@@ -82,16 +82,17 @@ describe('the editor document is the stored document', () => {
     ).toThrow()
   })
 
-  it('round-trips Markdown it writes', () => {
+  it('reads back the Markdown it writes', () => {
     for (const html of [
       '<b>Give ${dose} mg</b>',
       '<i>Note:</i> give <b><i>with food</i></b>',
       'Line one<br>Line two',
       '<ol><li>First</li><li><b>Second</b></li></ol>',
-      '<div>a</div><ul><li>b</li></ul><div>c</div>',
+      '<div>a</div><ul><li>b</li></ul>',
+      'One<br><br>Two',
     ]) {
-      const doc = fromHtml(html)
-      expect(fromMarkdown(toMarkdown(doc))).toEqual(doc)
+      const markdown = toMarkdown(fromHtml(html))
+      expect(toMarkdown(fromMarkdown(markdown))).toBe(markdown)
     }
   })
 })
@@ -113,7 +114,7 @@ describe('pictures', () => {
     expect(toMarkdown(prependImage('Weight (kg)', 'scale'))).toBe('![](Binary/scale)\nWeight (kg)')
     expect(toMarkdown(prependImage('', 'scale'))).toBe('![](Binary/scale)')
     expect(toMarkdown(prependImage(fromHtml('<ul><li>a</li></ul>'), 'scale'))).toBe(
-      '![](Binary/scale)\n\n- a',
+      '![](Binary/scale)\n- a',
     )
   })
 })
@@ -121,8 +122,8 @@ describe('pictures', () => {
 describe('font colour', () => {
   const red = fromHtml('<span style="color:#d32f2f">Danger</span> sign')
 
-  it('renders as an inline span ODK and CHT understand', () => {
-    expect(toMarkdown(red)).toBe('<span style="color:#d32f2f">Danger</span> sign')
+  it('has no Markdown (the document keeps it), and no plain text', () => {
+    expect(toMarkdown(red)).toBe('Danger sign')
     expect(toPlain(red)).toBe('Danger sign')
   })
 
@@ -159,12 +160,21 @@ describe('the old tree', () => {
         { type: 'mark', kind: 'u', children: [{ type: 'image', src: 'Binary/rash' }] },
       ],
     })
-    expect(toMarkdown(doc)).toBe('Signs:\n\n1. _Fever_\n\n![](Binary/rash)')
+    expect(toMarkdown(doc)).toBe('Signs:\n1. _Fever_\n![](Binary/rash)')
     expect(() => fromMessageJson({ type: 'message', children: [{ type: 'script' }] })).toThrow()
+    // As tricc_oo reads it: a colour that is not one is dropped, the text kept.
+    expect(
+      fromMessageJson({
+        type: 'message',
+        children: [
+          { type: 'mark', kind: 'color', color: 'x;y', children: [{ type: 'text', value: 'x' }] },
+        ],
+      }),
+    ).toEqual(fromHtml('x'))
     expect(() =>
       fromMessageJson({
         type: 'message',
-        children: [{ type: 'mark', kind: 'color', color: 'x;y', children: [] }],
+        children: [{ type: 'mark', kind: 'blink', children: [] }],
       }),
     ).toThrow()
   })

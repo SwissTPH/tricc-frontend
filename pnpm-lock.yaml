@@ -150,9 +150,6 @@ importers:
       markdown-it:
         specifier: ^14.1.0
         version: 14.3.3
-      prosemirror-markdown:
-        specifier: ^1.13.2
-        version: 1.14.0
       prosemirror-model:
         specifier: ^1.25.4
         version: 1.25.12
@@ -4414,12 +4411,6 @@ packages:
         integrity: sha512-4HucRlpiLd1IPQQXNqeo81BGtkY8Ai5smHhKW9jjPKRc2wQIxksg7Hl1tTI2IfT2B/LgX6bfYvXxEpJl7aKYKw==,
       }
 
-  prosemirror-markdown@1.14.0:
-    resolution:
-      {
-        integrity: sha512-vfk0+TJfLX+Lja+wdDrMvSG9AqvHwLjnnhFJehn8dkZp9AiMryiM80EUS23wd0EVFQsGVGaXPjk5kgT9xEvl5g==,
-      }
-
   prosemirror-model@1.25.12:
     resolution:
       {
@@ -7786,11 +7777,6 @@ snapshots:
     dependencies:
       prosemirror-state: 1.4.4
       w3c-keyname: 2.2.8
-
-  prosemirror-markdown@1.14.0:
-    dependencies:
-      markdown-it: 14.3.3
-      prosemirror-model: 1.25.12
 
   prosemirror-model@1.25.12:
     dependencies:

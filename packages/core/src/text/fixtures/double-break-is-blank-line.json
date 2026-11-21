@@ -1,0 +1,35 @@
+{
+  "name": "double-break-is-blank-line",
+  "input": {
+    "html": "One<br><br>Two"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "One"
+          }
+        ]
+      },
+      {
+        "type": "paragraph"
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Two"
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "One\n\nTwo",
+  "markdown": "One\n\nTwo",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>One</p><p></p><p>Two</p></div>"
+}

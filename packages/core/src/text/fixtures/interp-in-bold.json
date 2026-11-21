@@ -11,12 +11,12 @@
         "content": [
           {
             "type": "text",
+            "text": "Give ",
             "marks": [
               {
                 "type": "bold"
               }
-            ],
-            "text": "Give "
+            ]
           },
           {
             "type": "interp",
@@ -31,12 +31,12 @@
           },
           {
             "type": "text",
+            "text": " mg",
             "marks": [
               {
                 "type": "bold"
               }
-            ],
-            "text": " mg"
+            ]
           }
         ]
       }

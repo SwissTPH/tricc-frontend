@@ -1,0 +1,30 @@
+{
+  "name": "markdown-foreign-image",
+  "input": {
+    "markdown": "See ![x](http://a/b.png) and ![rash](Binary/rash)"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "See ![x](http://a/b.png) and "
+          },
+          {
+            "type": "image",
+            "attrs": {
+              "src": "Binary/rash",
+              "alt": "rash"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "See ![x](http://a/b.png) and rash",
+  "markdown": "See ![x](http://a/b.png) and ![rash](Binary/rash)",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>See ![x](http://a/b.png) and <img alt=\"rash\" src=\"Binary/rash\"></p></div>"
+}
