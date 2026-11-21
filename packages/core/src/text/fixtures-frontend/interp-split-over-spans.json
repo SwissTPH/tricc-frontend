@@ -1,0 +1,29 @@
+{
+  "name": "interp-split-over-spans",
+  "input": {
+    "html": "<span>$</span><span>{dose}</span> ml"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "interp",
+            "attrs": {
+              "name": "dose"
+            }
+          },
+          {
+            "type": "text",
+            "text": " ml"
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "… ml",
+  "markdown": "${dose} ml",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>… ml</p></div>"
+}

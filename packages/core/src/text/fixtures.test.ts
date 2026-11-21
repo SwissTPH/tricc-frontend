@@ -18,11 +18,16 @@ interface Fixture {
   xhtml?: string
 }
 
-const dir = new URL('./fixtures/', import.meta.url)
-const fixtures = readdirSync(dir)
-  .filter((f) => f.endsWith('.json'))
-  .sort()
-  .map((f) => JSON.parse(readFileSync(new URL(f, dir), 'utf8')) as Fixture)
+/** `fixtures/` is tricc_oo's (wiped by its sync script); `fixtures-frontend/` holds ours. */
+function load(folder: string): Fixture[] {
+  const dir = new URL(`./${folder}/`, import.meta.url)
+  return readdirSync(dir)
+    .filter((f) => f.endsWith('.json'))
+    .sort()
+    .map((f) => JSON.parse(readFileSync(new URL(f, dir), 'utf8')) as Fixture)
+}
+const shared = load('fixtures')
+const own = load('fixtures-frontend')
 
 function read(input: Fixture['input']): PmDoc {
   if (input.html !== undefined) return fromHtml(input.html)
@@ -30,14 +35,22 @@ function read(input: Fixture['input']): PmDoc {
   return docFromJson(input.json)
 }
 
-describe('display text matches tricc_oo (shared fixtures)', () => {
-  it('has fixtures', () => expect(fixtures.length).toBeGreaterThan(0))
-  for (const fixture of fixtures) {
-    describe(fixture.name, () => {
-      const doc = read(fixture.input)
-      it('reads the same document', () => expect(doc).toEqual(fixture.doc))
-      it('renders the same plain text', () => expect(toPlain(fixture.doc)).toBe(fixture.plain))
-      it('renders the same Markdown', () => expect(toMarkdown(fixture.doc)).toBe(fixture.markdown))
-    })
-  }
-})
+/** As tricc_oo's test does: plain text shows data as `…`, Markdown as `${name}`. */
+function cases(title: string, fixtures: Fixture[]) {
+  describe(title, () => {
+    it('has fixtures', () => expect(fixtures.length).toBeGreaterThan(0))
+    for (const fixture of fixtures) {
+      describe(fixture.name, () => {
+        it('reads the same document', () => expect(read(fixture.input)).toEqual(fixture.doc))
+        it('is in canonical form', () => expect(docFromJson(fixture.doc)).toEqual(fixture.doc))
+        it('renders the same plain text', () =>
+          expect(toPlain(fixture.doc, () => '…')).toBe(fixture.plain))
+        it('renders the same Markdown', () =>
+          expect(toMarkdown(fixture.doc)).toBe(fixture.markdown))
+      })
+    }
+  })
+}
+
+cases('display text matches tricc_oo (shared fixtures)', shared)
+cases('display text matches tricc_oo (frontend fixtures)', own)
