@@ -252,6 +252,28 @@ export function splitInterps(doc: PmDoc): PmDoc {
 }
 
 /**
+ * A paragraph the HTML import leaves without content shows no line: a `div` / `p` that only
+ * wraps blocks (`<div><ul>…</ul></div>`) or an empty one. A blank line (`<div><br></div>`)
+ * still holds its `hardBreak` here.
+ */
+function dropContainers(blocks: PmNode[]): PmNode[] {
+  return blocks.flatMap((node): PmNode[] => {
+    if (node.type === 'paragraph' && !node.content?.length) return []
+    if (node.type === 'bulletList' || node.type === 'orderedList')
+      return [
+        {
+          ...node,
+          content: (node.content ?? []).map((item) => ({
+            ...item,
+            content: dropContainers(item.content ?? []),
+          })),
+        },
+      ]
+    return [node]
+  })
+}
+
+/**
  * A draw.io label (HTML) as a document: the schema's parse rules keep what it can hold and
  * drop the rest (as the browser editor does); `&nbsp;` is a space; `${name}` becomes data;
  * Markdown typed in a paragraph is read as Markdown (§1.2).
@@ -261,7 +283,8 @@ export function fromHtml(raw: string): PmDoc {
   const { document } = parseHTML(`<!doctype html><html><body>${raw}</body></html>`)
   const body = document.body as unknown as globalThis.Node
   plainSpaces(body)
-  const parsed = domParser.parse(body).toJSON() as PmDoc
+  const json = domParser.parse(body).toJSON() as PmDoc
+  const parsed: PmDoc = { ...json, content: dropContainers(json.content ?? []) }
   return normalize(readTypedMarkdown(normalize(splitInterps(parsed))))
 }
 

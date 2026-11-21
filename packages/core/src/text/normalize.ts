@@ -76,8 +76,9 @@ function trimEdges(content: PmNode[]): PmNode[] {
 }
 
 /**
- * A run of two or more line breaks is a blank line: it ends the paragraph, and an empty
- * paragraph stands for the blank line.
+ * Line breaks as a browser shows them. A run of line breaks opening the paragraph, or a run of
+ * two or more inside or closing it, is a blank line: it ends the paragraph and leaves one
+ * empty paragraph. A single one closing the paragraph shows nothing.
  */
 function splitParagraph(node: PmNode): PmNode[] {
   const content = cleanInline(node.content ?? [])
@@ -87,8 +88,10 @@ function splitParagraph(node: PmNode): PmNode[] {
     if (content[i]!.type === 'hardBreak') {
       let run = 1
       while (i + run < content.length && content[i + run]!.type === 'hardBreak') run++
-      if (run >= 2) chunks.push(null, [])
-      else chunks[chunks.length - 1]!.push(content[i]!)
+      const opening = i === 0
+      const closing = i + run === content.length
+      if (opening || run >= 2) chunks.push(null, [])
+      else if (!closing) chunks[chunks.length - 1]!.push(content[i]!)
       i += run
       continue
     }

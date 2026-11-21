@@ -116,7 +116,7 @@ None open; see Decisions.
 ## Decisions
 
 - 2026-11-20: ProseMirror JSON with TipTap names is the stored format; the `Message` tree is read only for compatibility. (Patrick, in conversation)
-- 2026-11-20: core uses `prosemirror-model`, `prosemirror-markdown` and `linkedom`; the schema and the fixtures are shared with `tricc_oo`.
+- 2026-11-20: core uses `prosemirror-model`, `markdown-it` and `linkedom` (`prosemirror-markdown` dropped in implementation, see below); the schema and the fixtures are shared with `tricc_oo` (`fixtures/`, synced by `tricc_oo`'s `scripts/sync-text-fixtures.sh`; frontend-only cases in `fixtures-frontend/`).
 - 2026-11-20: new extension URL `designation-doc`; `designation-message` read, never written.
 - 2026-11-20 (implementation): the text parser is exported as `docFromJson`, since core already exports `fromJson` for project files. The editor saves `getJSON()` through `docFromJson`, which keeps it as is apart from dropping TipTap's unused `orderedList.type` and sorting marks in schema order.
 - 2026-11-20 (implementation): a designation `value` with no extension is read as Markdown, but a value that reads as plain text is kept exactly as typed (Markdown would trim spaces while an author types in a plain field).
