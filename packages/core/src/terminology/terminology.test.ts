@@ -280,6 +280,24 @@ describe('texts move from the activity to the concept', () => {
     expect(nodes['cough']!.options![0]).not.toHaveProperty('label')
   })
 
+  it('gives each item named like label_ its own concept, named with its id', () => {
+    const project = inline()
+    const nodes = project.activities['a']!.nodes
+    nodes['n1'] = { id: 'n1', type: 'note', name: 'label_', label: { en: 'Give 1 tablet' } }
+    nodes['x:2'] = { id: 'x:2', type: 'note', name: 'label_', label: { en: 'Give 2 tablets' } }
+    project.activities['a']!.nodeOrder.push('n1', 'x:2')
+    moveTextsToConcepts(project)
+    const cs = Object.values(project.codeSystems)[0]!
+    expect(nodes['n1']!.name).toBe('label_n1')
+    expect(nodes['x:2']!.name).toBe('label_x_2')
+    expect(cs.concepts['label_n1']?.display).toBe('Give 1 tablet')
+    expect(cs.concepts['label_x_2']?.display).toBe('Give 2 tablets')
+    expect(cs.concepts['label_']).toBeUndefined()
+    // A second pass keeps the names it gave.
+    moveTextsToConcepts(project)
+    expect(nodes['n1']!.name).toBe('label_n1')
+  })
+
   it('keeps the text of an item with no code, and leaves logic nodes alone', () => {
     const project = inline()
     moveTextsToConcepts(project)

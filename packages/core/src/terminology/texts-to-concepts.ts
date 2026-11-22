@@ -68,6 +68,7 @@ export function moveTextsToConcepts(
     // Legacy `media.image` (a file name): the picture moves to the start of the questionnaire text.
     const image = 'media' in item ? item.media?.image : undefined
     if (!texts.label && !texts.hint && !texts.help && !image) return
+    if (!item.concept && item.name) item.name = ownName(item.name, where.optionId ?? where.nodeId)
     const code = item.concept?.code ?? item.name
     if (!code) return
     const cs = codeSystemFor(item)
@@ -133,6 +134,7 @@ export function moveTextsToConcepts(
     // A page group's title is text too: it goes to the concept its name stands for.
     for (const group of activity.groups ?? []) {
       if (!group.label || !group.name) continue
+      group.name = ownName(group.name, group.id)
       const cs = codeSystemFor({})
       if (!cs) continue
       let concept = cs.concepts[group.name]
@@ -163,6 +165,16 @@ export function moveTextsToConcepts(
     }
   }
   return result
+}
+
+/**
+ * A name ending with `_` is a generic one from a drawing (`label_`, `select_`) that many items
+ * share. When its text needs a concept, the item's id is appended (`label_42`), so each
+ * item gets its own concept instead of all of them writing to one.
+ */
+export function ownName(name: string, id: string): string {
+  if (!name.endsWith('_')) return name
+  return `${name}${id.replace(/[^A-Za-z0-9_.-]/g, '_')}`
 }
 
 /** What a new concept stores, read from the node that first uses it. Answers are coded. */
