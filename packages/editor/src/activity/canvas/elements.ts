@@ -3,6 +3,7 @@ import {
   paramEnvironments,
   conceptRichText,
   conceptText,
+  danglingCalculates,
   defaultCodeSystem,
   imageRefs,
   lookupConcept,
@@ -185,6 +186,7 @@ const tricc: CanvasKind = {
     const { activity, project, lang } = ctx
     const defaultLang = project.languages.default
     const rootId = rootNode(activity)?.id
+    const dangling = danglingCalculates(activity, project)
     const groupIds = new Set((activity.groups ?? []).map((g) => g.id))
     const activityTitle = resolve(activity.title, lang, lang) ?? activity.id
     return activity.nodeOrder
@@ -272,6 +274,7 @@ const tricc: CanvasKind = {
             ...(callLabel ? { callLabel } : {}),
             ...(callSummary ? { callSummary } : {}),
             ...(needsValue ? { needsValue: true } : {}),
+            ...(dangling.has(model.id) ? { dangling: true } : {}),
           },
         }
       })
