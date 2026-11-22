@@ -4,7 +4,7 @@
 | ----------------- | ------------------------------------------------------------------------------- |
 | **Status**        | Implemented (approved 2026-11-22, in conversation)                              |
 | **Branch target** | `fix/underscore-names` → `develop`                                              |
-| **Scope**         | `@tricc/core` `terminology/`                                                    |
+| **Scope**         | `@tricc/core` `terminology/`, `@tricc/editor` data dictionary                   |
 | **Related**       | `../feature/20261008-data-dictionary-and-concept-texts.md`, Global ALMANACH run |
 
 Valid status values: `Draft` → `Approved` → `Implemented` → `Superseded`.
@@ -44,11 +44,16 @@ Names that do not end with `_`, and items that carry no text: links (`lk_`), got
 - The node or answer keeps the new name, so it stays linked to its concept by name.
 - Page groups follow the same rule with the group id.
 - The result no longer ends with `_`, so a second pass changes nothing.
+- The concept made this way is marked **fuzzy**: the CodeSystem property `fuzzy`
+  (`valueBoolean: true`, `Concept.fuzzy`, kept in the Yjs document), so the concepts to review
+  can be found. The data dictionary shows a _Fuzzy_ badge and a "Fuzzy only" filter. The
+  concept dialog has a Fuzzy checkbox to clear the flag once the concept is reviewed.
 
 ### Tests
 
 `terminology.test.ts`: two `label_` notes get `label_n1` and `label_x_2`, each with its own
-text; no `label_` concept is created; a second pass keeps the names.
+text; no `label_` concept is created; a second pass keeps the names; the `fuzzy` property is
+written and read back. `terminology/fuzzy.test.tsx`: badge, filter, and clearing the flag.
 
 ### Result
 

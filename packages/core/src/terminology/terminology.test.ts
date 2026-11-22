@@ -293,6 +293,15 @@ describe('texts move from the activity to the concept', () => {
     expect(cs.concepts['label_n1']?.display).toBe('Give 1 tablet')
     expect(cs.concepts['label_x_2']?.display).toBe('Give 2 tablets')
     expect(cs.concepts['label_']).toBeUndefined()
+    // Marked so they can be found and reviewed; the property survives a save.
+    expect(cs.concepts['label_n1']?.fuzzy).toBe(true)
+    expect(cs.concepts['cough']?.fuzzy).toBeUndefined()
+    const saved = encodeCodeSystem(cs) as { concept: { code: string; property?: unknown[] }[] }
+    expect(saved.concept.find((c) => c.code === 'label_n1')?.property).toContainEqual({
+      code: 'fuzzy',
+      valueBoolean: true,
+    })
+    expect(decodeCodeSystem(saved).concepts['label_n1']?.fuzzy).toBe(true)
     // A second pass keeps the names it gave.
     moveTextsToConcepts(project)
     expect(nodes['n1']!.name).toBe('label_n1')

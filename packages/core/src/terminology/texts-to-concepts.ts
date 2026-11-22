@@ -68,6 +68,7 @@ export function moveTextsToConcepts(
     // Legacy `media.image` (a file name): the picture moves to the start of the questionnaire text.
     const image = 'media' in item ? item.media?.image : undefined
     if (!texts.label && !texts.hint && !texts.help && !image) return
+    const generic = !item.concept && Boolean(item.name?.endsWith('_'))
     if (!item.concept && item.name) item.name = ownName(item.name, where.optionId ?? where.nodeId)
     const code = item.concept?.code ?? item.name
     if (!code) return
@@ -76,6 +77,7 @@ export function moveTextsToConcepts(
     let concept = cs.concepts[code]
     if (!concept) {
       concept = { system: cs.url, code, designations: [] }
+      if (generic) concept.fuzzy = true
       const dataType = 'type' in item ? NODE_TYPE_SPECS[item.type]?.dataType : 'coded'
       if (dataType) concept.dataType = dataType
       // The type tricc_oo would assign the item (xml_to_tricc.py get_concept_type).
@@ -134,12 +136,14 @@ export function moveTextsToConcepts(
     // A page group's title is text too: it goes to the concept its name stands for.
     for (const group of activity.groups ?? []) {
       if (!group.label || !group.name) continue
+      const generic = group.name.endsWith('_')
       group.name = ownName(group.name, group.id)
       const cs = codeSystemFor({})
       if (!cs) continue
       let concept = cs.concepts[group.name]
       if (!concept) {
         concept = { system: cs.url, code: group.name, designations: [], conceptType: 'Misc' }
+        if (generic) concept.fuzzy = true
         cs.concepts[group.name] = concept
         cs.conceptOrder.push(group.name)
       }
