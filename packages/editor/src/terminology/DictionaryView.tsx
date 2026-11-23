@@ -46,10 +46,13 @@ export function DictionaryView({
   const project = useProjectSnapshot()
   const canWrite = useCanWrite()
   const [query, setQuery] = useState('')
+  const [fuzzyOnly, setFuzzyOnly] = useState(false)
   const [creating, setCreating] = useState(false)
   const lang = project.languages.default
   const index = useMemo(() => ConceptIndex.fromProject(project), [project])
-  const rows = useMemo(() => listed(project, index, query, system), [project, index, query, system])
+  const all = useMemo(() => listed(project, index, query, system), [project, index, query, system])
+  const fuzzyCount = all.filter((r) => r.concept.fuzzy).length
+  const rows = fuzzyOnly && fuzzyCount > 0 ? all.filter((r) => r.concept.fuzzy) : all
   const dictionary = system ? projectDictionaries(project).find((d) => d.url === system) : undefined
   const isRetrieve = dictionary?.kind === 'retrieve'
   const target: ConceptTarget | undefined = creating
@@ -88,6 +91,20 @@ export function DictionaryView({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        {fuzzyCount > 0 && (
+          <label
+            className="tricc-dictionary__filter"
+            title="Concepts made from a generic name ending with _ in a drawing, to review"
+          >
+            <input
+              type="checkbox"
+              data-testid="concept-fuzzy-only"
+              checked={fuzzyOnly}
+              onChange={(e) => setFuzzyOnly(e.target.checked)}
+            />{' '}
+            Fuzzy only ({fuzzyCount})
+          </label>
+        )}
         {canWrite && (
           <Button
             variant="outline"
@@ -172,6 +189,16 @@ export function DictionaryView({
                   </td>
                   <td className="tricc-dictionary__code">
                     {concept.code}
+                    {concept.fuzzy && (
+                      <span
+                        className="tricc-badge tricc-badge--warning"
+                        data-testid={`concept-row-${concept.code}-fuzzy`}
+                        title="Made from a generic name ending with _ in a drawing: review its code and text"
+                      >
+                        {' '}
+                        Fuzzy
+                      </span>
+                    )}
                     {concept.kind === 'parameter' && (
                       <span
                         className="tricc-badge"

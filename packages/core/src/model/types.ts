@@ -322,6 +322,11 @@ export interface Concept {
   paramDefault?: string
   /** An entry of the retrieval dictionary (feature/20261109-project-retrievals.md §1). */
   retrieval?: Retrieval
+  /**
+   * Made from a generic name ending with `_` (`label_` + the item id), so its code says
+   * nothing yet. Property `fuzzy` (`valueBoolean`), to find the concepts to review.
+   */
+  fuzzy?: boolean
 }
 
 /** Where a retrieval reads. `custom` holds its own expressions. */

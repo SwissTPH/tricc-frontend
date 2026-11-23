@@ -347,6 +347,8 @@ export function decodeCodeSystem(input: unknown): CodeSystem {
     if (tp !== undefined) concept.targetPath = String(tp)
     const kind = readProperty(c, 'kind')
     if (kind !== undefined) concept.kind = String(kind)
+    const fuzzy = readProperty(c, 'fuzzy')
+    if (fuzzy === true || fuzzy === 'true') concept.fuzzy = true
     const options = (c.property ?? [])
       .filter((p) => p.code === 'option')
       .map((p) => p.valueCode ?? p.valueString)
@@ -610,6 +612,7 @@ export function encodeCodeSystem(cs: CodeSystem): Record<string, unknown> {
       codeProp('targetResource', c.targetResource)
       strProp('targetPath', c.targetPath)
       codeProp('kind', c.kind)
+      if (c.fuzzy) props.push({ code: 'fuzzy', valueBoolean: true })
       for (const option of c.paramOptions ?? []) props.push({ code: 'option', valueCode: option })
       strProp('default', c.paramDefault)
       const r = c.retrieval

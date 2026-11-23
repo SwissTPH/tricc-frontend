@@ -2557,3 +2557,12 @@ ol.tricc-segment-rows > li::before {
 .tricc-discussion-panel > ul > li {
   border-bottom: 1px solid var(--tricc-border);
 }
+
+/* Data dictionary: show only the fuzzy concepts (generic draw.io names to review). */
+.tricc-dictionary__filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}

@@ -415,6 +415,7 @@ export function conceptToY(c: Concept): Y.Map<unknown> {
   setPlain(m, 'stringProperties', c.stringProperties)
   setPlain(m, 'paramOptions', c.paramOptions)
   setPlain(m, 'retrieval', c.retrieval)
+  if (c.fuzzy) m.set('fuzzy', true)
   for (const k of CONCEPT_PLAIN) setScalar(m, k, c[k])
   return m
 }
@@ -433,6 +434,7 @@ export function conceptFromY(m: Y.Map<unknown>): Concept {
   if (paramOptions?.length) c.paramOptions = [...paramOptions]
   const stringProperties = m.get('stringProperties') as Concept['stringProperties']
   if (stringProperties) c.stringProperties = [...stringProperties]
+  if (m.get('fuzzy') === true) c.fuzzy = true
   const display = m.get('display') as string | undefined
   if (display !== undefined) c.display = display
   const def = m.get('definition') as Y.Text | undefined

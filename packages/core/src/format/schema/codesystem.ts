@@ -132,6 +132,12 @@ export const TRICC_PROPERTY_DEFS = [
     type: 'string' as const,
     description: 'Element path relative to the resource root',
   },
+  {
+    code: 'fuzzy',
+    type: 'boolean' as const,
+    description:
+      'Made from a generic name ending with _ (label_ + item id): review its code and text',
+  },
 ]
 
 export function readProperty(
