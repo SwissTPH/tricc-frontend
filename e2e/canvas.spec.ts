@@ -642,9 +642,12 @@ test('Ctrl+Z undoes the last change and Ctrl+Shift+Z or Ctrl+Y restores it', asy
   await expect(page.getByTestId('node-n-note')).toBeVisible()
 
   // The project search is not a document edit, so its undo must not remove the node.
-  await page.getByTestId('project-search').fill('note')
+  // Selecting the bar opens the search palette; Ctrl+Z lands in its query field.
+  await page.getByTestId('project-search').click()
+  await page.getByTestId('project-search-input').fill('note')
   await page.keyboard.press('Control+z')
   await expect(page.getByTestId('node-n-note')).toBeVisible()
+  await page.keyboard.press('Escape')
 
   await page.getByTestId('mode-menu').click()
   await page.getByTestId('mode-viewing').click()
