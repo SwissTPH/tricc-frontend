@@ -1,0 +1,23 @@
+{
+  "name": "foreign-image-dropped",
+  "input": {
+    "html": "Look <img src=\"x.png\"> here"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Look here"
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "Look here",
+  "markdown": "Look here",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>Look here</p></div>"
+}

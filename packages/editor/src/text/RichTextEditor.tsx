@@ -9,8 +9,15 @@ import {
 import { Node, mergeAttributes } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { Color, TextStyle } from '@tiptap/extension-text-style'
-import { imageIdOf, imageSrc, toMarkdown, type DisplayText } from '@tricc/core'
-import { fromDoc, toDoc, type PmNode } from './prosemirror.js'
+import {
+  docFromJson,
+  fromPlainDoc,
+  imageIdOf,
+  imageSrc,
+  simplify,
+  type DisplayText,
+  type PmDoc,
+} from '@tricc/core'
 import { imageFiles, useAddImages } from '../media/images.js'
 import { ImagePicker } from '../media/ImagePicker.js'
 import { TextImage } from './RichTextField.js'
@@ -22,6 +29,10 @@ import { defaultTextColour, textColours } from '../theme/palette.js'
  *
  * Limited to what tricc_oo keeps: bold, italic, underline, line breaks, lists, and `${name}`
  * chips for injected data. Nothing else can be typed or pasted in.
+ *
+ * Its document is the stored one (feature/20261120-prosemirror-display-text.md): the node and
+ * mark names are those of `textSchema` in core, so `getJSON()` is saved as is, only checked
+ * against that schema on the way (which drops TipTap's unused `orderedList.type`).
  */
 const Interp = Node.create({
   name: 'interp',
@@ -109,6 +120,20 @@ const TextPicture = Node.create({
   },
 })
 
+/** The editor's content: a plain string becomes one paragraph, a document is used as is. */
+function editorDoc(text: DisplayText): PmDoc {
+  return typeof text === 'string' ? fromPlainDoc(text) : text
+}
+
+/** What the editor holds, as stored: the schema-checked document, or a string when plain. */
+function storedText(doc: PmDoc): DisplayText {
+  try {
+    return simplify(docFromJson(doc))
+  } catch {
+    return simplify(doc)
+  }
+}
+
 /** Colours that read well on a form; any other comes from the colour picker. */
 const COLORS = textColours
 
@@ -128,7 +153,7 @@ export default function RichTextEditor({
   names: { name: string; label: string }[]
   label: string
 }) {
-  const last = useRef(toMarkdown(value))
+  const last = useRef(JSON.stringify(value))
   const addImages = useAddImages()
   const [picking, setPicking] = useState(false)
   const [imageError, setImageError] = useState<string | undefined>(undefined)
@@ -151,7 +176,7 @@ export default function RichTextEditor({
       Interp,
       TextPicture,
     ],
-    content: toDoc(value) as never,
+    content: editorDoc(value) as never,
     editable: !disabled,
     editorProps: {
       attributes: { 'aria-label': label, 'data-testid': `${testId}-rich` },
@@ -174,8 +199,8 @@ export default function RichTextEditor({
       },
     },
     onUpdate: ({ editor }) => {
-      const text = fromDoc(editor.getJSON() as PmNode)
-      last.current = toMarkdown(text)
+      const text = storedText(editor.getJSON() as PmDoc)
+      last.current = JSON.stringify(text)
       onChange(text)
     },
   })
@@ -183,10 +208,10 @@ export default function RichTextEditor({
   // An outside change (undo, another field) replaces the content; our own edits do not.
   useEffect(() => {
     if (!editor) return
-    const markdown = toMarkdown(value)
-    if (markdown === last.current) return
-    last.current = markdown
-    editor.commands.setContent(toDoc(value) as never, { emitUpdate: false })
+    const json = JSON.stringify(value)
+    if (json === last.current) return
+    last.current = json
+    editor.commands.setContent(editorDoc(value) as never, { emitUpdate: false })
   }, [editor, value])
 
   useEffect(() => {

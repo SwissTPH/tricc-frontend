@@ -1,0 +1,23 @@
+{
+  "name": "plain",
+  "input": {
+    "html": "Weight (kg)"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Weight (kg)"
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "Weight (kg)",
+  "markdown": "Weight (kg)",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>Weight (kg)</p></div>"
+}

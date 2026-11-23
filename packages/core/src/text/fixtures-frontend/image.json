@@ -1,0 +1,33 @@
+{
+  "name": "image",
+  "input": {
+    "html": "<img src=\"Binary/chest\" alt=\"Chest\"><br>Look at the chest"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "image",
+            "attrs": {
+              "src": "Binary/chest",
+              "alt": "Chest"
+            }
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "Look at the chest"
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "Chest\nLook at the chest",
+  "markdown": "![Chest](Binary/chest)\nLook at the chest",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><img src=\"Binary/chest\" alt=\"Chest\"/><br/>Look at the chest</p></div>"
+}

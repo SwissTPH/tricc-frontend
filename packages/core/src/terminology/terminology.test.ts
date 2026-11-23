@@ -1,5 +1,7 @@
 import { activitiesFromDrawio } from '../format/drawio.js'
-import { fromHtml, fromPlain, withDesignationText } from '../text/message.js'
+import { withDesignationText } from '../text/designation.js'
+import { fromHtml } from '../text/parse.js'
+import { fromPlain } from '../text/render.js'
 import { createProject, readProject, writeProject } from '../format/serialize/index.js'
 import { moveTextsToConcepts } from './texts-to-concepts.js'
 import { validateActivity } from '../validate/activity.js'
@@ -405,7 +407,7 @@ describe('formatted texts', () => {
     expect(concept.display).toBe('Give ${dose} mg')
     expect(conceptRichText(concept, 'q-display', 'en')).toEqual(fromHtml('<b>Give ${dose} mg</b>'))
     expect(concept.designations[0]?.value).toBe('**Give ${dose} mg**')
-    expect(project.activities['dose']!.nodes['n']).not.toHaveProperty('labelMessage')
+    expect(project.activities['dose']!.nodes['n']).not.toHaveProperty('labelDoc')
     expect(validateProject(project).filter((i) => i.rule === 'text.unknown-reference')).toEqual([])
   })
 
@@ -429,6 +431,41 @@ describe('formatted texts', () => {
       conceptOrder: ['note'],
     }
     expect(validateProject(project).map((i) => i.rule)).toContain('text.unknown-reference')
+  })
+
+  it('reports once per concept a stored document the schema refuses, and reads its value', () => {
+    const project = createProject({ id: 'p', title: 'P' })
+    const broken = (language: string) => ({
+      language,
+      value: '**Danger**',
+      extension: [
+        {
+          url: 'https://tricc.org/StructureDefinition/designation-doc',
+          valueString: JSON.stringify({ type: 'doc', content: [{ type: 'table' }] }),
+        },
+      ],
+    })
+    project.codeSystems['http://x'] = {
+      id: 'x',
+      url: 'http://x',
+      status: 'draft',
+      content: 'complete',
+      concepts: {
+        note: {
+          system: 'http://x',
+          code: 'note',
+          dataType: 'string',
+          designations: [broken('en'), broken('fr')],
+        },
+      },
+      conceptOrder: ['note'],
+    }
+    const issues = validateProject(project).filter((i) => i.rule === 'text.invalid-doc')
+    expect(issues).toHaveLength(1)
+    expect(issues[0]).toMatchObject({ severity: 'warning', location: { conceptCode: 'note' } })
+    expect(
+      conceptRichText(project.codeSystems['http://x']!.concepts['note'], 'q-display', 'fr'),
+    ).toEqual(fromHtml('<b>Danger</b>'))
   })
 })
 

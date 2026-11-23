@@ -1,0 +1,44 @@
+{
+  "name": "nested-marks",
+  "input": {
+    "html": "<i>Note:</i> give <b><i>with food</i></b>"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ],
+            "text": "Note:"
+          },
+          {
+            "type": "text",
+            "text": " give "
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              },
+              {
+                "type": "italic"
+              }
+            ],
+            "text": "with food"
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "Note: give with food",
+  "markdown": "_Note:_ give **_with food_**",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><em>Note:</em> give <strong><em>with food</em></strong></p></div>"
+}

@@ -1,0 +1,42 @@
+{
+  "name": "markdown-paragraphs",
+  "input": {
+    "markdown": "First\n\nSecond line\nThird"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "First"
+          }
+        ]
+      },
+      {
+        "type": "paragraph"
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Second line"
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "Third"
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "First\n\nSecond line\nThird",
+  "markdown": "First\n\nSecond line\nThird",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>First</p><p>Second line<br/>Third</p></div>"
+}
