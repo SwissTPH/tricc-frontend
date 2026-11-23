@@ -116,6 +116,20 @@ export function ActivityNavigator({
     setSearching(false)
     setProjectQuery('')
   }, [])
+  // Ctrl+K (Cmd+K on a Mac) opens the project search, the usual command-palette key.
+  // Ctrl+F stays the browser's find.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey) return
+      if (event.key.toLowerCase() !== 'k') return
+      event.preventDefault()
+      setSearching(true)
+    }
+    // Capture, so a handler further down cannot stop it; preventDefault keeps the browser
+    // from moving focus to its address bar.
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [])
   const dictionaries = projectDictionaries(project)
 
   const ids = Object.keys(project.activities).sort()
@@ -397,7 +411,7 @@ export function ActivityNavigator({
           className="tricc-nav__project-search"
           data-testid="project-search"
           aria-label="Search the project"
-          title="Concepts, segments, activities and nodes."
+          title="Concepts, segments, activities and nodes (Ctrl+K)."
           placeholder="Search the project"
           // The bar only opens the palette; the query is typed there.
           readOnly

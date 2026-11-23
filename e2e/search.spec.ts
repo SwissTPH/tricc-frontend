@@ -104,6 +104,12 @@ test('the project search shows hits by source and opens a node', async ({ page }
   await expect(page.getByTestId('project-search-none')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('project-search-results')).toHaveCount(0)
+
+  // Ctrl+K opens the same palette.
+  await page.keyboard.press('Control+k')
+  await expect(page.getByTestId('project-search-input')).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('project-search-results')).toHaveCount(0)
 })
 
 test('one answer of a select can be "none of these", from the question or the answer', async ({
