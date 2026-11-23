@@ -87,8 +87,10 @@ test('the project search shows hits by source and opens a node', async ({ page }
 
   // The bar searches the project.
   await page.getByTestId('nav-overview').click()
-  await page.getByTestId('project-search').fill('WEIGHT')
-  await page.getByTestId('project-search').press('Enter')
+  // Selecting the bar opens the command palette, focused on its query.
+  await page.getByTestId('project-search').click()
+  await expect(page.getByTestId('project-search-input')).toBeFocused()
+  await page.getByTestId('project-search-input').fill('WEIGHT')
   const results = page.getByTestId('project-search-results')
   await expect(results.getByTestId('project-search-concepts')).toContainText('Data dictionary (1)')
   await expect(results.getByTestId('project-search-activities')).toContainText('Weight check')
@@ -97,8 +99,8 @@ test('the project search shows hits by source and opens a node', async ({ page }
   await expect(results).toHaveCount(0)
   await expect(page.getByTestId('field-name')).toHaveValue('weight_kg')
 
-  await page.getByTestId('project-search').fill('nothing like this')
-  await page.getByTestId('project-search').press('Enter')
+  await page.getByTestId('project-search').click()
+  await page.getByTestId('project-search-input').fill('nothing like this')
   await expect(page.getByTestId('project-search-none')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('project-search-results')).toHaveCount(0)

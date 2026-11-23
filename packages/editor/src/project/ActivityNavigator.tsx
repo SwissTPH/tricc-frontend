@@ -17,7 +17,7 @@ import {
 } from '@tricc/core'
 import { useCanWrite, useMutate, useProjectSnapshot } from '../runtime/context.js'
 import { uniqueId } from './Overview.js'
-import { ProjectSearchDialog } from './ProjectSearch.js'
+import { ProjectSearchCommand } from './ProjectSearch.js'
 import { dictionaryLabel } from '../terminology/ConceptDialog.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
@@ -110,8 +110,12 @@ export function ActivityNavigator({
   const [blockQuery, setBlockQuery] = useState('')
   const [overflows, setOverflows] = useState(false)
   const [projectQuery, setProjectQuery] = useState('')
-  const [searching, setSearching] = useState<string | null>(null)
-  const closeSearch = useCallback(() => setSearching(null), [])
+  const [searching, setSearching] = useState(false)
+  // Closing the palette clears the query, so the bar is empty for the next search.
+  const closeSearch = useCallback(() => {
+    setSearching(false)
+    setProjectQuery('')
+  }, [])
   const dictionaries = projectDictionaries(project)
 
   const ids = Object.keys(project.activities).sort()
@@ -393,15 +397,13 @@ export function ActivityNavigator({
           className="tricc-nav__project-search"
           data-testid="project-search"
           aria-label="Search the project"
-          title="Concepts, segments, activities and nodes. Press Enter to see what matches."
+          title="Concepts, segments, activities and nodes."
           placeholder="Search the project"
+          // The bar only opens the palette; the query is typed there.
+          readOnly
           value={projectQuery}
-          onChange={(e) => setProjectQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key !== 'Enter' || !projectQuery.trim()) return
-            e.preventDefault()
-            setSearching(projectQuery)
-          }}
+          onFocus={() => setSearching(true)}
+          onClick={() => setSearching(true)}
         />
         {tab !== 'dictionary' && tab !== 'media' && (
           <>
@@ -547,15 +549,15 @@ export function ActivityNavigator({
           onConfirm={confirmDraft}
         />
       )}
-      {searching !== null && (
-        <ProjectSearchDialog
-          query={searching}
-          onClose={closeSearch}
-          onOpenActivity={(id) => onSelect(id)}
-          {...(onOpenConcept ? { onOpenConcept } : {})}
-          {...(onOpenNode ? { onOpenNode } : {})}
-        />
-      )}
+      <ProjectSearchCommand
+        open={searching}
+        query={projectQuery}
+        onQueryChange={setProjectQuery}
+        onClose={closeSearch}
+        onOpenActivity={(id) => onSelect(id)}
+        {...(onOpenConcept ? { onOpenConcept } : {})}
+        {...(onOpenNode ? { onOpenNode } : {})}
+      />
       {preview && canWrite && (
         <ImportDialog
           preview={preview}
