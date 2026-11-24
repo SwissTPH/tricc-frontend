@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo, useRef, type ReactNode } from 'react'
 import { searchProject, type ConceptKey } from '@tricc/core'
-import { useProjectSnapshot } from '../runtime/context.js'
+import { useCanWrite, useProjectSnapshot } from '../runtime/context.js'
 import {
   CommandDialog,
   CommandEmpty,
@@ -8,15 +8,29 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandShortcut,
 } from '../components/ui/command.js'
+import {
+  COMMAND_GROUPS,
+  matchCommands,
+  shortcutLabel,
+  useCommands,
+  type Command,
+} from '../commands/registry.js'
+
+/** `search`: the project search (Ctrl+F, the bar). `commands`: actions above it (Ctrl+K). */
+export type PaletteMode = 'search' | 'commands'
 
 /**
  * The project search as a command palette: what the query finds, by source (segments,
  * activities, dictionary concepts, nodes). The query stays editable here; picking a hit
  * opens where it lives and closes the palette. Escape and the backdrop close it.
+ *
+ * In `commands` mode the registered actions come first, narrowed by the same query.
  */
 export function ProjectSearchCommand({
   open,
+  mode = 'search',
   query,
   onQueryChange,
   onClose,
@@ -25,6 +39,7 @@ export function ProjectSearchCommand({
   onOpenNode,
 }: {
   open: boolean
+  mode?: PaletteMode
   query: string
   onQueryChange: (query: string) => void
   onClose: () => void
@@ -40,10 +55,31 @@ export function ProjectSearchCommand({
     [open, project, deferredQuery],
   )
   const inputRef = useRef<HTMLInputElement>(null)
+  const canWrite = useCanWrite()
+  const registered = useCommands()
+  const commands =
+    open && mode === 'commands'
+      ? matchCommands(
+          registered.filter((c) => canWrite || !c.writes),
+          query,
+        )
+      : []
 
   const go = (navigate: () => void) => () => {
     navigate()
     onClose()
+  }
+  // A command runs once the palette is closed: keyboard handlers such as undo stand aside
+  // while a dialog is open, and a command may open a dialog of its own.
+  const runCommand = (command: Command) => () => {
+    onClose()
+    requestAnimationFrame(() => {
+      try {
+        command.run()
+      } catch (error) {
+        console.error(`Command "${command.id}" failed.`, error)
+      }
+    })
   }
 
   return (
@@ -52,11 +88,20 @@ export function ProjectSearchCommand({
       onOpenChange={(next) => {
         if (!next) onClose()
       }}
-      title="Search the project"
-      description="Concepts, segments, activities and nodes. Pick one to open it."
+      title={mode === 'commands' ? 'Commands and project search' : 'Search the project'}
+      description={
+        mode === 'commands'
+          ? 'Actions, then concepts, segments, activities and nodes. Pick one to run or open it.'
+          : 'Concepts, segments, activities and nodes. Pick one to open it.'
+      }
       className="sm:max-w-2xl"
       // Hits come from searchProject, so cmdk must not filter or re-sort them.
-      commandProps={{ shouldFilter: false, loop: true, 'data-testid': 'project-search-results' }}
+      commandProps={{
+        shouldFilter: false,
+        loop: true,
+        'data-testid': 'project-search-results',
+        'data-mode': mode,
+      }}
       onOpenAutoFocus={(event) => {
         // Focus the query with the caret after what was already typed in the bar.
         event.preventDefault()
@@ -71,7 +116,7 @@ export function ProjectSearchCommand({
       <CommandInput
         ref={inputRef}
         data-testid="project-search-input"
-        placeholder="Search the project"
+        placeholder={mode === 'commands' ? 'Type a command or search' : 'Search the project'}
         value={query}
         onValueChange={onQueryChange}
       />
@@ -81,6 +126,27 @@ export function ProjectSearchCommand({
             ? 'Nothing in the project matches.'
             : 'Type to search concepts, segments, activities and nodes.'}
         </CommandEmpty>
+        {COMMAND_GROUPS.map((group) => {
+          const inGroup = commands.filter((c) => c.group === group)
+          if (inGroup.length === 0) return null
+          return (
+            <CommandGroup key={group} heading={group} data-testid="palette-actions">
+              {inGroup.map((command) => (
+                <CommandItem
+                  key={command.id}
+                  value={`command|${command.id}`}
+                  data-testid={`command-${command.id}`}
+                  onSelect={runCommand(command)}
+                >
+                  <span className="min-w-0 flex-1 truncate">{command.label}</span>
+                  {command.shortcut && (
+                    <CommandShortcut>{shortcutLabel(command.shortcut)}</CommandShortcut>
+                  )}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )
+        })}
         {/* Segments and activities first: they are where people most often want to go. */}
         {result && (
           <>

@@ -105,11 +105,64 @@ test('the project search shows hits by source and opens a node', async ({ page }
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('project-search-results')).toHaveCount(0)
 
-  // Ctrl+K opens the same palette.
-  await page.keyboard.press('Control+k')
+  // Ctrl+F opens the same search, without actions; pressed again it closes it, so the
+  // browser's own find can open.
+  await page.keyboard.press('Control+f')
   await expect(page.getByTestId('project-search-input')).toBeFocused()
-  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('project-search-results')).toHaveAttribute('data-mode', 'search')
+  await expect(page.getByTestId('palette-actions')).toHaveCount(0)
+  await page.keyboard.press('Control+f')
   await expect(page.getByTestId('project-search-results')).toHaveCount(0)
+})
+
+test('Ctrl+K lists actions above the search and runs the chosen one', async ({ page }) => {
+  await page.getByTestId('new-project').click()
+  await page.getByTestId('new-project-name').fill('Commands')
+  await page.getByTestId('create-project').click()
+  await expect(page.getByTestId('project-search')).toBeVisible()
+
+  // While the new project is still settling, a focus change can close the palette at once;
+  // press again until it stays (pressing Ctrl+K again keeps an open palette open).
+  const palette = page.getByTestId('project-search-results')
+  await expect(async () => {
+    await page.keyboard.press('Control+k')
+    await expect(palette).toBeVisible({ timeout: 1000 })
+  }).toPass()
+  await expect(palette).toHaveAttribute('data-mode', 'commands')
+  await expect(page.getByTestId('project-search-input')).toBeFocused()
+  await expect(palette.getByTestId('command-create.activity')).toBeVisible()
+  await expect(palette.getByTestId('command-edit.undo')).toContainText(/Ctrl\+Z|⌘Z/)
+
+  // Typing narrows the actions; Enter runs the first.
+  await page.getByTestId('project-search-input').fill('dict')
+  await expect(palette.getByTestId('command-create.activity')).toHaveCount(0)
+  await page.keyboard.press('Enter')
+  await expect(palette).toHaveCount(0)
+  await expect(page.getByTestId('dictionary-view')).toBeVisible()
+
+  // A command that opens a dialog: the new-activity draft.
+  await page.keyboard.press('Control+k')
+  await page.getByTestId('project-search-input').fill('new activity')
+  await page.keyboard.press('Enter')
+  await expect(page.getByTestId('new-activity-name')).toBeVisible()
+})
+
+test('in Viewing mode Ctrl+K offers no edits, and switches back to Editing', async ({ page }) => {
+  await page.getByTestId('new-project').click()
+  await page.getByTestId('new-project-name').fill('Viewing')
+  await page.getByTestId('create-project').click()
+  await expect(page.getByTestId('project-search')).toBeVisible()
+  await page.getByTestId('mode-menu').click()
+  await page.getByTestId('mode-viewing').click()
+
+  await page.keyboard.press('Control+k')
+  const palette = page.getByTestId('project-search-results')
+  await expect(palette.getByTestId('command-nav.dictionary')).toBeVisible()
+  await expect(palette.getByTestId('command-create.activity')).toHaveCount(0)
+  await expect(palette.getByTestId('command-edit.undo')).toHaveCount(0)
+  await expect(palette.getByTestId('command-app.mode')).toContainText('Switch to Editing')
+  await palette.getByTestId('command-app.mode').click()
+  await expect(page.getByTestId('mode-menu')).toHaveAttribute('data-mode', 'editing')
 })
 
 test('one answer of a select can be "none of these", from the question or the answer', async ({

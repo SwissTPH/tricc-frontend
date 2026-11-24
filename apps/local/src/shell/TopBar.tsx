@@ -11,7 +11,7 @@ import MenuItem from '@mui/material/MenuItem'
 import Toolbar from '@mui/material/Toolbar'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
-import { Icon } from '@tricc/editor'
+import { Icon, useRegisterCommands } from '@tricc/editor'
 import type { LocalRuntime } from '../adapters.js'
 import { usePreferencesPanel } from './preferences-panel.js'
 
@@ -38,6 +38,15 @@ export function TopBar({
   bell?: ReactNode
 }) {
   const prefs = usePreferencesPanel()
+  useRegisterCommands([
+    {
+      id: 'app.preferences',
+      group: 'App',
+      label: prefs.open ? 'Close preferences' : 'Open preferences',
+      keywords: ['settings', 'options'],
+      run: prefs.toggle,
+    },
+  ])
   return (
     <AppBar
       position="static"
@@ -143,6 +152,24 @@ function ModeMenu({ local }: { local: LocalRuntime }) {
     setReadOnly(viewing)
     setAnchor(null)
   }
+  // Only the mode the author is not in; it is offered in Viewing mode too, to leave it.
+  useRegisterCommands([
+    readOnly
+      ? {
+          id: 'app.mode',
+          group: 'App',
+          label: 'Switch to Editing',
+          keywords: ['mode', 'edit'],
+          run: () => choose(false),
+        }
+      : {
+          id: 'app.mode',
+          group: 'App',
+          label: 'Switch to Viewing',
+          keywords: ['mode', 'read only', 'view'],
+          run: () => choose(true),
+        },
+  ])
   return (
     <>
       <Button
