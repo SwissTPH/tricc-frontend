@@ -235,3 +235,52 @@ test('repeat and instance are offered on every node holding a value, and on the 
   await page.getByTestId('configure-activity').click()
   await expect(page.getByTestId('activity-settings').getByTestId('field-repeat')).toHaveValue('-1')
 })
+
+test('a repeated question shows its own text for its repeat, and keeps it after a reload', async ({
+  page,
+}) => {
+  await page.getByTestId('new-project').click()
+  await page.getByTestId('new-project-name').fill('Repeat texts')
+  await page.getByTestId('create-project').click()
+  await page.getByTestId('add-activity').click()
+  await page.getByTestId('create-activity').click()
+
+  // The first temperature, with its concept.
+  await placeNode(page, 'decimal')
+  await newConcept(page, 'temp', 'Temperature')
+  await expect(page.getByTestId('node-n-decimal-label')).toHaveText('Temperature')
+
+  // The same concept collected again, in repeat 2: same text until it has its own.
+  await placeNode(page, 'decimal')
+  await page.getByTestId('field-name').fill('temp')
+  await page.getByTestId('field-repeat').fill('2')
+  await expect(page.getByTestId('node-n-decimal-2-label')).toHaveText('Temperature')
+  await expect(page.getByTestId('concept-card-repeat-text')).toHaveText(
+    'same text as the first time',
+  )
+
+  // Its own text, from the concept card.
+  await page.getByTestId('concept-repeat-text').click()
+  await expect(page.getByTestId('concept-text-0-repeat')).toHaveValue('2')
+  await page.getByTestId('concept-text-0-value').fill('Second temperature measurement')
+  await page.getByTestId('concept-dialog-save').click()
+  await expect(page.getByTestId('concept-dialog')).toHaveCount(0)
+
+  await expect(page.getByTestId('node-n-decimal-2-label')).toHaveText(
+    'Second temperature measurement',
+  )
+  await expect(page.getByTestId('node-n-decimal-label')).toHaveText('Temperature')
+  await expect(page.getByTestId('concept-repeat-text')).toHaveText('Edit text for repeat 2')
+
+  // Saved: both texts come back.
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', {
+    timeout: 10_000,
+  })
+  await page.reload()
+  await page.getByTestId('tab-activities').click()
+  await page.getByTestId('library-card-activity').click()
+  await expect(page.getByTestId('node-n-decimal-label')).toHaveText('Temperature')
+  await expect(page.getByTestId('node-n-decimal-2-label')).toHaveText(
+    'Second temperature measurement',
+  )
+})

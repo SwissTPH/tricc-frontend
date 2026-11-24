@@ -6,8 +6,11 @@ import {
   PARAMETER_KIND,
   paramConceptCode,
   INTERVENTION_SCOPE_URL,
+  REPEAT_SCOPE_URL,
+  conceptText,
   conceptUsage,
   designationInterventions,
+  designationRepeats,
   designationText,
   designationUse,
   findCodeSystem,
@@ -16,6 +19,7 @@ import {
   RETRIEVAL_CODE,
   resolve,
   retrievalUsage,
+  repeatScopeExtension,
   scopeExtension,
   withConceptText,
   withDesignationText,
@@ -51,8 +55,12 @@ const USE_LABELS: Record<DesignationUse, string> = {
 }
 const RICH: DesignationUse[] = ['q-display', 'hint', 'help']
 
-/** What to open: an existing concept, or a new one to create (optionally prefilled). */
-export type ConceptTarget = { key: ConceptKey } | { draft: Partial<Concept> & { code?: string } }
+/**
+ * What to open: an existing concept, or a new one to create (optionally prefilled). `repeat`
+ * opens it to write the text of that repeat slot: a row for it is added when it has none.
+ */
+export type ConceptTarget =
+  { key: ConceptKey; repeat?: number } | { draft: Partial<Concept> & { code?: string } }
 
 /**
  * Edit one concept in a modal. Changes stay a draft until Save; Cancel discards them.
@@ -94,7 +102,7 @@ export function ConceptDialog({
   const existing = isNew ? undefined : existingCs?.concepts[target.key.code]
   const [draft, setDraft] = useState<Concept>(() =>
     existing
-      ? structuredClone(existing)
+      ? withRepeatRow(structuredClone(existing), isNew ? undefined : target.repeat, lang)
       : ({
           code: '',
           designations: [],
@@ -450,7 +458,7 @@ export function ConceptDialog({
             </>
           )}
 
-          <h3>Other languages and interventions</h3>
+          <h3>Other languages, interventions and repeats</h3>
           <datalist id="concept-languages">
             {project.languages.available.map((l) => (
               <option key={l} value={l} />
@@ -471,6 +479,7 @@ export function ConceptDialog({
                 {others.map(({ d, index }) => {
                   const use = designationUse(d)
                   const scope = designationInterventions(d)
+                  const slots = designationRepeats(d)
                   return (
                     <tr key={index} data-testid={`concept-text-${index}`}>
                       <td>
@@ -539,6 +548,38 @@ export function ConceptDialog({
                             ))}
                           </select>
                         )}
+                        {slots.length > 1 ? (
+                          <span>Repeats {slots.join(', ')}</span>
+                        ) : (
+                          <Input
+                            type="number"
+                            min={1}
+                            step={1}
+                            htmlSize={6}
+                            data-testid={`concept-text-${index}-repeat`}
+                            aria-label="Repeat"
+                            title="The repeat slot this text is for: 2 for the second time the concept is collected. Empty for every repeat."
+                            placeholder="Any repeat"
+                            value={slots[0] ?? ''}
+                            disabled={readOnly}
+                            onChange={(e) => {
+                              const slot = Math.trunc(Number(e.target.value))
+                              const kept = (d.extension ?? []).filter(
+                                (x) => (x as { url?: string }).url !== REPEAT_SCOPE_URL,
+                              )
+                              const extension = [
+                                ...kept,
+                                ...repeatScopeExtension(
+                                  e.target.value !== '' && slot >= 1 ? [slot] : [],
+                                ),
+                              ]
+                              const next: Designation = { ...d }
+                              if (extension.length) next.extension = extension
+                              else delete next.extension
+                              updateAt(index, next)
+                            }}
+                          />
+                        )}
                       </td>
                       <td className="tricc-concept__text">
                         {use && RICH.includes(use) ? (
@@ -604,7 +645,7 @@ export function ConceptDialog({
                   setDraft({ ...draft, designations: [...draft.designations, row] })
                 }}
               >
-                Add a translation or an intervention text
+                Add a translation, an intervention or a repeat text
               </Button>
             </p>
           )}
@@ -758,4 +799,27 @@ function paramOwner(project: Project, code: string): string | undefined {
     if ((activity.params ?? []).some((p) => paramConceptCode(activity, p.name) === code)) return id
   }
   return undefined
+}
+
+/**
+ * The concept with a row for the questionnaire text of repeat `slot` in `lang`, prefilled with
+ * the text that slot shows today, unless it already has one.
+ */
+function withRepeatRow(concept: Concept, slot: number | undefined, lang: string): Concept {
+  if (slot === undefined || slot < 1) return concept
+  const has = concept.designations.some(
+    (d) =>
+      d.language === lang &&
+      designationUse(d) === 'q-display' &&
+      designationInterventions(d).length === 0 &&
+      designationRepeats(d).includes(slot),
+  )
+  if (has) return concept
+  const row: Designation = {
+    language: lang,
+    use: { ...DESIGNATION_USES['q-display'] },
+    value: conceptText(concept, 'q-display', lang, lang, { repeat: slot }) ?? '',
+    extension: repeatScopeExtension([slot]),
+  }
+  return { ...concept, designations: [...concept.designations, row] }
 }

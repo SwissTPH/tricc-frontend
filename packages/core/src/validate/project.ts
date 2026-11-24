@@ -6,7 +6,14 @@ import { validateActivity, MACHINE_NAME } from './activity.js'
 import { validateParams } from './params.js'
 import { validateRetrievals } from './retrievals.js'
 import { issue, type Issue } from './types.js'
-import { designationInterventions, designationUse } from '../terminology/designation.js'
+import {
+  conceptText,
+  designationInterventions,
+  designationRepeats,
+  designationUse,
+} from '../terminology/designation.js'
+import { nodeConceptKey } from '../terminology/usage.js'
+import { TEXT_NODE_TYPES } from '../format/schema/node-types.js'
 import { designationDocError, designationText } from '../text/designation.js'
 import { imageRefs, references } from '../text/render.js'
 
@@ -26,6 +33,7 @@ export function validateProject(project: Project): Issue[] {
   issues.push(...validateCrossActivity(project))
   issues.push(...validateInterventions(project))
   issues.push(...validateTerminology(project))
+  issues.push(...validateRepeatTexts(project))
   issues.push(...validateParams(project))
   issues.push(...validateRetrievals(project))
   return issues
@@ -404,13 +412,14 @@ function validateTerminology(project: Project): Issue[] {
             )
           }
         }
-        const key = `${designationUse(d) ?? `${d.use?.system}|${d.use?.code}`}|${d.language}|${[...scope].sort().join(',')}`
+        const slots = designationRepeats(d)
+        const key = `${designationUse(d) ?? `${d.use?.system}|${d.use?.code}`}|${d.language}|${[...scope].sort().join(',')}|${[...slots].sort((a, b) => a - b).join(',')}`
         if (seen.has(key)) {
           issues.push(
             issue(
               'concept.duplicate-designation',
               'error',
-              `"${code}" has two ${designationUse(d) ?? 'other'} texts in "${d.language}" for the same interventions. Keep one.`,
+              `"${code}" has two ${designationUse(d) ?? 'other'} texts in "${d.language}" for the same interventions and repeats. Keep one.`,
               { conceptCode: code, codeSystem: cs.id, field: 'designation' },
             ),
           )
@@ -462,3 +471,66 @@ function validateTerminology(project: Project): Issue[] {
 }
 
 export { validateActivity }
+
+/**
+ * A concept collected again in another repeat slot can say so ("Second temperature
+ * measurement"): a slot whose questionnaire text is the same as the first slot's is reported,
+ * and a slot text no node uses (feature RFC repeat-slot-texts). Information only.
+ */
+function validateRepeatTexts(project: Project): Issue[] {
+  const issues: Issue[] = []
+  const lang = project.languages.default
+  // Concept → slot → the first node in that slot.
+  const slotsOf = new Map<string, Map<number, { activityId: string; nodeId: string }>>()
+  for (const activityId of Object.keys(project.activities).sort()) {
+    const activity = project.activities[activityId]!
+    for (const nodeId of activity.nodeOrder) {
+      const node = activity.nodes[nodeId]
+      if (!node || !TEXT_NODE_TYPES.includes(node.type)) continue
+      const key = nodeConceptKey(project, node)
+      if (!key) continue
+      const id = `${key.system}|${key.code}`
+      const slots = slotsOf.get(id) ?? new Map()
+      const slot = node.repeat ?? 1
+      if (!slots.has(slot)) slots.set(slot, { activityId, nodeId })
+      slotsOf.set(id, slots)
+    }
+  }
+  for (const cs of Object.values(project.codeSystems)) {
+    for (const code of cs.conceptOrder) {
+      const c = cs.concepts[code]
+      if (!c) continue
+      const slots = slotsOf.get(`${cs.url}|${code}`) ?? new Map()
+      const numbered = [...slots.keys()].filter((s) => s >= 1).sort((a, b) => a - b)
+      const first = numbered[0]
+      if (first !== undefined) {
+        const firstText = conceptText(c, 'q-display', lang, lang, { repeat: first })
+        for (const slot of numbered.slice(1)) {
+          if (conceptText(c, 'q-display', lang, lang, { repeat: slot }) !== firstText) continue
+          issues.push(
+            issue(
+              'concept.repeat-text-same',
+              'info',
+              `Repeat ${slot} of "${code}" shows the same text as repeat ${first}. Give it its own wording in the concept, for example "Second measurement".`,
+              { ...slots.get(slot)!, conceptCode: code, codeSystem: cs.id, field: 'concept' },
+            ),
+          )
+        }
+      }
+      const unused = new Set(
+        c.designations.flatMap((d) => designationRepeats(d)).filter((s) => !slots.has(s)),
+      )
+      for (const slot of [...unused].sort((a, b) => a - b)) {
+        issues.push(
+          issue(
+            'concept.repeat-text-unused',
+            'info',
+            `"${code}" has a text for repeat ${slot}, but no question of this concept is in repeat ${slot}. It is kept; remove it if it is no longer needed.`,
+            { conceptCode: code, codeSystem: cs.id, field: 'designation' },
+          ),
+        )
+      }
+    }
+  }
+  return issues
+}

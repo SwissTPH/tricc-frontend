@@ -10,6 +10,9 @@ import {
   conceptRichText,
   conceptText,
   designationInterventions,
+  designationRepeats,
+  isUnscoped,
+  repeatScopeExtension,
   scopeExtension,
   withConceptText,
 } from './designation.js'
@@ -371,8 +374,10 @@ describe('questionnaire text per intervention', () => {
   }
 
   it('prefers the text scoped to the intervention, and never leaks it elsewhere', () => {
-    expect(conceptText(weight, 'q-display', 'en', 'en', 'community')).toBe('Weigh the child')
-    expect(conceptText(weight, 'q-display', 'en', 'en', 'facility')).toBe(
+    expect(conceptText(weight, 'q-display', 'en', 'en', { interventionId: 'community' })).toBe(
+      'Weigh the child',
+    )
+    expect(conceptText(weight, 'q-display', 'en', 'en', { interventionId: 'facility' })).toBe(
       'Weigh the child on the scale',
     )
     expect(conceptText(weight, 'q-display', 'en', 'en')).toBe('Weigh the child on the scale')
@@ -528,5 +533,130 @@ describe('default concept types', () => {
     expect(cs.concepts['dry']?.conceptType).toBe('Value')
     expect(cs.concepts['rash']?.conceptType).toBe('Observation')
     expect(cs.concepts['pneumonia']?.conceptType).toBe('Condition')
+  })
+})
+
+describe('questionnaire text per repeat slot', () => {
+  const q = { system: 'https://tricc.org/CodeSystem/designation-use', code: 'q-display' }
+  const temp: Concept = {
+    system: 'http://x',
+    code: 'temp',
+    display: 'Temperature',
+    designations: [
+      { language: 'en', use: q, value: 'Measure the temperature' },
+      {
+        language: 'en',
+        use: q,
+        value: 'Community wording',
+        extension: scopeExtension(['community']),
+      },
+      { language: 'en', use: q, value: 'Second measurement', extension: repeatScopeExtension([2]) },
+      {
+        language: 'en',
+        use: q,
+        value: 'Second, community',
+        extension: [...scopeExtension(['community']), ...repeatScopeExtension([2])],
+      },
+      { language: 'fr', use: q, value: 'Mesurer la température' },
+    ],
+  }
+  const text = (scope: { interventionId?: string; repeat?: number }, lang = 'en') =>
+    conceptText(temp, 'q-display', lang, 'en', scope)
+
+  it('picks the most specific text: slot and intervention, slot, intervention, then all', () => {
+    expect(text({ repeat: 2, interventionId: 'community' })).toBe('Second, community')
+    expect(text({ repeat: 2, interventionId: 'facility' })).toBe('Second measurement')
+    expect(text({ repeat: 2 })).toBe('Second measurement')
+    expect(text({ repeat: 1, interventionId: 'community' })).toBe('Community wording')
+    expect(text({ repeat: 1 })).toBe('Measure the temperature')
+    expect(text({ repeat: 3 })).toBe('Measure the temperature')
+    expect(text({})).toBe('Measure the temperature')
+  })
+
+  it('gives no slot text to repeat -1, and falls back per language', () => {
+    expect(text({ repeat: -1 })).toBe('Measure the temperature')
+    expect(text({ repeat: 2 }, 'fr')).toBe('Mesurer la température')
+  })
+
+  it('never makes the display depend on the slot', () => {
+    expect(conceptText(temp, 'display', 'en', 'en', { repeat: 2 })).toBe('Temperature')
+  })
+
+  it('treats a slot-scoped text as scoped', () => {
+    expect(isUnscoped(temp.designations[2]!)).toBe(false)
+    expect(designationRepeats(temp.designations[3]!)).toEqual([2])
+  })
+
+  it('sets and clears a slot text without touching the others', () => {
+    const base: Concept = { ...temp, designations: [temp.designations[0]!] }
+    const set = withConceptText(base, 'q-display', 'en', 'Again', 'en', { repeat: 2 })
+    expect(set.designations).toHaveLength(2)
+    expect(conceptText(set, 'q-display', 'en', 'en', { repeat: 2 })).toBe('Again')
+    expect(conceptText(set, 'q-display', 'en', 'en')).toBe('Measure the temperature')
+    const changed = withConceptText(set, 'q-display', 'en', 'Second', 'en', { repeat: 2 })
+    expect(changed.designations).toHaveLength(2)
+    expect(conceptText(changed, 'q-display', 'en', 'en', { repeat: 2 })).toBe('Second')
+    const cleared = withConceptText(changed, 'q-display', 'en', undefined, 'en', { repeat: 2 })
+    expect(cleared.designations).toEqual(base.designations)
+  })
+
+  it('round-trips the repeat scope through the CodeSystem file', () => {
+    const file: CodeSystem = {
+      id: 'x',
+      url: 'http://x',
+      status: 'draft',
+      content: 'complete',
+      concepts: { temp },
+      conceptOrder: ['temp'],
+    }
+    const back = decodeCodeSystem(encodeCodeSystem(file))
+    expect(back.concepts['temp']?.designations).toEqual(temp.designations)
+  })
+
+  function project(designations: Concept['designations']): Project {
+    const p = createProject({ id: 'p', title: 'P' })
+    p.codeSystems['http://x'] = {
+      id: 'x',
+      url: 'http://x',
+      status: 'draft',
+      content: 'complete',
+      concepts: { temp: { ...temp, dataType: 'decimal', designations } },
+      conceptOrder: ['temp'],
+    }
+    const concept = { system: 'http://x', code: 'temp' }
+    p.activities['a'] = {
+      id: 'a',
+      nodeOrder: ['t1', 't2'],
+      edgeOrder: [],
+      edges: {},
+      nodes: {
+        t1: { id: 't1', type: 'decimal', name: 'temp', concept },
+        t2: { id: 't2', type: 'decimal', name: 'temp', concept, repeat: 2 },
+      },
+    }
+    return p
+  }
+  const rules = (p: Project) =>
+    validateProject(p).filter((i) => i.rule.startsWith('concept.repeat'))
+
+  it('reports a repeat showing the same text as the first, until it has its own', () => {
+    const same = rules(project([temp.designations[0]!]))
+    expect(same.map((i) => i.rule)).toEqual(['concept.repeat-text-same'])
+    expect(same[0]?.severity).toBe('info')
+    expect(same[0]?.location.nodeId).toBe('t2')
+    expect(rules(project([temp.designations[0]!, temp.designations[2]!]))).toEqual([])
+  })
+
+  it('reports a slot text no node uses, and two texts for the same slot', () => {
+    const third = { language: 'en', use: q, value: 'Third', extension: repeatScopeExtension([3]) }
+    const p = project([
+      temp.designations[0]!,
+      temp.designations[2]!,
+      third,
+      { ...temp.designations[2]!, value: 'Dup' },
+    ])
+    const all = validateProject(p).map((i) => i.rule)
+    expect(all).toContain('concept.repeat-text-unused')
+    expect(all).toContain('concept.duplicate-designation')
   })
 })

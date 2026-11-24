@@ -462,20 +462,23 @@ export function ActivityNavigator({
             </button>
           )}
         </div>
-        <Input
-          size="sm"
-          type="search"
-          className="tricc-nav__project-search"
-          data-testid="project-search"
-          aria-label="Search the project"
-          title="Concepts, segments, activities and nodes (Ctrl+F). Ctrl+K adds commands."
-          placeholder="Search the project"
-          // The bar only opens the palette; the query is typed there.
-          readOnly
-          value={projectQuery}
-          onFocus={() => openPalette('search')}
-          onClick={() => openPalette('search')}
-        />
+        <span className="tricc-nav__project-search-field">
+          <Icon name="search" size={16} className="tricc-nav__project-search-icon" />
+          <Input
+            size="sm"
+            type="search"
+            className="tricc-nav__project-search"
+            data-testid="project-search"
+            aria-label="Search the project"
+            title="Concepts, segments, activities and nodes (Ctrl+F). Ctrl+K adds commands."
+            placeholder="Search the project"
+            // The bar only opens the palette; the query is typed there.
+            readOnly
+            value={projectQuery}
+            onFocus={() => openPalette('search')}
+            onClick={() => openPalette('search')}
+          />
+        </span>
         {tab !== 'dictionary' && tab !== 'media' && (
           <>
             {canWrite && (

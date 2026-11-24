@@ -108,7 +108,14 @@ export function ConceptCard({
   }
 
   const uses = conceptUsage(project, key).length
+  // A node collected again (repeat 2, 3…) can have its own text: "Second measurement".
+  const slot = node.repeat !== undefined && node.repeat >= 2 ? node.repeat : undefined
   const questionnaire = conceptText(concept, 'q-display', lang, defaultLang)
+  const slotText =
+    slot === undefined
+      ? undefined
+      : conceptText(concept, 'q-display', lang, defaultLang, { repeat: slot })
+  const ownSlotText = slot !== undefined && slotText !== questionnaire
   return (
     <div className="tricc-concept-card" data-testid="concept-card">
       <p className="tricc-concept-card__head">
@@ -119,6 +126,33 @@ export function ConceptCard({
       </p>
       {questionnaire && questionnaire !== concept.display && (
         <p data-testid="concept-card-q-display">{questionnaire}</p>
+      )}
+      {slot !== undefined && (
+        <div data-testid="concept-card-repeat">
+          <p>
+            Repeat {slot}:{' '}
+            {ownSlotText ? (
+              <span data-testid="concept-card-repeat-text">{slotText}</span>
+            ) : (
+              <span className="tricc-import-note" data-testid="concept-card-repeat-text">
+                same text as the first time
+              </span>
+            )}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            data-testid="concept-repeat-text"
+            onClick={() => setDialog({ key, repeat: slot })}
+          >
+            {readOnly
+              ? `Show text for repeat ${slot}`
+              : ownSlotText
+                ? `Edit text for repeat ${slot}`
+                : `Add text for repeat ${slot}`}
+          </Button>
+        </div>
       )}
       {uses > 1 && (
         <p className="tricc-import-note" data-testid="concept-card-shared">

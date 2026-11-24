@@ -194,12 +194,14 @@ const tricc: CanvasKind = {
         // The text is the concept's questionnaire text (its display when it has none).
         const concept = lookupConcept(project, nodeConceptKey(project, model))
         // A text that is only a picture has no words: the node falls back to its own label.
-        const text = conceptText(concept, 'q-display', lang, defaultLang)?.trim() || undefined
-        const picture = firstPicture(conceptRichText(concept, 'q-display', lang, defaultLang))
+        // A node collected again (repeat 2, 3…) reads the concept's text for its slot.
+        const slot = { repeat: model.repeat ?? 1 }
+        const text = conceptText(concept, 'q-display', lang, defaultLang, slot)?.trim() || undefined
+        const picture = firstPicture(conceptRichText(concept, 'q-display', lang, defaultLang, slot))
         const hint =
-          conceptText(concept, 'hint', lang, defaultLang) ?? resolve(model.hint, lang, lang)
+          conceptText(concept, 'hint', lang, defaultLang, slot) ?? resolve(model.hint, lang, lang)
         const help =
-          conceptText(concept, 'help', lang, defaultLang) ?? resolve(model.help, lang, lang)
+          conceptText(concept, 'help', lang, defaultLang, slot) ?? resolve(model.help, lang, lang)
         const answerTexts = model.options?.length
           ? Object.fromEntries(model.options.map((o) => [o.id, answerLabel(o, lang, project)]))
           : undefined

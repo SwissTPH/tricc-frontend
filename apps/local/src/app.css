@@ -212,6 +212,26 @@ main > [data-testid='activity-editor'] {
 .tricc-nav__bar input.tricc-nav__project-search {
   max-width: 20em;
 }
+/* The project search bar with a search icon inside it, on the left. */
+.tricc-nav__project-search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 8em;
+  min-width: 0;
+  max-width: 20em;
+}
+.tricc-nav__project-search-icon {
+  position: absolute;
+  left: 7px;
+  color: var(--tricc-text-muted);
+  pointer-events: none;
+}
+.tricc-nav__bar .tricc-nav__project-search-field input.tricc-nav__project-search {
+  flex: 1 1 auto;
+  max-width: none;
+  padding-left: 27px;
+}
 .tricc-nav__bar input[type='search'] {
   flex: 1 1 8em;
   min-width: 0;

@@ -1656,6 +1656,75 @@ describe('questionnaire text per intervention', () => {
   })
 })
 
+describe('questionnaire text per repeat slot', () => {
+  const url = 'https://tricc.org/CodeSystem/test'
+  const q = { system: 'https://tricc.org/CodeSystem/designation-use', code: 'q-display' }
+  const repeatUrl = 'https://tricc.org/StructureDefinition/designation-repeat'
+  function repeated(
+    designations: Project['codeSystems'][string]['concepts'][string]['designations'],
+  ) {
+    const project = seed()
+    project.codeSystems[url] = {
+      id: 'test',
+      url,
+      status: 'draft',
+      content: 'complete',
+      concepts: { temp: { system: url, code: 'temp', display: 'Temperature', designations } },
+      conceptOrder: ['temp'],
+    }
+    const concept = { system: url, code: 'temp' }
+    const triage = project.activities['triage']!
+    triage.nodeOrder.push('t1', 't2')
+    triage.nodes['t1'] = { id: 't1', type: 'decimal', name: 'temp', concept, ui: { x: 0, y: 100 } }
+    triage.nodes['t2'] = {
+      id: 't2',
+      type: 'decimal',
+      name: 'temp',
+      concept,
+      repeat: 2,
+      ui: { x: 0, y: 200 },
+    }
+    return project
+  }
+  const base = { language: 'en', use: q, value: 'Measure the temperature' }
+
+  it('shows the text of its repeat slot on the canvas and in the concept card', async () => {
+    const h = await harness(
+      repeated([
+        base,
+        {
+          language: 'en',
+          use: q,
+          value: 'Second measurement',
+          extension: [{ url: repeatUrl, valueInteger: 2 }],
+        },
+      ]),
+    )
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    expect(screen.getByTestId('node-t1-label')).toHaveTextContent('Measure the temperature')
+    expect(screen.getByTestId('node-t2-label')).toHaveTextContent('Second measurement')
+    selectNode('t2')
+    expect(screen.getByTestId('concept-card-repeat-text')).toHaveTextContent('Second measurement')
+    expect(screen.getByTestId('concept-repeat-text')).toHaveTextContent('Edit text for repeat 2')
+  })
+
+  it('adds a text for the repeat from the concept card', async () => {
+    const user = userEvent.setup()
+    const h = await harness(repeated([base]))
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    selectNode('t2')
+    expect(screen.getByTestId('concept-card-repeat-text')).toHaveTextContent(
+      'same text as the first time',
+    )
+    await user.click(screen.getByTestId('concept-repeat-text'))
+    expect(screen.getByTestId('concept-text-1-repeat')).toHaveValue(2)
+    await user.click(screen.getByTestId('concept-dialog-save'))
+    const d = h.open.document.snapshot().codeSystems[url]!.concepts['temp']!.designations[1]!
+    expect(d).toMatchObject({ language: 'en', value: 'Measure the temperature' })
+    expect(d.extension).toEqual([{ url: repeatUrl, valueInteger: 2 }])
+  })
+})
+
 describe('project settings and delete', () => {
   it('renames through the gear: Cancel keeps the name, Save stores it and tells the host', async () => {
     const user = userEvent.setup()
