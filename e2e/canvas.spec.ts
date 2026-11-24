@@ -669,6 +669,35 @@ test('tidy layout repositions nodes and is undoable in one step', async ({ page 
   expect(after!.x !== before!.x || after!.y !== before!.y).toBe(true)
 })
 
+test('tidy layout runs from Ctrl+K, and Ctrl+Z undoes it in one step', async ({ page }) => {
+  await newActivity(page, 'Layout from the palette')
+  await placeNode(page, 'note')
+  await placeNode(page, 'integer')
+  // Edits inside the 500ms capture window are one undo step: let it close, so the tidy is
+  // its own step.
+  await page.waitForTimeout(600)
+
+  const before = await page.getByTestId('node-n-note').boundingBox()
+  await page.keyboard.press('Control+k')
+  await page.getByTestId('project-search-input').fill('tidy')
+  await page.keyboard.press('Enter')
+  await expect(page.getByTestId('project-search-results')).toHaveCount(0)
+  await expect
+    .poll(async () => {
+      const box = await page.getByTestId('node-n-note').boundingBox()
+      return box!.x !== before!.x || box!.y !== before!.y
+    })
+    .toBe(true)
+
+  await page.keyboard.press('Control+z')
+  await expect
+    .poll(async () => {
+      const box = await page.getByTestId('node-n-note').boundingBox()
+      return box!.x === before!.x && box!.y === before!.y
+    })
+    .toBe(true)
+})
+
 test('dragging a palette entry drops the node under the pointer', async ({ page }) => {
   await newActivity(page, 'Palette drop')
   const canvasBox = await page.getByTestId('activity-canvas').boundingBox()

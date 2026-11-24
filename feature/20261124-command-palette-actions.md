@@ -67,29 +67,39 @@ interface Command {
 }
 ```
 
-- `CommandsProvider` holds the registered commands. `useRegisterCommands(commands, deps)`
-  adds them while the calling component is mounted, so a command exists only where it can run
-  (tidy layout only while `ActivityEditor` is mounted).
-- `ProjectWorkspace` renders a `CommandsProvider` unless one is already above it. `apps/local`
-  mounts one around `Shell`, so `TopBar` can register the host's commands.
+- `CommandStore` holds the registered commands; `CommandsProvider` gives one to everything
+  under it (a nested provider adds nothing). `useRegisterCommands(commands)` adds them while the
+  calling component is mounted, so a command exists only where it can run (tidy layout only
+  while `ActivityEditor` is mounted). It registers again only when an id, label, group,
+  shortcut, `writes` or keyword changes; `run` is always the latest one passed. Without a
+  provider (the host's home page) it does nothing.
+- `useCommands()` reads them for the palette; `matchCommands` and `shortcutLabel` (`⌘` on a
+  Mac) are the palette's filter and shortcut text.
+- `ProjectWorkspace` wraps its whole frame in a `CommandsProvider`, around
+  `OpenProjectProvider`. The host's top bar is drawn inside the frame, so `apps/local` needs no
+  provider of its own.
 - Who registers what:
-  - `ActivityNavigator`: create activity / segment / block (opens the existing draft via
-    `setDraft`), import (`fileRef.current?.click()`).
-  - `ProjectWorkspace`: go to overview, segments, activities, blocks (`showView`), dictionary
-    (`onOpenDictionary` with the default system), media.
-  - `ActivityEditor`: tidy layout (the body of the `tidy-layout` button, moved into a
-    function both use).
-  - `runtime/context.tsx`: undo / redo (`document.undo`).
-  - `apps/local/src/shell/TopBar.tsx`: Editing / Viewing (`local.identity.setReadOnly`),
-    Preferences (`usePreferencesPanel().toggle`).
+  - `ActivityNavigator`: new activity / segment / building block (`openDraft`, the same draft
+    dialog as the buttons), import activities (`setTab('activity')`, then `openImport`).
+  - `ProjectWorkspace` (`GoToCommands`): go to overview (`openActivity(undefined)`),
+    segments, activities, building blocks, data dictionary, media (`showView`).
+  - `ActivityEditor`: tidy layout (`tidyLayout`, now shared with the `tidy-layout` button).
+  - `runtime/context.tsx` (`UndoKeys`): undo / redo (`document.undo`).
+  - `apps/local/src/shell/TopBar.tsx`: open / close Preferences
+    (`usePreferencesPanel().toggle`); `ModeMenu`: switch to Editing or to Viewing, whichever
+    the author is not in (`local.identity.setReadOnly`). Neither is a `writes` command, so
+    Viewing mode can be left from the palette.
 
 **Palette** (`packages/editor/src/project/ProjectSearch.tsx`):
 
 - `ProjectSearchCommand` takes `mode: 'search' | 'commands'`. In `commands` mode it renders a
   `CommandGroup` per command group before the search groups, with `CommandShortcut` for
   `shortcut`.
-- Commands are filtered by our own case-insensitive match on `label` and `keywords`, as
-  `shouldFilter` stays `false` for the search hits.
+- Commands are filtered by `matchCommands` (case-insensitive, on label, group and keywords),
+  as `shouldFilter` stays `false` for the search hits. `writes` commands are dropped when
+  `useCanWrite()` is false.
+- The palette root carries `data-mode`; each action is `command-<id>`, each action group
+  `palette-actions`.
 - Running a command closes the palette first, then calls `run` on the next frame:
   `UndoKeys` and other handlers ignore keys while a `[role="dialog"]` is open.
 
@@ -105,17 +115,19 @@ Selecting the **Search the project** bar keeps opening `search` mode.
 
 ### 2. Validation and errors
 
-- A command whose `run` throws is reported through the notifications port and the palette
-  stays closed.
-- Two commands with the same `id`: the later registration wins, with a `console.warn` in
-  development.
+- A command whose `run` throws is logged with `console.error`; the palette stays closed.
+  (The notifications port is for collaborators' notifications, not errors; a visible error
+  can follow when the app has a place for one.)
+- Two commands with the same `id`: the later registration wins, with a `console.warn`.
 
 ### 3. Tests
 
-- Unit (`commands/registry.test.tsx`): register and unregister on unmount; `writes` commands
-  hidden when the project is read-only; the filter matches label and keywords.
+- Unit (`commands/registry.test.tsx`): register and unregister on unmount; the latest `run`
+  is called without registering again; one command per id, the later winning; no provider,
+  no commands; the filter matches label, group and keywords; the shortcut text.
 - e2e (`e2e/search.spec.ts`): Ctrl+F opens search mode with no Actions group; a second Ctrl+F
-  closes it. Ctrl+K shows Actions; typing "dict" and Enter opens the data dictionary.
+  closes it. Ctrl+K shows Actions with the undo shortcut; typing "dict" and Enter opens the
+  data dictionary; _New activity_ opens the new-activity draft.
 - e2e: in Viewing mode, Ctrl+K does not offer _New activity_; _Switch to Editing_ does, and
   runs.
 - e2e (`e2e/canvas.spec.ts`): with an activity open, Ctrl+K → _Tidy layout_ moves the nodes,
@@ -123,8 +135,9 @@ Selecting the **Search the project** bar keeps opening `search` mode.
 
 ### 4. Phases
 
-1. Ctrl+F opens search; a second Ctrl+F hands over to the browser's find. Ctrl+K keeps
-   today's behaviour.
+All three are on the branch, built with the recommendation of each open question below.
+
+1. Ctrl+F opens search; a second Ctrl+F hands over to the browser's find.
 2. Command registry, `commands` mode, and the editor's commands (Create, Go to, Activity,
    Edit).
 3. Host commands from `apps/local` (Editing / Viewing, Preferences).

@@ -25,6 +25,8 @@ the author was looking for was below the fold. There was no keyboard shortcut.
   cursor in its search field. The bar itself is no longer typed into.
 - **Ctrl+K** (**Cmd+K** on a Mac) opens the same palette from anywhere in the project. **Ctrl+F**
   stays the browser's own find.
+  _Changed by [20261124-command-palette-actions.md](./20261124-command-palette-actions.md):
+  Ctrl+F opens this search, and Ctrl+K opens it with an Actions list._
 - Results update **as the author types**, grouped by source in this order:
   1. **Segments**
   2. **Activities** (building blocks are listed here too)

@@ -39,7 +39,7 @@ function CommandDialog({
   showCloseButton?: boolean
   // Not in shadcn: lets a caller turn off cmdk's own filtering and tag the palette.
   commandProps?: React.ComponentPropsWithoutRef<typeof CommandPrimitive> & {
-    'data-testid'?: string
+    [data: `data-${string}`]: string | undefined
   }
   onOpenAutoFocus?: React.ComponentPropsWithoutRef<typeof DialogContent>['onOpenAutoFocus']
   onCloseAutoFocus?: React.ComponentPropsWithoutRef<typeof DialogContent>['onCloseAutoFocus']
