@@ -94,9 +94,8 @@ Slot 1 has no slot-scoped designation by default, so it resolves as today.
 **Core: `packages/core/src/terminology/designation.ts`**
 
 - `REPEAT_SCOPE_URL` and `designationRepeats(d): number[]`, like `designationInterventions`.
-- `isUnscoped(d)`: also false when `d` has a repeat scope. Add `isRepeatScoped(d)` for callers
-  that need it.
-- `scopeExtension(interventionIds, repeats?)`: writes both kinds.
+- `repeatScopeExtension(slots)`: writes the repeat scope, as `scopeExtension(interventionIds)`
+  writes the intervention one.
 - `TextScope = { interventionId?, repeat? }`. `conceptText` / `conceptRichText` take it as
   their fifth argument in place of the positional `interventionId` (only a test used that).
   Without `repeat`, slot-scoped texts are never picked, so callers that show the concept
