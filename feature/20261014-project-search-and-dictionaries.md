@@ -14,6 +14,10 @@
 The navigator bar has a **Search the project** box where the list filter used to be. The
 filter of the Processes and Activities lists moved down, to the start of the list row.
 
+> **Since 2026-11-24** the window below is a command palette opened by selecting the bar or
+> with Ctrl+K, with hits as you type: see
+> [20261124-project-search-command-palette.md](./20261124-project-search-command-palette.md).
+
 Typing a word and pressing **Enter** opens a window with what matches, by source:
 
 - **Data dictionary**: concepts (code, display, any text), with the dictionary they are in;
