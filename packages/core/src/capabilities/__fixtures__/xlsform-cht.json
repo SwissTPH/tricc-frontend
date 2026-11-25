@@ -10,7 +10,14 @@
     "version": "^1.0.0"
   },
   "add": {
-    "retrieval_contexts": ["patient", "facility", "practitioner", "location", "encounter", "history"],
+    "retrieval_contexts": [
+      "patient",
+      "facility",
+      "practitioner",
+      "location",
+      "encounter",
+      "history"
+    ],
     "populate_contexts": ["patient", "facility", "practitioner", "location", "encounter", "history"]
   },
   "remove": {}
