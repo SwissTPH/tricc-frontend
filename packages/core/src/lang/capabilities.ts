@@ -29,8 +29,15 @@ const operatorLabel = (op: string) =>
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join('')
 
-/** The context a node's expression is written in: `form`, or FHIR's `inline` (FHIRPath). */
-const contextOf = (s: ResolvedStatement) => (s.contexts.size === 1 ? [...s.contexts][0]! : 'inline')
+/** Fields always written in the `inline` context by outputs that have one (FHIR: FHIRPath). */
+const INLINE_FIELDS = new Set(['relevance', 'constraint'])
+
+/**
+ * The context a node field is written in: the output's only one (`form`), FHIR's `inline` for a
+ * condition, and undefined for a calculation (the writer picks FHIRPath or CQL: either will do).
+ */
+const contextOf = (s: ResolvedStatement, field: string): string | undefined =>
+  s.contexts.size === 1 ? [...s.contexts][0]! : INLINE_FIELDS.has(field) ? 'inline' : undefined
 
 interface Use {
   node: TriccNode
@@ -77,7 +84,6 @@ export function checkCapabilities(project: Project): Issue[] {
   const retrievals = retrieveCodeSystem(project)
   for (const statement of active) {
     const label = statementLabel(statement)
-    const context = contextOf(statement)
     const seen = new Set<string>()
     const report = (key: string, message: string, location: Issue['location']) => {
       if (seen.has(key)) return
@@ -87,9 +93,10 @@ export function checkCapabilities(project: Project): Issue[] {
     for (const { node, activityId, field, use } of all) {
       const at = { activityId, nodeId: node.id, field }
       const who = nodeName(node, activityId)
+      const context = contextOf(statement, field)
       for (const op of use.operators) {
         if (op === 'NATIVE' || statementWrites(statement, op, context)) continue
-        const where = statement.contexts.size > 1 ? ` ${context}` : ''
+        const where = context && statement.contexts.size > 1 ? ` ${context}` : ''
         report(
           `${node.id}:${op}`,
           `${who} uses ${operatorLabel(op)}, which the ${statement.strategy} output cannot write${where} (${label}).`,

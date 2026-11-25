@@ -31,7 +31,7 @@ function project(active: string[]): Project {
       id: 'young',
       type: 'note',
       name: 'young_note',
-      relevance: { expression: '"#age_months" < 6' },
+      relevance: { expression: 'Max("weight", 20) > 30 and "#age_months" < 6' },
     },
     {
       id: 'dose',
@@ -75,13 +75,13 @@ const by = (issues: ReturnType<typeof checkCapabilities>, rule: string) =>
   issues.filter((i) => i.rule === rule).map((i) => i.message)
 
 describe('the drawing checked against its active statements', () => {
-  it('FHIR: Max inline, once per active statement; the strict one warns about the table', () => {
+  it('FHIR: Max in a condition (inline), once per active statement; the calculation is fine; the strict one warns about the table', () => {
     const issues = checkCapabilities(
       project(['@tricc/capabilities-fhir', '@acme/capabilities-fhir-strict']),
     )
     expect(by(issues, 'output.unsupported')).toEqual([
-      "'heavy' (check) uses Max, which the FHIRStrategy output cannot write inline (@tricc/capabilities-fhir@1.0.0).",
-      "'heavy' (check) uses Max, which the FHIRStrategy output cannot write inline (@acme/capabilities-fhir-strict@1.0.0).",
+      "'young_note' (check) uses Max, which the FHIRStrategy output cannot write inline (@tricc/capabilities-fhir@1.0.0).",
+      "'young_note' (check) uses Max, which the FHIRStrategy output cannot write inline (@acme/capabilities-fhir-strict@1.0.0).",
     ])
     expect(by(issues, 'output.limit')).toHaveLength(2)
     expect(by(issues, 'output.no-statement')).toEqual([
@@ -111,7 +111,7 @@ describe('the drawing checked against its active statements', () => {
   it('reaches the problems list through validateProject', () => {
     const issues = validateProject(project(['@tricc/capabilities-fhir']), { lang: langValidation })
     expect(
-      issues.some((i) => i.rule === 'output.unsupported' && i.location.nodeId === 'heavy'),
+      issues.some((i) => i.rule === 'output.unsupported' && i.location.nodeId === 'young'),
     ).toBe(true)
   })
 })

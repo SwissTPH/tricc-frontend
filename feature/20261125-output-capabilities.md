@@ -72,7 +72,9 @@ chain the source can give as inactive entries; `setCapabilityActive`, `updateCap
 **1.5 The check.** `checkCapabilities(project, lang)` in `@tricc/core/lang` (it needs the
 parser): every expression field and expression argument is parsed into operator and function
 names (`cqlOperators`), and checked against every active resolved statement, with the
-context rule of tricc (`form`; FHIR `inline` for node fields, `library` for CQL libraries);
+context rule of tricc (`form`; FHIR: a condition, `relevance` or `constraint`, is `inline`
+(FHIRPath); a calculation needs the operator in either context, as the writer picks; CQL
+libraries are `library` and are not parsed here yet);
 decision-table calls against `decision_table_calls` / `limits`; retrieval contexts of the
 `"#codes"` used; populate contexts. `validateProject(project, { lang })` adds its issues.
 
