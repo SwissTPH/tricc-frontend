@@ -8,6 +8,7 @@ import meaning from './meaning.json' with { type: 'json' }
 import cells from './feel/cells.json' with { type: 'json' }
 import { isExpressionArg } from './cql.js'
 import { validateExpressions } from './validate.js'
+import { checkCapabilities } from './capabilities.js'
 
 export {
   FUNCTIONS,
@@ -35,6 +36,7 @@ export {
   type CellValue,
 } from './feel.js'
 export { nodeExpressions, validateExpressions } from './validate.js'
+export { BUILT_OUTPUTS, checkCapabilities } from './capabilities.js'
 
 /** The tricc-lang version of the pinned copy. */
 export const LANG_VERSION: string = lock.version
@@ -46,4 +48,4 @@ export const MEANING = meaning
 export const CELL_VECTORS = cells
 
 /** What `validateProject(project, { lang })` needs from this module. */
-export const langValidation = { isExpressionArg, validateExpressions }
+export const langValidation = { isExpressionArg, validateExpressions, checkCapabilities }
