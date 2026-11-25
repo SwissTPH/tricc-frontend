@@ -25,6 +25,7 @@ import { PANEL_MIN, usePanelLayout } from '../components/SidePanel.js'
 import { LabelsField } from '../components/LabelsField.js'
 import { Icon } from '../theme/Icon.js'
 import { useLang } from '../cql/lang.js'
+import { activeStatements, CapabilitiesPanel } from './CapabilitiesPanel.js'
 
 /**
  * The layer -1 surface: which interventions are carried together, which activities make
@@ -144,6 +145,13 @@ export function ProjectOverview({
           },
         ]
       : []),
+    {
+      id: 'outputs',
+      label: 'Outputs',
+      count: activeStatements(project),
+      countTitle: 'Active capability statements',
+      content: <CapabilitiesPanel />,
+    },
     {
       id: 'validation',
       label: 'Validation',
