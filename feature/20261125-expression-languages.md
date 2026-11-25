@@ -65,7 +65,10 @@ the folder does not match the lock (run by `pnpm lang:check` and a test).
 cache) on `cql/tricc_cql.g4`, `feel/tricc_feel.g4` (lexer kept) and `feel/TriccFeelParser.g4`,
 into `packages/core/src/lang/generated/`, committed. Each file starts with `// @ts-nocheck`
 (generated code; the repository's strict options do not apply) and
-`// tricc-lang <VERSION>`. `--check` regenerates into a temp folder and fails on drift.
+`// tricc-lang <VERSION>`. The `antlr4@4.13.2` runtime declares a few names the generated code
+imports (`DecisionState`, `TokenStream`) only as types, so the script moves them to an
+`import type` (an ES module import of a missing name fails). `--check` regenerates into a temp
+folder and fails on drift.
 `@tricc/core` pins `antlr4` to exactly `4.13.2`.
 
 **1.4 The `@tricc/core/lang` entry.** A package subpath (`exports["./lang"]`), so the main
@@ -92,8 +95,9 @@ module as an option. With it: every CQL field (`relevance`, `calculate`, `expres
 `constraint`) and every expression argument of a call is parsed (`expression.cql`, error,
 the message from `errors.json`), and a call argument that is an expression skips the value
 check of its parameter type. Without it the rules are as before. The editor passes it once
-loaded. `CqlExpressionField` shows the parser's errors under the field; `presentCql` keeps the
-tokens and chips.
+loaded. `CqlExpressionField` shows the parser's errors under the field (the tokenizer's
+wording for a plain syntax error it already names, such as a missing closing quote; the
+tokenizer's messages until the parser is loaded); `presentCql` keeps the tokens and chips.
 
 ### 2. Validation and errors
 

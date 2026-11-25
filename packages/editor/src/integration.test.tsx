@@ -330,6 +330,22 @@ describe('validation surfaces in the UI', () => {
     expect(screen.queryByText(/not rewritten into CQL/)).not.toBeInTheDocument()
   })
 
+  it('checks a calculation with the shared parser and names the construct', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+
+    await user.click(screen.getByTestId('add-calculate'))
+    const field = screen.getByTestId('field-calculate')
+    await user.type(field, '"weight" union "height"')
+    expect(
+      await screen.findByText(/union, intersect and except are not supported/),
+    ).toHaveTextContent('(column 10)')
+    await user.clear(field)
+    await user.type(field, '"weight" not in "list"')
+    expect(screen.queryByTestId('field-calculate-lint')).not.toBeInTheDocument()
+  })
+
   it('shows a calculation as CQL and names a broken quote without rewriting it', async () => {
     const user = userEvent.setup()
     const h = await harness()
