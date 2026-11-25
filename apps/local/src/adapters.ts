@@ -9,8 +9,12 @@ import {
   localReadState,
 } from '@tricc/adapters-local'
 import {
+  createNpmRegistry,
   createTriccRuntime,
   DerivedNotifications,
+  GITHUB_REGISTRY,
+  NPM_REGISTRY,
+  type CapabilityRegistryFactory,
   type ProjectRef,
   type TriccRuntime,
 } from '@tricc/core'
@@ -35,6 +39,18 @@ export interface LocalRuntime {
   canUseFolders: boolean
   storeFor(ref: ProjectRef): StorageMode
 }
+
+/**
+ * Capability statements from npm or GitHub Packages, with the browser's `fetch`
+ * (feature/20261125-output-capabilities.md §1.3). Only the Outputs tab calls it, on demand.
+ */
+export const capabilityRegistry: CapabilityRegistryFactory = (source, token) =>
+  createNpmRegistry({
+    fetch: (url, init) => globalThis.fetch(url, init),
+    url: source === 'github' ? GITHUB_REGISTRY : NPM_REGISTRY,
+    source,
+    ...(token ? { token } : {}),
+  })
 
 export function supportsDirectoryAccess(): boolean {
   return typeof (globalThis as { showDirectoryPicker?: unknown }).showDirectoryPicker === 'function'
@@ -61,6 +77,7 @@ export function createLocalRuntime(): LocalRuntime {
     identity,
     collaboration,
     notifications,
+    capabilityRegistry,
   })
 
   return {
