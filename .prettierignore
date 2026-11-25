@@ -1,0 +1,4 @@
+packages/core/src/lang/**
+!packages/core/src/lang/*.ts
+!packages/core/src/lang/*.test.ts
+packages/core/src/capabilities/statement.schema.json
