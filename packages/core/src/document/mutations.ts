@@ -14,6 +14,7 @@ import type {
   CodeSystem,
   ProjectImage,
   ProjectOwner,
+  CapabilityEntry,
   ProjectRepository,
 } from '../model/types.js'
 import { uniqueImageId } from '../model/types.js'
@@ -577,6 +578,13 @@ export class Mutations {
   }
 
   /** Project labels; normalised (trimmed, no empties or duplicates). Empty removes them. */
+  /** Replace the project's capability statements: the entries and their copies. */
+  setCapabilities(entries: CapabilityEntry[], files: Record<string, string>): void {
+    const meta = this.doc.getMap<unknown>('meta')
+    setPlain(meta, 'capabilities', entries.length ? entries : undefined)
+    setPlain(meta, 'capabilityFiles', Object.keys(files).length ? files : undefined)
+  }
+
   setProjectLabels(labels: readonly string[] | undefined): void {
     const clean = normalizeLabels(labels ?? [])
     setPlain(this.doc.getMap<unknown>('meta'), 'labels', clean.length ? clean : undefined)

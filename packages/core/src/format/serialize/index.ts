@@ -112,6 +112,9 @@ export function writeProject(project: Project): ProjectFiles {
     const image = project.images?.[id]
     if (image) files[imagePath(project, image)] = image.data
   }
+  for (const path of Object.keys(project.capabilityFiles ?? {}).sort()) {
+    files[path] = project.capabilityFiles![path]!
+  }
   writeDiscussions(project, files)
   return files
 }
@@ -206,13 +209,17 @@ function isManaged(path: string): boolean {
     path.startsWith(`${PATHS.blocks}/`) ||
     path.startsWith(`${PATHS.terminology}/`) ||
     path.startsWith(`${PATHS.cql}/`) ||
-    path.startsWith(`${PATHS.discussions}/`)
+    path.startsWith(`${PATHS.discussions}/`) ||
+    path.startsWith(`${CAPABILITIES_DIR}/`)
   )
 }
 
 const ACTIVITY_RE = /^(activities|blocks)\/[^/]+\.ya?ml$/
 const CODESYSTEM_RE = /^terminology\/(.+)\.codesystem\.json$/
 const LIBRARY_RE = /^cql\/(.+)\.cql$/
+/** Capability statement copies (feature/20261125-output-capabilities.md §1.1). */
+export const CAPABILITIES_DIR = 'capabilities'
+const CAPABILITY_RE = /^capabilities\/.+\.json$/
 
 /** Parse a file set into a project. Deterministic: same files always give the same structure. */
 export function readProject(files: ProjectFiles): ReadResult {
@@ -261,6 +268,7 @@ function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
   if (meta.repository) loaded.repository = meta.repository
   if (meta.labels) loaded.labels = meta.labels
   if (meta.owner) loaded.owner = meta.owner
+  if (meta.capabilities) loaded.capabilities = meta.capabilities
   const renamedImages = readImages(loaded, files)
   mergeImages(loaded, meta.drawioImages, Object.values(meta.drawioActivities))
   for (const [id, activity] of Object.entries(meta.drawioActivities)) {
@@ -458,6 +466,7 @@ function attachFiles(
     }
     const lm = LIBRARY_RE.exec(path)
     if (lm) project.libraries[lm[1] as string] = content
+    if (CAPABILITY_RE.test(path)) (project.capabilityFiles ??= {})[path] = content
   }
   readDiscussionsInto(project, files)
   return { project, idByPath }
