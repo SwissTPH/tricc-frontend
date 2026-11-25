@@ -11,10 +11,25 @@ import { designationDocError, designationText } from '../text/designation.js'
 import { imageRefs, references } from '../text/render.js'
 
 /**
+ * What `@tricc/core/lang` adds to validation once it is loaded (its `langValidation`, plus the
+ * capability check): the shared parser (feature/20261125-expression-languages.md §1.6).
+ */
+export interface LangValidation {
+  isExpressionArg(arg: unknown): boolean
+  validateExpressions(project: Project): Issue[]
+  checkCapabilities?(project: Project): Issue[]
+}
+
+export interface ValidateOptions {
+  /** The loaded `@tricc/core/lang` rules; without them CQL is not parsed. */
+  lang?: LangValidation
+}
+
+/**
  * Project-scoped rules: everything that cannot be decided from one activity alone.
  * Runs on save and on export (feature/20260825-activity-editor.md §8).
  */
-export function validateProject(project: Project): Issue[] {
+export function validateProject(project: Project, options: ValidateOptions = {}): Issue[] {
   const issues: Issue[] = []
 
   for (const id of Object.keys(project.activities).sort()) {
@@ -26,8 +41,12 @@ export function validateProject(project: Project): Issue[] {
   issues.push(...validateCrossActivity(project))
   issues.push(...validateInterventions(project))
   issues.push(...validateTerminology(project))
-  issues.push(...validateParams(project))
+  issues.push(...validateParams(project, options.lang))
   issues.push(...validateRetrievals(project))
+  if (options.lang) {
+    issues.push(...options.lang.validateExpressions(project))
+    if (options.lang.checkCapabilities) issues.push(...options.lang.checkCapabilities(project))
+  }
   return issues
 }
 
