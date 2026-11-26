@@ -2,7 +2,7 @@
 
 | Field             | Value                                                   |
 | ----------------- | ------------------------------------------------------- |
-| **Status**        | Approved (2026-11-26, issue #27)                        |
+| **Status**        | Implemented (approved 2026-11-26, issue #27)            |
 | **Issue**         | #27                                                     |
 | **Branch target** | `fix/27-tidy-dangling-grid` → `develop`                 |
 | **Scope**         | `@tricc/editor`                                         |
@@ -72,9 +72,11 @@ or target.
 
 ### 3. Code checklist
 
-- [ ] `layout.ts`: split nodes into connected / dangling; dagre on connected only.
-- [ ] `layout.ts`: grid placement of dangling nodes with `cols = ceil(sqrt(n))`, below the flow.
-- [ ] `layout.test.ts`: regression and edge-case tests below.
+- [x] `layout.ts`: split nodes into connected / dangling; dagre on connected only.
+- [x] `layout.ts`: grid placement of dangling nodes with `cols = ceil(sqrt(n))`, below the flow.
+- [x] `layout.test.ts`: regression and edge-case tests below.
+- [x] `e2e/canvas.spec.ts`: the node-gap test now reads the gap between grid columns (start and
+      integer share the first row, decimal goes under start), not between nodes on one row.
 
 ### 4. Tests
 

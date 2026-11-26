@@ -1003,15 +1003,20 @@ test('the node-gap preference sets how far apart tidy layout puts side-by-side n
   await placeNode(page, 'integer')
   await placeNode(page, 'decimal')
   await page.getByTestId('tidy-layout').click()
-  // Unlinked nodes share one row, side by side.
-  const [a, b] = (
-    await Promise.all(
-      ['node-n-integer', 'node-n-decimal'].map((id) => page.getByTestId(id).boundingBox()),
-    )
-  ).sort((p, q) => p!.x - q!.x)
-  expect(Math.abs(a!.y - b!.y)).toBeLessThan(2)
-  const gap = b!.x - (a!.x + a!.width)
-  expect(gap / a!.width).toBeCloseTo(1, 1)
+  // Unlinked nodes go in a grid of ceil(sqrt(n)) columns (#27): start and integer share the
+  // first row, decimal starts the second under start.
+  const [start, integer, decimal] = await Promise.all(
+    ['node-start', 'node-n-integer', 'node-n-decimal'].map(
+      async (id) => (await page.getByTestId(id).boundingBox())!,
+    ),
+  )
+  expect(Math.abs(start!.y - integer!.y)).toBeLessThan(2)
+  expect(Math.abs(start!.x - decimal!.x)).toBeLessThan(2)
+  expect(decimal!.y).toBeGreaterThan(start!.y + start!.height)
+  // Columns are the widest node plus the gap apart.
+  const widest = Math.max(start!.width, integer!.width, decimal!.width)
+  const gap = integer!.x - start!.x - widest
+  expect(gap / integer!.width).toBeCloseTo(1, 1)
 })
 
 test('a goto opens its activity from the details and from the button on the node', async ({

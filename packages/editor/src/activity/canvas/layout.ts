@@ -10,6 +10,8 @@ const NODE_H = 64
 export const H_GAP = NODE_W / 2 + 8
 /** Vertical gap between ranks. */
 export const V_GAP = 64
+/** Space around the laid-out graph. */
+const MARGIN = 24
 
 /**
  * Top-to-bottom auto-layout.
@@ -41,31 +43,67 @@ export function autoLayout(
   hGap: number = DEFAULT_PREFERENCES.nodeGap,
 ): Map<string, { x: number; y: number }> {
   const graph = new dagre.graphlib.Graph()
-  graph.setGraph({ rankdir: 'TB', nodesep: hGap, ranksep: V_GAP, marginx: 24, marginy: 24 })
+  graph.setGraph({ rankdir: 'TB', nodesep: hGap, ranksep: V_GAP, marginx: MARGIN, marginy: MARGIN })
   graph.setDefaultEdgeLabel(() => ({}))
 
   const sizes = new Map<string, NodeSize>()
   for (const id of activity.nodeOrder) {
-    if (!activity.nodes[id]) continue
-    const size = sizeOf(id) ?? { width: NODE_W, height: NODE_H }
-    sizes.set(id, size)
-    graph.setNode(id, { ...size })
+    if (!activity.nodes[id] || sizes.has(id)) continue
+    sizes.set(id, sizeOf(id) ?? { width: NODE_W, height: NODE_H })
   }
+  const connected = new Set<string>()
+  const edges: [string, string][] = []
   for (const id of activity.edgeOrder) {
     const e = activity.edges[id]
-    if (!e || !activity.nodes[e.source] || !activity.nodes[e.target]) continue
-    graph.setEdge(e.source, e.target)
+    if (!e || !sizes.has(e.source) || !sizes.has(e.target)) continue
+    connected.add(e.source).add(e.target)
+    edges.push([e.source, e.target])
   }
 
+  // Only connected nodes go through dagre: it would put every node without an edge on the
+  // top rank, one long row (#27). Those are packed in a grid below the flow instead.
+  for (const id of connected) graph.setNode(id, { ...sizes.get(id)! })
+  for (const [source, target] of edges) graph.setEdge(source, target)
   dagre.layout(graph)
 
   const out = new Map<string, { x: number; y: number }>()
+  let flowBottom: number | undefined
   for (const id of graph.nodes()) {
     const n = graph.node(id)
     if (!n) continue
     // dagre centres nodes; the canvas positions by top-left.
-    const size = sizes.get(id) ?? { width: NODE_W, height: NODE_H }
-    out.set(id, { x: Math.round(n.x - size.width / 2), y: Math.round(n.y - size.height / 2) })
+    const size = sizes.get(id)!
+    const y = Math.round(n.y - size.height / 2)
+    out.set(id, { x: Math.round(n.x - size.width / 2), y })
+    flowBottom = Math.max(flowBottom ?? y + size.height, y + size.height)
+  }
+
+  const dangling = [...sizes.keys()].filter((id) => !connected.has(id))
+  const top = flowBottom === undefined ? MARGIN : flowBottom + V_GAP
+  for (const [id, pos] of danglingGrid(dangling, sizes, hGap, top)) out.set(id, pos)
+  return out
+}
+
+/**
+ * Unconnected nodes in node order, row by row, `ceil(sqrt(n))` per row: a block about as
+ * many rows as columns, wider than tall since nodes are. Columns are as wide as the widest
+ * of these nodes plus `hGap`; each row as tall as its tallest node plus `V_GAP`.
+ */
+function danglingGrid(
+  ids: string[],
+  sizes: Map<string, NodeSize>,
+  hGap: number,
+  top: number,
+): Map<string, { x: number; y: number }> {
+  const out = new Map<string, { x: number; y: number }>()
+  if (ids.length === 0) return out
+  const cols = Math.ceil(Math.sqrt(ids.length))
+  const pitch = Math.max(...ids.map((id) => sizes.get(id)!.width)) + hGap
+  let y = top
+  for (let start = 0; start < ids.length; start += cols) {
+    const row = ids.slice(start, start + cols)
+    row.forEach((id, i) => out.set(id, { x: MARGIN + i * pitch, y }))
+    y += Math.max(...row.map((id) => sizes.get(id)!.height)) + V_GAP
   }
   return out
 }
