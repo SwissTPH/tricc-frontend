@@ -64,12 +64,12 @@ the paths that lead to it. Only a calculation with no link into it and no expres
   paths that lead to a node, each from a node nothing leads to (the activity start, or a
   calculation that starts on its own) to the node, with the value of each link. Paths through a
   loop are left out; past `limit` paths, or 5000 visited nodes, it says there are more.
-- The inspector of a linked `calculate` with no expression shows "Sequence-driven" and those
-  paths, reduced to their decision points: the first step ("Activity started"), then each step
-  whose link carries a condition (an answer, yes/no, a CQL condition) and each decision
-  (rhombus), as "Fever: Yes". Steps with an unconditional link are left out, and paths that read
-  the same once reduced are shown once. Each step reveals its node.
-
+- The detail panel of every node a link leads to ends with "Paths leading here": those paths,
+  reduced to their decision points: the first step ("Activity started"), then each step whose
+  link carries a condition (an answer, yes/no, a CQL condition) and each decision (rhombus), as
+  "Fever: Yes". Steps with an unconditional link are left out, and paths that read the same once
+  reduced are shown once. Each step reveals its node. On a `calculate` with no expression the
+  section says it is sequence-driven: these paths are its value.
 - A "follow" link n1 → n2 ignores the answer at n1: whatever happens at n1, or at any node
   between n1 and n2, does not matter on a path that goes through both. On such a path, n1 and
   every step up to n2 are dropped before the decision points are picked, so every route from n1
@@ -80,7 +80,7 @@ the paths that lead to it. Only a calculation with no link into it and no expres
 
 - [x] `validateActivity`: skip `calculate.no-expression` when a link leads to the calculation.
 - [x] `sequencePaths` in `@tricc/core`, exported.
-- [x] `SequencePaths` inspector section under the calculation field.
+- [x] `SequencePaths` section at the end of the detail panel, on every node a link leads to.
 
 ### 4. Tests
 
@@ -90,8 +90,8 @@ the paths that lead to it. Only a calculation with no link into it and no expres
 - `sequence-paths.test.ts`: paths in order with link values, loops left out, the limit.
 - `SequencePaths.test.tsx`: the inspector lists "Activity started → Fever: Yes" and
   "Activity started → Fever: No" (an unconditional question before the decision is left out, a
-  second route through "Yes" is shown once), and hides the list once an expression is written;
-  with Cough "follow" → Fever and Cough → Yes → Chest → Yes → Fever, one path is listed:
+  second route through "Yes" is shown once), and keeps the list, without the
+  "Sequence-driven" text, once an expression is written; a question lists its own paths; with Cough "follow" → Fever and Cough → Yes → Chest → Yes → Fever, one path is listed:
   "Activity started → Fever: Yes".
 
 ### 5. Acceptance criteria
