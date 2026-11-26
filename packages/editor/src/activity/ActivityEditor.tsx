@@ -943,19 +943,6 @@ export function NodeProperties({
         />
       )}
 
-      {node.type === 'calculate' &&
-        !node.calculate?.expression?.trim() &&
-        activityData &&
-        Object.values(activityData.edges).some((e) => e.target === node.id) && (
-          <SequencePaths
-            activityId={activityId}
-            activity={activityData}
-            lang={lang}
-            nodeId={node.id}
-            onReveal={onReveal}
-          />
-        )}
-
       {NODE_TYPE_SPECS[node.type]?.cqlReference && typeof node.reference !== 'object' && (
         <CqlExpressionField
           id="node-reference"
@@ -1483,6 +1470,17 @@ export function NodeProperties({
           ? `${concept.targetResource}${concept.targetPath ? `.${concept.targetPath}` : ''}`
           : (concept?.conceptType ?? 'not determined until a concept is bound')}
       </p>
+
+      {activityData && Object.values(activityData.edges).some((e) => e.target === node.id) && (
+        <SequencePaths
+          activityId={activityId}
+          activity={activityData}
+          lang={lang}
+          nodeId={node.id}
+          sequenceDriven={node.type === 'calculate' && !node.calculate?.expression?.trim()}
+          onReveal={onReveal}
+        />
+      )}
 
       {!readOnly && onDelete && (
         <Button

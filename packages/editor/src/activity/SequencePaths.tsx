@@ -23,21 +23,24 @@ const ROOT_TEXT: Partial<Record<TriccNode['type'], string>> = {
 }
 
 /**
- * A calculation with no expression that a link leads to is sequence-driven: `tricc_oo` works it
- * out from the nodes before it, so it is true when one of the paths leading to it was followed.
- * Lists those paths, from the activity start.
+ * The paths that lead to a node, from the activity start, reduced to their decision points. Shown
+ * on every node a link leads to. For a calculation with no expression they are its value:
+ * `tricc_oo` works it out from the nodes before it (sequence-driven), true when one was followed.
  */
 export function SequencePaths({
   activityId,
   activity,
   lang,
   nodeId,
+  sequenceDriven = false,
   onReveal,
 }: {
   activityId: string
   activity: Activity
   lang: string
   nodeId: string
+  /** A calculation with no expression: these paths are its value. */
+  sequenceDriven?: boolean
   onReveal?: (activityId: string, nodeId: string) => void
 }) {
   const project = useProjectSnapshot()
@@ -113,9 +116,11 @@ export function SequencePaths({
 
   return (
     <div data-testid="sequence-paths" className="tricc-sequence-paths text-sm">
+      <h3>Paths leading here</h3>
       <p>
-        Sequence-driven: with no expression, this is true when one of the paths leading to it was
-        followed.
+        {sequenceDriven
+          ? 'Sequence-driven: with no expression, this is true when one of these paths was followed.'
+          : 'Reached when one of these paths was followed (decision points only).'}
       </p>
       {paths.length === 0 ? (
         <p className="text-muted-foreground italic">Every path leading here goes through a loop.</p>
