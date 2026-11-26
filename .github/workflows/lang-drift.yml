@@ -1,0 +1,32 @@
+name: lang-drift
+
+# The pinned copy of tricc's tricc_oo/lang must match lang.lock.json, and the generated
+# TypeScript a fresh ANTLR 4.13.2 generation (feature/20261125-expression-languages.md).
+on:
+  pull_request:
+    paths:
+      - "packages/core/src/lang/**"
+      - "packages/core/src/capabilities/statement.schema.json"
+      - "scripts/sync-lang.mjs"
+      - "scripts/generate-lang-parsers.mjs"
+      - ".github/workflows/lang-drift.yml"
+  workflow_dispatch:
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.15.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - run: pnpm install --frozen-lockfile
+      - name: ANTLR 4.13.2 tool
+        run: |
+          mkdir -p "$HOME/.m2/repository/org/antlr/antlr4/4.13.2"
+          curl -sSfL -o "$HOME/.m2/repository/org/antlr/antlr4/4.13.2/antlr4-4.13.2-complete.jar" \
+            https://repo1.maven.org/maven2/org/antlr/antlr4/4.13.2/antlr4-4.13.2-complete.jar
+      - run: pnpm --filter @tricc/core lang:check

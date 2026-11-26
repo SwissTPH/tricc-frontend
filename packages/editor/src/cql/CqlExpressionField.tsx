@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { effectiveParams, paramLabel, retrieveCodeSystem } from '@tricc/core'
 import { useProjectSnapshot } from '../runtime/context.js'
 import { expressionNames, truncateLabel, type ExpressionName } from './names.js'
-import { presentCql } from './present.js'
+import { presentCql, type CqlDiagnostic } from './present.js'
+import { useLang, type LangModule } from './lang.js'
 import { Button } from '../components/ui/button.js'
 import { Textarea } from '../components/ui/textarea.js'
 
@@ -41,7 +42,9 @@ export function CqlExpressionField({
     () => expressionNames(project, lang, activityId),
     [project, lang, activityId],
   )
-  const { tokens, diagnostics } = presentCql(value)
+  const { tokens, diagnostics: quick } = presentCql(value)
+  const parser = useLang()
+  const diagnostics = useMemo(() => lint(value, quick, parser), [value, quick, parser])
   const params = useMemo(
     () => (activityId ? effectiveParams(project, activityId) : []),
     [project, activityId],
@@ -173,6 +176,26 @@ export function CqlExpressionField({
       )}
     </div>
   )
+}
+
+/**
+ * The field's messages: the shared parser's once it is loaded (the build's own rules), the fast
+ * tokenizer's until then. A plain syntax error keeps the tokenizer's wording when it has one
+ * ("missing its closing quote"); a construct outside the profile uses `errors.json`.
+ */
+function lint(
+  value: string,
+  quick: CqlDiagnostic[],
+  lang: LangModule | undefined,
+): CqlDiagnostic[] {
+  if (!lang || value.trim() === '') return quick
+  const [error] = lang.parseCql(value).errors
+  if (!error) return []
+  if (error.code === 'E_CQL_SYNTAX' && quick.length > 0) return quick
+  const where = value.includes('\n')
+    ? `line ${error.line}, column ${error.column + 1}`
+    : `column ${error.column + 1}`
+  return [{ severity: 'error', message: `${error.message} (${where})` }]
 }
 
 function NameChip({

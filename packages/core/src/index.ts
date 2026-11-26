@@ -105,9 +105,11 @@ export * from './text/index.js'
 
 // Ports and runtime
 export * from './ports/index.js'
+export * from './capabilities/index.js'
 export {
   TriccRuntime,
   createTriccRuntime,
   type TriccRuntimeConfig,
   type OpenProject,
+  type CapabilityRegistryFactory,
 } from './runtime.js'

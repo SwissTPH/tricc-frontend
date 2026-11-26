@@ -141,6 +141,9 @@ importers:
 
   packages/core:
     dependencies:
+      antlr4:
+        specifier: 4.13.2
+        version: 4.13.2
       fflate:
         specifier: ^0.8.2
         version: 0.8.3
@@ -2884,6 +2887,13 @@ packages:
         integrity: sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg==,
       }
     engines: { node: '>=12' }
+
+  antlr4@4.13.2:
+    resolution:
+      {
+        integrity: sha512-QiVbZhyy4xAZ17UPEuG3YTOt8ZaoeOR1CvEAqrEsDBsOqINslaB147i9xqljZqoyf5S+EUlGStaj+t22LT9MOg==,
+      }
+    engines: { node: '>=16' }
 
   argparse@2.0.1:
     resolution:
@@ -7068,6 +7078,8 @@ snapshots:
   ansi-styles@5.2.0: {}
 
   ansi-styles@6.2.3: {}
+
+  antlr4@4.13.2: {}
 
   argparse@2.0.1: {}
 

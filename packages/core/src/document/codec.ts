@@ -11,6 +11,7 @@ import type {
   Designation,
   ProjectImage,
   ProjectOwner,
+  CapabilityEntry,
 } from '../model/types.js'
 import type { LocalizedText } from '../format/schema/localized.js'
 import { fieldsOf, type CustomField } from '../format/node-fields.js'
@@ -510,6 +511,8 @@ export function projectToDoc(project: Project, doc: Y.Doc): void {
     setPlain(meta, 'repository', project.repository)
     setPlain(meta, 'labels', project.labels?.length ? project.labels : undefined)
     setPlain(meta, 'owner', project.owner)
+    setPlain(meta, 'capabilities', project.capabilities?.length ? project.capabilities : undefined)
+    setPlain(meta, 'capabilityFiles', project.capabilityFiles)
     const languages = doc.getMap<unknown>('languages')
     languages.set('default', project.languages.default)
     const avail = new Y.Array<string>()
@@ -620,6 +623,12 @@ export function projectFromDoc(doc: Y.Doc): Project {
   if (Array.isArray(labels) && labels.length) project.labels = [...labels]
   const owner = meta.get('owner')
   if (owner && typeof owner === 'object') project.owner = structuredClone(owner) as ProjectOwner
+  const capabilities = meta.get('capabilities')
+  if (Array.isArray(capabilities) && capabilities.length)
+    project.capabilities = structuredClone(capabilities) as CapabilityEntry[]
+  const capabilityFiles = meta.get('capabilityFiles')
+  if (capabilityFiles && typeof capabilityFiles === 'object')
+    project.capabilityFiles = structuredClone(capabilityFiles) as Record<string, string>
   const imagesY = doc.getMap<Y.Map<unknown>>('images')
   if (imagesY.size > 0) {
     const images: Record<string, ProjectImage> = {}

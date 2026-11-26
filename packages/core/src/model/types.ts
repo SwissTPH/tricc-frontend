@@ -496,6 +496,27 @@ export interface Project {
   discussionLabels?: DiscussionLabel[]
   /** Discussion files that could not be read, kept so a save does not delete them. */
   discussionKeep?: Record<string, string>
+  /**
+   * Output capability statements loaded in the project (`tricc.yaml` `capabilities`;
+   * feature/20261125-output-capabilities.md). Absent until the first one.
+   */
+  capabilities?: CapabilityEntry[]
+  /** The statement copies under `capabilities/`, by path, as text: kept byte for byte (sha256). */
+  capabilityFiles?: Record<string, string>
+}
+
+/** One loaded capability statement: `tricc.yaml` `capabilities[]`, written back unchanged. */
+export interface CapabilityEntry {
+  /** The npm package, e.g. `@tricc/capabilities-fhir`. */
+  package: string
+  version: string
+  source: 'npm' | 'github' | 'file'
+  /** npm / github: the registry it came from. */
+  registry?: string
+  /** The copy, relative to `tricc.yaml`: `capabilities/<package>@<version>.json`. */
+  file: string
+  sha256?: string
+  active: boolean
 }
 
 /** A person, as the project names its owner: an identity id and a display name. */

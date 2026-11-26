@@ -1,4 +1,5 @@
 import type { Project } from './model/types.js'
+import type { CapabilityRegistry } from './ports/capability-registry.js'
 import type {
   CollaborationPort,
   IdentityPort,
@@ -37,7 +38,18 @@ export interface TriccRuntimeConfig {
   telemetry?: TelemetryPort
   /** The bell. Without one, notifications are worked out from the project files. */
   notifications?: NotificationsPort
+  /**
+   * Where the Outputs tab loads capability statements from (npm, or GitHub Packages with a
+   * token). Without it only a file upload is offered (feature/20261125-output-capabilities.md).
+   */
+  capabilityRegistry?: CapabilityRegistryFactory
 }
+
+/** A registry for a source; the GitHub Packages token is asked for in the tab, never saved. */
+export type CapabilityRegistryFactory = (
+  source: 'npm' | 'github',
+  token?: string,
+) => CapabilityRegistry
 
 export interface OpenProject {
   ref: ProjectRef
@@ -55,6 +67,7 @@ export class TriccRuntime {
   readonly telemetry: TelemetryPort
   readonly discussion: DiscussionPort
   readonly notifications: NotificationsPort
+  readonly capabilityRegistry: CapabilityRegistryFactory | undefined
 
   constructor(config: TriccRuntimeConfig) {
     this.persistence = config.persistence
@@ -65,6 +78,7 @@ export class TriccRuntime {
     this.discussion = new LocalDiscussions(this)
     this.notifications =
       config.notifications ?? new DerivedNotifications(this.catalog, this.identity)
+    this.capabilityRegistry = config.capabilityRegistry
   }
 
   async open(ref: ProjectRef): Promise<OpenProject> {

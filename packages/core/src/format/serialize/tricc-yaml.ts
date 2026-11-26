@@ -1,5 +1,6 @@
 import type {
   Activity,
+  CapabilityEntry,
   Intervention,
   Project,
   ProjectImage,
@@ -69,6 +70,7 @@ export function encodeTriccYaml(project: Project): Record<string, unknown> {
   put(o, 'retrieve_code_system', project.retrieveCodeSystem)
   put(o, 'media_path', project.mediaPath)
   if (project.repository) o['repository'] = encodeRepository(project.repository)
+  if (project.capabilities?.length) o['capabilities'] = project.capabilities.map(encodeCapability)
   // Building blocks are listed like activities; interventions never list them.
   const blocks = Object.keys(project.activities)
     .sort()
@@ -147,6 +149,7 @@ export interface TriccYamlRead {
   mediaPath?: string
   repository?: ProjectRepository
   labels?: string[]
+  capabilities?: CapabilityEntry[]
   owner?: ProjectOwner
   /** Activities expanded from `.drawio` pages. The source file is left as it was. */
   drawioActivities: Record<string, Activity>
@@ -248,6 +251,8 @@ export function readTriccYamlMeta(
   if (labels) result.labels = labels
   const owner = readOwner(doc['owner'])
   if (owner) result.owner = owner
+  const capabilities = readCapabilities(doc['capabilities'])
+  if (capabilities) result.capabilities = capabilities
   return result
 }
 
@@ -685,4 +690,41 @@ export function peekTriccLanguages(text: string): { default: string; available: 
   } catch {
     return { default: 'en', available: ['en'] }
   }
+}
+
+/** `tricc.yaml` `capabilities[]`, in tricc_oo's key order (feature/20261125-output-capabilities.md). */
+function encodeCapability(entry: CapabilityEntry): Record<string, unknown> {
+  const o: Record<string, unknown> = {
+    package: entry.package,
+    version: entry.version,
+    source: entry.source,
+  }
+  if (entry.registry) o['registry'] = entry.registry
+  o['file'] = entry.file
+  if (entry.sha256) o['sha256'] = entry.sha256
+  o['active'] = entry.active
+  return o
+}
+
+/** The entries of `tricc.yaml` `capabilities` that name a package, a version and a file. */
+export function readCapabilities(raw: unknown): CapabilityEntry[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const out: CapabilityEntry[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const r = item as Record<string, unknown>
+    if (typeof r['package'] !== 'string' || typeof r['file'] !== 'string') continue
+    const source = r['source'] === 'github' || r['source'] === 'file' ? r['source'] : 'npm'
+    const entry: CapabilityEntry = {
+      package: r['package'],
+      version: String(r['version'] ?? ''),
+      source,
+      file: r['file'],
+      active: r['active'] !== false,
+    }
+    if (typeof r['registry'] === 'string') entry.registry = r['registry']
+    if (typeof r['sha256'] === 'string') entry.sha256 = r['sha256']
+    out.push(entry)
+  }
+  return out.length ? out : undefined
 }

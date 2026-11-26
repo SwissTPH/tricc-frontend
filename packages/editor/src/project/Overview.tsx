@@ -24,6 +24,8 @@ import { InspectorPanel, type InspectorTab } from '../components/InspectorPanel.
 import { PANEL_MIN, usePanelLayout } from '../components/SidePanel.js'
 import { LabelsField } from '../components/LabelsField.js'
 import { Icon } from '../theme/Icon.js'
+import { useLang } from '../cql/lang.js'
+import { activeStatements, CapabilitiesPanel } from './CapabilitiesPanel.js'
 
 /**
  * The layer -1 surface: which interventions are carried together, which activities make
@@ -74,7 +76,11 @@ export function ProjectOverview({
   const closeSettings = useCallback(() => setSettingsOpen(false), [])
   const cancelDelete = useCallback(() => setConfirmingDelete(false), [])
   const mutate = useMutate()
-  const issues = useMemo(() => validateProject(project), [project])
+  const parser = useLang()
+  const issues = useMemo(
+    () => validateProject(project, parser ? { lang: parser.langValidation } : {}),
+    [project, parser],
+  )
   const lang = project.languages.default
   const title = resolve(project.title, lang, lang) ?? project.id
 
@@ -139,6 +145,13 @@ export function ProjectOverview({
           },
         ]
       : []),
+    {
+      id: 'outputs',
+      label: 'Outputs',
+      count: activeStatements(project),
+      countTitle: 'Active capability statements',
+      content: <CapabilitiesPanel />,
+    },
     {
       id: 'validation',
       label: 'Validation',

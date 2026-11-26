@@ -11,11 +11,16 @@ import { issue, type Issue } from './types.js'
  * Building blocks, parameters and values (feature/20261028-snippets-tab-and-params.md §11).
  * The library reports the same problems at build time (tricc_oo block-params §3.5).
  */
-export function validateParams(project: Project): Issue[] {
+/** `lang` (the loaded `@tricc/core/lang` rules): an argument that is an expression is calculated
+ * where the block is used, so its value is not checked against the parameter type. */
+export function validateParams(
+  project: Project,
+  lang?: { isExpressionArg(arg: unknown): boolean },
+): Issue[] {
   const issues: Issue[] = []
   for (const id of Object.keys(project.activities).sort()) {
     const activity = project.activities[id]!
-    issues.push(...pageParams(project, activity), ...calls(project, activity))
+    issues.push(...pageParams(project, activity), ...calls(project, activity, lang))
   }
   for (const c of paramConflicts(project)) {
     const title = (id: string) => titleOf(project, id)
@@ -121,7 +126,11 @@ function pageParams(project: Project, activity: Activity): Issue[] {
   return out
 }
 
-function calls(project: Project, activity: Activity): Issue[] {
+function calls(
+  project: Project,
+  activity: Activity,
+  lang?: { isExpressionArg(arg: unknown): boolean },
+): Issue[] {
   const out: Issue[] = []
   for (const node of Object.values(activity.nodes)) {
     const at = { activityId: activity.id, nodeId: node.id }
@@ -204,6 +213,7 @@ function calls(project: Project, activity: Activity): Issue[] {
         )
         continue
       }
+      if (lang?.isExpressionArg(value)) continue
       const problem = argProblem(p.param, value, paramLabel(project, p.declaredIn, p.param))
       if (problem) out.push(issue('call.value-not-allowed', 'error', problem, at))
     }

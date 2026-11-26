@@ -9,6 +9,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./lang": {
+      "types": "./dist/lang/index.d.ts",
+      "import": "./dist/lang/index.js"
+    },
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "import": "./dist/testing/index.js"
@@ -21,9 +25,11 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lang:check": "node ../../scripts/sync-lang.mjs --check && node ../../scripts/generate-lang-parsers.mjs --check"
   },
   "dependencies": {
+    "antlr4": "4.13.2",
     "fflate": "^0.8.2",
     "linkedom": "^0.18.12",
     "markdown-it": "^14.1.0",
