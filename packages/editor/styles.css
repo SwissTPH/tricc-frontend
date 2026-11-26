@@ -1798,6 +1798,18 @@ ol.tricc-segment-rows > li::before {
   cursor: grab;
 }
 
+/* A calculation with no link into it: a BPMN-like conditional start mark on the top-left corner. */
+.tricc-node__dangling {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  display: flex;
+  color: var(--group-colour, var(--tricc-border-strong));
+  stroke-width: 1;
+  cursor: help;
+  pointer-events: auto;
+}
+
 /* Hint (!) and help (?) marks at the bottom right of a node; the text is on hover. */
 .tricc-node__marks {
   position: absolute;
