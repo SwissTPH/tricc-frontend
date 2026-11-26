@@ -11,6 +11,7 @@ export * from './model/activity-kind.js'
 export * from './model/dangling.js'
 export * from './model/sequence-paths.js'
 export * from './model/labels.js'
+export * from './model/show-as.js'
 
 // Format
 export * from './format/schema/index.js'

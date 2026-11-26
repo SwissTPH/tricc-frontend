@@ -122,6 +122,12 @@ export const isCalculated = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]
  */
 export const isRepeatable = (t: NodeType): boolean =>
   Boolean(NODE_TYPE_SPECS[t]?.named) || t === 'goto' || t === 'block' || t === 'activity_start'
+/**
+ * It carries Show as (`page`, `asGroup`; feature/20261126-questionnaire-pages.md): the
+ * containers (activity and block start) and the calls (goto, Use block), as tricc_oo reads them.
+ */
+export const hasShowAs = (t: NodeType): boolean =>
+  t === 'activity_start' || t === 'block_start' || t === 'goto' || t === 'block'
 export const isSelect = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.select)
 /** Sequence anchors keep their own label; everything else inherits its concept's display. */
 export const isSequenceNode = (t: NodeType): boolean => Boolean(NODE_TYPE_SPECS[t]?.sequence)

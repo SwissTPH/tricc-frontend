@@ -126,6 +126,14 @@ export interface TriccNode {
   repeat?: number
   instance?: number
   /**
+   * Show as (feature/20261126-questionnaire-pages.md): `page` on its own form page, `asGroup` a
+   * section (true) or inline in the enclosing one (false). Absent defers to the default, or on a
+   * goto / Use block to the called start node. Carried by activity and block starts, gotos and
+   * Use blocks.
+   */
+  page?: boolean
+  asGroup?: boolean
+  /**
    * Which of its concept's questionnaire texts the node shows: a flavour code of the concept
    * (feature/20261125-concept-text-flavours.md). Absent means the default text.
    */
@@ -221,6 +229,10 @@ export interface CanvasGroup {
   name?: string
   label?: LocalizedText
   parent?: string
+  /** Shown on its own form page (default false). */
+  page?: boolean
+  /** A section of the form (default true); false: only a frame, its nodes join the enclosing one. */
+  asGroup?: boolean
   color: CommentColor
   x: number
   y: number

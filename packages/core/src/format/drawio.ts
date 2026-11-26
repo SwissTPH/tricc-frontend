@@ -212,6 +212,10 @@ function pageToActivity(
       const label = plain(shape.attrs['label'] ?? shape.value)
       if (label) group.label = { [lang]: label }
       if (shape.parent && groups.has(shape.parent)) group.parent = shape.parent
+      const page = boolAttr(shape.attrs['page'])
+      const asGroup = boolAttr(shape.attrs['asGroup'])
+      if (page !== undefined) group.page = page
+      if (asGroup !== undefined) group.asGroup = asGroup
       groups.set(shape.id, group)
       continue
     }
@@ -447,11 +451,23 @@ function shapeToNode(
   const instance = intAttr(shape.attrs['instance'])
   if (repeat !== undefined) node.repeat = repeat
   if (instance !== undefined) node.instance = instance
+  const page = boolAttr(shape.attrs['page'])
+  const asGroup = boolAttr(shape.attrs['asGroup'])
+  if (page !== undefined) node.page = page
+  if (asGroup !== undefined) node.asGroup = asGroup
   const ui: TriccNode['ui'] = { x: shape.x ?? 0, y: shape.y ?? 0 }
   if (shape.width) ui.width = shape.width
   if (shape.height) ui.height = shape.height
   node.ui = ui
   return node
+}
+
+/** A yes/no attribute as tricc_oo reads it: `true`/`false`/`1`/`0`; anything else is ignored. */
+function boolAttr(raw: string | undefined): boolean | undefined {
+  const v = raw?.trim().toLowerCase()
+  if (v === 'true' || v === '1') return true
+  if (v === 'false' || v === '0') return false
+  return undefined
 }
 
 function resolveLink(raw: string, pageActivity: Map<string, string>, label?: string): string {

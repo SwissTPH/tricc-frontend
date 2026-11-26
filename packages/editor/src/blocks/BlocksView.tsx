@@ -40,7 +40,7 @@ export function blockUses(project: Project, blockId: string): BlockUse[] {
 
 /** Issues a block list cares about: parameters, values set at calls, blocks themselves. */
 const BLOCK_RULES =
-  /^(param\.|call\.|block\.|goto\.links-to-block|goto\.instance-values|intervention\.(unknown-param|value-not-allowed))/
+  /^(param\.|call\.|block\.|goto\.links-to-block|goto\.instance-values|goto\.instance-page|goto\.inline-instance|intervention\.(unknown-param|value-not-allowed))/
 
 /**
  * The Building blocks tab (feature/20261028-snippets-tab-and-params.md §2): every block with its

@@ -41,6 +41,8 @@ const FULL: TriccNode = {
   args: { site: 'axillary', threshold: 37.5, rectal: false, setting: '{{care_setting}}' },
   repeat: 2,
   instance: 1,
+  page: false,
+  asGroup: false,
   flavour: 'second',
   severity: 'severe',
   priority: 3,

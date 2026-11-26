@@ -1,6 +1,7 @@
 import {
   COMMENT_COLORS,
   conceptText,
+  containerDefault,
   defaultCodeSystem,
   type Activity,
   type CanvasGroup,
@@ -12,6 +13,7 @@ import { ensureDefaultCodeSystem } from '../terminology/codeSystems.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
 import { WrappingInput } from '../components/WrappingInput.js'
+import { ShowAsField } from './ShowAsField.js'
 
 const NAME = /^[A-Za-z][A-Za-z0-9_.-]*$/
 
@@ -44,12 +46,22 @@ export function GroupProperties({
   const inner = (activity.groups ?? []).filter((g) => g.parent === group.id).length
   const update = (patch: Partial<CanvasGroup>) =>
     mutate((tx) => tx.setGroup(activityId, { ...group, ...patch }))
+  // The group is stored as a plain value: Default drops the keys rather than storing undefined.
+  const setShowAs = (patch: { page: boolean | undefined; asGroup: boolean | undefined }) => {
+    const next: CanvasGroup = { ...group }
+    delete next.page
+    delete next.asGroup
+    if (patch.page !== undefined) next.page = patch.page
+    if (patch.asGroup !== undefined) next.asGroup = patch.asGroup
+    mutate((tx) => tx.setGroup(activityId, next))
+  }
 
   return (
     <section aria-labelledby="group-heading" data-testid="group-properties">
       <h2 id="group-heading">Group</h2>
       <p>
-        A section of the form. Drag nodes into the frame to add them, out of it to take them out.
+        A section of the form, unless shown Inline. Drag nodes into the frame to add them, out of it
+        to take them out.
       </p>
       <label htmlFor="group-name">Name</label>
       <Input
@@ -88,6 +100,13 @@ export function GroupProperties({
             })
           })
         }}
+      />
+      <ShowAsField
+        value={group}
+        resolved={containerDefault('group')}
+        readOnly={readOnly}
+        idPrefix="group"
+        onChange={setShowAs}
       />
       <label htmlFor="group-color">Colour</label>
       <select

@@ -30,7 +30,7 @@ import { HistoryButtons } from './project/HistoryButtons.js'
 import { ActivityNavigator } from './project/ActivityNavigator.js'
 import { LibraryView, type LibraryKind } from './project/LibraryView.js'
 import { DictionaryView } from './terminology/DictionaryView.js'
-import { goToCallers } from './activity/ActivitySettings.js'
+import { ActivitySettings, goToCallers } from './activity/ActivitySettings.js'
 import { nextTrail } from './project/Breadcrumbs.js'
 
 /**
@@ -2003,6 +2003,110 @@ describe('comments on the diagram', () => {
 
     await user.click(screen.getByTestId('comment-delete'))
     expect(h.open.document.snapshot().activities['triage']!.ui?.comments ?? []).toEqual([])
+  })
+})
+
+describe('Show as', () => {
+  function withCall(start: Partial<Project['activities'][string]['nodes'][string]> = {}): Project {
+    const project = seed()
+    project.activities['cough'] = {
+      id: 'cough',
+      title: { en: 'Cough' },
+      nodeOrder: ['s'],
+      edgeOrder: [],
+      nodes: { s: { id: 's', type: 'activity_start', ui: { x: 0, y: 0 }, ...start } },
+      edges: {},
+    }
+    const triage = project.activities['triage']!
+    triage.nodes['g'] = { id: 'g', type: 'goto', link: 'cough', ui: { x: 0, y: 100 } }
+    triage.nodeOrder.push('g')
+    return project
+  }
+
+  it('sets a goto to Page, Inline, then back to Default, with its badge', async () => {
+    const user = userEvent.setup()
+    const h = await harness(withCall())
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    selectNode('g')
+    const select = screen.getByTestId('field-show-as')
+    expect(
+      within(select).getByRole('option', { name: 'Default (as the activity: Section)' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByTestId('node-g-show-as')).not.toBeInTheDocument()
+
+    await user.selectOptions(select, 'page')
+    const node = () => h.open.document.snapshot().activities['triage']!.nodes['g']!
+    expect(node()).toMatchObject({ page: true, asGroup: true })
+    expect(screen.getByTestId('node-g-show-as')).toHaveTextContent('Page')
+
+    await user.selectOptions(screen.getByTestId('field-show-as'), 'inline')
+    expect(node()).toMatchObject({ page: false, asGroup: false })
+    await h.runtime.save(h.open)
+    const yaml = (await h.persistence.read(h.open.ref))['activities/triage.activity.yaml']!
+    expect(yaml).toMatch(/page: false/)
+    expect(yaml).toMatch(/asGroup: false/)
+
+    await user.selectOptions(screen.getByTestId('field-show-as'), '')
+    expect(node().page).toBeUndefined()
+    expect(node().asGroup).toBeUndefined()
+    expect(screen.queryByTestId('node-g-show-as')).not.toBeInTheDocument()
+  })
+
+  it('labels Default on a goto with the called activity’s choice', async () => {
+    const h = await harness(withCall({ page: true, asGroup: true }))
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    selectNode('g')
+    expect(
+      within(screen.getByTestId('field-show-as')).getByRole('option', {
+        name: 'Default (as the activity: Page)',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('no longer offers instance -1 on a goto', async () => {
+    const h = await harness(withCall())
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    selectNode('g')
+    expect(screen.getByTestId('field-instance')).toHaveAttribute('min', '0')
+    expect(screen.getByTestId('field-instance-help')).toHaveTextContent('Show as: Inline')
+  })
+
+  it('sets an activity to Page from its settings', async () => {
+    const user = userEvent.setup()
+    const h = await harness(withCall())
+    const project = h.open.document.snapshot()
+    renderWith(
+      h,
+      <ActivitySettings
+        activity={project.activities['cough']!}
+        project={project}
+        readOnly={false}
+        onClose={() => undefined}
+        onDeleted={() => undefined}
+      />,
+    )
+    const select = screen.getByTestId('field-show-as')
+    expect(within(select).getByRole('option', { name: 'Default (Section)' })).toBeInTheDocument()
+    await user.selectOptions(select, 'page')
+    expect(h.open.document.snapshot().activities['cough']!.nodes['s']).toMatchObject({
+      page: true,
+      asGroup: true,
+    })
+  })
+
+  it('shows a group Inline: a dotted frame with its badge, then Default drops both fields', async () => {
+    const user = userEvent.setup()
+    const h = await harness()
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    await user.click(screen.getByTestId('add-group'))
+    await user.selectOptions(screen.getByTestId('field-show-as'), 'inline')
+    const group = () => h.open.document.snapshot().activities['triage']!.groups![0]!
+    expect(group()).toMatchObject({ page: false, asGroup: false })
+    expect(screen.getByTestId('group-group')).toHaveAttribute('data-show-as', 'inline')
+    expect(screen.getByTestId('group-group-show-as')).toHaveTextContent('Inline')
+    await user.selectOptions(screen.getByTestId('field-show-as'), '')
+    expect('page' in group()).toBe(false)
+    expect('asGroup' in group()).toBe(false)
   })
 })
 
