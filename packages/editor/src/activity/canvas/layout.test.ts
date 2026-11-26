@@ -43,7 +43,11 @@ describe('autoLayout', () => {
 
 /** A two-node flow `start → end` plus `n` unconnected nodes `d0…d(n-1)`. */
 function withDangling(n: number, flow = true): Activity {
-  const node = (id: string) => ({ id, type: 'note', ui: { x: 0, y: 0 } })
+  const node = (id: string) => ({
+    id,
+    type: id === 'start' ? 'activity_start' : 'note',
+    ui: { x: 0, y: 0 },
+  })
   const dangling = Array.from({ length: n }, (_, i) => `d${i}`)
   const ids = [...(flow ? ['start', 'end'] : []), ...dangling]
   return {
@@ -66,12 +70,19 @@ function grid(pos: Map<string, { x: number; y: number }>, n: number) {
 }
 
 describe('autoLayout: unconnected nodes', () => {
-  it('packs 20 unconnected nodes in 5 columns × 4 rows below the flow (#27)', () => {
+  it('packs 20 unconnected nodes in 5 columns × 4 rows right of the flow (#27)', () => {
     const pos = autoLayout(withDangling(20), () => SIZE)
     const { cells, cols, rows } = grid(pos, 20)
     expect({ cols, rows }).toEqual({ cols: 5, rows: 4 })
-    const flowBottom = pos.get('end')!.y + SIZE.height
-    for (const c of cells) expect(c.y).toBeGreaterThanOrEqual(flowBottom + V_GAP)
+    const flowRight = Math.max(pos.get('start')!.x, pos.get('end')!.x) + SIZE.width
+    for (const c of cells) expect(c.x).toBeGreaterThanOrEqual(flowRight + H_GAP)
+  })
+
+  it("puts the first row on the start node's line, one node gap right of the flow", () => {
+    const pos = autoLayout(withDangling(4), () => SIZE)
+    const start = pos.get('start')!
+    expect(pos.get('d0')).toEqual({ x: start.x + SIZE.width + H_GAP, y: start.y })
+    expect(pos.get('d1')!.y).toBe(start.y)
   })
 
   it('fills rows in node order with ceil(sqrt(n)) per row: 10 → 4 + 4 + 2', () => {
@@ -98,9 +109,9 @@ describe('autoLayout: unconnected nodes', () => {
     expect(cells[0]).toEqual({ x: 24, y: 24 })
   })
 
-  it('puts a single unconnected node below the flow', () => {
+  it('puts a single unconnected node beside the start node', () => {
     const pos = autoLayout(withDangling(1), () => SIZE)
-    expect(pos.get('d0')!.y).toBe(pos.get('end')!.y + SIZE.height + V_GAP)
+    expect(pos.get('d0')!.y).toBe(pos.get('start')!.y)
   })
 
   it('never overlaps cells of different sizes', () => {

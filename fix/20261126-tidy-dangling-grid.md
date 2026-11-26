@@ -26,9 +26,9 @@ that carry many unlinked nodes.
 
 ### Expected vs actual
 
-| Expected                                                                                                                  | Actual                                                                       |
-| ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Unconnected nodes are packed in a block of several rows, at most `ceil(sqrt(n))` nodes per row, below the connected flow. | All unconnected nodes sit in one row, as wide as the number of nodes allows. |
+| Expected                                                                                                                                                                    | Actual                                                                       |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Unconnected nodes are packed in a block of several rows, at most `ceil(sqrt(n))` nodes per row, to the right of the connected flow, the first row on the start node's line. | All unconnected nodes sit in one row, as wide as the number of nodes allows. |
 
 ### How to reproduce
 
@@ -66,14 +66,15 @@ or target.
      ratio: the block is about square in node count, so wider than tall because nodes are wider
      than they are high);
    - column pitch: widest dangling node + `hGap`; row pitch: tallest node in that row + `V_GAP`;
-   - the grid's left edge is the flow's left margin (24); its top is the flow's bottom + `V_GAP`
-     (or the top margin 24 when there is no connected node).
+   - the grid's left edge is the flow's right edge + `hGap`; its top is the top of the first
+     connected `activity_start` node, so the first row sits on the start node's line (the top
+     margin 24 when there is no connected start; left margin 24 when no node is connected).
 3. Positions stay top-left, rounded, as today.
 
 ### 3. Code checklist
 
 - [x] `layout.ts`: split nodes into connected / dangling; dagre on connected only.
-- [x] `layout.ts`: grid placement of dangling nodes with `cols = ceil(sqrt(n))`, below the flow.
+- [x] `layout.ts`: grid placement of dangling nodes with `cols = ceil(sqrt(n))`, right of the flow on the start line.
 - [x] `layout.test.ts`: regression and edge-case tests below.
 - [x] `e2e/canvas.spec.ts`: the node-gap test now reads the gap between grid columns (start and
       integer share the first row, decimal goes under start), not between nodes on one row.
@@ -81,16 +82,18 @@ or target.
 ### 4. Tests
 
 - Regression (fails today): 20 dangling nodes + a 2-node flow → dangling nodes span 5 columns ×
-  4 rows, every one of them below the bottom of the flow.
+  4 rows, every one of them right of the flow, one node gap away.
 - 10 dangling nodes → 4 columns, 3 rows (4 + 4 + 2).
+- First row on the start node's line, first cell `hGap` right of the flow.
 - Only dangling nodes (no edges) → grid starts at the top margin.
-- One dangling node → a single cell below the flow.
+- One dangling node → a single cell beside the start node.
 - No dangling nodes → positions unchanged from today (existing gap tests still pass).
 - Cells never overlap with mixed node sizes.
 
 ### 5. Acceptance criteria
 
-- With 20 unconnected nodes, Tidy up gives a 5 × 4 block under the flow, not a 20-wide row.
+- With 20 unconnected nodes, Tidy up gives a 5 × 4 block to the right of the flow,
+  its first row level with the start node, not a 20-wide row.
 - The connected flow's layout is unchanged.
 - The `nodeGap` preference still sets the horizontal gap, in the grid too.
 
@@ -102,5 +105,7 @@ None.
 
 ## Decisions
 
-- 2026-11-09: the grid of unconnected nodes goes below the connected flow.
+- 2026-11-09: the grid of unconnected nodes goes below the connected flow (superseded 2026-11-26).
+- 2026-11-26: the grid goes to the right of the connected flow, its first row on the start
+  node's line, so the dangling nodes are visible next to where the flow begins.
 - 2026-11-26: columns per row = `ceil(sqrt(n))` instead of the golden-ratio formula, to keep it simple.

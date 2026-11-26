@@ -61,13 +61,14 @@ export function autoLayout(
   }
 
   // Only connected nodes go through dagre: it would put every node without an edge on the
-  // top rank, one long row (#27). Those are packed in a grid below the flow instead.
+  // top rank, one long row (#27). Those are packed in a grid to the right of the flow instead,
+  // its first row on the start node's line.
   for (const id of connected) graph.setNode(id, { ...sizes.get(id)! })
   for (const [source, target] of edges) graph.setEdge(source, target)
   dagre.layout(graph)
 
   const out = new Map<string, { x: number; y: number }>()
-  let flowBottom: number | undefined
+  let flowRight: number | undefined
   for (const id of graph.nodes()) {
     const n = graph.node(id)
     if (!n) continue
@@ -75,17 +76,22 @@ export function autoLayout(
     const size = sizes.get(id)!
     const y = Math.round(n.y - size.height / 2)
     out.set(id, { x: Math.round(n.x - size.width / 2), y })
-    flowBottom = Math.max(flowBottom ?? y + size.height, y + size.height)
+    const right = Math.round(n.x + size.width / 2)
+    flowRight = Math.max(flowRight ?? right, right)
   }
 
   const dangling = [...sizes.keys()].filter((id) => !connected.has(id))
-  const top = flowBottom === undefined ? MARGIN : flowBottom + V_GAP
-  for (const [id, pos] of danglingGrid(dangling, sizes, hGap, top)) out.set(id, pos)
+  const start = activity.nodeOrder.find(
+    (id) => connected.has(id) && activity.nodes[id]?.type === 'activity_start',
+  )
+  const left = flowRight === undefined ? MARGIN : flowRight + hGap
+  const top = start ? out.get(start)!.y : MARGIN
+  for (const [id, pos] of danglingGrid(dangling, sizes, hGap, left, top)) out.set(id, pos)
   return out
 }
 
 /**
- * Unconnected nodes in node order, row by row, `ceil(sqrt(n))` per row: a block about as
+ * Unconnected nodes in node order, row by row from (`left`, `top`), `ceil(sqrt(n))` per row: a block about as
  * many rows as columns, wider than tall since nodes are. Columns are as wide as the widest
  * of these nodes plus `hGap`; each row as tall as its tallest node plus `V_GAP`.
  */
@@ -93,6 +99,7 @@ function danglingGrid(
   ids: string[],
   sizes: Map<string, NodeSize>,
   hGap: number,
+  left: number,
   top: number,
 ): Map<string, { x: number; y: number }> {
   const out = new Map<string, { x: number; y: number }>()
@@ -102,7 +109,7 @@ function danglingGrid(
   let y = top
   for (let start = 0; start < ids.length; start += cols) {
     const row = ids.slice(start, start + cols)
-    row.forEach((id, i) => out.set(id, { x: MARGIN + i * pitch, y }))
+    row.forEach((id, i) => out.set(id, { x: left + i * pitch, y }))
     y += Math.max(...row.map((id) => sizes.get(id)!.height)) + V_GAP
   }
   return out
