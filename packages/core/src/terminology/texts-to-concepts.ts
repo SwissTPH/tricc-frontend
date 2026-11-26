@@ -8,14 +8,9 @@ import {
   type TriccNode,
 } from '../model/types.js'
 import type { LocalizedText } from '../format/schema/localized.js'
-import {
-  designationText,
-  imageRefs,
-  prependImage,
-  toMarkdown,
-  withDesignationText,
-  type Message,
-} from '../text/message.js'
+import { designationText, withDesignationText } from '../text/designation.js'
+import { imageRefs, prependImage, toMarkdown } from '../text/render.js'
+import type { PmDoc } from '../text/schema.js'
 import { isTextNode, type NodeType } from '../format/schema/node-types.js'
 import { NODE_TYPE_SPECS } from '../format/schema/node-spec.js'
 import { DESIGNATION_USES, designationUse, isUnscoped, type DesignationUse } from './designation.js'
@@ -73,6 +68,8 @@ export function moveTextsToConcepts(
     // Legacy `media.image` (a file name): the picture moves to the start of the questionnaire text.
     const image = 'media' in item ? item.media?.image : undefined
     if (!texts.label && !texts.hint && !texts.help && !image) return
+    const generic = !item.concept && Boolean(item.name?.endsWith('_'))
+    if (!item.concept && item.name) item.name = ownName(item.name, where.optionId ?? where.nodeId)
     const code = item.concept?.code ?? item.name
     if (!code) return
     const cs = codeSystemFor(item)
@@ -80,6 +77,7 @@ export function moveTextsToConcepts(
     let concept = cs.concepts[code]
     if (!concept) {
       concept = { system: cs.url, code, designations: [] }
+      if (generic) concept.fuzzy = true
       const dataType = 'type' in item ? NODE_TYPE_SPECS[item.type]?.dataType : 'coded'
       if (dataType) concept.dataType = dataType
       // The type tricc_oo would assign the item (xml_to_tricc.py get_concept_type).
@@ -92,14 +90,14 @@ export function moveTextsToConcepts(
     }
     const { parentType: _parentType, ...place } = where
     const drop = (text: string) => result.dropped.push({ ...place, text })
-    const rich = 'labelMessage' in item ? item.labelMessage : undefined
+    const rich = 'labelDoc' in item ? item.labelDoc : undefined
     for (const [language, text] of Object.entries(texts.label ?? {})) {
       if (!text.trim()) continue
       // A formatted label: its plain text names the concept, the formatted one is what the form shows.
       if (rich && language === lang) placeRichLabel(concept, language, rich, text, lang, drop)
       else placeLabel(concept, language, text, lang, drop)
     }
-    if ('labelMessage' in item) delete item.labelMessage
+    if ('labelDoc' in item) delete item.labelDoc
     for (const use of ['hint', 'help'] as const) {
       for (const [language, text] of Object.entries(texts[use] ?? {})) {
         if (!text.trim()) continue
@@ -138,11 +136,14 @@ export function moveTextsToConcepts(
     // A page group's title is text too: it goes to the concept its name stands for.
     for (const group of activity.groups ?? []) {
       if (!group.label || !group.name) continue
+      const generic = group.name.endsWith('_')
+      group.name = ownName(group.name, group.id)
       const cs = codeSystemFor({})
       if (!cs) continue
       let concept = cs.concepts[group.name]
       if (!concept) {
         concept = { system: cs.url, code: group.name, designations: [], conceptType: 'Misc' }
+        if (generic) concept.fuzzy = true
         cs.concepts[group.name] = concept
         cs.conceptOrder.push(group.name)
       }
@@ -168,6 +169,16 @@ export function moveTextsToConcepts(
     }
   }
   return result
+}
+
+/**
+ * A name ending with `_` is a generic one from a drawing (`label_`, `select_`) that many items
+ * share. When its text needs a concept, the item's id is appended (`label_42`), so each
+ * item gets its own concept instead of all of them writing to one.
+ */
+export function ownName(name: string, id: string): string {
+  if (!name.endsWith('_')) return name
+  return `${name}${id.replace(/[^A-Za-z0-9_.-]/g, '_')}`
 }
 
 /** What a new concept stores, read from the node that first uses it. Answers are coded. */
@@ -214,7 +225,7 @@ function placeLabel(
 function placeRichLabel(
   concept: Concept,
   language: string,
-  rich: Message,
+  rich: PmDoc,
   plain: string,
   defaultLang: string,
   drop: (text: string) => void,

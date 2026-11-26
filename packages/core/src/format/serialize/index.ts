@@ -13,7 +13,7 @@ import {
   PATHS,
   type ProjectImage,
 } from '../../model/types.js'
-import { IMAGE_ID } from '../../text/message.js'
+import { IMAGE_ID } from '../../text/schema.js'
 import { decodeActivity, decodeCodeSystem, encodeActivity, encodeCodeSystem } from '../codec.js'
 import { moveTextsToConcepts } from '../../terminology/texts-to-concepts.js'
 import { isBlock } from '../../model/activity-kind.js'

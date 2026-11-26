@@ -1,5 +1,7 @@
 import { activitiesFromDrawio } from '../format/drawio.js'
-import { fromHtml, fromPlain, withDesignationText } from '../text/message.js'
+import { withDesignationText } from '../text/designation.js'
+import { fromHtml } from '../text/parse.js'
+import { fromPlain } from '../text/render.js'
 import { createProject, readProject, writeProject } from '../format/serialize/index.js'
 import { moveTextsToConcepts } from './texts-to-concepts.js'
 import { validateActivity } from '../validate/activity.js'
@@ -278,6 +280,33 @@ describe('texts move from the activity to the concept', () => {
     expect(nodes['cough']!.options![0]).not.toHaveProperty('label')
   })
 
+  it('gives each item named like label_ its own concept, named with its id', () => {
+    const project = inline()
+    const nodes = project.activities['a']!.nodes
+    nodes['n1'] = { id: 'n1', type: 'note', name: 'label_', label: { en: 'Give 1 tablet' } }
+    nodes['x:2'] = { id: 'x:2', type: 'note', name: 'label_', label: { en: 'Give 2 tablets' } }
+    project.activities['a']!.nodeOrder.push('n1', 'x:2')
+    moveTextsToConcepts(project)
+    const cs = Object.values(project.codeSystems)[0]!
+    expect(nodes['n1']!.name).toBe('label_n1')
+    expect(nodes['x:2']!.name).toBe('label_x_2')
+    expect(cs.concepts['label_n1']?.display).toBe('Give 1 tablet')
+    expect(cs.concepts['label_x_2']?.display).toBe('Give 2 tablets')
+    expect(cs.concepts['label_']).toBeUndefined()
+    // Marked so they can be found and reviewed; the property survives a save.
+    expect(cs.concepts['label_n1']?.fuzzy).toBe(true)
+    expect(cs.concepts['cough']?.fuzzy).toBeUndefined()
+    const saved = encodeCodeSystem(cs) as { concept: { code: string; property?: unknown[] }[] }
+    expect(saved.concept.find((c) => c.code === 'label_n1')?.property).toContainEqual({
+      code: 'fuzzy',
+      valueBoolean: true,
+    })
+    expect(decodeCodeSystem(saved).concepts['label_n1']?.fuzzy).toBe(true)
+    // A second pass keeps the names it gave.
+    moveTextsToConcepts(project)
+    expect(nodes['n1']!.name).toBe('label_n1')
+  })
+
   it('keeps the text of an item with no code, and leaves logic nodes alone', () => {
     const project = inline()
     moveTextsToConcepts(project)
@@ -405,7 +434,7 @@ describe('formatted texts', () => {
     expect(concept.display).toBe('Give ${dose} mg')
     expect(conceptRichText(concept, 'q-display', 'en')).toEqual(fromHtml('<b>Give ${dose} mg</b>'))
     expect(concept.designations[0]?.value).toBe('**Give ${dose} mg**')
-    expect(project.activities['dose']!.nodes['n']).not.toHaveProperty('labelMessage')
+    expect(project.activities['dose']!.nodes['n']).not.toHaveProperty('labelDoc')
     expect(validateProject(project).filter((i) => i.rule === 'text.unknown-reference')).toEqual([])
   })
 
@@ -429,6 +458,41 @@ describe('formatted texts', () => {
       conceptOrder: ['note'],
     }
     expect(validateProject(project).map((i) => i.rule)).toContain('text.unknown-reference')
+  })
+
+  it('reports once per concept a stored document the schema refuses, and reads its value', () => {
+    const project = createProject({ id: 'p', title: 'P' })
+    const broken = (language: string) => ({
+      language,
+      value: '**Danger**',
+      extension: [
+        {
+          url: 'https://tricc.org/StructureDefinition/designation-doc',
+          valueString: JSON.stringify({ type: 'doc', content: [{ type: 'table' }] }),
+        },
+      ],
+    })
+    project.codeSystems['http://x'] = {
+      id: 'x',
+      url: 'http://x',
+      status: 'draft',
+      content: 'complete',
+      concepts: {
+        note: {
+          system: 'http://x',
+          code: 'note',
+          dataType: 'string',
+          designations: [broken('en'), broken('fr')],
+        },
+      },
+      conceptOrder: ['note'],
+    }
+    const issues = validateProject(project).filter((i) => i.rule === 'text.invalid-doc')
+    expect(issues).toHaveLength(1)
+    expect(issues[0]).toMatchObject({ severity: 'warning', location: { conceptCode: 'note' } })
+    expect(
+      conceptRichText(project.codeSystems['http://x']!.concepts['note'], 'q-display', 'fr'),
+    ).toEqual(fromHtml('<b>Danger</b>'))
   })
 })
 

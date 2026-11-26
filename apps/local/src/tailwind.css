@@ -84,4 +84,25 @@
     box-sizing: border-box;
     border: 0 solid var(--border);
   }
+  [data-slot='dialog-content'],
+  [data-slot='dialog-content'] *,
+  [data-slot='dialog-overlay'] {
+    box-sizing: border-box;
+    border: 0 solid var(--border);
+  }
+  [data-slot='dialog-content'] :where(h2, p) {
+    margin: 0;
+  }
+  [data-slot='dialog-close'] {
+    display: inline-flex;
+    padding: 0;
+    background-color: transparent;
+    color: inherit;
+  }
+  [data-slot='command-input'] {
+    margin: 0;
+    padding-inline: 0;
+    font-family: inherit;
+    color: inherit;
+  }
 }

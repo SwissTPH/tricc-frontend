@@ -1,11 +1,7 @@
 import type { Concept, Designation } from '../model/types.js'
-import {
-  designationText,
-  fromPlain,
-  toPlain,
-  withDesignationText,
-  type DisplayText,
-} from '../text/message.js'
+import { designationText, withDesignationText } from '../text/designation.js'
+import { fromPlain, toPlain } from '../text/render.js'
+import type { DisplayText } from '../text/schema.js'
 
 /**
  * Designation uses, as `tricc_oo` writes and reads them (`converters/datadictionnary.py`).
@@ -74,7 +70,7 @@ export function conceptText(
   return text === undefined ? undefined : toPlain(text)
 }
 
-/** Like `conceptText`, as a display text: the tree when the text has bold, lists or `${}`. */
+/** Like `conceptText`, as a display text: a document when the text has bold, lists or pictures. */
 export function conceptRichText(
   concept: Concept | undefined,
   use: DesignationUse,
@@ -116,8 +112,8 @@ export function withConceptText(
   defaultLang = lang,
 ): Concept {
   const next: Concept = { ...concept, designations: concept.designations.map((d) => ({ ...d })) }
-  // A display is a dictionary name: plain text.
-  if (use === 'display' && value !== undefined) value = toPlain(value)
+  // A display is a dictionary name: plain text, on one line.
+  if (use === 'display' && value !== undefined) value = toPlain(value).replace(/\s*\n\s*/g, ' ')
   const empty = value === undefined || (typeof value === 'string' && value === '')
   if (use === 'display' && lang === defaultLang) {
     if (!empty) next.display = value as string

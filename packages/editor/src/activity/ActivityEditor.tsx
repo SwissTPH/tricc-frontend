@@ -52,6 +52,7 @@ import { CqlExpressionField } from '../cql/CqlExpressionField.js'
 import { expressionNames, renderCqlLabels } from '../cql/names.js'
 import { ActivityCanvas, type CanvasPlacement } from './canvas/Canvas.js'
 import { autoLayout, renderedNodeSize } from './canvas/layout.js'
+import { useRegisterCommands } from '../commands/registry.js'
 import {
   applyCut,
   applyPaste,
@@ -127,6 +128,30 @@ export function ActivityEditor({
   const canDiscuss = useCapability('comment.read')
   const mutate = useMutate()
   const { labelLines, labelChars, nodeGap } = useEditorPreferences()
+  const tidyLayout = () => {
+    if (!activity) return
+    const positions = autoLayout(activity, renderedNodeSize, nodeGap)
+    mutate((tx) => {
+      // Nodes in a group keep their place inside it.
+      for (const [id, pos] of positions) {
+        if (!activity.nodes[id]?.group) tx.moveNode(activityId, id, pos.x, pos.y)
+      }
+    })
+  }
+  useRegisterCommands(
+    activity
+      ? [
+          {
+            id: 'activity.tidy',
+            group: 'Activity',
+            label: 'Tidy layout',
+            keywords: ['arrange', 'auto layout'],
+            writes: true,
+            run: tidyLayout,
+          },
+        ]
+      : [],
+  )
   const [selectedId, setSelectedId] = useState<string | undefined>(focusNodeId)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | undefined>(focusEdgeId)
   /** Flow ids from a right-drag that covered more than one element. */
@@ -482,15 +507,7 @@ export function ActivityEditor({
             size="sm"
             type="button"
             data-testid="tidy-layout"
-            onClick={() => {
-              const positions = autoLayout(activity, renderedNodeSize, nodeGap)
-              mutate((tx) => {
-                // Nodes in a group keep their place inside it.
-                for (const [id, pos] of positions) {
-                  if (!activity.nodes[id]?.group) tx.moveNode(activityId, id, pos.x, pos.y)
-                }
-              })
-            }}
+            onClick={tidyLayout}
           >
             Tidy layout
           </Button>

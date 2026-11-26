@@ -17,7 +17,8 @@ import {
 } from '@tricc/core'
 import { useCanWrite, useMutate, useProjectSnapshot } from '../runtime/context.js'
 import { uniqueId } from './Overview.js'
-import { ProjectSearchDialog } from './ProjectSearch.js'
+import { ProjectSearchCommand, type PaletteMode } from './ProjectSearch.js'
+import { useRegisterCommands } from '../commands/registry.js'
 import { dictionaryLabel } from '../terminology/ConceptDialog.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
@@ -116,8 +117,43 @@ export function ActivityNavigator({
   const [blockQuery, setBlockQuery] = useState('')
   const [overflows, setOverflows] = useState(false)
   const [projectQuery, setProjectQuery] = useState('')
-  const [searching, setSearching] = useState<string | null>(null)
-  const closeSearch = useCallback(() => setSearching(null), [])
+  const [searching, setSearching] = useState(false)
+  const [paletteMode, setPaletteMode] = useState<PaletteMode>('search')
+  const openPalette = useCallback((mode: PaletteMode) => {
+    setPaletteMode(mode)
+    setSearching(true)
+  }, [])
+  // Closing the palette clears the query, so the bar is empty for the next search.
+  const closeSearch = useCallback(() => {
+    setSearching(false)
+    setProjectQuery('')
+  }, [])
+  const searchingRef = useRef(searching)
+  searchingRef.current = searching
+  // Ctrl+F (Cmd+F) opens the project search; pressed again while it is open, it closes it and
+  // lets the browser's find through. Ctrl+K (Cmd+K) opens the palette with the actions.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey) return
+      const key = event.key.toLowerCase()
+      if (key === 'f') {
+        if (searchingRef.current) {
+          // No preventDefault: the browser opens its own find.
+          closeSearch()
+          return
+        }
+        event.preventDefault()
+        openPalette('search')
+      } else if (key === 'k') {
+        // preventDefault keeps the browser from moving focus to its address bar.
+        event.preventDefault()
+        openPalette('commands')
+      }
+    }
+    // Capture, so a handler further down cannot stop it.
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [closeSearch, openPalette])
   const dictionaries = projectDictionaries(project)
 
   const ids = Object.keys(project.activities).sort()
@@ -212,6 +248,45 @@ export function ActivityNavigator({
     setDraft(null)
     fileRef.current?.click()
   }
+
+  useRegisterCommands([
+    {
+      id: 'create.activity',
+      group: 'Create',
+      label: 'New activity',
+      keywords: ['add'],
+      writes: true,
+      run: () => openDraft('activity'),
+    },
+    {
+      id: 'create.segment',
+      group: 'Create',
+      label: 'New segment',
+      keywords: ['add', 'process'],
+      writes: true,
+      run: () => openDraft('process'),
+    },
+    {
+      id: 'create.block',
+      group: 'Create',
+      label: `New ${TERMS.block.toLowerCase()}`,
+      keywords: ['add', 'block'],
+      writes: true,
+      run: () => openDraft('block'),
+    },
+    {
+      id: 'create.import',
+      group: 'Create',
+      label: 'Import activities',
+      keywords: ['file', 'yaml', 'upload'],
+      writes: true,
+      run: () => {
+        // The import reads the open tab to know what it imports.
+        setTab('activity')
+        openImport()
+      },
+    },
+  ])
 
   const onImportFiles = async (list: FileList | null) => {
     const files = list ? [...list] : []
@@ -421,15 +496,13 @@ export function ActivityNavigator({
           className="tricc-nav__project-search"
           data-testid="project-search"
           aria-label="Search the project"
-          title="Concepts, segments, activities and nodes. Press Enter to see what matches."
+          title="Concepts, segments, activities and nodes (Ctrl+F). Ctrl+K adds commands."
           placeholder="Search the project"
+          // The bar only opens the palette; the query is typed there.
+          readOnly
           value={projectQuery}
-          onChange={(e) => setProjectQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key !== 'Enter' || !projectQuery.trim()) return
-            e.preventDefault()
-            setSearching(projectQuery)
-          }}
+          onFocus={() => openPalette('search')}
+          onClick={() => openPalette('search')}
         />
         {tab !== 'dictionary' && tab !== 'media' && tab !== 'tables' && (
           <>
@@ -585,15 +658,16 @@ export function ActivityNavigator({
           onConfirm={confirmDraft}
         />
       )}
-      {searching !== null && (
-        <ProjectSearchDialog
-          query={searching}
-          onClose={closeSearch}
-          onOpenActivity={(id) => onSelect(id)}
-          {...(onOpenConcept ? { onOpenConcept } : {})}
-          {...(onOpenNode ? { onOpenNode } : {})}
-        />
-      )}
+      <ProjectSearchCommand
+        open={searching}
+        mode={paletteMode}
+        query={projectQuery}
+        onQueryChange={setProjectQuery}
+        onClose={closeSearch}
+        onOpenActivity={(id) => onSelect(id)}
+        {...(onOpenConcept ? { onOpenConcept } : {})}
+        {...(onOpenNode ? { onOpenNode } : {})}
+      />
       {preview && canWrite && (
         <ImportDialog
           preview={preview}

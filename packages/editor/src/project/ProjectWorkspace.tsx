@@ -6,6 +6,7 @@ import { TERMS } from '../blocks/terms.js'
 import { MediaView } from '../media/MediaView.js'
 import { TablesView } from '../tables/TablesView.js'
 import { OpenProjectProvider } from '../runtime/context.js'
+import { CommandsProvider, useRegisterCommands } from '../commands/registry.js'
 import { DictionaryView } from '../terminology/DictionaryView.js'
 import { ActivityNavigator } from './ActivityNavigator.js'
 import { Breadcrumbs, nextTrail } from './Breadcrumbs.js'
@@ -208,6 +209,7 @@ export function ProjectWorkspace({
 
   const body = project ? (
     <>
+      <GoToCommands onOverview={() => openActivity(undefined)} onShowView={showView} />
       <ActivityNavigator
         onSelect={openActivity}
         selected={sideView ? undefined : activityId}
@@ -291,5 +293,62 @@ export function ProjectWorkspace({
 
   const framed = frame({ crumbs, body, showDiscussion })
   if (!project) return framed
-  return <OpenProjectProvider project={project}>{framed}</OpenProjectProvider>
+  // Around the whole frame, so the host's top bar can offer commands in the palette too.
+  return (
+    <CommandsProvider>
+      <OpenProjectProvider project={project}>{framed}</OpenProjectProvider>
+    </CommandsProvider>
+  )
+}
+
+/** The palette's "Go to" commands: the overview and the side views of the workspace. */
+function GoToCommands({
+  onOverview,
+  onShowView,
+}: {
+  onOverview: () => void
+  onShowView: (view: OverviewView) => void
+}) {
+  useRegisterCommands([
+    {
+      id: 'nav.overview',
+      group: 'Go to',
+      label: 'Go to overview',
+      keywords: ['home', 'project'],
+      run: onOverview,
+    },
+    {
+      id: 'nav.segments',
+      group: 'Go to',
+      label: 'Go to segments',
+      run: () => onShowView('segments'),
+    },
+    {
+      id: 'nav.activities',
+      group: 'Go to',
+      label: 'Go to activities',
+      run: () => onShowView('activities'),
+    },
+    {
+      id: 'nav.blocks',
+      group: 'Go to',
+      label: `Go to ${TERMS.blocks.toLowerCase()}`,
+      run: () => onShowView('blocks'),
+    },
+    {
+      id: 'nav.dictionary',
+      group: 'Go to',
+      label: 'Go to data dictionary',
+      keywords: ['concepts', 'terminology'],
+      run: () => onShowView('dictionary'),
+    },
+    {
+      id: 'nav.media',
+      group: 'Go to',
+      label: 'Go to media',
+      keywords: ['images'],
+      run: () => onShowView('media'),
+    },
+  ])
+  return null
 }

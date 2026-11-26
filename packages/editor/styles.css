@@ -1798,6 +1798,18 @@ ol.tricc-segment-rows > li::before {
   cursor: grab;
 }
 
+/* A calculation with no link into it: a BPMN-like conditional start mark on the top-left corner. */
+.tricc-node__dangling {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  display: flex;
+  color: var(--group-colour, var(--tricc-border-strong));
+  stroke-width: 1;
+  cursor: help;
+  pointer-events: auto;
+}
+
 /* Hint (!) and help (?) marks at the bottom right of a node; the text is on hover. */
 .tricc-node__marks {
   position: absolute;
@@ -2042,54 +2054,6 @@ ol.tricc-segment-rows > li::before {
   margin: 0;
   font-size: 12px;
   color: var(--tricc-warning);
-}
-
-/* Project search results: one section per source, one line per hit. */
-.tricc-search section + section {
-  margin-top: 12px;
-}
-.tricc-search h3 {
-  margin: 0 0 4px;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--tricc-text-muted);
-}
-.tricc-search__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-height: 30vh;
-  overflow-y: auto;
-}
-.tricc-search__list button {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  width: 100%;
-  padding: 4px 6px;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  text-align: left;
-  cursor: pointer;
-}
-.tricc-search__list button:hover:not(:disabled),
-.tricc-search__list button:focus-visible {
-  background: var(--tricc-subtle);
-}
-.tricc-search__main {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tricc-search__detail {
-  flex: 0 1 auto;
-  font-size: 11px;
-  color: var(--tricc-text-muted);
-  white-space: nowrap;
 }
 
 /* A checkbox with its text on one line, in the node panel. */
@@ -2809,4 +2773,13 @@ ol.tricc-segment-rows > li::before {
   display: inline-flex;
   gap: 4px;
   margin-left: auto;
+}
+
+/* Data dictionary: show only the fuzzy concepts (generic draw.io names to review). */
+.tricc-dictionary__filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
 }

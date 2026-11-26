@@ -7,6 +7,7 @@ import {
   type PreferencesPort,
   type TriccRuntime,
 } from '@tricc/core'
+import { useRegisterCommands } from '../commands/registry.js'
 
 /**
  * The runtime provider.
@@ -144,6 +145,24 @@ export function useMutate() {
 function UndoKeys() {
   const { document } = useOpenProject()
   const canWrite = useCanWrite()
+  useRegisterCommands([
+    {
+      id: 'edit.undo',
+      group: 'Edit',
+      label: 'Undo',
+      shortcut: 'Ctrl+Z',
+      writes: true,
+      run: () => document.undo.undo(),
+    },
+    {
+      id: 'edit.redo',
+      group: 'Edit',
+      label: 'Redo',
+      shortcut: 'Ctrl+Shift+Z',
+      writes: true,
+      run: () => document.undo.redo(),
+    },
+  ])
 
   useEffect(() => {
     if (!canWrite) return

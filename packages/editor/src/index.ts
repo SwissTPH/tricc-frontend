@@ -11,6 +11,14 @@ export { ProjectWorkspace, type ProjectWorkspaceFrame } from './project/ProjectW
 export { InterventionDialog, segmentsOf } from './project/InterventionEditor.js'
 export { InterventionTable } from './project/InterventionTable.js'
 export { ActivityNavigator } from './project/ActivityNavigator.js'
+export {
+  COMMAND_GROUPS,
+  CommandsProvider,
+  useCommands,
+  useRegisterCommands,
+  type Command,
+  type CommandGroup,
+} from './commands/registry.js'
 export { ConceptDialog, type ConceptTarget } from './terminology/ConceptDialog.js'
 export { ConceptCard, CONCEPT_NODE_TYPES } from './terminology/ConceptCard.js'
 export { DictionaryView } from './terminology/DictionaryView.js'

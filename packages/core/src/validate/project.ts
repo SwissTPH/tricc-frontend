@@ -8,7 +8,8 @@ import { validateRetrievals } from './retrievals.js'
 import { validateTables } from './tables.js'
 import { issue, type Issue } from './types.js'
 import { designationInterventions, designationUse } from '../terminology/designation.js'
-import { designationText, imageRefs, references } from '../text/message.js'
+import { designationDocError, designationText } from '../text/designation.js'
+import { imageRefs, references } from '../text/render.js'
 
 /**
  * Project-scoped rules: everything that cannot be decided from one activity alone.
@@ -348,6 +349,18 @@ function validateTerminology(project: Project): Issue[] {
             'error',
             `"${code}" declares where it is stored but not on which resource. Set the target resource, or remove the path.`,
             { conceptCode: code, codeSystem: cs.id, field: 'targetPath' },
+          ),
+        )
+      }
+      // A stored document the schema refuses: the text shows its Markdown value instead.
+      const broken = c.designations.map(designationDocError).find((e) => e !== undefined)
+      if (broken) {
+        issues.push(
+          issue(
+            'text.invalid-doc',
+            'warning',
+            `A formatted text of "${code}" cannot be read (${broken}), so its plain Markdown is shown instead. Open the text and save it again to repair it.`,
+            { conceptCode: code, codeSystem: cs.id, field: 'designation' },
           ),
         )
       }

@@ -1,0 +1,32 @@
+{
+  "name": "typed-italic-star-intraword",
+  "input": {
+    "html": "dose_kg and *note*"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "dose_kg and "
+          },
+          {
+            "type": "text",
+            "text": "note",
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "dose_kg and note",
+  "markdown": "dose_kg and _note_",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>dose_kg and <em>note</em></p></div>"
+}

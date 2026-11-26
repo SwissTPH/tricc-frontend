@@ -1,0 +1,23 @@
+{
+  "name": "nbsp",
+  "input": {
+    "html": "Hello&nbsp;world"
+  },
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hello world"
+          }
+        ]
+      }
+    ]
+  },
+  "plain": "Hello world",
+  "markdown": "Hello world",
+  "xhtml": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>Hello world</p></div>"
+}

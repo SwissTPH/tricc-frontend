@@ -102,6 +102,8 @@ export function ConceptDialog({
           system,
         } as Concept),
   )
+  // The checkbox stays while the dialog is open, so clearing the flag can be undone.
+  const wasFuzzy = useRef(Boolean(existing?.fuzzy)).current
   const cardRef = useRef<HTMLDivElement>(null)
   const addImages = useAddImages()
   const [pictureOver, setPictureOver] = useState(false)
@@ -313,6 +315,23 @@ export function ConceptDialog({
             disabled={!isNew || readOnly}
             onChange={(e) => set({ code: e.target.value })}
           />
+
+          {wasFuzzy && (
+            <>
+              <label htmlFor="concept-fuzzy">Fuzzy</label>
+              <span className="tricc-dictionary__filter">
+                <input
+                  id="concept-fuzzy"
+                  type="checkbox"
+                  data-testid="concept-fuzzy"
+                  checked={Boolean(draft.fuzzy)}
+                  disabled={readOnly}
+                  onChange={(e) => set({ fuzzy: e.target.checked || undefined })}
+                />
+                Made from a generic name ending with _ in a drawing. Clear it once reviewed.
+              </span>
+            </>
+          )}
 
           <label htmlFor="concept-display">Display</label>
           <WrappingInput

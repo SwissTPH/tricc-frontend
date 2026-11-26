@@ -1,6 +1,6 @@
 import type { LocalizedText } from '../format/schema/localized.js'
 import type { Expression } from '../format/schema/expression.js'
-import type { Message } from '../text/message.js'
+import type { PmDoc } from '../text/schema.js'
 import type { ConceptRef } from '../format/schema/concept.js'
 import type { NodeType } from '../format/schema/node-types.js'
 
@@ -98,11 +98,11 @@ export interface TriccNode {
   name?: string
   label?: LocalizedText
   /**
-   * The default-language label as a formatted tree, when the source (a draw.io shape) had
+   * The default-language label as a formatted document, when the source (a draw.io shape) had
    * bold, breaks, lists or `${}`. Read-only and transient: the text migration moves it to
    * the concept; it is never written to a file or kept in the document.
    */
-  labelMessage?: Message
+  labelDoc?: PmDoc
   hint?: LocalizedText
   help?: LocalizedText
   concept?: ConceptRef
@@ -322,6 +322,11 @@ export interface Concept {
   paramDefault?: string
   /** An entry of the retrieval dictionary (feature/20261109-project-retrievals.md §1). */
   retrieval?: Retrieval
+  /**
+   * Made from a generic name ending with `_` (`label_` + the item id), so its code says
+   * nothing yet. Property `fuzzy` (`valueBoolean`), to find the concepts to review.
+   */
+  fuzzy?: boolean
 }
 
 /** Where a retrieval reads. `custom` holds its own expressions. */

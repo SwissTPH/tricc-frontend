@@ -14,6 +14,7 @@ import { lookupConcept, nodeConceptKey, populateSourceKey } from '../terminology
 import { isIsoPeriod } from '../terminology/retrieval.js'
 import { isOpenHandoff } from '../format/schema/expression.js'
 import { activityKind, processOf } from '../model/activity-kind.js'
+import { danglingCalculates } from '../model/dangling.js'
 import { issue, type Issue } from './types.js'
 
 /**
@@ -128,7 +129,8 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
     outgoing.set(e.source, list)
   }
   const reachable = new Set<string>()
-  const queue = starts.map((s) => s.id)
+  // A calculation with no link into it starts a path of its own, followed when it is true.
+  const queue = [...starts.map((s) => s.id), ...danglingCalculates(activity, project)]
   while (queue.length > 0) {
     const id = queue.shift() as string
     if (reachable.has(id)) continue
@@ -136,8 +138,7 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
     for (const next of outgoing.get(id) ?? []) queue.push(next)
   }
   for (const n of nodes) {
-    // Dangling calculates are a legitimate authoring pattern - tricc_oo collects them
-    // (manage_dangling_calculate), so they are not "unreachable" in the failing sense.
+    // A calculation with no link and no expression is reported as calculate.no-expression.
     if (reachable.has(n.id) || NODE_TYPE_SPECS[n.type]?.unreachableOk) continue
     issues.push(
       issue(

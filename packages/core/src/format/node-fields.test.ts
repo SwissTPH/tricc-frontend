@@ -62,7 +62,7 @@ const FULL: TriccNode = {
   ui: { x: 10, y: 20, width: 200, height: 64, color: 'red', collapsed: false },
 }
 
-const NEVER_STORED: NodeField[] = ['form_id', 'labelMessage']
+const NEVER_STORED: NodeField[] = ['form_id', 'labelDoc']
 
 describe('every node field round-trips', () => {
   it('the sample sets every field the table stores (add a value here for a new field)', () => {
