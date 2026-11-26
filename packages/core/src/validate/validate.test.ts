@@ -143,9 +143,23 @@ describe('per-node rules', () => {
     expect(rules(validateActivity(a))).not.toContain('select.no-options')
   })
 
-  it('requires an expression on a calculate', () => {
+  it('requires an expression on a calculate nothing leads to', () => {
     const a = add(base(), { id: 'calc', type: 'calculate', name: 'score' })
     expect(rules(validateActivity(a))).toContain('calculate.no-expression')
+  })
+
+  it('accepts a sequence-driven calculate: linked, no expression', () => {
+    const a = add(base(), { id: 'calc', type: 'calculate', name: 'seen' }, 'q')
+    expect(rules(validateActivity(a))).not.toContain('calculate.no-expression')
+  })
+
+  it('still reports an open hand-off on a linked calculate', () => {
+    const a = add(
+      base(),
+      { id: 'calc', type: 'calculate', name: 'seen', calculate: { intent: { en: 'if febrile' } } },
+      'q',
+    )
+    expect(rules(validateActivity(a))).toContain('expression.open-handoff')
   })
 
   it('requires a reference on a rhombus', () => {
