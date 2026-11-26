@@ -128,6 +128,7 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
     list.push(e.target)
     outgoing.set(e.source, list)
   }
+  const targeted = new Set(Object.values(activity.edges).map((e) => e.target))
   const reachable = new Set<string>()
   // A calculation with no link into it starts a path of its own, followed when it is true.
   const queue = [...starts.map((s) => s.id), ...danglingCalculates(activity, project)]
@@ -189,7 +190,9 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
       )
     }
 
-    if (n.type === 'calculate' && !n.calculate?.expression) {
+    // A calculation with no expression that a link leads to is sequence-driven: tricc_oo works it
+    // out from the paths before it (get_prev_node_expression), true when one was followed.
+    if (n.type === 'calculate' && !n.calculate?.expression && !targeted.has(n.id)) {
       issues.push(
         issue(
           'calculate.no-expression',

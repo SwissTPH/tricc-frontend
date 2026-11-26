@@ -87,6 +87,7 @@ import { ArgumentForm, inheritedAtCall, rowsFor } from '../blocks/ArgumentForm.j
 import { TERMS } from '../blocks/terms.js'
 import { DiagramDiscussContext } from '../discussion/context.js'
 import { PopulateFields } from './PopulateFields.js'
+import { SequencePaths } from './SequencePaths.js'
 import { discussionsAbout } from '../discussion/marks.js'
 
 export function ActivityEditor({
@@ -857,6 +858,7 @@ export function NodeProperties({
 }) {
   const mutate = useMutate()
   const project = useProjectSnapshot()
+  const activityData = project.activities[activityId]
 
   const update = (patch: Partial<TriccNode>) => {
     mutate((tx) => tx.updateNode(activityId, { ...node, ...patch }))
@@ -940,6 +942,19 @@ export function NodeProperties({
           onChange={(expression) => update({ calculate: expression ? { expression } : undefined })}
         />
       )}
+
+      {node.type === 'calculate' &&
+        !node.calculate?.expression?.trim() &&
+        activityData &&
+        Object.values(activityData.edges).some((e) => e.target === node.id) && (
+          <SequencePaths
+            activityId={activityId}
+            activity={activityData}
+            lang={lang}
+            nodeId={node.id}
+            onReveal={onReveal}
+          />
+        )}
 
       {NODE_TYPE_SPECS[node.type]?.cqlReference && typeof node.reference !== 'object' && (
         <CqlExpressionField

@@ -9,6 +9,7 @@
 export * from './model/types.js'
 export * from './model/activity-kind.js'
 export * from './model/dangling.js'
+export * from './model/sequence-paths.js'
 export * from './model/labels.js'
 
 // Format
