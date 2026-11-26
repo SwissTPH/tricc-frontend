@@ -218,6 +218,8 @@ export function decodeActivity(input: unknown, lang: string): Activity {
       const label = loc(g.label, lang)
       if (label) group.label = label
       if (g.parent !== undefined) group.parent = g.parent
+      if (g.page !== undefined) group.page = g.page
+      if (g.asGroup !== undefined) group.asGroup = g.asGroup
       return group
     })
   }
@@ -494,6 +496,8 @@ export function encodeActivity(
       put(go, 'name', g.name)
       put(go, 'label', g.label && fromLocalized(g.label, lang))
       put(go, 'parent', g.parent)
+      put(go, 'page', g.page)
+      put(go, 'asGroup', g.asGroup)
       go['ui'] = { x: g.x, y: g.y, width: g.width, height: g.height, color: g.color }
       return go
     })

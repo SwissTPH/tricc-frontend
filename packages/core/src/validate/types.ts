@@ -9,6 +9,8 @@ export interface IssueLocation {
   activityId?: string
   nodeId?: string
   edgeId?: string
+  /** A group of questions (a frame) in `activityId`. */
+  groupId?: string
   interventionId?: string
   conceptCode?: string
   /** The code system of `conceptCode`. */

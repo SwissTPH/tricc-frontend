@@ -17,6 +17,7 @@ import { IMAGE_ID } from '../../text/schema.js'
 import { decodeActivity, decodeCodeSystem, encodeActivity, encodeCodeSystem } from '../codec.js'
 import { moveTextsToConcepts } from '../../terminology/texts-to-concepts.js'
 import { isBlock } from '../../model/activity-kind.js'
+import { migrateInlineInstances } from '../inline-instance.js'
 import { applyParamSync } from '../../params/sync.js'
 import {
   calculateCodeSystem,
@@ -293,6 +294,8 @@ function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
   const texts = moveTextsToConcepts(loaded)
   // Computed parameters and parameter concepts follow the call graph, also after an outside edit.
   const params = applyParamSync(loaded)
+  // A goto's `instance: -1` becomes Show as: Inline, with a discussion on the node.
+  const inlined = migrateInlineInstances(loaded)
   const result: ReadResult = { project: loaded }
   // Opening a diagram is unsaved until activity YAML is written, so the next
   // save points tricc.yaml at those files and the edit is not lost.
@@ -313,6 +316,7 @@ function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
   else if (params) result.migratedFrom = 'params'
   // An image file whose name is not a valid id is saved under its id, once.
   else if (renamedImages) result.migratedFrom = 'image-names'
+  else if (inlined > 0) result.migratedFrom = 'inline-instance'
   return result
 }
 

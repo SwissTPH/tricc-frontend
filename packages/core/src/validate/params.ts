@@ -6,6 +6,7 @@ import { argProblem, paramEnvironments } from '../params/resolve.js'
 import { paramLabel, syncedParamConcepts } from '../params/sync.js'
 import { resolve } from '../format/schema/localized.js'
 import { issue, type Issue } from './types.js'
+import { validateShowAs } from './show-as.js'
 
 /**
  * Building blocks, parameters and values (feature/20261028-snippets-tab-and-params.md §11).
@@ -43,6 +44,7 @@ export function validateParams(project: Project): Issue[] {
     ...unusedBlocks(project),
     ...interventions(project),
     ...sameInstance(project),
+    ...validateShowAs(project),
   )
   return issues
 }
