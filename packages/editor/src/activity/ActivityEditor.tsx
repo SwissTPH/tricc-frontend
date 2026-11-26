@@ -12,6 +12,7 @@ import {
   NODE_TYPE_GROUPS,
   isCapture,
   isRepeatable,
+  defaultShowAs,
   isSelect,
   NODE_TYPE_SPECS,
   PALETTE_GROUP_LABELS,
@@ -75,6 +76,7 @@ import { BinIcon, GearIcon } from '../components/Dialog.js'
 import { CONCEPT_NODE_TYPES, ConceptCard } from '../terminology/ConceptCard.js'
 import { AnswerPicker } from '../terminology/AnswerPicker.js'
 import { RepeatFields } from './RepeatFields.js'
+import { ShowAsField } from './ShowAsField.js'
 import { ActivitySettings, CalledBy, ConfirmActivityDelete, titleSlug } from './ActivitySettings.js'
 import { useAddImages } from '../media/images.js'
 import { showPictureOn } from '../media/attach.js'
@@ -1426,6 +1428,17 @@ export function NodeProperties({
 
       {isRepeatable(node.type) && (
         <RepeatFields node={node} readOnly={readOnly} idPrefix="node" onChange={update} />
+      )}
+
+      {(node.type === 'goto' || node.type === 'block') && (
+        <ShowAsField
+          value={node}
+          resolved={defaultShowAs(node, project)}
+          defaultFrom={node.type === 'goto' ? 'the activity' : 'the block'}
+          readOnly={readOnly}
+          idPrefix="node"
+          onChange={update}
+        />
       )}
 
       <label htmlFor="node-intent">Relevance — what it should do</label>
