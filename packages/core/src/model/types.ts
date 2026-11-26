@@ -481,6 +481,13 @@ export interface Project {
    * referenced as `"#code"`. See feature/20261109-project-retrievals.md.
    */
   retrieveCodeSystem?: string
+  /**
+   * Decision tables (`tables/<id>.yaml`, listed by `tricc.yaml` `decision_tables`), keyed by
+   * id. Called from expressions as `DMN('<id>', …)`. See feature/20261120-decision-table-editor.md.
+   */
+  decisionTables?: Record<string, DecisionTable>
+  /** Function aliases (`tricc.yaml` `aliases`), e.g. `DrugDosage` → `DMN(table, age, weight)`. */
+  aliases?: Record<string, FunctionAlias>
   /** Keyed by library name; value is the CQL source. */
   libraries: Record<string, string>
   /** Keyed by activity id. */
@@ -496,6 +503,41 @@ export interface Project {
   discussionLabels?: DiscussionLabel[]
   /** Discussion files that could not be read, kept so a save does not delete them. */
   discussionKeep?: Record<string, string>
+}
+
+/** How the matching rows of a decision table give its result. */
+export const HIT_POLICIES = ['first', 'unique', 'rule_order'] as const
+export type HitPolicy = (typeof HIT_POLICIES)[number]
+
+/** The value type of a decision table column. */
+export const TABLE_COLUMN_TYPES = ['string', 'integer', 'decimal', 'boolean'] as const
+export type TableColumnType = (typeof TABLE_COLUMN_TYPES)[number]
+
+export interface TableColumn {
+  name: string
+  type: TableColumnType
+  /** A concept code: the value read when a call leaves the argument out. Optional on inputs. */
+  concept?: string
+}
+
+/** A decision table (feature/20261120-decision-table-editor.md, tricc decision-tables). */
+export interface DecisionTable {
+  id: string
+  title?: string
+  hitPolicy: HitPolicy
+  inputs: TableColumn[]
+  outputs: TableColumn[]
+  /** One row per rule: one cell per input, then one per output. Cells are kept as written. */
+  rules: string[][]
+  /** Where the file was read from, when not `tables/<id>.yaml`. */
+  path?: string
+}
+
+/** `aliases.<Name>` in `tricc.yaml`: the call's arguments mapped to table inputs by name. */
+export interface FunctionAlias {
+  function: 'DMN' | 'DMNFirst' | 'DMNList'
+  /** `table` for the table id, then input names. */
+  args: string[]
 }
 
 /** A person, as the project names its owner: an identity id and a display name. */
@@ -595,6 +637,7 @@ export const PATHS = {
   cql: 'cql',
   media: 'media',
   discussions: 'discussions',
+  tables: 'tables',
 } as const
 
 export function activityPath(id: string): string {
@@ -605,6 +648,9 @@ export function blockPath(id: string): string {
 }
 export function codeSystemPath(id: string): string {
   return `${PATHS.terminology}/${id}.codesystem.json`
+}
+export function tablePath(id: string): string {
+  return `${PATHS.tables}/${id}.yaml`
 }
 export function libraryPath(name: string): string {
   return `${PATHS.cql}/${name}.cql`

@@ -11,6 +11,7 @@ import type {
   Designation,
   ProjectImage,
   ProjectOwner,
+  DecisionTable,
 } from '../model/types.js'
 import type { LocalizedText } from '../format/schema/localized.js'
 import { fieldsOf, type CustomField } from '../format/node-fields.js'
@@ -489,6 +490,50 @@ export function imageFromY(m: Y.Map<unknown>): ProjectImage {
   }
 }
 
+// ---------------------------------------------------------------- decision tables
+
+/**
+ * A table: scalars, columns as plain values, rules as `Y.Array` of `Y.Array<string>` so two
+ * authors editing different rows, or reordering while another edits a cell, both keep their
+ * change.
+ */
+export function tableToY(table: DecisionTable): Y.Map<unknown> {
+  const m = new Y.Map<unknown>()
+  m.set('id', table.id)
+  if (table.title) m.set('title', table.title)
+  m.set('hitPolicy', table.hitPolicy)
+  m.set('inputs', structuredClone(table.inputs))
+  m.set('outputs', structuredClone(table.outputs))
+  if (table.path) m.set('path', table.path)
+  const rules = new Y.Array<Y.Array<string>>()
+  rules.insert(0, table.rules.map(ruleToY))
+  m.set('rules', rules)
+  return m
+}
+
+export function ruleToY(rule: string[]): Y.Array<string> {
+  const row = new Y.Array<string>()
+  row.insert(0, [...rule])
+  return row
+}
+
+export function tableFromY(m: Y.Map<unknown>): DecisionTable {
+  const table: DecisionTable = {
+    id: m.get('id') as string,
+    hitPolicy: (m.get('hitPolicy') as DecisionTable['hitPolicy']) ?? 'first',
+    inputs: structuredClone((m.get('inputs') as DecisionTable['inputs']) ?? []),
+    outputs: structuredClone((m.get('outputs') as DecisionTable['outputs']) ?? []),
+    rules: ((m.get('rules') as Y.Array<Y.Array<string>> | undefined)?.toArray() ?? []).map((r) =>
+      r.toArray(),
+    ),
+  }
+  const title = m.get('title')
+  if (typeof title === 'string' && title) table.title = title
+  const path = m.get('path')
+  if (typeof path === 'string') table.path = path
+  return table
+}
+
 // ---------------------------------------------------------------- whole project
 
 export function projectToDoc(project: Project, doc: Y.Doc): void {
@@ -510,6 +555,7 @@ export function projectToDoc(project: Project, doc: Y.Doc): void {
     setPlain(meta, 'repository', project.repository)
     setPlain(meta, 'labels', project.labels?.length ? project.labels : undefined)
     setPlain(meta, 'owner', project.owner)
+    setPlain(meta, 'aliases', project.aliases)
     const languages = doc.getMap<unknown>('languages')
     languages.set('default', project.languages.default)
     const avail = new Y.Array<string>()
@@ -542,6 +588,12 @@ export function projectToDoc(project: Project, doc: Y.Doc): void {
     const libraries = doc.getMap<Y.Text>('libraries')
     for (const name of Object.keys(project.libraries).sort()) {
       libraries.set(name, newText(project.libraries[name] as string))
+    }
+
+    const tables = doc.getMap<Y.Map<unknown>>('decisionTables')
+    for (const id of Object.keys(project.decisionTables ?? {}).sort()) {
+      const table = project.decisionTables?.[id]
+      if (table) tables.set(id, tableToY(table))
     }
 
     const images = doc.getMap<Y.Map<unknown>>('images')
@@ -620,6 +672,16 @@ export function projectFromDoc(doc: Y.Doc): Project {
   if (Array.isArray(labels) && labels.length) project.labels = [...labels]
   const owner = meta.get('owner')
   if (owner && typeof owner === 'object') project.owner = structuredClone(owner) as ProjectOwner
+  const aliases = meta.get('aliases')
+  if (aliases && typeof aliases === 'object')
+    project.aliases = structuredClone(aliases) as NonNullable<Project['aliases']>
+  const tablesY = doc.getMap<Y.Map<unknown>>('decisionTables')
+  if (tablesY.size > 0) {
+    const tables: NonNullable<Project['decisionTables']> = {}
+    for (const id of [...tablesY.keys()].sort())
+      tables[id] = tableFromY(tablesY.get(id) as Y.Map<unknown>)
+    project.decisionTables = tables
+  }
   const imagesY = doc.getMap<Y.Map<unknown>>('images')
   if (imagesY.size > 0) {
     const images: Record<string, ProjectImage> = {}

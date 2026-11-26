@@ -8,6 +8,7 @@ import {
   imageIdFrom,
   imageTypeOf,
   libraryPath,
+  tablePath,
   uniqueImageId,
   PATHS,
   type ProjectImage,
@@ -29,8 +30,11 @@ import {
   peekTriccLanguages,
   readTriccYamlMeta,
   triccConfigText,
+  triccTableGlobs,
   triccTerminologyGlobs,
+  matchGlob,
 } from './tricc-yaml.js'
+import { decodeTableFile, encodeTableFile } from '../../decision-table/file.js'
 import {
   discussionFromFile,
   discussionToFile,
@@ -107,6 +111,10 @@ export function writeProject(project: Project): ProjectFiles {
   }
   for (const name of Object.keys(project.libraries).sort()) {
     files[libraryPath(name)] = project.libraries[name] as string
+  }
+  for (const id of Object.keys(project.decisionTables ?? {}).sort()) {
+    const table = project.decisionTables?.[id]
+    if (table) files[table.path ?? tablePath(table.id)] = encodeTableFile(table)
   }
   for (const id of Object.keys(project.images ?? {}).sort()) {
     const image = project.images?.[id]
@@ -206,6 +214,7 @@ function isManaged(path: string): boolean {
     path.startsWith(`${PATHS.blocks}/`) ||
     path.startsWith(`${PATHS.terminology}/`) ||
     path.startsWith(`${PATHS.cql}/`) ||
+    path.startsWith(`${PATHS.tables}/`) ||
     path.startsWith(`${PATHS.discussions}/`)
   )
 }
@@ -244,6 +253,7 @@ function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
     languages.default,
   )
   readListedTerminology(loaded, files, triccTerminologyGlobs(triccRaw))
+  readTables(loaded, files, triccTableGlobs(triccRaw))
   const meta = readTriccYamlMeta(triccRaw, files, idByPath, new Set(Object.keys(loaded.activities)))
   loaded.id = meta.id
   loaded.languages = meta.languages
@@ -257,6 +267,7 @@ function readFromTriccYaml(files: ProjectFiles, triccRaw: string): ReadResult {
   if (meta.defaultCodeSystem) loaded.defaultCodeSystem = meta.defaultCodeSystem
   if (meta.calculateCodeSystem) loaded.calculateCodeSystem = meta.calculateCodeSystem
   if (meta.retrieveCodeSystem) loaded.retrieveCodeSystem = meta.retrieveCodeSystem
+  if (meta.aliases) loaded.aliases = meta.aliases
   if (meta.mediaPath) loaded.mediaPath = meta.mediaPath
   if (meta.repository) loaded.repository = meta.repository
   if (meta.labels) loaded.labels = meta.labels
@@ -406,6 +417,28 @@ function readListedTerminology(project: Project, files: ProjectFiles, globs: str
     if (path !== codeSystemPath(cs.id)) cs.path = path
     project.codeSystems[cs.url] = cs
   }
+}
+
+/**
+ * Decision tables that `tricc.yaml` lists under `decision_tables` (paths or globs). A file that
+ * cannot be read stops the import with its reason: a table silently left out would change doses.
+ */
+function readTables(project: Project, files: ProjectFiles, globs: string[]): void {
+  if (globs.length === 0) return
+  const patterns = globs.map((g) => g.trim().replace(/^\.\//, '')).filter(Boolean)
+  const tables: NonNullable<Project['decisionTables']> = {}
+  for (const path of Object.keys(files).sort()) {
+    if (!/\.ya?ml$/.test(path) || !patterns.some((p) => matchGlob(p, path))) continue
+    const table = decodeTableFile(fileText(files[path]) ?? '', path)
+    if (tables[table.id]) {
+      throw new Error(
+        `Two files declare the decision table "${table.id}". Keep one, or give the other its own id.`,
+      )
+    }
+    if (path !== tablePath(table.id)) table.path = path
+    tables[table.id] = table
+  }
+  if (Object.keys(tables).length > 0) project.decisionTables = tables
 }
 
 function globToRegExp(glob: string): RegExp {

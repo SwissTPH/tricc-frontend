@@ -15,6 +15,8 @@ import type {
   ProjectImage,
   ProjectOwner,
   ProjectRepository,
+  DecisionTable,
+  FunctionAlias,
 } from '../model/types.js'
 import { uniqueImageId } from '../model/types.js'
 import { normalizeLabels } from '../model/labels.js'
@@ -28,6 +30,9 @@ import {
   interventionToY,
   nodeToY,
   projectFromDoc,
+  ruleToY,
+  tableFromY,
+  tableToY,
   updateNodeY,
 } from './codec.js'
 import { syncedParamConcepts, syncedParams, paramConceptCode } from '../params/sync.js'
@@ -532,6 +537,115 @@ export class Mutations {
         if (changed) concepts.set(code, conceptToY({ ...concept, designations }))
       }
     }
+  }
+
+  // ------------------------------------------------------------- decision tables
+
+  private tables(): Y.Map<Y.Map<unknown>> {
+    return this.doc.getMap<Y.Map<unknown>>('decisionTables')
+  }
+
+  private tableRules(tableId: string): Y.Array<Y.Array<string>> {
+    const t = this.tables().get(tableId)
+    if (!t) throw new Error(`no such decision table: ${tableId}`)
+    return t.get('rules') as Y.Array<Y.Array<string>>
+  }
+
+  addDecisionTable(table: DecisionTable): void {
+    if (this.tables().has(table.id)) throw new Error(`decision table already exists: ${table.id}`)
+    this.tables().set(table.id, tableToY(table))
+  }
+
+  /**
+   * Bring a table to `table`, touching only what differs: a changed cell is replaced in its
+   * row, so a collaborator's edit to another row survives.
+   */
+  setDecisionTable(table: DecisionTable): void {
+    const m = this.tables().get(table.id)
+    if (!m) {
+      this.addDecisionTable(table)
+      return
+    }
+    setScalar(m, 'title', table.title || undefined)
+    setScalar(m, 'hitPolicy', table.hitPolicy)
+    setScalar(m, 'path', table.path)
+    if (JSON.stringify(m.get('inputs')) !== JSON.stringify(table.inputs))
+      setPlain(m, 'inputs', table.inputs)
+    if (JSON.stringify(m.get('outputs')) !== JSON.stringify(table.outputs))
+      setPlain(m, 'outputs', table.outputs)
+    const rules = m.get('rules') as Y.Array<Y.Array<string>>
+    const current = rules.toArray()
+    if (current.length !== table.rules.length) {
+      rules.delete(0, current.length)
+      rules.insert(0, table.rules.map(ruleToY))
+      return
+    }
+    table.rules.forEach((rule, i) => {
+      const row = current[i]!
+      const cells = row.toArray()
+      if (cells.length !== rule.length) {
+        rules.delete(i, 1)
+        rules.insert(i, [ruleToY(rule)])
+        return
+      }
+      rule.forEach((cell, j) => {
+        if (cells[j] === cell) return
+        row.delete(j, 1)
+        row.insert(j, [cell])
+      })
+    })
+  }
+
+  removeDecisionTable(id: string): void {
+    this.tables().delete(id)
+  }
+
+  /** Give a table another id. Calls to it are not rewritten; validation points them out. */
+  renameDecisionTable(from: string, to: string): void {
+    if (from === to) return
+    const m = this.tables().get(from)
+    if (!m) throw new Error(`no such decision table: ${from}`)
+    if (this.tables().has(to)) throw new Error(`decision table already exists: ${to}`)
+    const table = { ...tableFromY(m), id: to }
+    delete table.path
+    this.tables().delete(from)
+    this.tables().set(to, tableToY(table))
+  }
+
+  setTableCell(tableId: string, row: number, column: number, value: string): void {
+    const r = this.tableRules(tableId).get(row)
+    if (!r) throw new Error(`no row ${row} in ${tableId}`)
+    if (r.get(column) === value) return
+    r.delete(column, 1)
+    r.insert(column, [value])
+  }
+
+  insertTableRow(tableId: string, index: number, rule: string[]): void {
+    this.tableRules(tableId).insert(index, [ruleToY(rule)])
+  }
+
+  removeTableRow(tableId: string, index: number): void {
+    this.tableRules(tableId).delete(index, 1)
+  }
+
+  /** Move a row; `to` is its index once moved. */
+  moveTableRow(tableId: string, from: number, to: number): void {
+    if (from === to) return
+    const rules = this.tableRules(tableId)
+    const row = rules.get(from)
+    if (!row) return
+    const cells = row.toArray()
+    rules.delete(from, 1)
+    rules.insert(to, [ruleToY(cells)])
+  }
+
+  /** `tricc.yaml` `aliases`. Empty removes them. */
+  setAliases(aliases: Record<string, FunctionAlias> | undefined): void {
+    setPlain(
+      this.doc.getMap<unknown>('meta'),
+      'aliases',
+      aliases && Object.keys(aliases).length > 0 ? aliases : undefined,
+    )
   }
 
   // ------------------------------------------------------------- libraries & meta

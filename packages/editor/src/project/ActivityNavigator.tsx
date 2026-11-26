@@ -64,6 +64,8 @@ export function ActivityNavigator({
   onOpenDictionary,
   mediaOpen,
   onOpenMedia,
+  tablesOpen,
+  onOpenTables,
   onOpenConcept,
   onOpenNode,
   blocksOpen,
@@ -86,6 +88,10 @@ export function ActivityNavigator({
   mediaOpen?: boolean
   /** Shows the Media tab; choosing it opens the image library in the main area. */
   onOpenMedia?: () => void
+  /** Whether the decision tables fill the main area. */
+  tablesOpen?: boolean
+  /** Shows the Tables tab; choosing it opens the decision tables in the main area. */
+  onOpenTables?: () => void
   /** A concept found by the project search. */
   onOpenConcept?: (key: ConceptKey) => void
   /** A node found by the project search. */
@@ -106,7 +112,7 @@ export function ActivityNavigator({
   const [draft, setDraft] = useState<LibraryDraft | null>(null)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const [tab, setTab] = useState<LibraryTab | 'dictionary' | 'media'>('activity')
+  const [tab, setTab] = useState<LibraryTab | 'dictionary' | 'media' | 'tables'>('activity')
   const [expanded, setExpanded] = useState(false)
   const [blockQuery, setBlockQuery] = useState('')
   const [overflows, setOverflows] = useState(false)
@@ -179,13 +185,16 @@ export function ActivityNavigator({
   useEffect(() => {
     if (dictionaryOpen) setTab('dictionary')
     else if (mediaOpen) setTab('media')
+    else if (tablesOpen) setTab('tables')
     else if (blocksOpen) setTab('block')
     else if (libraryOpen) setTab(libraryOpen)
     else
       setTab((current) =>
-        current === 'dictionary' || current === 'media' ? (selectedKind ?? 'activity') : current,
+        current === 'dictionary' || current === 'media' || current === 'tables'
+          ? (selectedKind ?? 'activity')
+          : current,
       )
-  }, [dictionaryOpen, mediaOpen, blocksOpen, libraryOpen, selectedKind])
+  }, [dictionaryOpen, mediaOpen, tablesOpen, blocksOpen, libraryOpen, selectedKind])
 
   const label = (id: string) => resolve(project.activities[id]?.title, lang, lang) ?? id
   const taken = new Set(ids)
@@ -461,6 +470,25 @@ export function ActivityNavigator({
               <span className="tricc-nav__count">{Object.keys(project.images ?? {}).length}</span>
             </button>
           )}
+          {onOpenTables && (
+            <button
+              type="button"
+              role="tab"
+              id="tab-tables"
+              aria-selected={tab === 'tables'}
+              aria-controls="tables-panel"
+              data-testid="tab-tables"
+              onClick={() => {
+                setTab('tables')
+                onOpenTables()
+              }}
+            >
+              Tables
+              <span className="tricc-nav__count">
+                {Object.keys(project.decisionTables ?? {}).length}
+              </span>
+            </button>
+          )}
         </div>
         <Input
           size="sm"
@@ -476,7 +504,7 @@ export function ActivityNavigator({
           onFocus={() => openPalette('search')}
           onClick={() => openPalette('search')}
         />
-        {tab !== 'dictionary' && tab !== 'media' && (
+        {tab !== 'dictionary' && tab !== 'media' && tab !== 'tables' && (
           <>
             {canWrite && (
               <span className="tricc-nav__create">
@@ -532,7 +560,17 @@ export function ActivityNavigator({
         ))}
       </datalist>
 
-      {tab === 'media' ? (
+      {tab === 'tables' ? (
+        <p
+          id="tables-panel"
+          role="tabpanel"
+          aria-labelledby="tab-tables"
+          className="tricc-nav__note"
+        >
+          Decision tables: doses and other values looked up from inputs. Expressions call them with
+          DMN('name', …).
+        </p>
+      ) : tab === 'media' ? (
         <p id="media-panel" role="tabpanel" aria-labelledby="tab-media" className="tricc-nav__note">
           The pictures of the project. Texts show them; add, rename or replace them here.
         </p>

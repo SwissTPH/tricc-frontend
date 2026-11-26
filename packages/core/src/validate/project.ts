@@ -5,6 +5,7 @@ import { isOpenHandoff } from '../format/schema/expression.js'
 import { validateActivity, MACHINE_NAME } from './activity.js'
 import { validateParams } from './params.js'
 import { validateRetrievals } from './retrievals.js'
+import { validateTables } from './tables.js'
 import { issue, type Issue } from './types.js'
 import { designationInterventions, designationUse } from '../terminology/designation.js'
 import { designationDocError, designationText } from '../text/designation.js'
@@ -28,6 +29,7 @@ export function validateProject(project: Project): Issue[] {
   issues.push(...validateTerminology(project))
   issues.push(...validateParams(project))
   issues.push(...validateRetrievals(project))
+  issues.push(...validateTables(project))
   return issues
 }
 
