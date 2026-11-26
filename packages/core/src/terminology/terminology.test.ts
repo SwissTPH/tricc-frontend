@@ -9,10 +9,13 @@ import { decodeCodeSystem, encodeCodeSystem } from '../format/codec.js'
 import {
   conceptRichText,
   conceptText,
+  conceptFlavours,
+  designationFlavour,
   designationInterventions,
-  designationRepeats,
+  flavourScopeExtension,
   isUnscoped,
-  repeatScopeExtension,
+  removeFlavour,
+  renameFlavour,
   scopeExtension,
   withConceptText,
 } from './designation.js'
@@ -536,8 +539,9 @@ describe('default concept types', () => {
   })
 })
 
-describe('questionnaire text per repeat slot', () => {
+describe('flavours: other questionnaire texts of a concept', () => {
   const q = { system: 'https://tricc.org/CodeSystem/designation-use', code: 'q-display' }
+  const hint = { system: 'https://tricc.org/CodeSystem/designation-use', code: 'hint' }
   const temp: Concept = {
     system: 'http://x',
     code: 'temp',
@@ -550,57 +554,79 @@ describe('questionnaire text per repeat slot', () => {
         value: 'Community wording',
         extension: scopeExtension(['community']),
       },
-      { language: 'en', use: q, value: 'Second measurement', extension: repeatScopeExtension([2]) },
       {
         language: 'en',
         use: q,
-        value: 'Second, community',
-        extension: [...scopeExtension(['community']), ...repeatScopeExtension([2])],
+        value: 'Measure it again',
+        extension: flavourScopeExtension('second'),
+      },
+      {
+        language: 'en',
+        use: q,
+        value: 'Again, community',
+        extension: [...scopeExtension(['community']), ...flavourScopeExtension('second')],
       },
       { language: 'fr', use: q, value: 'Mesurer la température' },
+      {
+        language: 'fr',
+        use: q,
+        value: 'La mesurer encore',
+        extension: flavourScopeExtension('second'),
+      },
+      { language: 'en', use: hint, value: 'Axillary', extension: flavourScopeExtension('second') },
     ],
   }
-  const text = (scope: { interventionId?: string; repeat?: number }, lang = 'en') =>
+  const text = (scope: { interventionId?: string; flavour?: string }, lang = 'en') =>
     conceptText(temp, 'q-display', lang, 'en', scope)
 
-  it('picks the most specific text: slot and intervention, slot, intervention, then all', () => {
-    expect(text({ repeat: 2, interventionId: 'community' })).toBe('Second, community')
-    expect(text({ repeat: 2, interventionId: 'facility' })).toBe('Second measurement')
-    expect(text({ repeat: 2 })).toBe('Second measurement')
-    expect(text({ repeat: 1, interventionId: 'community' })).toBe('Community wording')
-    expect(text({ repeat: 1 })).toBe('Measure the temperature')
-    expect(text({ repeat: 3 })).toBe('Measure the temperature')
+  it('picks the most specific text: flavour and intervention, flavour, intervention, default', () => {
+    expect(text({ flavour: 'second', interventionId: 'community' })).toBe('Again, community')
+    expect(text({ flavour: 'second', interventionId: 'facility' })).toBe('Measure it again')
+    expect(text({ flavour: 'second' })).toBe('Measure it again')
+    expect(text({ interventionId: 'community' })).toBe('Community wording')
     expect(text({})).toBe('Measure the temperature')
+    expect(text({ flavour: 'second' }, 'fr')).toBe('La mesurer encore')
   })
 
-  it('gives no slot text to repeat -1, and falls back per language', () => {
-    expect(text({ repeat: -1 })).toBe('Measure the temperature')
-    expect(text({ repeat: 2 }, 'fr')).toBe('Mesurer la température')
+  it('falls back to the default for a flavour the concept lacks, and keeps the display', () => {
+    expect(text({ flavour: 'third' })).toBe('Measure the temperature')
+    expect(conceptText(temp, 'display', 'en', 'en', { flavour: 'second' })).toBe('Temperature')
+    expect(conceptText(temp, 'hint', 'en', 'en', { flavour: 'second' })).toBe('Axillary')
+    expect(conceptText(temp, 'hint', 'en', 'en')).toBeUndefined()
   })
 
-  it('never makes the display depend on the slot', () => {
-    expect(conceptText(temp, 'display', 'en', 'en', { repeat: 2 })).toBe('Temperature')
-  })
-
-  it('treats a slot-scoped text as scoped', () => {
+  it('lists, renames and removes flavours in every language', () => {
+    expect(conceptFlavours(temp)).toEqual(['second'])
     expect(isUnscoped(temp.designations[2]!)).toBe(false)
-    expect(designationRepeats(temp.designations[3]!)).toEqual([2])
+    const renamed = renameFlavour(temp, 'second', 'again')
+    expect(conceptFlavours(renamed)).toEqual(['again'])
+    expect(conceptText(renamed, 'q-display', 'fr', 'en', { flavour: 'again' })).toBe(
+      'La mesurer encore',
+    )
+    expect(designationInterventions(renamed.designations[3]!)).toEqual(['community'])
+    const removed = removeFlavour(renamed, 'again')
+    expect(conceptFlavours(removed)).toEqual([])
+    expect(removed.designations).toHaveLength(3)
   })
 
-  it('sets and clears a slot text without touching the others', () => {
+  it('sets and clears a flavour text without touching the default', () => {
     const base: Concept = { ...temp, designations: [temp.designations[0]!] }
-    const set = withConceptText(base, 'q-display', 'en', 'Again', 'en', { repeat: 2 })
+    const set = withConceptText(base, 'q-display', 'en', 'Again', 'en', { flavour: 'second' })
     expect(set.designations).toHaveLength(2)
-    expect(conceptText(set, 'q-display', 'en', 'en', { repeat: 2 })).toBe('Again')
+    expect(designationFlavour(set.designations[1]!)).toBe('second')
     expect(conceptText(set, 'q-display', 'en', 'en')).toBe('Measure the temperature')
-    const changed = withConceptText(set, 'q-display', 'en', 'Second', 'en', { repeat: 2 })
+    const changed = withConceptText(set, 'q-display', 'en', 'Once more', 'en', {
+      flavour: 'second',
+    })
     expect(changed.designations).toHaveLength(2)
-    expect(conceptText(changed, 'q-display', 'en', 'en', { repeat: 2 })).toBe('Second')
-    const cleared = withConceptText(changed, 'q-display', 'en', undefined, 'en', { repeat: 2 })
+    expect(conceptText(changed, 'q-display', 'en', 'en', { flavour: 'second' })).toBe('Once more')
+    const cleared = withConceptText(changed, 'q-display', 'en', undefined, 'en', {
+      flavour: 'second',
+    })
     expect(cleared.designations).toEqual(base.designations)
   })
 
-  it('round-trips the repeat scope through the CodeSystem file', () => {
+  it('round-trips the flavour scope through the CodeSystem file', () => {
     const file: CodeSystem = {
       id: 'x',
       url: 'http://x',
@@ -613,7 +639,10 @@ describe('questionnaire text per repeat slot', () => {
     expect(back.concepts['temp']?.designations).toEqual(temp.designations)
   })
 
-  function project(designations: Concept['designations']): Project {
+  function project(
+    designations: Concept['designations'],
+    second: { flavour?: string } = {},
+  ): Project {
     const p = createProject({ id: 'p', title: 'P' })
     p.codeSystems['http://x'] = {
       id: 'x',
@@ -631,32 +660,44 @@ describe('questionnaire text per repeat slot', () => {
       edges: {},
       nodes: {
         t1: { id: 't1', type: 'decimal', name: 'temp', concept },
-        t2: { id: 't2', type: 'decimal', name: 'temp', concept, repeat: 2 },
+        t2: { id: 't2', type: 'decimal', name: 'temp', concept, repeat: 2, ...second },
       },
     }
     return p
   }
   const rules = (p: Project) =>
-    validateProject(p).filter((i) => i.rule.startsWith('concept.repeat'))
+    validateProject(p)
+      .filter((i) => /flavour|repeat-text/.test(i.rule))
+      .map((i) => i.rule)
+  const base = temp.designations[0]!
+  const second = temp.designations[2]!
 
-  it('reports a repeat showing the same text as the first, until it has its own', () => {
-    const same = rules(project([temp.designations[0]!]))
-    expect(same.map((i) => i.rule)).toEqual(['concept.repeat-text-same'])
-    expect(same[0]?.severity).toBe('info')
-    expect(same[0]?.location.nodeId).toBe('t2')
-    expect(rules(project([temp.designations[0]!, temp.designations[2]!]))).toEqual([])
+  it('reports a repeat showing the same text as the first, until it picks a flavour', () => {
+    const same = validateProject(project([base])).find((i) => i.rule === 'concept.repeat-text-same')
+    expect(same?.severity).toBe('info')
+    expect(same?.location.nodeId).toBe('t2')
+    expect(rules(project([base, second], { flavour: 'second' }))).toEqual([])
   })
 
-  it('reports a slot text no node uses, and two texts for the same slot', () => {
-    const third = { language: 'en', use: q, value: 'Third', extension: repeatScopeExtension([3]) }
-    const p = project([
-      temp.designations[0]!,
-      temp.designations[2]!,
-      third,
-      { ...temp.designations[2]!, value: 'Dup' },
+  it('reports an unused flavour, an unknown one on a node, and a badly named one', () => {
+    expect(rules(project([base, second]))).toEqual([
+      'concept.repeat-text-same',
+      'concept.flavour-unused',
     ])
-    const all = validateProject(p).map((i) => i.rule)
-    expect(all).toContain('concept.repeat-text-unused')
-    expect(all).toContain('concept.duplicate-designation')
+    expect(rules(project([base], { flavour: 'second' }))).toContain('node.unknown-flavour')
+    const bad = { ...second, extension: flavourScopeExtension('Second time') }
+    expect(rules(project([base, bad], { flavour: 'Second time' }))).toContain(
+      'concept.flavour-code',
+    )
+  })
+
+  it('treats two texts of one flavour and language as duplicates, but not a default and a flavour', () => {
+    const all = (p: Project) => validateProject(p).map((i) => i.rule)
+    expect(all(project([base, second], { flavour: 'second' }))).not.toContain(
+      'concept.duplicate-designation',
+    )
+    expect(
+      all(project([base, second, { ...second, value: 'Dup' }], { flavour: 'second' })),
+    ).toContain('concept.duplicate-designation')
   })
 })

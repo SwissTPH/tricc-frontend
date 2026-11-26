@@ -40,3 +40,14 @@ Object.defineProperty(globalThis.Element.prototype, 'getBBox', {
   writable: true,
   value: () => ({ x: 0, y: 0, width: 0, height: 0 }),
 })
+
+/**
+ * Radix Select (components/ui/select.tsx) captures the pointer and scrolls the chosen item
+ * into view; jsdom has neither, so they are no-ops here. Its menu then opens on a click.
+ */
+Object.assign(globalThis.Element.prototype, {
+  hasPointerCapture: () => false,
+  setPointerCapture: () => {},
+  releasePointerCapture: () => {},
+  scrollIntoView: () => {},
+})

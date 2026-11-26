@@ -35,6 +35,7 @@ export const NODE_FIELDS = {
   args: 'json',
   repeat: 'scalar',
   instance: 'scalar',
+  flavour: 'scalar',
   severity: 'scalar',
   priority: 'scalar',
   context: 'scalar',

@@ -279,7 +279,7 @@ describe('validation surfaces in the UI', () => {
     // A new answer is a concept: created in the dialog, named by its code.
     await user.click(screen.getByTestId('add-select_one'))
     await user.click(screen.getByTestId('add-option-new'))
-    expect(screen.getByTestId('concept-type')).toHaveValue('Value')
+    expect(screen.getByTestId('concept-type')).toHaveAttribute('data-value', 'Value')
     await user.type(screen.getByTestId('concept-code'), 'fever')
     await user.type(screen.getByTestId('concept-display'), 'Fever')
     await user.click(screen.getByTestId('concept-dialog-save'))
@@ -294,7 +294,7 @@ describe('validation surfaces in the UI', () => {
     await user.click(screen.getByRole('option', { name: /Fever/ }))
     expect(screen.getByTestId('node-n-select_multiple-answer-option')).toHaveTextContent('Fever')
     await user.click(screen.getByTestId('add-option-new'))
-    expect(screen.getByTestId('concept-type')).toHaveValue('Observation')
+    expect(screen.getByTestId('concept-type')).toHaveAttribute('data-value', 'Observation')
   })
 
   it('shows an open handoff as an error', async () => {
@@ -1515,7 +1515,8 @@ describe('data dictionary', () => {
     renderWith(h, <DictionaryView open={{ system: URL, code: 'weight' }} onOpen={() => {}} />)
     expect(screen.getByTestId('concept-delete')).toBeDisabled()
     await user.type(screen.getByTestId('concept-hint'), 'In kilograms')
-    await user.selectOptions(screen.getByTestId('concept-type'), 'Vital')
+    await user.click(screen.getByTestId('concept-type'))
+    await user.click(await screen.findByTestId('concept-type-option-Vital'))
     await user.click(screen.getByTestId('concept-dialog-save'))
     const concept = h.open.document.snapshot().codeSystems[URL]!.concepts['weight']!
     expect(concept.conceptType).toBe('Vital')
@@ -1643,7 +1644,8 @@ describe('questionnaire text per intervention', () => {
     await user.clear(screen.getByTestId('concept-text-0-language'))
     await user.type(screen.getByTestId('concept-text-0-language'), 'en')
     await user.type(screen.getByTestId('concept-text-0-value'), 'Weigh the child')
-    await user.selectOptions(screen.getByTestId('concept-text-0-scope'), 'community')
+    await user.click(screen.getByTestId('concept-text-0-scope'))
+    await user.click(await screen.findByTestId('concept-text-0-scope-option-community'))
     await user.click(screen.getByTestId('concept-dialog-save'))
     const d = h.open.document.snapshot().codeSystems[url]!.concepts['weight']!.designations[0]!
     expect(d).toMatchObject({ language: 'en', value: 'Weigh the child' })
@@ -1656,13 +1658,12 @@ describe('questionnaire text per intervention', () => {
   })
 })
 
-describe('questionnaire text per repeat slot', () => {
+describe('flavours: other questionnaire texts of a concept', () => {
   const url = 'https://tricc.org/CodeSystem/test'
   const q = { system: 'https://tricc.org/CodeSystem/designation-use', code: 'q-display' }
-  const repeatUrl = 'https://tricc.org/StructureDefinition/designation-repeat'
-  function repeated(
-    designations: Project['codeSystems'][string]['concepts'][string]['designations'],
-  ) {
+  const flavourUrl = 'https://tricc.org/StructureDefinition/designation-flavour'
+  type Designations = Project['codeSystems'][string]['concepts'][string]['designations']
+  function repeated(designations: Designations, flavour?: string) {
     const project = seed()
     project.codeSystems[url] = {
       id: 'test',
@@ -1682,46 +1683,120 @@ describe('questionnaire text per repeat slot', () => {
       name: 'temp',
       concept,
       repeat: 2,
+      ...(flavour ? { flavour } : {}),
       ui: { x: 0, y: 200 },
     }
     return project
   }
   const base = { language: 'en', use: q, value: 'Measure the temperature' }
+  /** Pick from a shadcn (Radix) select: open it, then click the option. */
+  async function pick(user: ReturnType<typeof userEvent.setup>, trigger: string, option: string) {
+    await user.click(screen.getByTestId(trigger))
+    await user.click(await screen.findByTestId(option))
+  }
+  const again = {
+    language: 'en',
+    use: q,
+    value: 'Measure it again',
+    extension: [{ url: flavourUrl, valueCode: 'again' }],
+  }
 
-  it('shows the text of its repeat slot on the canvas and in the concept card', async () => {
-    const h = await harness(
-      repeated([
-        base,
-        {
-          language: 'en',
-          use: q,
-          value: 'Second measurement',
-          extension: [{ url: repeatUrl, valueInteger: 2 }],
-        },
-      ]),
-    )
+  it('a node picks a flavour under its concept, and the canvas shows it', async () => {
+    const user = userEvent.setup()
+    const h = await harness(repeated([base, again]))
     renderWith(h, <ActivityEditor activityId="triage" />)
-    expect(screen.getByTestId('node-t1-label')).toHaveTextContent('Measure the temperature')
-    expect(screen.getByTestId('node-t2-label')).toHaveTextContent('Second measurement')
+    expect(screen.getByTestId('node-t2-label')).toHaveTextContent('Measure the temperature')
     selectNode('t2')
-    expect(screen.getByTestId('concept-card-repeat-text')).toHaveTextContent('Second measurement')
-    expect(screen.getByTestId('concept-repeat-text')).toHaveTextContent('Edit text for repeat 2')
+    await pick(user, 'field-flavour', 'field-flavour-option-again')
+    expect(h.open.document.snapshot().activities['triage']!.nodes['t2']!.flavour).toBe('again')
+    expect(screen.getByTestId('node-t2-label')).toHaveTextContent('Measure it again')
+    expect(screen.getByTestId('node-t2-flavour')).toHaveTextContent('again')
+    expect(screen.getByTestId('node-t1-label')).toHaveTextContent('Measure the temperature')
+    await pick(user, 'field-flavour', 'field-flavour-option-default')
+    expect(h.open.document.snapshot().activities['triage']!.nodes['t2']).not.toHaveProperty(
+      'flavour',
+    )
   })
 
-  it('adds a text for the repeat from the concept card', async () => {
+  it('New flavour… opens the concept on a new flavour with its own texts, and the node shows it', async () => {
     const user = userEvent.setup()
     const h = await harness(repeated([base]))
     renderWith(h, <ActivityEditor activityId="triage" />)
     selectNode('t2')
-    expect(screen.getByTestId('concept-card-repeat-text')).toHaveTextContent(
-      'same text as the first time',
-    )
-    await user.click(screen.getByTestId('concept-repeat-text'))
-    expect(screen.getByTestId('concept-text-1-repeat')).toHaveValue(2)
+    await user.click(screen.getByTestId('field-flavour-new'))
+    expect(screen.getByTestId('concept-dialog')).toBeVisible()
+    expect(screen.getByTestId('concept-flavour')).toHaveAttribute('data-value', 'repeat_2')
+    expect(screen.getByTestId('concept-flavour-name')).toHaveValue('repeat_2')
+    // Prefilled with the text the node showed, to reword.
+    expect(screen.getByTestId('concept-q-display')).toHaveValue('Measure the temperature')
+    await user.clear(screen.getByTestId('concept-flavour-name'))
+    await user.type(screen.getByTestId('concept-flavour-name'), 'second')
+    await user.clear(screen.getByTestId('concept-q-display'))
+    await user.type(screen.getByTestId('concept-q-display'), 'Measure it again')
+    await user.type(screen.getByTestId('concept-hint'), 'Axillary')
     await user.click(screen.getByTestId('concept-dialog-save'))
-    const d = h.open.document.snapshot().codeSystems[url]!.concepts['temp']!.designations[1]!
-    expect(d).toMatchObject({ language: 'en', value: 'Measure the temperature' })
-    expect(d.extension).toEqual([{ url: repeatUrl, valueInteger: 2 }])
+    const snapshot = h.open.document.snapshot()
+    const designations = snapshot.codeSystems[url]!.concepts['temp']!.designations
+    expect(designations).toHaveLength(3)
+    expect(designations[1]).toMatchObject({ value: 'Measure it again' })
+    expect(designations[1]!.extension).toEqual([{ url: flavourUrl, valueCode: 'second' }])
+    expect(designations[2]).toMatchObject({ value: 'Axillary', use: { code: 'hint' } })
+    expect(designations[2]!.extension).toEqual([{ url: flavourUrl, valueCode: 'second' }])
+    expect(snapshot.activities['triage']!.nodes['t2']!.flavour).toBe('second')
+    expect(screen.getByTestId('node-t2-label')).toHaveTextContent('Measure it again')
+    expect(screen.getByTestId('node-t1-label')).toHaveTextContent('Measure the temperature')
+  })
+
+  it('Edit texts… opens the concept on the node flavour; a rename carries the nodes along', async () => {
+    const user = userEvent.setup()
+    const h = await harness(repeated([base, again], 'again'))
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    selectNode('t2')
+    await user.click(screen.getByTestId('field-flavour-edit'))
+    expect(screen.getByTestId('concept-flavour')).toHaveAttribute('data-value', 'again')
+    expect(screen.getByTestId('concept-q-display')).toHaveValue('Measure it again')
+    expect(screen.getByTestId('concept-flavour-uses')).toHaveTextContent('1 question')
+    await user.clear(screen.getByTestId('concept-flavour-name'))
+    await user.type(screen.getByTestId('concept-flavour-name'), 'second')
+    await user.click(screen.getByTestId('concept-dialog-save'))
+    expect(h.open.document.snapshot().activities['triage']!.nodes['t2']!.flavour).toBe('second')
+    expect(screen.getByTestId('node-t2-label')).toHaveTextContent('Measure it again')
+  })
+
+  it('the concept editor switches between flavours under the display, and checks them', async () => {
+    const user = userEvent.setup()
+    const h = await harness(repeated([base, again]))
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    selectNode('t1')
+    await user.click(screen.getByTestId('concept-edit'))
+    expect(screen.getByTestId('concept-flavour')).toHaveAttribute('data-value', '')
+    expect(screen.getByTestId('concept-q-display')).toHaveValue('Measure the temperature')
+    await pick(user, 'concept-flavour', 'concept-flavour-option-0')
+    expect(screen.getByTestId('concept-q-display')).toHaveValue('Measure it again')
+    // Escape closes an open flavour menu, not the concept dialog under it.
+    await user.click(screen.getByTestId('concept-flavour'))
+    expect(await screen.findByTestId('concept-flavour-option-default')).toBeVisible()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByTestId('concept-flavour-option-default')).not.toBeInTheDocument()
+    expect(screen.getByTestId('concept-dialog')).toBeVisible()
+    // An empty field of a flavour shows what it falls back to.
+    expect(screen.getByTestId('concept-hint')).toHaveValue('')
+    await pick(user, 'concept-flavour', 'concept-flavour-option-default')
+    expect(screen.getByTestId('concept-q-display')).toHaveValue('Measure the temperature')
+
+    // A new flavour, emptied: Save waits for a text. A bad name too.
+    await user.click(screen.getByTestId('concept-flavour-add'))
+    expect(screen.getByTestId('concept-flavour')).toHaveAttribute('data-value', 'flavour')
+    await user.clear(screen.getByTestId('concept-q-display'))
+    expect(screen.getByTestId('concept-dialog-save')).toBeDisabled()
+    expect(screen.getByTestId('concept-dialog-error')).toHaveTextContent('"flavour"')
+    await user.type(screen.getByTestId('concept-help'), 'Use the thermometer')
+    expect(screen.getByTestId('concept-dialog-save')).toBeEnabled()
+    await user.type(screen.getByTestId('concept-flavour-name'), ' X')
+    expect(screen.getByTestId('concept-dialog-save')).toBeDisabled()
+    await user.click(screen.getByTestId('concept-flavour-remove'))
+    expect(screen.getByTestId('concept-flavour')).toHaveAttribute('data-value', '')
+    expect(screen.getByTestId('concept-dialog-save')).toBeEnabled()
   })
 })
 

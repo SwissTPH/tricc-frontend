@@ -134,6 +134,8 @@ export const nodeSchema = z
 
     repeat: z.number().int().optional(),
     instance: z.number().int().optional(),
+    /** The concept text the node shows (a flavour code of its concept). */
+    flavour: z.string().min(1).optional(),
 
     // rhombus / wait
     reference: z.union([z.string().min(1), waitReferenceSchema]).optional(),

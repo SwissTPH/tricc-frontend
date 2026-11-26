@@ -24,6 +24,7 @@
     "@dagrejs/dagre": "^1.1.4",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-hover-card": "^1.2.1",
+    "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.5.0",
     "@tiptap/core": "^3.31.4",
     "@tiptap/extension-text-style": "^3.31.4",
@@ -37,12 +38,12 @@
     "tailwind-merge": "^3.7.0"
   },
   "peerDependencies": {
-    "@xyflow/react": "^12.3.0",
-    "react": "^18.3.0",
-    "react-dom": "^18.3.0",
     "@emotion/react": "^11.0.0",
     "@emotion/styled": "^11.0.0",
-    "@mui/material": "^7.0.0"
+    "@mui/material": "^7.0.0",
+    "@xyflow/react": "^12.3.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
   },
   "devDependencies": {
     "@emotion/react": "^11",
@@ -59,6 +60,6 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^4.1.11"
   }
 }

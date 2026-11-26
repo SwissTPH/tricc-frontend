@@ -166,7 +166,8 @@ describe('retrieval dictionary', () => {
     await user.type(code, '#age_months')
     await user.type(screen.getByTestId('concept-display'), 'Age in months')
     expect(screen.queryByTestId('concept-q-display')).not.toBeInTheDocument()
-    await user.selectOptions(screen.getByTestId('retrieval-function'), 'AgeInMonths')
+    await user.click(screen.getByTestId('retrieval-function'))
+    await user.click(await screen.findByTestId('retrieval-function-option-AgeInMonths'))
     expect(screen.queryByTestId('retrieval-reads')).not.toBeInTheDocument()
     await user.click(screen.getByTestId('concept-dialog-save'))
 
@@ -197,7 +198,8 @@ describe('retrieval dictionary', () => {
 
     expect(screen.getByTestId('retrieval-uses')).toHaveTextContent('Triage — gain (calculate)')
     expect(screen.getByTestId('concept-delete')).toBeDisabled()
-    await user.selectOptions(screen.getByTestId('retrieval-context'), 'custom')
+    await user.click(screen.getByTestId('retrieval-context'))
+    await user.click(await screen.findByTestId('retrieval-context-option-custom'))
     expect(screen.getByTestId('retrieval-placeholders')).toHaveTextContent('{{period}}')
     fireEvent.change(screen.getByTestId('retrieval-expression-cql'), {
       target: { value: 'Last({{code}}, {{period}})' },

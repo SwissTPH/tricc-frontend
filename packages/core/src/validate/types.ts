@@ -14,6 +14,10 @@ export interface IssueLocation {
   /** The code system of `conceptCode`. */
   codeSystem?: string
   imageId?: string
+  /** A decision table, and a cell in it: row in `rules`, column with inputs first. */
+  tableId?: string
+  row?: number
+  column?: number
   field?: string
 }
 

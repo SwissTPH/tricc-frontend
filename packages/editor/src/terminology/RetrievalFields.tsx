@@ -14,6 +14,7 @@ import {
 } from '@tricc/core'
 import { Typeahead, type TypeaheadOption } from '../components/Typeahead.js'
 import { Button } from '../components/ui/button.js'
+import { SimpleSelect } from '../components/ui/select.js'
 import { Input } from '../components/ui/input.js'
 import { Textarea } from '../components/ui/textarea.js'
 
@@ -70,37 +71,29 @@ export function RetrievalFields({
     <>
       <h3>What it reads</h3>
       <label htmlFor="retrieval-context">Where</label>
-      <select
+      <SimpleSelect
         id="retrieval-context"
-        data-testid="retrieval-context"
+        testId="retrieval-context"
         value={value.context}
         disabled={disabled}
-        onChange={(e) => setContext(e.target.value as RetrievalContext)}
-      >
-        {RETRIEVAL_CONTEXTS.map((c) => (
-          <option key={c} value={c}>
-            {RETRIEVAL_CONTEXT_LABELS[c]}
-          </option>
-        ))}
-      </select>
+        onValueChange={(v) => setContext(v as RetrievalContext)}
+        options={RETRIEVAL_CONTEXTS.map((c) => ({ value: c, label: RETRIEVAL_CONTEXT_LABELS[c] }))}
+      />
 
       {!custom && (
         <>
           <label htmlFor="retrieval-function">What</label>
-          <select
+          <SimpleSelect
             id="retrieval-function"
-            data-testid="retrieval-function"
+            testId="retrieval-function"
             value={value.function ?? ''}
             disabled={disabled}
-            onChange={(e) => set({ function: e.target.value || undefined })}
-          >
-            <option value="">{functions[0]?.label ?? '—'} (default)</option>
-            {functions.slice(1).map((f) => (
-              <option key={f.code} value={f.code}>
-                {f.label}
-              </option>
-            ))}
-          </select>
+            onValueChange={(v) => set({ function: v || undefined })}
+            options={[
+              { value: '', label: `${functions[0]?.label ?? '—'} (default)` },
+              ...functions.slice(1).map((f) => ({ value: f.code, label: f.label })),
+            ]}
+          />
         </>
       )}
 

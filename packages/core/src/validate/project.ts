@@ -5,11 +5,14 @@ import { isOpenHandoff } from '../format/schema/expression.js'
 import { validateActivity, MACHINE_NAME } from './activity.js'
 import { validateParams } from './params.js'
 import { validateRetrievals } from './retrievals.js'
+import { validateTables } from './tables.js'
 import { issue, type Issue } from './types.js'
 import {
+  FLAVOUR_CODE,
+  conceptFlavours,
   conceptText,
+  designationFlavour,
   designationInterventions,
-  designationRepeats,
   designationUse,
 } from '../terminology/designation.js'
 import { nodeConceptKey } from '../terminology/usage.js'
@@ -33,9 +36,10 @@ export function validateProject(project: Project): Issue[] {
   issues.push(...validateCrossActivity(project))
   issues.push(...validateInterventions(project))
   issues.push(...validateTerminology(project))
-  issues.push(...validateRepeatTexts(project))
+  issues.push(...validateFlavours(project))
   issues.push(...validateParams(project))
   issues.push(...validateRetrievals(project))
+  issues.push(...validateTables(project))
   return issues
 }
 
@@ -412,14 +416,24 @@ function validateTerminology(project: Project): Issue[] {
             )
           }
         }
-        const slots = designationRepeats(d)
-        const key = `${designationUse(d) ?? `${d.use?.system}|${d.use?.code}`}|${d.language}|${[...scope].sort().join(',')}|${[...slots].sort((a, b) => a - b).join(',')}`
+        const flavour = designationFlavour(d)
+        if (flavour !== undefined && !FLAVOUR_CODE.test(flavour)) {
+          issues.push(
+            issue(
+              'concept.flavour-code',
+              'error',
+              `"${code}" has a flavour named "${flavour}". A flavour name uses lowercase letters, digits and _, like second or after_dose.`,
+              { conceptCode: code, codeSystem: cs.id, field: 'designation' },
+            ),
+          )
+        }
+        const key = `${designationUse(d) ?? `${d.use?.system}|${d.use?.code}`}|${d.language}|${[...scope].sort().join(',')}|${flavour ?? ''}`
         if (seen.has(key)) {
           issues.push(
             issue(
               'concept.duplicate-designation',
               'error',
-              `"${code}" has two ${designationUse(d) ?? 'other'} texts in "${d.language}" for the same interventions and repeats. Keep one.`,
+              `"${code}" has two ${designationUse(d) ?? 'other'} texts in "${d.language}" for the same interventions and flavour. Keep one.`,
               { conceptCode: code, codeSystem: cs.id, field: 'designation' },
             ),
           )
@@ -473,15 +487,16 @@ function validateTerminology(project: Project): Issue[] {
 export { validateActivity }
 
 /**
- * A concept collected again in another repeat slot can say so ("Second temperature
- * measurement"): a slot whose questionnaire text is the same as the first slot's is reported,
- * and a slot text no node uses (feature RFC repeat-slot-texts). Information only.
+ * Flavours (feature/20261125-concept-text-flavours.md): a concept collected again in another
+ * repeat slot showing the same text as the first, and a flavour no node picks. Information only.
  */
-function validateRepeatTexts(project: Project): Issue[] {
+function validateFlavours(project: Project): Issue[] {
   const issues: Issue[] = []
   const lang = project.languages.default
-  // Concept → slot → the first node in that slot.
-  const slotsOf = new Map<string, Map<number, { activityId: string; nodeId: string }>>()
+  type At = { activityId: string; nodeId: string; flavour?: string }
+  // Concept → repeat slot → the first node in it; concept → the flavours its nodes pick.
+  const slotsOf = new Map<string, Map<number, At>>()
+  const picked = new Map<string, Set<string>>()
   for (const activityId of Object.keys(project.activities).sort()) {
     const activity = project.activities[activityId]!
     for (const nodeId of activity.nodeOrder) {
@@ -490,42 +505,51 @@ function validateRepeatTexts(project: Project): Issue[] {
       const key = nodeConceptKey(project, node)
       if (!key) continue
       const id = `${key.system}|${key.code}`
-      const slots = slotsOf.get(id) ?? new Map()
+      const slots = slotsOf.get(id) ?? new Map<number, At>()
       const slot = node.repeat ?? 1
-      if (!slots.has(slot)) slots.set(slot, { activityId, nodeId })
+      if (!slots.has(slot)) slots.set(slot, { activityId, nodeId, flavour: node.flavour })
       slotsOf.set(id, slots)
+      if (node.flavour) picked.set(id, (picked.get(id) ?? new Set()).add(node.flavour))
     }
   }
   for (const cs of Object.values(project.codeSystems)) {
     for (const code of cs.conceptOrder) {
       const c = cs.concepts[code]
       if (!c) continue
-      const slots = slotsOf.get(`${cs.url}|${code}`) ?? new Map()
+      const id = `${cs.url}|${code}`
+      const slots = slotsOf.get(id) ?? new Map<number, At>()
       const numbered = [...slots.keys()].filter((s) => s >= 1).sort((a, b) => a - b)
       const first = numbered[0]
       if (first !== undefined) {
-        const firstText = conceptText(c, 'q-display', lang, lang, { repeat: first })
+        const textOf = (at: At) => conceptText(c, 'q-display', lang, lang, { flavour: at.flavour })
+        const firstText = textOf(slots.get(first)!)
         for (const slot of numbered.slice(1)) {
-          if (conceptText(c, 'q-display', lang, lang, { repeat: slot }) !== firstText) continue
+          const at = slots.get(slot)!
+          if (textOf(at) !== firstText) continue
           issues.push(
             issue(
               'concept.repeat-text-same',
               'info',
-              `Repeat ${slot} of "${code}" shows the same text as repeat ${first}. Give it its own wording in the concept, for example "Second measurement".`,
-              { ...slots.get(slot)!, conceptCode: code, codeSystem: cs.id, field: 'concept' },
+              `Repeat ${slot} of "${code}" shows the same text as repeat ${first}. Pick or add a flavour for it, for example "Measure it again".`,
+              {
+                activityId: at.activityId,
+                nodeId: at.nodeId,
+                conceptCode: code,
+                codeSystem: cs.id,
+                field: 'flavour',
+              },
             ),
           )
         }
       }
-      const unused = new Set(
-        c.designations.flatMap((d) => designationRepeats(d)).filter((s) => !slots.has(s)),
-      )
-      for (const slot of [...unused].sort((a, b) => a - b)) {
+      const used = picked.get(id) ?? new Set<string>()
+      for (const flavour of conceptFlavours(c)) {
+        if (used.has(flavour)) continue
         issues.push(
           issue(
-            'concept.repeat-text-unused',
+            'concept.flavour-unused',
             'info',
-            `"${code}" has a text for repeat ${slot}, but no question of this concept is in repeat ${slot}. It is kept; remove it if it is no longer needed.`,
+            `No question shows the flavour "${flavour}" of "${code}". Pick it on a question, or remove it.`,
             { conceptCode: code, codeSystem: cs.id, field: 'designation' },
           ),
         )

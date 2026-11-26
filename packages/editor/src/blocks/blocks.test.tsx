@@ -174,7 +174,7 @@ describe('parameters', () => {
     )
     expect(screen.getByTestId('concept-row-param_temp_site-parameter')).toBeTruthy()
     expect(screen.getByTestId('concept-parameter-badge')).toBeTruthy()
-    expect((screen.getByTestId('concept-data-type') as HTMLSelectElement).disabled).toBe(true)
+    expect((screen.getByTestId('concept-data-type') as HTMLButtonElement).disabled).toBe(true)
     expect((screen.getByTestId('concept-display') as HTMLInputElement).disabled).toBe(false)
     expect(screen.queryByTestId('concept-delete')).toBeNull()
   })

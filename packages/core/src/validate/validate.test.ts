@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { validateActivity } from './activity.js'
 import { validateProject } from './project.js'
+import { danglingCalculates } from '../model/dangling.js'
 import { blocksExport, type Issue } from './types.js'
 import { sampleProject, sampleActivity, minimalActivity } from '../format/__fixtures__.js'
 import type { Activity, Project, TriccNode } from '../model/types.js'
@@ -92,6 +93,43 @@ describe('structure', () => {
     })
     expect(rules(validateActivity(a))).not.toContain('node.unreachable')
   })
+
+  it('reaches what follows a dangling calculate with an expression', () => {
+    const a = add(base(), {
+      id: 'calc',
+      type: 'calculate',
+      name: 'danger',
+      calculate: { expression: '"fever" is true' },
+    })
+    add(a, { id: 'after', type: 'note', name: 'after' }, 'calc')
+    add(a, { id: 'dx', type: 'diagnosis', name: 'dx', reference: '"danger" is true' })
+    add(a, { id: 'then', type: 'note', name: 'then' }, 'dx')
+    add(a, { id: 'r', type: 'rhombus', name: 'r', reference: '"age" < 2' })
+    add(a, { id: 'r2', type: 'note', name: 'r2' }, 'r')
+    expect(danglingCalculates(a)).toEqual(new Set(['calc', 'dx', 'r']))
+    expect(rules(validateActivity(a))).not.toContain('node.unreachable')
+  })
+
+  it('starts a path from a diagnosis that takes its value from a node of the same name', () => {
+    const a = add(base(), { id: 'dx', type: 'diagnosis', name: 'vit_a' })
+    add(a, { id: 'then', type: 'note', name: 'then' }, 'dx')
+    expect(danglingCalculates(a).size).toBe(0)
+    const p = sampleProject()
+    const elsewhere = minimalActivity('propose')
+    add(elsewhere, { id: 'pdx', type: 'proposed_diagnosis', name: 'vit_a' })
+    p.activities = { [a.id]: a, propose: elsewhere }
+    expect(danglingCalculates(a, p)).toEqual(new Set(['dx']))
+    expect(find(validateActivity(a, p), 'node.unreachable')).toEqual([])
+  })
+
+  it('does not start a path from a dangling calculate with no expression', () => {
+    const a = add(base(), { id: 'calc', type: 'calculate', name: 'empty' })
+    add(a, { id: 'after', type: 'note', name: 'after' }, 'calc')
+    expect(danglingCalculates(a).size).toBe(0)
+    expect(find(validateActivity(a), 'node.unreachable').map((i) => i.location.nodeId)).toEqual([
+      'after',
+    ])
+  })
 })
 
 describe('per-node rules', () => {
@@ -105,9 +143,23 @@ describe('per-node rules', () => {
     expect(rules(validateActivity(a))).not.toContain('select.no-options')
   })
 
-  it('requires an expression on a calculate', () => {
+  it('requires an expression on a calculate nothing leads to', () => {
     const a = add(base(), { id: 'calc', type: 'calculate', name: 'score' })
     expect(rules(validateActivity(a))).toContain('calculate.no-expression')
+  })
+
+  it('accepts a sequence-driven calculate: linked, no expression', () => {
+    const a = add(base(), { id: 'calc', type: 'calculate', name: 'seen' }, 'q')
+    expect(rules(validateActivity(a))).not.toContain('calculate.no-expression')
+  })
+
+  it('still reports an open hand-off on a linked calculate', () => {
+    const a = add(
+      base(),
+      { id: 'calc', type: 'calculate', name: 'seen', calculate: { intent: { en: 'if febrile' } } },
+      'q',
+    )
+    expect(rules(validateActivity(a))).toContain('expression.open-handoff')
   })
 
   it('requires a reference on a rhombus', () => {

@@ -6,11 +6,13 @@ import {
   PARAMETER_KIND,
   paramConceptCode,
   INTERVENTION_SCOPE_URL,
-  REPEAT_SCOPE_URL,
+  FLAVOUR_CODE,
+  conceptFlavours,
+  conceptRichText,
   conceptText,
   conceptUsage,
+  designationFlavour,
   designationInterventions,
-  designationRepeats,
   designationText,
   designationUse,
   findCodeSystem,
@@ -19,9 +21,12 @@ import {
   RETRIEVAL_CODE,
   resolve,
   retrievalUsage,
-  repeatScopeExtension,
+  flavourScopeExtension,
+  removeFlavour,
+  renameFlavour,
   scopeExtension,
   withConceptText,
+  withFlavour,
   withDesignationText,
   type Concept,
   type ConceptKey,
@@ -42,9 +47,18 @@ import { draggingFiles, imageFiles, useAddImages } from '../media/images.js'
 import { withPictureFirst } from '../media/attach.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  SimpleSelect,
+} from '../components/ui/select.js'
 import { WrappingInput } from '../components/WrappingInput.js'
 import { Textarea } from '../components/ui/textarea.js'
 import { RetrievalFields } from './RetrievalFields.js'
+import { carryFlavourRenames, flavourUses, uniqueFlavour } from './flavours.js'
 
 const CODE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 const USE_LABELS: Record<DesignationUse, string> = {
@@ -56,11 +70,19 @@ const USE_LABELS: Record<DesignationUse, string> = {
 const RICH: DesignationUse[] = ['q-display', 'hint', 'help']
 
 /**
- * What to open: an existing concept, or a new one to create (optionally prefilled). `repeat`
- * opens it to write the text of that repeat slot: a row for it is added when it has none.
+ * What to open: an existing concept, or a new one to create (optionally prefilled). An
+ * existing one opens on its default texts, on one `flavour`, or on a `newFlavour` added with
+ * that code (made unique) and its questionnaire text prefilled
+ * (feature/20261125-concept-text-flavours.md).
  */
 export type ConceptTarget =
-  { key: ConceptKey; repeat?: number } | { draft: Partial<Concept> & { code?: string } }
+  | { key: ConceptKey; flavour?: string; newFlavour?: { code: string; text: DisplayText } }
+  | { draft: Partial<Concept> & { code?: string } }
+
+/** What a save did beyond the concept: the code the flavour added on open ended with. */
+export interface ConceptSaved {
+  flavour?: string
+}
 
 /**
  * Edit one concept in a modal. Changes stay a draft until Save; Cancel discards them.
@@ -76,7 +98,7 @@ export function ConceptDialog({
   target: ConceptTarget
   onClose: () => void
   /** Called after Save with the saved concept. */
-  onSaved?: (key: ConceptKey) => void
+  onSaved?: (key: ConceptKey, saved: ConceptSaved) => void
   onOpenNode?: (activityId: string, nodeId: string) => void
   /** Open the page a parameter concept belongs to. */
   onOpenActivity?: (activityId: string) => void
@@ -100,15 +122,31 @@ export function ConceptDialog({
   const offered = dictionaries.filter((d) => (d.kind === 'retrieve') === startedInRetrieve)
   const existingCs = findCodeSystem(project, isNew ? system : target.key.system)
   const existing = isNew ? undefined : existingCs?.concepts[target.key.code]
+  // A flavour added on open (New flavour… on a node): its first code, to report what it became.
+  const [opening] = useState(() => {
+    if (isNew || !existing || !target.newFlavour) return undefined
+    const concept = structuredClone(existing)
+    const code = uniqueFlavour(concept, target.newFlavour.code)
+    return { concept: withFlavourRow(concept, lang, code, target.newFlavour.text), code }
+  })
   const [draft, setDraft] = useState<Concept>(() =>
-    existing
-      ? withRepeatRow(structuredClone(existing), isNew ? undefined : target.repeat, lang)
-      : ({
-          code: '',
-          designations: [],
-          ...(isNew ? structuredClone(target.draft) : {}),
-          system,
-        } as Concept),
+    opening
+      ? opening.concept
+      : existing
+        ? structuredClone(existing)
+        : ({
+            code: '',
+            designations: [],
+            ...(isNew ? structuredClone(target.draft) : {}),
+            system,
+          } as Concept),
+  )
+  // Flavour renames in this dialog, current code → code when opened, so the nodes showing a
+  // renamed flavour follow it on Save.
+  const renamed = useRef(new Map<string, string>())
+  // The flavour whose texts the fields show; undefined is the default one.
+  const [flavour, setFlavour] = useState<string | undefined>(() =>
+    opening ? opening.code : !isNew ? target.flavour : undefined,
   )
   // The checkbox stays while the dialog is open, so clearing the flag can be undone.
   const wasFuzzy = useRef(Boolean(existing?.fuzzy)).current
@@ -127,6 +165,8 @@ export function ConceptDialog({
     cardRef.current?.querySelector<HTMLElement>('input:not([disabled]), textarea, select')?.focus()
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      // An open select menu (the flavour picker) closes on its own, and the dialog stays.
+      if (document.querySelector('[data-slot="select-content"]')) return
       // A dialog opened on top of this one (the text editor, the picture picker) closes first.
       const dialogs = document.querySelectorAll('[role="dialog"]')
       if (dialogs[dialogs.length - 1] !== cardRef.current) return
@@ -152,23 +192,42 @@ export function ConceptDialog({
   const used = uses.length + retrievalUses.length
   const code = draft.code.trim()
   const missingLanguage = draft.designations.some((d) => !d.language.trim())
+  const flavours = isRetrieval ? [] : conceptFlavours(draft)
+  // The text of one use in the default language for a flavour (undefined: the default flavour).
+  const textIndex = (use: DesignationUse, f: string | undefined) =>
+    draft.designations.findIndex(
+      (d) =>
+        d.language === lang &&
+        designationUse(d) === use &&
+        (f === undefined
+          ? isUnscoped(d)
+          : designationFlavour(d) === f && designationInterventions(d).length === 0),
+    )
+  const originOf = (f: string) => renamed.current.get(f) ?? f
+  const emptyFlavour = flavours.find(
+    (f) => !draft.designations.some((d) => designationFlavour(d) === f && d.value.trim()),
+  )
   const error = missingLanguage
     ? 'Give each text a language (en, fr, …).'
-    : !isNew
-      ? !draft.display?.trim()
-        ? 'Give the concept a display.'
-        : undefined
-      : !code
-        ? 'Give the concept a code.'
-        : isRetrieval && !RETRIEVAL_CODE.test(code)
-          ? 'A retrieval code is # followed by lowercase letters, digits and _, like #age_months.'
-          : !isRetrieval && !CODE.test(code)
-            ? 'A code uses letters, digits, ".", "_" and "-".'
-            : existingCs?.concepts[code]
-              ? 'The dictionary already has this code.'
-              : !draft.display?.trim()
-                ? 'Give the concept a display.'
-                : undefined
+    : flavours.some((f) => !FLAVOUR_CODE.test(f))
+      ? 'A flavour name uses lowercase letters, digits and _, like second or after_dose.'
+      : emptyFlavour !== undefined
+        ? `Give the flavour "${emptyFlavour}" a questionnaire text, hint or help.`
+        : !isNew
+          ? !draft.display?.trim()
+            ? 'Give the concept a display.'
+            : undefined
+          : !code
+            ? 'Give the concept a code.'
+            : isRetrieval && !RETRIEVAL_CODE.test(code)
+              ? 'A retrieval code is # followed by lowercase letters, digits and _, like #age_months.'
+              : !isRetrieval && !CODE.test(code)
+                ? 'A code uses letters, digits, ".", "_" and "-".'
+                : existingCs?.concepts[code]
+                  ? 'The dictionary already has this code.'
+                  : !draft.display?.trim()
+                    ? 'Give the concept a display.'
+                    : undefined
 
   const set = (patch: Partial<Concept>) => {
     const next = { ...draft, ...patch } as Concept
@@ -179,14 +238,51 @@ export function ConceptDialog({
     }
     setDraft(next)
   }
+  // The fields show the selected flavour's texts.
   const ownText = (use: DesignationUse): DisplayText => {
-    const d = draft.designations.find(
-      (x) => x.language === lang && isUnscoped(x) && designationUse(x) === use,
-    )
-    return d ? designationText(d) : ''
+    const i = textIndex(use, flavour)
+    return i >= 0 ? designationText(draft.designations[i]!) : ''
   }
-  const setText = (use: DesignationUse, text: DisplayText) =>
-    setDraft(withConceptText(draft, use, lang, text, lang))
+  const setText = (use: DesignationUse, text: DisplayText) => {
+    const i = flavour === undefined ? -1 : textIndex(use, flavour)
+    // A flavour's text keeps its row while emptied, so the flavour does not vanish while typing.
+    if (i >= 0) updateAt(i, withDesignationText(draft.designations[i]!, text))
+    else setDraft(withConceptText(draft, use, lang, text, lang, flavour ? { flavour } : {}))
+  }
+  // An empty field of a flavour shows what it falls back to: the default flavour's text.
+  const fallback = (use: DesignationUse) =>
+    flavour === undefined
+      ? use === 'q-display'
+        ? (draft.display ?? '')
+        : undefined
+      : (conceptText(draft, use, lang, lang) ?? '')
+  const addFlavour = () => {
+    const code = uniqueFlavour(draft, 'flavour')
+    setDraft(
+      withFlavourRow(draft, lang, code, conceptRichText(draft, 'q-display', lang, lang) ?? ''),
+    )
+    setFlavour(code)
+  }
+  const renameSelected = (to: string) => {
+    if (flavour === undefined) return
+    // A name already taken would merge two flavours: keep the old one until it is free.
+    if (to !== flavour && flavours.includes(to)) return
+    const was = originOf(flavour)
+    renamed.current.delete(flavour)
+    renamed.current.set(to, was)
+    setDraft(renameFlavour(draft, flavour, to))
+    setFlavour(to)
+  }
+  const removeSelected = () => {
+    if (flavour === undefined) return
+    renamed.current.delete(flavour)
+    setDraft(removeFlavour(draft, flavour))
+    setFlavour(undefined)
+  }
+  const flavourCount =
+    flavour === undefined || isNew
+      ? 0
+      : flavourUses(project, key, existing, originOf(flavour)).length
   // The texts shown above (the first in the default language for all interventions, per use)
   // are not repeated in the table.
   const main = new Set(
@@ -197,6 +293,13 @@ export function ConceptDialog({
       ),
     ).filter((i) => i >= 0),
   )
+  // Nor are the flavours' texts in the default language: the fields show them, per flavour.
+  for (const f of flavours) {
+    for (const use of RICH) {
+      const i = textIndex(use, f)
+      if (i >= 0) main.add(i)
+    }
+  }
   const others = draft.designations
     .map((d, index) => ({ d, index }))
     .filter(({ index }) => !main.has(index))
@@ -207,11 +310,18 @@ export function ConceptDialog({
     if (error || readOnly) return
     mutate((tx) => {
       const cs = existingCs ?? ensureDictionary(project, tx, system)
-      const concept: Concept = { ...draft, system: cs.url, code }
+      // A flavour's emptied texts go: they say nothing, the default one shows.
+      const designations = draft.designations.filter(
+        (d) => designationFlavour(d) === undefined || d.value.trim() !== '',
+      )
+      const concept: Concept = { ...draft, designations, system: cs.url, code }
       if (isRetrieval) concept.retrieval = retrieval
       else delete concept.retrieval
       tx.upsertConcept(cs.url, concept)
-      onSaved?.({ system: cs.url, code })
+      // The questions showing a renamed flavour follow it.
+      if (existing) carryFlavourRenames(tx, project, key, existing, renamed.current)
+      const added = opening && flavours.find((f) => originOf(f) === opening.code)
+      onSaved?.({ system: cs.url, code }, added ? { flavour: added } : {})
     })
     onClose()
   }
@@ -298,19 +408,14 @@ export function ConceptDialog({
           {isNew && (
             <>
               <label htmlFor="concept-dictionary">Dictionary</label>
-              <select
+              <SimpleSelect
                 id="concept-dictionary"
-                data-testid="concept-dictionary"
+                testId="concept-dictionary"
                 value={system}
                 disabled={readOnly}
-                onChange={(e) => setSystem(e.target.value)}
-              >
-                {offered.map((d) => (
-                  <option key={d.url} value={d.url}>
-                    {dictionaryLabel(d)}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setSystem}
+                options={offered.map((d) => ({ value: d.url, label: dictionaryLabel(d) }))}
+              />
             </>
           )}
 
@@ -353,28 +458,121 @@ export function ConceptDialog({
 
           {!isRetrieval && (
             <>
+              <label htmlFor="concept-flavour">Flavour</label>
+              <div className="tricc-concept__flavour">
+                <Select
+                  value={flavour === undefined ? DEFAULT_FLAVOUR : flavour || EMPTY_NAME}
+                  onValueChange={(v) =>
+                    setFlavour(v === DEFAULT_FLAVOUR ? undefined : v === EMPTY_NAME ? '' : v)
+                  }
+                >
+                  <SelectTrigger
+                    id="concept-flavour"
+                    size="sm"
+                    className="min-w-40"
+                    data-testid="concept-flavour"
+                    data-value={flavour ?? ''}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem
+                      value={DEFAULT_FLAVOUR}
+                      data-testid="concept-flavour-option-default"
+                    >
+                      Default
+                    </SelectItem>
+                    {flavours.map((f, n) => (
+                      <SelectItem
+                        key={n}
+                        // Radix needs a non-empty value; a name being typed can be empty.
+                        value={f || EMPTY_NAME}
+                        data-testid={`concept-flavour-option-${n}`}
+                      >
+                        {f || '(no name)'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {flavour !== undefined && (
+                  <>
+                    <Input
+                      size="sm"
+                      aria-label="Flavour name"
+                      data-testid="concept-flavour-name"
+                      value={flavour}
+                      disabled={readOnly}
+                      onChange={(e) => renameSelected(e.target.value)}
+                    />
+                    <span data-testid="concept-flavour-uses">
+                      {flavourCount === 0
+                        ? 'Unused'
+                        : `${flavourCount} question${flavourCount === 1 ? '' : 's'}`}
+                    </span>
+                    {!readOnly && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        type="button"
+                        data-testid="concept-flavour-remove"
+                        title={
+                          flavourCount
+                            ? 'Those questions show the default texts until another flavour is picked.'
+                            : undefined
+                        }
+                        onClick={removeSelected}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </>
+                )}
+                {!readOnly && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    data-testid="concept-flavour-add"
+                    title="Another wording of this concept, with its own questionnaire text, hint and help, for a question to pick"
+                    onClick={addFlavour}
+                  >
+                    + New flavour
+                  </Button>
+                )}
+              </div>
+              <p>
+                {flavour === undefined
+                  ? 'The texts every question of this concept shows. A flavour is another wording a question can pick, with its own questionnaire text, hint and help.'
+                  : 'The texts of this flavour. An empty one shows the default text.'}
+              </p>
               <RichTextField
+                key={`q-${flavour === undefined ? '' : originOf(flavour)}`}
                 id="concept-q-display"
                 testId="concept-q-display"
                 label="Questionnaire text"
                 value={ownText('q-display')}
-                placeholder={draft.display ?? ''}
+                placeholder={fallback('q-display')}
                 disabled={readOnly}
                 onChange={(t) => setText('q-display', t)}
               />
               <RichTextField
+                key={`h-${flavour === undefined ? '' : originOf(flavour)}`}
                 id="concept-hint"
                 testId="concept-hint"
                 label="Hint"
                 value={ownText('hint')}
+                placeholder={fallback('hint')}
                 disabled={readOnly}
                 onChange={(t) => setText('hint', t)}
               />
               <RichTextField
+                key={`p-${flavour === undefined ? '' : originOf(flavour)}`}
                 id="concept-help"
                 testId="concept-help"
                 label="Help"
                 value={ownText('help')}
+                placeholder={fallback('help')}
                 disabled={readOnly}
                 onChange={(t) => setText('help', t)}
               />
@@ -400,36 +598,33 @@ export function ConceptDialog({
           ) : (
             <>
               <label htmlFor="concept-data-type">Data type</label>
-              <select
+              <SimpleSelect
                 id="concept-data-type"
-                data-testid="concept-data-type"
+                testId="concept-data-type"
                 value={draft.dataType ?? ''}
                 disabled={locked}
-                onChange={(e) => set({ dataType: e.target.value })}
-              >
-                <option value="">—</option>
-                {withCurrent(DATA_TYPES, draft.dataType).map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(v) => set({ dataType: v })}
+                options={[
+                  { value: '', label: '—' },
+                  ...withCurrent(DATA_TYPES, draft.dataType).map((t) => ({ value: t, label: t })),
+                ]}
+              />
 
               <label htmlFor="concept-type">Concept type</label>
-              <select
+              <SimpleSelect
                 id="concept-type"
-                data-testid="concept-type"
+                testId="concept-type"
                 value={draft.conceptType ?? ''}
                 disabled={locked}
-                onChange={(e) => set({ conceptType: e.target.value })}
-              >
-                <option value="">—</option>
-                {withCurrent(conceptTypes, draft.conceptType).map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(v) => set({ conceptType: v })}
+                options={[
+                  { value: '', label: '—' },
+                  ...withCurrent(conceptTypes, draft.conceptType).map((t) => ({
+                    value: t,
+                    label: t,
+                  })),
+                ]}
+              />
 
               <label htmlFor="concept-unit">Unit</label>
               <Input
@@ -458,7 +653,7 @@ export function ConceptDialog({
             </>
           )}
 
-          <h3>Other languages, interventions and repeats</h3>
+          <h3>Other languages, interventions and flavours</h3>
           <datalist id="concept-languages">
             {project.languages.available.map((l) => (
               <option key={l} value={l} />
@@ -479,31 +674,31 @@ export function ConceptDialog({
                 {others.map(({ d, index }) => {
                   const use = designationUse(d)
                   const scope = designationInterventions(d)
-                  const slots = designationRepeats(d)
+                  const flavour = designationFlavour(d)
                   return (
                     <tr key={index} data-testid={`concept-text-${index}`}>
                       <td>
-                        <select
-                          data-testid={`concept-text-${index}-use`}
-                          aria-label="Use"
+                        <SimpleSelect
+                          testId={`concept-text-${index}-use`}
+                          ariaLabel="Use"
                           value={use ?? 'other'}
                           disabled={readOnly || use === undefined}
-                          onChange={(e) =>
+                          onValueChange={(v) =>
                             updateAt(index, {
                               ...d,
-                              use: { ...DESIGNATION_USES[e.target.value as DesignationUse] },
+                              use: { ...DESIGNATION_USES[v as DesignationUse] },
                             })
                           }
-                        >
-                          {(Object.keys(USE_LABELS) as DesignationUse[]).map((u) => (
-                            <option key={u} value={u}>
-                              {USE_LABELS[u]}
-                            </option>
-                          ))}
-                          {use === undefined && (
-                            <option value="other">{d.use?.code ?? 'Other'}</option>
-                          )}
-                        </select>
+                          options={[
+                            ...(Object.keys(USE_LABELS) as DesignationUse[]).map((u) => ({
+                              value: u,
+                              label: USE_LABELS[u],
+                            })),
+                            ...(use === undefined
+                              ? [{ value: 'other', label: d.use?.code ?? 'Other' }]
+                              : []),
+                          ]}
+                        />
                       </td>
                       <td>
                         <Input
@@ -521,63 +716,43 @@ export function ConceptDialog({
                         {scope.length > 1 ? (
                           <span>{scope.join(', ')}</span>
                         ) : (
-                          <select
-                            data-testid={`concept-text-${index}-scope`}
-                            aria-label="Intervention"
+                          <SimpleSelect
+                            testId={`concept-text-${index}-scope`}
+                            ariaLabel="Intervention"
                             value={scope[0] ?? ''}
                             disabled={readOnly}
-                            onChange={(e) => {
+                            onValueChange={(v) => {
                               const kept = (d.extension ?? []).filter(
                                 (x) => (x as { url?: string }).url !== INTERVENTION_SCOPE_URL,
                               )
-                              const extension = [
-                                ...kept,
-                                ...scopeExtension(e.target.value ? [e.target.value] : []),
-                              ]
+                              const extension = [...kept, ...scopeExtension(v ? [v] : [])]
                               const next: Designation = { ...d }
                               if (extension.length) next.extension = extension
                               else delete next.extension
                               updateAt(index, next)
                             }}
-                          >
-                            <option value="">All interventions</option>
-                            {project.interventions.map((iv) => (
-                              <option key={iv.id} value={iv.id}>
-                                {resolve(iv.title, lang, lang) ?? iv.id}
-                              </option>
-                            ))}
-                          </select>
+                            options={[
+                              { value: '', label: 'All interventions' },
+                              ...project.interventions.map((iv) => ({
+                                value: iv.id,
+                                label: resolve(iv.title, lang, lang) ?? iv.id,
+                              })),
+                            ]}
+                          />
                         )}
-                        {slots.length > 1 ? (
-                          <span>Repeats {slots.join(', ')}</span>
-                        ) : (
-                          <Input
-                            type="number"
-                            min={1}
-                            step={1}
-                            htmlSize={6}
-                            data-testid={`concept-text-${index}-repeat`}
-                            aria-label="Repeat"
-                            title="The repeat slot this text is for: 2 for the second time the concept is collected. Empty for every repeat."
-                            placeholder="Any repeat"
-                            value={slots[0] ?? ''}
+                        {flavours.length > 0 && (
+                          <SimpleSelect
+                            testId={`concept-text-${index}-flavour`}
+                            ariaLabel="Flavour"
+                            value={flavour ?? ''}
                             disabled={readOnly}
-                            onChange={(e) => {
-                              const slot = Math.trunc(Number(e.target.value))
-                              const kept = (d.extension ?? []).filter(
-                                (x) => (x as { url?: string }).url !== REPEAT_SCOPE_URL,
-                              )
-                              const extension = [
-                                ...kept,
-                                ...repeatScopeExtension(
-                                  e.target.value !== '' && slot >= 1 ? [slot] : [],
-                                ),
-                              ]
-                              const next: Designation = { ...d }
-                              if (extension.length) next.extension = extension
-                              else delete next.extension
-                              updateAt(index, next)
-                            }}
+                            onValueChange={(v) => updateAt(index, withFlavour(d, v || undefined))}
+                            options={[
+                              { value: '', label: 'Default text' },
+                              ...flavours
+                                .filter(Boolean)
+                                .map((f) => ({ value: f, label: `Flavour ${f}` })),
+                            ]}
                           />
                         )}
                       </td>
@@ -645,7 +820,7 @@ export function ConceptDialog({
                   setDraft({ ...draft, designations: [...draft.designations, row] })
                 }}
               >
-                Add a translation, an intervention or a repeat text
+                Add a translation, an intervention or a flavour text
               </Button>
             </p>
           )}
@@ -801,25 +976,20 @@ function paramOwner(project: Project, code: string): string | undefined {
   return undefined
 }
 
-/**
- * The concept with a row for the questionnaire text of repeat `slot` in `lang`, prefilled with
- * the text that slot shows today, unless it already has one.
- */
-function withRepeatRow(concept: Concept, slot: number | undefined, lang: string): Concept {
-  if (slot === undefined || slot < 1) return concept
-  const has = concept.designations.some(
-    (d) =>
-      d.language === lang &&
-      designationUse(d) === 'q-display' &&
-      designationInterventions(d).length === 0 &&
-      designationRepeats(d).includes(slot),
+/** The picker value of the Default flavour, and of a flavour whose name is being typed. */
+const DEFAULT_FLAVOUR = ':default'
+const EMPTY_NAME = ':empty'
+
+/** The concept with a new flavour, its questionnaire text in `lang` set to `text`. */
+function withFlavourRow(concept: Concept, lang: string, code: string, text: DisplayText): Concept {
+  const row = withDesignationText(
+    {
+      language: lang,
+      use: { ...DESIGNATION_USES['q-display'] },
+      value: '',
+      extension: flavourScopeExtension(code),
+    },
+    text,
   )
-  if (has) return concept
-  const row: Designation = {
-    language: lang,
-    use: { ...DESIGNATION_USES['q-display'] },
-    value: conceptText(concept, 'q-display', lang, lang, { repeat: slot }) ?? '',
-    extension: repeatScopeExtension([slot]),
-  }
   return { ...concept, designations: [...concept.designations, row] }
 }

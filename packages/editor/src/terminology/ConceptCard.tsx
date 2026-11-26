@@ -2,6 +2,8 @@ import { useCallback, useMemo, useState } from 'react'
 import {
   CALCULATED_TYPES,
   TEXT_NODE_TYPES,
+  conceptFlavours,
+  conceptRichText,
   conceptText,
   conceptUsage,
   designationText,
@@ -25,6 +27,13 @@ import { useMutate, useProjectSnapshot } from '../runtime/context.js'
 import { Typeahead, type TypeaheadOption } from '../components/Typeahead.js'
 import { ConceptDialog, type ConceptTarget } from './ConceptDialog.js'
 import { Button } from '../components/ui/button.js'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select.js'
 
 /**
  * Nodes that stand for a concept: those whose text the health worker reads, and the values
@@ -65,7 +74,12 @@ export function ConceptCard({
       target={dialog}
       onClose={close}
       onOpenNode={onOpenNode}
-      onSaved={(saved) => {
+      onSaved={(saved, { flavour }) => {
+        // A flavour made from the node: the node shows it.
+        if ('key' in dialog && dialog.newFlavour) {
+          if (flavour) mutate((tx) => tx.updateNode(activityId, { ...node, flavour }))
+          return
+        }
         if (!('draft' in dialog)) return
         // A concept created from the node takes its texts; the node keeps only the code.
         const { label: _label, hint: _hint, help: _help, ...rest } = node
@@ -108,14 +122,27 @@ export function ConceptCard({
   }
 
   const uses = conceptUsage(project, key).length
-  // A node collected again (repeat 2, 3…) can have its own text: "Second measurement".
-  const slot = node.repeat !== undefined && node.repeat >= 2 ? node.repeat : undefined
   const questionnaire = conceptText(concept, 'q-display', lang, defaultLang)
-  const slotText =
-    slot === undefined
-      ? undefined
-      : conceptText(concept, 'q-display', lang, defaultLang, { repeat: slot })
-  const ownSlotText = slot !== undefined && slotText !== questionnaire
+  // Which flavour of the concept's texts the node shows.
+  const flavours = conceptFlavours(concept)
+  const picksText = TEXT_NODE_TYPES.includes(node.type)
+  const preview = (flavour?: string) => {
+    const text = conceptText(concept, 'q-display', lang, defaultLang, { flavour }) ?? ''
+    return text.length > 40 ? `${text.slice(0, 40)}…` : text
+  }
+  const pickFlavour = (value: string) => {
+    const next: TriccNode = { ...node }
+    if (value !== DEFAULT_FLAVOUR) next.flavour = value
+    else delete next.flavour
+    mutate((tx) => tx.updateNode(activityId, next))
+  }
+  // A new flavour for this node, starting from the text it shows; the node takes it on Save.
+  const newFlavour = () => {
+    const text =
+      conceptRichText(concept, 'q-display', lang, defaultLang, { flavour: node.flavour }) ?? ''
+    const code = node.repeat !== undefined && node.repeat >= 2 ? `repeat_${node.repeat}` : 'flavour'
+    setDialog({ key, newFlavour: { code, text } })
+  }
   return (
     <div className="tricc-concept-card" data-testid="concept-card">
       <p className="tricc-concept-card__head">
@@ -126,33 +153,6 @@ export function ConceptCard({
       </p>
       {questionnaire && questionnaire !== concept.display && (
         <p data-testid="concept-card-q-display">{questionnaire}</p>
-      )}
-      {slot !== undefined && (
-        <div data-testid="concept-card-repeat">
-          <p>
-            Repeat {slot}:{' '}
-            {ownSlotText ? (
-              <span data-testid="concept-card-repeat-text">{slotText}</span>
-            ) : (
-              <span className="tricc-import-note" data-testid="concept-card-repeat-text">
-                same text as the first time
-              </span>
-            )}
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            type="button"
-            data-testid="concept-repeat-text"
-            onClick={() => setDialog({ key, repeat: slot })}
-          >
-            {readOnly
-              ? `Show text for repeat ${slot}`
-              : ownSlotText
-                ? `Edit text for repeat ${slot}`
-                : `Add text for repeat ${slot}`}
-          </Button>
-        </div>
       )}
       {uses > 1 && (
         <p className="tricc-import-note" data-testid="concept-card-shared">
@@ -168,10 +168,69 @@ export function ConceptCard({
       >
         {readOnly ? 'Show concept' : 'Edit concept'}
       </Button>
+      {picksText && (
+        <div className="tricc-concept-card__flavour">
+          <label htmlFor={`flavour-${node.id}`}>Flavour</label>
+          <Select
+            value={node.flavour ?? DEFAULT_FLAVOUR}
+            disabled={readOnly}
+            onValueChange={pickFlavour}
+          >
+            <SelectTrigger
+              id={`flavour-${node.id}`}
+              size="sm"
+              className="w-full"
+              data-testid="field-flavour"
+              data-value={node.flavour ?? ''}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={DEFAULT_FLAVOUR} data-testid="field-flavour-option-default">
+                Default — {preview()}
+              </SelectItem>
+              {flavours.map((f) => (
+                <SelectItem key={f} value={f} data-testid={`field-flavour-option-${f}`}>
+                  {f} — {preview(f)}
+                </SelectItem>
+              ))}
+              {node.flavour && !flavours.includes(node.flavour) && (
+                <SelectItem value={node.flavour}>{node.flavour} — not in the concept</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+          <div className="tricc-concept-card__flavour-actions">
+            {!readOnly && (
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                data-testid="field-flavour-new"
+                title="Another wording of this concept for this question, with its own questionnaire text, hint and help"
+                onClick={newFlavour}
+              >
+                + New flavour
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              data-testid="field-flavour-edit"
+              onClick={() => setDialog({ key, ...(node.flavour ? { flavour: node.flavour } : {}) })}
+            >
+              {readOnly ? 'Show texts' : 'Edit texts'}
+            </Button>
+          </div>
+        </div>
+      )}
       {dialogs}
     </div>
   )
 }
+
+/** The picker value of the Default flavour (Radix gives no item an empty value). */
+const DEFAULT_FLAVOUR = ':default'
 
 /** A new concept carrying the node's own texts: label as display, then hint and help. */
 function conceptFromNode(node: TriccNode, system: string, defaultLang: string): Concept {

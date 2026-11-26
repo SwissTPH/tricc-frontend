@@ -6,7 +6,15 @@ import type {
   ProjectOwner,
   ProjectRepository,
 } from '../../model/types.js'
-import { activityPath, blockPath, codeSystemPath, libraryPath, PATHS } from '../../model/types.js'
+import {
+  activityPath,
+  blockPath,
+  codeSystemPath,
+  libraryPath,
+  tablePath,
+  PATHS,
+} from '../../model/types.js'
+import { decodeAliases, encodeAliases } from '../../decision-table/file.js'
 import { isBlock } from '../../model/activity-kind.js'
 import { normalizeLabels } from '../../model/labels.js'
 import { resolve, type LocalizedText } from '../schema/localized.js'
@@ -67,6 +75,12 @@ export function encodeTriccYaml(project: Project): Record<string, unknown> {
   put(o, 'default_code_system', project.defaultCodeSystem)
   put(o, 'calculate_code_system', project.calculateCodeSystem)
   put(o, 'retrieve_code_system', project.retrieveCodeSystem)
+  const tables = Object.values(project.decisionTables ?? {})
+    .map((t) => t.path ?? tablePath(t.id))
+    .sort()
+  if (tables.length > 0) o['decision_tables'] = tables
+  if (project.aliases && Object.keys(project.aliases).length > 0)
+    o['aliases'] = encodeAliases(project.aliases)
   put(o, 'media_path', project.mediaPath)
   if (project.repository) o['repository'] = encodeRepository(project.repository)
   // Building blocks are listed like activities; interventions never list them.
@@ -144,6 +158,7 @@ export interface TriccYamlRead {
   defaultCodeSystem?: string
   calculateCodeSystem?: string
   retrieveCodeSystem?: string
+  aliases?: Project['aliases']
   mediaPath?: string
   repository?: ProjectRepository
   labels?: string[]
@@ -242,6 +257,8 @@ export function readTriccYamlMeta(
   if (typeof doc['retrieve_code_system'] === 'string')
     result.retrieveCodeSystem = doc['retrieve_code_system']
   if (typeof doc['media_path'] === 'string') result.mediaPath = doc['media_path']
+  const aliases = decodeAliases(doc['aliases'])
+  if (aliases) result.aliases = aliases
   const repository = readRepository(doc['repository'])
   if (repository) result.repository = repository
   const labels = readLabels(doc['labels'])
@@ -661,6 +678,17 @@ function slug(name: string): string {
 
 export function triccConfigText(files: ProjectFiles): string | undefined {
   return fileText(files[PATHS.tricc] ?? files['tricc.yml'])
+}
+
+/** The `decision_tables` entries of `tricc.yaml`: paths or globs relative to it. */
+export function triccTableGlobs(text: string): string[] {
+  try {
+    const raw = fromYaml(text) as Record<string, unknown> | null
+    const list = raw && typeof raw === 'object' ? raw['decision_tables'] : undefined
+    return Array.isArray(list) ? list.filter((v): v is string => typeof v === 'string') : []
+  } catch {
+    return []
+  }
 }
 
 /** Language block only, so activity files can be decoded before interventions are. */

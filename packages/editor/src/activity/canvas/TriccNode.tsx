@@ -47,6 +47,8 @@ export type TriccFlowNode = Node<
     callSummary?: string
     /** A required setting of the target has no value here, nor from above. */
     needsValue?: boolean
+    /** A calculation with no link into it: worked out from its expression, a start of its own. */
+    dangling?: boolean
   },
   'tricc'
 >
@@ -108,6 +110,15 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
         {model.repeat !== undefined && model.repeat !== 1 && (
           <span className="tricc-badge" data-testid={`node-${model.id}-repeat`}>
             Repeat {model.repeat}
+          </span>
+        )}
+        {model.flavour && (
+          <span
+            className="tricc-badge"
+            data-testid={`node-${model.id}-flavour`}
+            title="The concept's text this node shows"
+          >
+            {model.flavour}
           </span>
         )}
         {model.instance !== undefined && model.instance !== 1 && (
@@ -181,6 +192,8 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
           onPointerDown={() => setDetails(false)}
         >
           {visual.targets && <Handle type="target" position={Position.Top} />}
+
+          {data.dangling && <DanglingMark nodeId={model.id} />}
 
           {data.picture && <NodePicture id={data.picture} nodeId={model.id} />}
 
@@ -276,6 +289,31 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
       </HoverCardTrigger>
       <NodeDetails model={model} display={display} />
     </HoverCard>
+  )
+}
+
+/**
+ * The corner mark of a calculation with no link into it. It is drawn like a BPMN conditional
+ * start event (a thin circle around a ruled sheet): the path after it starts when its
+ * expression is true, not when the activity starts.
+ */
+function DanglingMark({ nodeId }: { nodeId: string }) {
+  const tip =
+    'Starts on its own: worked out from its expression wherever the flow is. What follows it is reached only when it is true.'
+  return (
+    <span
+      className="tricc-node__dangling"
+      data-testid={`node-${nodeId}-dangling`}
+      title={tip}
+      aria-label={tip}
+      role="img"
+    >
+      <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+        <circle cx="8" cy="8" r="6.75" fill="var(--tricc-surface)" stroke="currentColor" />
+        <rect x="5" y="4.5" width="6" height="7" rx="0.5" fill="none" stroke="currentColor" />
+        <path d="M6.3 6.5h3.4M6.3 8h3.4M6.3 9.5h3.4" stroke="currentColor" />
+      </svg>
+    </span>
   )
 }
 

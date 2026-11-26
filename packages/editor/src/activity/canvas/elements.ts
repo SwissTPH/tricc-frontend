@@ -3,6 +3,7 @@ import {
   paramEnvironments,
   conceptRichText,
   conceptText,
+  danglingCalculates,
   defaultCodeSystem,
   imageRefs,
   lookupConcept,
@@ -185,6 +186,7 @@ const tricc: CanvasKind = {
     const { activity, project, lang } = ctx
     const defaultLang = project.languages.default
     const rootId = rootNode(activity)?.id
+    const dangling = danglingCalculates(activity, project)
     const groupIds = new Set((activity.groups ?? []).map((g) => g.id))
     const activityTitle = resolve(activity.title, lang, lang) ?? activity.id
     return activity.nodeOrder
@@ -194,14 +196,17 @@ const tricc: CanvasKind = {
         // The text is the concept's questionnaire text (its display when it has none).
         const concept = lookupConcept(project, nodeConceptKey(project, model))
         // A text that is only a picture has no words: the node falls back to its own label.
-        // A node collected again (repeat 2, 3…) reads the concept's text for its slot.
-        const slot = { repeat: model.repeat ?? 1 }
-        const text = conceptText(concept, 'q-display', lang, defaultLang, slot)?.trim() || undefined
-        const picture = firstPicture(conceptRichText(concept, 'q-display', lang, defaultLang, slot))
+        // The node shows the flavour of the concept's text it picked, if any.
+        const scope = { flavour: model.flavour }
+        const text =
+          conceptText(concept, 'q-display', lang, defaultLang, scope)?.trim() || undefined
+        const picture = firstPicture(
+          conceptRichText(concept, 'q-display', lang, defaultLang, scope),
+        )
         const hint =
-          conceptText(concept, 'hint', lang, defaultLang, slot) ?? resolve(model.hint, lang, lang)
+          conceptText(concept, 'hint', lang, defaultLang, scope) ?? resolve(model.hint, lang, lang)
         const help =
-          conceptText(concept, 'help', lang, defaultLang, slot) ?? resolve(model.help, lang, lang)
+          conceptText(concept, 'help', lang, defaultLang, scope) ?? resolve(model.help, lang, lang)
         const answerTexts = model.options?.length
           ? Object.fromEntries(model.options.map((o) => [o.id, answerLabel(o, lang, project)]))
           : undefined
@@ -274,6 +279,7 @@ const tricc: CanvasKind = {
             ...(callLabel ? { callLabel } : {}),
             ...(callSummary ? { callSummary } : {}),
             ...(needsValue ? { needsValue: true } : {}),
+            ...(dangling.has(model.id) ? { dangling: true } : {}),
           },
         }
       })

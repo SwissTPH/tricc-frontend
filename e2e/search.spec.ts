@@ -57,8 +57,11 @@ test('a calculation concept goes to the calculate dictionary, listed next to the
   await page.getByTestId('concept-create').click()
   // The node's own dictionary is chosen; every dictionary is offered.
   const choice = page.getByTestId('concept-dictionary')
-  await expect(choice.locator('option')).toHaveCount(2)
-  await expect(choice.locator('option:checked')).toContainText('calculations and diagnoses')
+  await expect(choice).toContainText('calculations and diagnoses')
+  await choice.click()
+  await expect(page.getByRole('option')).toHaveCount(2)
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('option')).toHaveCount(0)
   await page.getByTestId('concept-display').fill('Weight for age')
   await page.getByTestId('concept-dialog-save').click()
   await expect(page.getByTestId('node-n-calculate-label')).toHaveText('Weight for age')
@@ -236,11 +239,11 @@ test('repeat and instance are offered on every node holding a value, and on the 
   await expect(page.getByTestId('activity-settings').getByTestId('field-repeat')).toHaveValue('-1')
 })
 
-test('a repeated question shows its own text for its repeat, and keeps it after a reload', async ({
+test('a repeated question shows a flavour of its concept text, and keeps it after a reload', async ({
   page,
 }) => {
   await page.getByTestId('new-project').click()
-  await page.getByTestId('new-project-name').fill('Repeat texts')
+  await page.getByTestId('new-project-name').fill('Flavours')
   await page.getByTestId('create-project').click()
   await page.getByTestId('add-activity').click()
   await page.getByTestId('create-activity').click()
@@ -250,27 +253,31 @@ test('a repeated question shows its own text for its repeat, and keeps it after 
   await newConcept(page, 'temp', 'Temperature')
   await expect(page.getByTestId('node-n-decimal-label')).toHaveText('Temperature')
 
-  // The same concept collected again, in repeat 2: same text until it has its own.
+  // The same concept collected again, in repeat 2: the default text until it picks a flavour.
   await placeNode(page, 'decimal')
   await page.getByTestId('field-name').fill('temp')
   await page.getByTestId('field-repeat').fill('2')
   await expect(page.getByTestId('node-n-decimal-2-label')).toHaveText('Temperature')
-  await expect(page.getByTestId('concept-card-repeat-text')).toHaveText(
-    'same text as the first time',
-  )
 
-  // Its own text, from the concept card.
-  await page.getByTestId('concept-repeat-text').click()
-  await expect(page.getByTestId('concept-text-0-repeat')).toHaveValue('2')
-  await page.getByTestId('concept-text-0-value').fill('Second temperature measurement')
+  // A new flavour from the node, under its concept: the concept opens on it, its texts
+  // prefilled with what the node shows.
+  await page.getByTestId('field-flavour-new').click()
+  await expect(page.getByTestId('concept-dialog')).toBeVisible()
+  await expect(page.getByTestId('concept-flavour')).toHaveAttribute('data-value', 'repeat_2')
+  await page.getByTestId('concept-flavour-name').fill('second')
+  await expect(page.getByTestId('concept-q-display')).toHaveValue('Temperature')
+  await page.getByTestId('concept-q-display').fill('Second temperature measurement')
+  await page.getByTestId('concept-hint').fill('One hour after paracetamol')
   await page.getByTestId('concept-dialog-save').click()
   await expect(page.getByTestId('concept-dialog')).toHaveCount(0)
 
   await expect(page.getByTestId('node-n-decimal-2-label')).toHaveText(
     'Second temperature measurement',
   )
+  await expect(page.getByTestId('node-n-decimal-2-flavour')).toHaveText('second')
   await expect(page.getByTestId('node-n-decimal-label')).toHaveText('Temperature')
-  await expect(page.getByTestId('concept-repeat-text')).toHaveText('Edit text for repeat 2')
+  await expect(page.getByTestId('field-flavour')).toHaveAttribute('data-value', 'second')
+  await expect(page.getByTestId('field-flavour')).toContainText('second — Second temperature')
 
   // Saved: both texts come back.
   await expect(page.getByTestId('save-status')).toHaveAttribute('data-state', 'saved', {

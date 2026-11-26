@@ -12,8 +12,10 @@ import {
 import { NODE_TYPE_SPECS } from '../format/schema/node-spec.js'
 import { lookupConcept, nodeConceptKey, populateSourceKey } from '../terminology/usage.js'
 import { isIsoPeriod } from '../terminology/retrieval.js'
+import { conceptFlavours } from '../terminology/designation.js'
 import { isOpenHandoff } from '../format/schema/expression.js'
 import { activityKind, processOf } from '../model/activity-kind.js'
+import { danglingCalculates } from '../model/dangling.js'
 import { issue, type Issue } from './types.js'
 
 /**
@@ -127,8 +129,10 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
     list.push(e.target)
     outgoing.set(e.source, list)
   }
+  const targeted = new Set(Object.values(activity.edges).map((e) => e.target))
   const reachable = new Set<string>()
-  const queue = starts.map((s) => s.id)
+  // A calculation with no link into it starts a path of its own, followed when it is true.
+  const queue = [...starts.map((s) => s.id), ...danglingCalculates(activity, project)]
   while (queue.length > 0) {
     const id = queue.shift() as string
     if (reachable.has(id)) continue
@@ -136,8 +140,7 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
     for (const next of outgoing.get(id) ?? []) queue.push(next)
   }
   for (const n of nodes) {
-    // Dangling calculates are a legitimate authoring pattern - tricc_oo collects them
-    // (manage_dangling_calculate), so they are not "unreachable" in the failing sense.
+    // A calculation with no link and no expression is reported as calculate.no-expression.
     if (reachable.has(n.id) || NODE_TYPE_SPECS[n.type]?.unreachableOk) continue
     issues.push(
       issue(
@@ -188,7 +191,9 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
       )
     }
 
-    if (n.type === 'calculate' && !n.calculate?.expression) {
+    // A calculation with no expression that a link leads to is sequence-driven: tricc_oo works it
+    // out from the paths before it (get_prev_node_expression), true when one was followed.
+    if (n.type === 'calculate' && !n.calculate?.expression && !targeted.has(n.id)) {
       issues.push(
         issue(
           'calculate.no-expression',
@@ -256,6 +261,21 @@ export function validateActivity(activity: Activity, project?: Project): Issue[]
           { label: 'Create the concept', kind: 'concept.create' },
         ),
       )
+    }
+
+    // A flavour is one of the concept's texts; one the concept lacks shows the default.
+    if (project && n.flavour) {
+      const concept = lookupConcept(project, nodeConceptKey(project, n))
+      if (concept && !conceptFlavours(concept).includes(n.flavour)) {
+        issues.push(
+          issue(
+            'node.unknown-flavour',
+            'warning',
+            `This question shows the flavour "${n.flavour}", which "${concept.code}" does not have, so it shows the default text. Pick another flavour.`,
+            { ...at(n), field: 'flavour' },
+          ),
+        )
+      }
     }
 
     if (n.type === 'populate') {
