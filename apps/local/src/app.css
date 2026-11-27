@@ -295,8 +295,8 @@ main > [data-testid='activity-editor'] {
   align-items: center;
   gap: 6px;
 }
-/* shadcn buttons, select triggers and inputs carry their own type scale. */
-button:where(:not([data-slot='button'], [data-slot='select-trigger'])) {
+/* shadcn buttons, select and tab triggers, and inputs carry their own type scale. */
+button:where(:not([data-slot='button'], [data-slot='select-trigger'], [data-slot='tabs-trigger'])) {
   font: inherit;
 }
 input:where(:not([data-slot='input'])) {

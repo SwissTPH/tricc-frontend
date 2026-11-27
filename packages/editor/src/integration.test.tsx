@@ -279,6 +279,7 @@ describe('validation surfaces in the UI', () => {
     // A new answer is a concept: created in the dialog, named by its code.
     await user.click(screen.getByTestId('add-select_one'))
     await user.click(screen.getByTestId('add-option-new'))
+    await user.click(screen.getByTestId('concept-tab-basic'))
     expect(screen.getByTestId('concept-type')).toHaveAttribute('data-value', 'Value')
     await user.type(screen.getByTestId('concept-code'), 'fever')
     await user.type(screen.getByTestId('concept-display'), 'Fever')
@@ -294,6 +295,7 @@ describe('validation surfaces in the UI', () => {
     await user.click(screen.getByRole('option', { name: /Fever/ }))
     expect(screen.getByTestId('node-n-select_multiple-answer-option')).toHaveTextContent('Fever')
     await user.click(screen.getByTestId('add-option-new'))
+    await user.click(screen.getByTestId('concept-tab-basic'))
     expect(screen.getByTestId('concept-type')).toHaveAttribute('data-value', 'Observation')
   })
 
@@ -1515,6 +1517,7 @@ describe('data dictionary', () => {
     renderWith(h, <DictionaryView open={{ system: URL, code: 'weight' }} onOpen={() => {}} />)
     expect(screen.getByTestId('concept-delete')).toBeDisabled()
     await user.type(screen.getByTestId('concept-hint'), 'In kilograms')
+    await user.click(screen.getByTestId('concept-tab-basic'))
     await user.click(screen.getByTestId('concept-type'))
     await user.click(await screen.findByTestId('concept-type-option-Vital'))
     await user.click(screen.getByTestId('concept-dialog-save'))
@@ -1533,6 +1536,7 @@ describe('data dictionary', () => {
     const user = userEvent.setup()
     const h = await harness(withWeight())
     renderWith(h, <DictionaryView open={{ system: URL, code: 'weight' }} onOpen={() => {}} />)
+    await user.click(screen.getByTestId('concept-tab-translations'))
     await user.click(screen.getByTestId('concept-text-add'))
     expect(screen.getByTestId('concept-texts')).toBeInTheDocument()
     expect(screen.getByTestId('concept-dialog-save')).toBeDisabled()
@@ -1640,6 +1644,7 @@ describe('questionnaire text per intervention', () => {
     ]
     const h = await harness(project)
     renderWith(h, <DictionaryView open={{ system: url, code: 'weight' }} onOpen={() => {}} />)
+    await user.click(screen.getByTestId('concept-tab-translations'))
     await user.click(screen.getByTestId('concept-text-add'))
     await user.clear(screen.getByTestId('concept-text-0-language'))
     await user.type(screen.getByTestId('concept-text-0-language'), 'en')
@@ -1718,6 +1723,33 @@ describe('flavours: other questionnaire texts of a concept', () => {
     )
   })
 
+  it('opened from a node, the concept shows no translations, and keeps them on Save', async () => {
+    const user = userEvent.setup()
+    const fr = { language: 'fr', use: q, value: 'Mesurer la température' }
+    const community = {
+      language: 'en',
+      use: q,
+      value: 'Community wording',
+      extension: [
+        {
+          url: 'https://tricc.org/StructureDefinition/designation-intervention',
+          valueCode: 'community',
+        },
+      ],
+    }
+    const h = await harness(repeated([base, fr, community]))
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    selectNode('t1')
+    await user.click(screen.getByTestId('concept-edit'))
+    expect(screen.queryByTestId('concept-text-add')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('concept-texts')).not.toBeInTheDocument()
+    await user.type(screen.getByTestId('concept-hint'), 'Axillary')
+    await user.click(screen.getByTestId('concept-dialog-save'))
+    const saved = h.open.document.snapshot().codeSystems[url]!.concepts['temp']!.designations
+    expect(saved.slice(0, 3)).toEqual([base, fr, community])
+    expect(saved[3]).toMatchObject({ language: 'en', value: 'Axillary' })
+  })
+
   it('New flavour… opens the concept on a new flavour with its own texts, and the node shows it', async () => {
     const user = userEvent.setup()
     const h = await harness(repeated([base]))
@@ -1771,17 +1803,31 @@ describe('flavours: other questionnaire texts of a concept', () => {
     await user.click(screen.getByTestId('concept-edit'))
     expect(screen.getByTestId('concept-flavour')).toHaveAttribute('data-value', '')
     expect(screen.getByTestId('concept-q-display')).toHaveValue('Measure the temperature')
-    await pick(user, 'concept-flavour', 'concept-flavour-option-0')
+    // The flavours are vertical tabs: + New flavour, Default, then each with its name and text.
+    const list = screen.getByRole('tablist', { name: 'Flavours' })
+    expect(
+      within(list)
+        .getAllByRole('tab')
+        .map((t) => t.textContent),
+    ).toEqual(['DefaultMeasure the temperature', 'againMeasure it again'])
+    expect(screen.getByTestId('concept-flavour-tab-default')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await user.click(screen.getByTestId('concept-flavour-tab-0'))
+    expect(screen.getByTestId('concept-flavour-tab-0')).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByTestId('concept-q-display')).toHaveValue('Measure it again')
-    // Escape closes an open flavour menu, not the concept dialog under it.
-    await user.click(screen.getByTestId('concept-flavour'))
-    expect(await screen.findByTestId('concept-flavour-option-default')).toBeVisible()
+    // Escape closes an open select menu, not the concept dialog under it.
+    await user.click(screen.getByTestId('concept-tab-basic'))
+    await user.click(screen.getByTestId('concept-data-type'))
+    expect(await screen.findByTestId('concept-data-type-option-none')).toBeVisible()
     await user.keyboard('{Escape}')
-    expect(screen.queryByTestId('concept-flavour-option-default')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('concept-data-type-option-none')).not.toBeInTheDocument()
     expect(screen.getByTestId('concept-dialog')).toBeVisible()
+    await user.click(screen.getByTestId('concept-tab-flavours'))
     // An empty field of a flavour shows what it falls back to.
     expect(screen.getByTestId('concept-hint')).toHaveValue('')
-    await pick(user, 'concept-flavour', 'concept-flavour-option-default')
+    await user.click(screen.getByTestId('concept-flavour-tab-default'))
     expect(screen.getByTestId('concept-q-display')).toHaveValue('Measure the temperature')
 
     // A new flavour, emptied: Save waits for a text. A bad name too.
@@ -1797,6 +1843,64 @@ describe('flavours: other questionnaire texts of a concept', () => {
     await user.click(screen.getByTestId('concept-flavour-remove'))
     expect(screen.getByTestId('concept-flavour')).toHaveAttribute('data-value', '')
     expect(screen.getByTestId('concept-dialog-save')).toBeEnabled()
+  })
+})
+
+describe('Ctrl+M opens the concept of the selected node', () => {
+  const url = 'https://tricc.org/CodeSystem/test'
+  function withTemp(): Project {
+    const project = seed()
+    project.codeSystems[url] = {
+      id: 'test',
+      url,
+      status: 'draft',
+      content: 'complete',
+      concepts: {
+        temp: { system: url, code: 'temp', display: 'Temperature', designations: [] },
+      },
+      conceptOrder: ['temp'],
+    }
+    const triage = project.activities['triage']!
+    triage.nodeOrder.push('t', 'w')
+    triage.nodes['t'] = {
+      id: 't',
+      type: 'decimal',
+      name: 'temp',
+      concept: { system: url, code: 'temp' },
+      ui: { x: 0, y: 100 },
+    }
+    triage.nodes['w'] = { id: 'w', type: 'decimal', name: 'weight', ui: { x: 0, y: 200 } }
+    return project
+  }
+
+  it('opens the concept dialog, even from another panel tab', async () => {
+    const user = userEvent.setup()
+    const h = await harness(withTemp())
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    // Nothing selected: nothing opens.
+    await user.keyboard('{Control>}m{/Control}')
+    expect(screen.queryByTestId('concept-dialog')).not.toBeInTheDocument()
+    selectNode('t')
+    await user.click(screen.getByTestId('tab-nodes'))
+    await user.keyboard('{Control>}m{/Control}')
+    expect(screen.getByTestId('concept-dialog')).toBeVisible()
+    expect(screen.getByTestId('concept-display')).toHaveValue('Temperature')
+    // Not again while it is open, and not again when the panel shows Details later.
+    await user.click(screen.getByTestId('concept-dialog-cancel'))
+    expect(screen.queryByTestId('concept-dialog')).not.toBeInTheDocument()
+    await user.click(screen.getByTestId('tab-nodes'))
+    await user.click(screen.getByTestId('tab-details'))
+    expect(screen.queryByTestId('concept-dialog')).not.toBeInTheDocument()
+  })
+
+  it('offers to create the concept of a node that has none', async () => {
+    const user = userEvent.setup()
+    const h = await harness(withTemp())
+    renderWith(h, <ActivityEditor activityId="triage" />)
+    selectNode('w')
+    await user.keyboard('{Control>}m{/Control}')
+    expect(screen.getByTestId('concept-dialog')).toBeVisible()
+    expect(screen.getByTestId('concept-code')).toHaveValue('weight')
   })
 })
 

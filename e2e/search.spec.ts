@@ -290,4 +290,10 @@ test('a repeated question shows a flavour of its concept text, and keeps it afte
   await expect(page.getByTestId('node-n-decimal-2-label')).toHaveText(
     'Second temperature measurement',
   )
+
+  // Ctrl+M on the selected node opens its concept.
+  await page.getByTestId('node-n-decimal').click()
+  await page.keyboard.press('Control+m')
+  await expect(page.getByTestId('concept-dialog')).toBeVisible()
+  await expect(page.getByTestId('concept-display')).toHaveValue('Temperature')
 })

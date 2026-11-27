@@ -45,18 +45,36 @@ reads change.
 
 **In the concept editor**
 
-- Right under the display ("The short name in the dictionary and in CQL"), a **Flavour**
-  dropdown lists **Default** and the concept's other flavours, with a **+ New flavour** button
-  beside it.
-- The **Questionnaire text**, **Hint** and **Help** fields below it show and edit the texts of
-  the selected flavour, each with its usual **Format…** popup. An empty field of a flavour shows,
-  greyed out, the default text it falls back to.
-- With a flavour other than Default selected, its name can be changed next to the dropdown,
-  with how many questions show it and **Remove**.
+- Code and **display name** stay at the top, each with a one-line hint. Under them, **tabs**:
+  - **Details**: data type, concept type, unit, definition, and where the value is
+    stored (resource and path); for a retrieval, what it reads.
+  - **Texts and flavours**: on the left, the flavours as vertical tabs; on the right, the texts
+    of the selected one. The dialog opens on this tab, where an author mostly works; a
+    retrieval, which has no texts, has no such tab and opens on Details.
+  - **Translations**, in the Data dictionary only (below).
+- The flavour tabs: **+ New flavour** first, then **Default**, then one per flavour. Each tab
+  shows only the flavour's name and its questionnaire text, cut to one line; the selected tab
+  is highlighted.
+- On the right, under a heading ("Default texts", "Texts of the flavour “second”"), the
+  **Questionnaire text**, **Hint** and **Help** of the selected flavour, labels above the
+  fields, each with its usual **Format…** popup. An empty field of a flavour shows, greyed out,
+  the default text it falls back to.
+- For a flavour other than Default, the **Flavour name** comes first, with **Remove flavour**
+  and how many questions show it.
 - **+ New flavour** adds a flavour, prefilled with the default questionnaire text to reword.
 - Save keeps every flavour's changes with the concept; Cancel drops them.
-- Translations of a flavour are added like any other translation, in the table of other
-  languages, with the flavour chosen in a **Flavour** column.
+- Translations belong to the **Data dictionary**: the people drawing are usually not the
+  ones translating. Opened from the Data dictionary tab, the concept editor has a
+  **Translations** tab with a table of texts (language, intervention and, when the concept
+  has flavours, flavour of each text). Opened from a node on the canvas, it shows the default
+  language only, and keeps the other texts as they are on Save.
+
+**Keyboard**
+
+- **Ctrl+M** with one node selected on the canvas opens its concept in the concept editor (or,
+  for a node without a concept, the dialog to create it). The panel opens on the node's
+  details if it was collapsed or on another tab. The Ctrl+K palette lists it as "Edit the
+  concept of the selected node". Ctrl only, also on a Mac, where Cmd+M minimises the window.
 
 **In the node sidebar**
 
@@ -170,15 +188,31 @@ below finds them.
   Escape handler leaves an open select menu to close itself. `SimpleSelect` wraps it for a
   list of `{ value, label }` options (option test ids `<id>-option-<value or none>`). Every
   select of the concept dialog uses it: Dictionary, Data type, Concept type, the Use /
-  Intervention / Flavour columns of the texts table, and the retrieval fields.
+  Intervention / Flavour columns of the translations table, and the retrieval fields.
   `apps/local` exempts `select-trigger` from its button font reset (`app.css`) and gives it
   the preflight slice the shadcn button has (`tailwind.css`). `vitest.setup.ts` stubs the
   pointer-capture and `scrollIntoView` methods jsdom lacks.
-- `ConceptDialog.tsx`, right under the display's hint: a **Flavour** row. A Select
-  (`concept-flavour`, its value also in `data-value`): _Default_, then each flavour. With a
-  flavour selected: its name (`concept-flavour-name`; a name already taken is not
-  accepted while typing), the questions showing it (`concept-flavour-uses`), Remove
-  (`concept-flavour-remove`). Last, **+ New flavour** (`concept-flavour-add`).
+- `components/ui/tabs.tsx`: shadcn/ui Tabs, on `@radix-ui/react-tabs` (new dependency of
+  `@tricc/editor`). `apps/local` treats `tabs-trigger` like `select-trigger` (font reset
+  exemption, preflight slice).
+- `ConceptDialog.tsx`: Dictionary (new concepts), Code, Display, then `Tabs`
+  (`tricc-concept__tabs`, sharing the form's label column through `subgrid`; inactive panels
+  hidden). Triggers `concept-tab-basic`, `concept-tab-flavours` (not for a retrieval; it shows
+  the number of flavours with Default) and `concept-tab-translations` (with `translations`
+  only). Details (`concept-tab-basic`): Data type, Concept type, Unit, Definition, then "Where
+  the value is stored" (Resource, Path), or the retrieval fields. It opens on Texts and
+  flavours (`concept-tab-flavours`), or on Details for a retrieval. Texts and flavours:
+  a two-column pane (`tricc-flavour-pane`) under the tab bar, which has a rule under it
+  (`tricc-concept__tabbar`). Left, a shaded sidebar running the panel's full height, holding a
+  vertical tab list (`role="tablist"`,
+  `aria-orientation="vertical"`, `concept-flavour` with the selected code in `data-value`):
+  **+ New flavour** (`concept-flavour-add`), then tabs `concept-flavour-tab-default` and
+  `concept-flavour-tab-N` (`aria-selected`), each the name and the questionnaire text on one
+  line with an ellipsis (the whole text in its tooltip). Right, the `tabpanel`, a stack with
+  the labels above the fields: heading, then for a flavour its name (`concept-flavour-name`; a
+  name already taken is not accepted while typing), Remove flavour (`concept-flavour-remove`)
+  and the questions showing it (`concept-flavour-uses`). Under 700px the list sits above the
+  texts. The node sidebar keeps a Select, where space is short.
 - The Questionnaire text, Hint and Help fields (`concept-q-display`, `concept-hint`,
   `concept-help`, each a `RichTextField` with its Format… popup) edit the selected flavour's
   designation in the default language; their placeholder is the Default flavour's text. A
@@ -191,9 +225,13 @@ below finds them.
 - Renames are tracked (code now → code when opened) and carried to the nodes in the Save
   transaction: `terminology/flavours.ts` (`carryFlavourRenames`, `flavourUses`,
   `uniqueFlavour`).
-- The texts table ("Other languages, interventions and flavours") gets a **Flavour** column: a
-  select of the concept's flavours, _Default text_ for none. The selected-language texts of every
-  flavour are not repeated there; the fields show them.
+- `ConceptDialog` takes `translations?: boolean`; only `DictionaryView` sets it. Then the
+  dialog has a **Translations** tab with the table (`concept-texts`, rows
+  `concept-text-N-*`, **Add a translation, an intervention or a flavour text**
+  `concept-text-add`): use, language, intervention, flavour (when the concept has flavours)
+  and text per row; texts the fields above show are not repeated in it. Without it (from a
+  node's concept card, from an answer), the table is not rendered, and the designations it
+  would show stay in the draft untouched and are written back on Save.
 - `ConceptCard.tsx`, under the card: a **Flavour** Select (`field-flavour`): _Default_, then each
   flavour as `code — start of text`. Under it, **+ New flavour** (`field-flavour-new`) and
   **Edit texts** (`field-flavour-edit`) both open the concept editor, on a new flavour (suggested `repeat_N` for a node in repeat
@@ -204,12 +242,34 @@ below finds them.
   flavour's code.
 - CQL chips and the dictionary list keep using `display`.
 
+**Ctrl+M** (`ActivityEditor.tsx`): with one node selected whose type has a concept card
+(`CONCEPT_NODE_TYPES`), a capturing `keydown` listener on Ctrl+M (not Cmd, not with a dialog
+open) expands the side panel, selects Details and sets `conceptRequested`; `NodeProperties`
+passes it to `ConceptCard` (`openRequested` / `onOpened`), which opens its dialog on the
+concept, or on a new concept from the node, and clears the request so a later remount does not
+reopen it. Registered as the palette command `node.concept` (group Edit, shortcut Ctrl+M) while
+such a node is selected. Tested in `integration.test.tsx` ("Ctrl+M opens the concept of the
+selected node") and at the end of the e2e flavour journey.
+
 **`tricc_oo`**
 
 - YAML input reads `flavour` on a node.
 - `concept_text` (`converters/datadictionnary.py`) takes the node's flavour and applies the same
   order. Until it does, `tricc_oo` ignores the node field and the unknown extension and shows the
   default text, which is today's output.
+
+**Dialog wording and layout**
+
+- Type scale: 14px text, 13px labels and section headings, 12px hints under their field; fields
+  10px apart, labels level with the middle of their field; every text field 36px high.
+- Hints: Code (new concept) "The name expressions use for this value. It cannot be changed
+  later."; Display name "A short name, shown in the dictionary, in lists and in expressions.";
+  empty Hint and Help say what they are for; Unit, Definition, Resource and Path show an
+  example.
+- "Not set" instead of "—" in Data type and Concept type. Destructive actions next to fields
+  (Remove flavour, Remove a text) are outline buttons in red text; Delete concept stays solid.
+- Used by and Where the value is stored are sections with a rule above; the actions bar sticks
+  to the bottom of the dialog with a rule above it.
 
 ### 2. Validation and errors
 
@@ -241,6 +301,9 @@ below finds them.
   flavour and a rename carries the node; the dropdown switches the fields between flavours, Escape
   closes its menu and not the dialog, an
   empty flavour or a bad name blocks Save, Remove goes back to Default.
+- `integration.test.tsx`: from the Data dictionary a translation row and an intervention text
+  are added and saved; from a node's concept card the table is absent, and a French text and an
+  intervention text are kept unchanged when the concept is saved.
 - e2e (`e2e/search.spec.ts`, "a repeated question shows a flavour of its concept text"): two
   `temp` questions, the second in repeat 2; **+ New flavour** from the node panel opens the concept
   on it, name it `second`, set its questionnaire text and hint, see both labels, reload, see
@@ -251,7 +314,7 @@ below finds them.
 1. Core: flavour extension helpers, `TextScope.flavour`, node field in model, schema and
    codec; tests. **Done.**
 2. Editor: Flavour dropdown in the concept editor driving the questionnaire text, hint and
-   help; Flavour column in the texts table. **Done.**
+   help; translations table in the Data dictionary only. **Done.**
 3. Editor: flavour picker under the concept card, canvas text and badge. **Done.**
 4. Validation rules; rename carried to nodes. **Done.**
 5. e2e test. **Done.**

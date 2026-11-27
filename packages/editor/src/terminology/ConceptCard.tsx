@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   CALCULATED_TYPES,
   TEXT_NODE_TYPES,
@@ -51,12 +51,17 @@ export function ConceptCard({
   lang,
   readOnly,
   onOpenNode,
+  openRequested,
+  onOpened,
 }: {
   activityId: string
   node: TriccNode
   lang: string
   readOnly: boolean
   onOpenNode?: (activityId: string, nodeId: string) => void
+  /** Open the concept dialog now (Ctrl+M): the concept, or a new one made from the node. */
+  openRequested?: boolean
+  onOpened?: () => void
 }) {
   const project = useProjectSnapshot()
   const mutate = useMutate()
@@ -87,6 +92,15 @@ export function ConceptCard({
       }}
     />
   )
+
+  useEffect(() => {
+    if (!openRequested) return
+    onOpened?.()
+    if (key && concept) setDialog({ key })
+    else if (!readOnly) setDialog({ draft: conceptFromNode(node, home, defaultLang) })
+    // Only a new request opens it; the node and concept are read as they are then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRequested])
 
   if (!key || !concept) {
     if (readOnly) return null

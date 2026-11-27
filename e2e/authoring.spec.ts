@@ -333,6 +333,7 @@ test('a question gets a concept, and the dictionary lists and edits it', async (
   await page
     .getByTestId('concept-q-display')
     .fill('Weigh the child and enter the weight in kilograms')
+  await page.getByTestId('concept-tab-basic').click()
   await page.getByTestId('concept-type').click()
   await page.getByTestId('concept-type-option-Vital').click()
   await page.getByTestId('concept-dialog-save').click()
@@ -427,11 +428,12 @@ test('concept types come from the preferences', async ({ page }) => {
   await createProject(page, 'Types guideline')
   await page.getByTestId('tab-dictionary').click()
   await page.getByTestId('concept-add').click()
+  await page.getByTestId('concept-tab-basic').click()
   await page.getByTestId('concept-type').click()
   // By accessible name: the check mark of the chosen option is an icon, hidden from it.
   const options = page.getByRole('option')
   await expect(options).toHaveCount(3)
-  for (const [n, name] of ['—', 'Vital', 'Counselling'].entries()) {
+  for (const [n, name] of ['Not set', 'Vital', 'Counselling'].entries()) {
     await expect(options.nth(n)).toHaveAccessibleName(name)
   }
 })

@@ -1512,10 +1512,69 @@ ol.tricc-segment-rows > li::before {
 .tricc-concept__texts td,
 .tricc-concept__texts th {
   text-align: left;
-  padding: 2px 4px;
+  padding: 4px;
+  vertical-align: top;
+}
+.tricc-concept__texts th {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tricc-text-muted);
 }
 .tricc-concept__texts input:not([size]) {
   width: 100%;
+}
+/* Every control of a translation row is 36px high with 14px text, top-aligned, like the
+   fields of the rest of the dialog; the text column takes the room left. */
+.tricc-concept__texts td {
+  padding: 4px 6px 4px 0;
+}
+.tricc-concept__texts td input,
+.tricc-concept__texts td button,
+.tricc-concept__texts td [data-slot='select-trigger'] {
+  box-sizing: border-box;
+  height: 36px;
+  font-size: 14px;
+}
+.tricc-concept__texts td input {
+  padding: 4px 12px;
+}
+.tricc-concept__texts td .tricc-rich__preview {
+  min-height: 36px;
+  font-size: 14px;
+  padding: 7px 12px;
+}
+.tricc-concept__texts [data-slot='select-trigger'] {
+  width: 100%;
+  white-space: nowrap;
+}
+/* The intervention and the flavour of a text, one under the other. */
+.tricc-concept__texts [data-slot='select-trigger'] + [data-slot='select-trigger'] {
+  margin-top: 6px;
+}
+/* The modal's 4px top margin on text fields would drop them below the selects and buttons
+   that share their row: in this table, in the flavour name row, beside Format…. */
+.tricc-concept__texts td [data-slot='input'],
+.tricc-concept-dialog .tricc-concept__flavour [data-slot='input'],
+.tricc-concept-dialog .tricc-rich__plain [data-slot='input'] {
+  margin-top: 0;
+}
+.tricc-concept__texts td input[aria-label='Language'] {
+  width: 5rem;
+}
+.tricc-concept__texts td.tricc-concept__text {
+  width: 100%;
+}
+.tricc-concept__texts td.tricc-concept__text .tricc-rich__plain {
+  display: flex;
+  gap: 6px;
+}
+.tricc-concept__texts td.tricc-concept__text .tricc-rich__plain input {
+  flex: 1 1 auto;
+  min-width: 6rem;
+}
+.tricc-concept__texts td:last-child {
+  width: 1%;
+  padding-right: 0;
 }
 .tricc-concept-card {
   border: 1px solid var(--tricc-border);
@@ -1526,20 +1585,146 @@ ol.tricc-segment-rows > li::before {
   display: grid;
   gap: 4px;
 }
-/* The flavour picker of the concept dialog: the texts below are this flavour's. */
-.tricc-concept__flavour {
+/* The concept dialog's tabs span the form and share its label column (subgrid), so the fields
+   of every tab line up with Code and Display above them. */
+.tricc-concept__tabs {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: subgrid;
+  row-gap: 14px;
+  margin-top: 8px;
+}
+.tricc-concept__tabs > .tricc-concept__tabbar {
+  grid-column: 1 / -1;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--tricc-border);
+}
+.tricc-concept__tabs > [role='tabpanel'] {
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  padding: 0;
+}
+/* The panel's grid display must not undo Radix hiding the tabs not shown. */
+.tricc-concept__tabs > [role='tabpanel'][hidden] {
+  display: none;
+}
+/* Texts and flavours: the flavours as vertical tabs on the left (+ New flavour first), the
+   selected one's texts on the right. */
+.tricc-concept__tabs > .tricc-flavour-pane {
+  display: grid;
+  grid-template-columns: 13rem minmax(0, 1fr);
+  gap: 20px;
+  /* The sidebar runs the full height of the texts beside it. */
+  align-items: stretch;
+}
+.tricc-flavour-list {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--tricc-border);
+  border-radius: 8px;
+  background: var(--tricc-subtle);
 }
-.tricc-concept__flavour input {
-  width: 9rem;
+.tricc-flavour-list__new,
+.tricc-flavour-list__tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tricc-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.tricc-flavour-list__new {
+  margin-bottom: 6px;
+  background: var(--tricc-surface);
+  border: 1px dashed var(--tricc-border-strong);
+  color: var(--tricc-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+.tricc-flavour-list__new:hover {
+  border-color: var(--tricc-primary);
+  color: var(--tricc-primary);
+}
+.tricc-flavour-list__tab:hover {
+  background: var(--tricc-surface);
+}
+.tricc-flavour-list__tab[aria-selected='true'] {
+  background: var(--tricc-surface);
+  border-color: var(--tricc-border);
+  box-shadow: inset 3px 0 0 var(--tricc-primary);
+}
+.tricc-flavour-list__new:focus-visible,
+.tricc-flavour-list__tab:focus-visible {
+  outline: 2px solid var(--tricc-primary);
+  outline-offset: 1px;
+}
+.tricc-flavour-list__name {
+  font-size: 13px;
+  font-weight: 600;
   max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.tricc-concept__flavour > span {
+.tricc-flavour-list__text {
   font-size: 12px;
   color: var(--tricc-text-muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tricc-concept-dialog .tricc-flavour-detail {
+  min-width: 0;
+  padding: 0;
+  /* A stack, labels above their fields, so the texts get the whole width of the panel. */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.tricc-concept-dialog .tricc-flavour-detail > label {
+  padding-top: 6px;
+}
+.tricc-concept-dialog .tricc-flavour-detail > p.tricc-concept__hint {
+  grid-column: 1;
+  margin: 0;
+}
+/* The detail opens with its heading: no rule above it. */
+.tricc-concept-dialog .tricc-flavour-detail > .tricc-concept__section:first-child {
+  margin: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.tricc-concept__flavour {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.tricc-concept__flavour input {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+@media (max-width: 699.98px) {
+  .tricc-concept__tabs > .tricc-flavour-pane {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tricc-flavour-list {
+    align-self: start;
+  }
 }
 .tricc-concept-card__flavour {
   display: grid;
@@ -1664,26 +1849,96 @@ ol.tricc-segment-rows > li::before {
   margin: 6px 0;
   color: var(--tricc-text-muted);
 }
-/* The concept dialog: one form, long enough to scroll inside the modal. */
+/* The concept dialog: one form, long enough to scroll inside the modal. One type scale: 14px
+   text, 13px labels, 12px hints; fields 10px apart. */
 .tricc-concept-dialog {
   max-height: min(90vh, 52rem);
   overflow-y: auto;
-  width: min(48rem, calc(100vw - 32px));
+  width: min(56rem, calc(100vw - 32px));
+  padding: 20px 24px 0;
+  font-size: 14px;
+}
+.tricc-concept-dialog h2 {
+  font-size: 18px;
+  margin: 0 0 16px;
 }
 .tricc-concept-dialog .tricc-concept__body {
   padding: 0;
+}
+.tricc-concept-dialog .tricc-form-grid {
+  gap: 10px 16px;
+}
+/* A label sits level with the middle of its 36px field, not above it. */
+.tricc-concept-dialog .tricc-form-grid > label {
+  padding-top: 9px;
+  font-size: 13px;
+}
+.tricc-concept-dialog .tricc-form-grid > p.tricc-concept__hint {
+  grid-column: 2;
+  margin: -6px 0 0;
+  font-size: 12px;
+  color: var(--tricc-text-muted);
+}
+.tricc-concept-dialog .tricc-form-grid > p.tricc-concept__intro {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 13px;
+  color: var(--tricc-text-muted);
+}
+.tricc-concept-dialog .tricc-concept__section {
+  grid-column: 1 / -1;
+  margin: 6px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--tricc-border);
+  font-size: 13px;
+  font-weight: 600;
 }
 .tricc-concept-dialog .tricc-library-modal__actions {
   grid-column: 1 / -1;
   position: sticky;
   bottom: 0;
+  margin: 8px -24px 0;
+  padding: 12px 24px 16px;
+  border-top: 1px solid var(--tricc-border);
   background: var(--tricc-surface);
-  padding-top: 8px;
+}
+/* Text fields (plain or formatted) match the 36px fields above them, Format… included. */
+.tricc-concept-dialog .tricc-form-grid > .tricc-rich__plain input,
+.tricc-concept-dialog .tricc-form-grid > .tricc-rich__plain .tricc-rich__preview,
+.tricc-concept-dialog .tricc-form-grid > .tricc-rich__plain button {
+  min-height: 36px;
+  font-size: 14px;
+}
+.tricc-concept-dialog .tricc-form-grid > .tricc-rich__plain input {
+  height: 36px;
+  padding: 4px 12px;
+}
+/* In the translations table the column says what the text is; its field label is for
+   screen readers only. */
+.tricc-concept__texts td > label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 .tricc-concept-dialog h3 {
   grid-column: 1 / -1;
-  font-size: 14px;
-  margin: 8px 0 0;
+  margin: 10px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--tricc-border);
+  font-size: 13px;
+  font-weight: 600;
+}
+.tricc-concept-dialog .tricc-form-grid > ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.tricc-concept-dialog .tricc-form-grid > p:not([class]) {
+  font-size: 13px;
+  color: var(--tricc-text-muted);
 }
 
 /* Formatted text: a preview in the form, the editor in a roomy modal above any dialog. */

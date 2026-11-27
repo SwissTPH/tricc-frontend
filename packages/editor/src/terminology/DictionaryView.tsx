@@ -220,6 +220,7 @@ export function DictionaryView({
       )}
       {target && (
         <ConceptDialog
+          translations
           target={target}
           onClose={() => {
             setCreating(false)

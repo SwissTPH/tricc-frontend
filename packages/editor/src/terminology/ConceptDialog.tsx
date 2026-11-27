@@ -46,15 +46,10 @@ import { ensureDictionary } from './codeSystems.js'
 import { draggingFiles, imageFiles, useAddImages } from '../media/images.js'
 import { withPictureFirst } from '../media/attach.js'
 import { Button } from '../components/ui/button.js'
+import { Icon } from '../theme/Icon.js'
 import { Input } from '../components/ui/input.js'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  SimpleSelect,
-} from '../components/ui/select.js'
+import { SimpleSelect } from '../components/ui/select.js'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs.js'
 import { WrappingInput } from '../components/WrappingInput.js'
 import { Textarea } from '../components/ui/textarea.js'
 import { RetrievalFields } from './RetrievalFields.js'
@@ -79,6 +74,9 @@ export type ConceptTarget =
   | { key: ConceptKey; flavour?: string; newFlavour?: { code: string; text: DisplayText } }
   | { draft: Partial<Concept> & { code?: string } }
 
+/** The tabs of the concept dialog. */
+type ConceptTab = 'basic' | 'flavours' | 'translations'
+
 /** What a save did beyond the concept: the code the flavour added on open ended with. */
 export interface ConceptSaved {
   flavour?: string
@@ -94,6 +92,7 @@ export function ConceptDialog({
   onSaved,
   onOpenNode,
   onOpenActivity,
+  translations = false,
 }: {
   target: ConceptTarget
   onClose: () => void
@@ -102,6 +101,12 @@ export function ConceptDialog({
   onOpenNode?: (activityId: string, nodeId: string) => void
   /** Open the page a parameter concept belongs to. */
   onOpenActivity?: (activityId: string) => void
+  /**
+   * Show the texts in other languages and for one intervention, to translate them: in the
+   * data dictionary, where translators work. Opened from a node, the dialog shows the default
+   * language only, and keeps the other texts as they are.
+   */
+  translations?: boolean
 }) {
   const project = useProjectSnapshot()
   const canWrite = useCanWrite()
@@ -145,6 +150,14 @@ export function ConceptDialog({
   // renamed flavour follow it on Save.
   const renamed = useRef(new Map<string, string>())
   // The flavour whose texts the fields show; undefined is the default one.
+  // Basic information, the flavours with their texts, or (in the dictionary) translations. The
+  // dialog opens on the texts, which is what a node's author edits; a retrieval has none.
+  const [tab, setTab] = useState<ConceptTab>(() =>
+    dictionaries.find((d) => d.url === (isNew ? target.draft.system : target.key.system))?.kind ===
+    'retrieve'
+      ? 'basic'
+      : 'flavours',
+  )
   const [flavour, setFlavour] = useState<string | undefined>(() =>
     opening ? opening.code : !isNew ? target.flavour : undefined,
   )
@@ -250,12 +263,21 @@ export function ConceptDialog({
     else setDraft(withConceptText(draft, use, lang, text, lang, flavour ? { flavour } : {}))
   }
   // An empty field of a flavour shows what it falls back to: the default flavour's text.
-  const fallback = (use: DesignationUse) =>
-    flavour === undefined
-      ? use === 'q-display'
-        ? (draft.display ?? '')
-        : undefined
-      : (conceptText(draft, use, lang, lang) ?? '')
+  // An empty field shows what the question falls back to, or what the field is for.
+  const fallback = (use: DesignationUse) => {
+    const inherited =
+      flavour === undefined
+        ? use === 'q-display'
+          ? draft.display
+          : undefined
+        : conceptText(draft, use, lang, lang)
+    if (inherited) return inherited
+    return use === 'hint'
+      ? 'Optional: a short note shown under the question'
+      : use === 'help'
+        ? 'Optional: more detail the health worker can open'
+        : ''
+  }
   const addFlavour = () => {
     const code = uniqueFlavour(draft, 'flavour')
     setDraft(
@@ -279,10 +301,16 @@ export function ConceptDialog({
     setDraft(removeFlavour(draft, flavour))
     setFlavour(undefined)
   }
-  const flavourCount =
-    flavour === undefined || isNew
+  // Questions showing a flavour; for the default one, those of the concept that pick none.
+  const flavourCountOf = (f: string | undefined) =>
+    isNew
       ? 0
-      : flavourUses(project, key, existing, originOf(flavour)).length
+      : f === undefined
+        ? uses.filter(
+            (u) => !u.optionId && !project.activities[u.activityId]?.nodes[u.nodeId]?.flavour,
+          ).length
+        : flavourUses(project, key, existing, originOf(f)).length
+  const flavourCount = flavourCountOf(flavour)
   // The texts shown above (the first in the default language for all interventions, per use)
   // are not repeated in the table.
   const main = new Set(
@@ -428,6 +456,11 @@ export function ConceptDialog({
             disabled={!isNew || readOnly}
             onChange={(e) => set({ code: e.target.value })}
           />
+          {isNew && (
+            <p className="tricc-concept__hint">
+              The name expressions use for this value. It cannot be changed later.
+            </p>
+          )}
 
           {wasFuzzy && (
             <>
@@ -446,7 +479,7 @@ export function ConceptDialog({
             </>
           )}
 
-          <label htmlFor="concept-display">Display</label>
+          <label htmlFor="concept-display">Display name</label>
           <WrappingInput
             id="concept-display"
             data-testid="concept-display"
@@ -454,376 +487,455 @@ export function ConceptDialog({
             disabled={readOnly}
             onChange={(e) => set({ display: e.target.value })}
           />
-          <p>The short name in the dictionary and in CQL.</p>
+          <p className="tricc-concept__hint">
+            A short name, shown in the dictionary, in lists and in expressions.
+          </p>
 
-          {!isRetrieval && (
-            <>
-              <label htmlFor="concept-flavour">Flavour</label>
-              <div className="tricc-concept__flavour">
-                <Select
-                  value={flavour === undefined ? DEFAULT_FLAVOUR : flavour || EMPTY_NAME}
-                  onValueChange={(v) =>
-                    setFlavour(v === DEFAULT_FLAVOUR ? undefined : v === EMPTY_NAME ? '' : v)
-                  }
+          <Tabs
+            className="tricc-concept__tabs"
+            value={isRetrieval && tab === 'flavours' ? 'basic' : tab}
+            onValueChange={(v) => setTab(v as ConceptTab)}
+          >
+            {/* The tab bar, with a rule under it across the dialog. */}
+            <div className="tricc-concept__tabbar">
+              <TabsList>
+                <TabsTrigger value="basic" data-testid="concept-tab-basic">
+                  Details
+                </TabsTrigger>
+                {!isRetrieval && (
+                  <TabsTrigger value="flavours" data-testid="concept-tab-flavours">
+                    Texts and flavours{flavours.length > 0 ? ` (${flavours.length + 1})` : ''}
+                  </TabsTrigger>
+                )}
+                {translations && (
+                  <TabsTrigger value="translations" data-testid="concept-tab-translations">
+                    Translations
+                  </TabsTrigger>
+                )}
+              </TabsList>
+            </div>
+            <TabsContent value="basic" className="tricc-form-grid">
+              {!isRetrieval && (
+                <>
+                  <label htmlFor="concept-data-type">Data type</label>
+                  <SimpleSelect
+                    id="concept-data-type"
+                    testId="concept-data-type"
+                    value={draft.dataType ?? ''}
+                    disabled={locked}
+                    onValueChange={(v) => set({ dataType: v })}
+                    options={[
+                      { value: '', label: 'Not set' },
+                      ...withCurrent(DATA_TYPES, draft.dataType).map((t) => ({
+                        value: t,
+                        label: t,
+                      })),
+                    ]}
+                  />
+
+                  <label htmlFor="concept-type">Concept type</label>
+                  <SimpleSelect
+                    id="concept-type"
+                    testId="concept-type"
+                    value={draft.conceptType ?? ''}
+                    disabled={locked}
+                    onValueChange={(v) => set({ conceptType: v })}
+                    options={[
+                      { value: '', label: 'Not set' },
+                      ...withCurrent(conceptTypes, draft.conceptType).map((t) => ({
+                        value: t,
+                        label: t,
+                      })),
+                    ]}
+                  />
+
+                  <label htmlFor="concept-unit">Unit</label>
+                  <Input
+                    id="concept-unit"
+                    data-testid="concept-unit"
+                    placeholder="For example kg, Cel or /min"
+                    value={draft.unit ?? ''}
+                    disabled={locked}
+                    onChange={(e) => set({ unit: e.target.value })}
+                  />
+                </>
+              )}
+              <label htmlFor="concept-definition">Definition</label>
+              <Textarea
+                id="concept-definition"
+                data-testid="concept-definition"
+                rows={3}
+                placeholder="What this concept means, for other authors and for translators"
+
+                value={draft.definition ?? ''}
+                disabled={locked}
+                onChange={(e) => set({ definition: e.target.value })}
+              />
+
+              {isRetrieval ? (
+                <RetrievalFields
+                  project={project}
+                  value={retrieval}
+                  disabled={readOnly}
+                  onChange={(next) => setDraft({ ...draft, retrieval: next })}
+                />
+              ) : (
+                <>
+                  <h4 className="tricc-concept__section">Where the value is stored</h4>
+                  <label htmlFor="concept-target-resource">Resource</label>
+                  <Input
+                    id="concept-target-resource"
+                    data-testid="concept-target-resource"
+                    placeholder="For example Observation"
+                    value={draft.targetResource ?? ''}
+                    disabled={locked}
+                    onChange={(e) => set({ targetResource: e.target.value })}
+                  />
+                  <label htmlFor="concept-target-path">Path</label>
+                  <Input
+                    id="concept-target-path"
+                    data-testid="concept-target-path"
+                    placeholder="For example Observation.valueQuantity"
+                    value={draft.targetPath ?? ''}
+                    disabled={locked}
+                    onChange={(e) => set({ targetPath: e.target.value })}
+                  />
+                </>
+              )}
+            </TabsContent>
+            {!isRetrieval && (
+              <TabsContent value="flavours" className="tricc-flavour-pane">
+                <div
+                  role="tablist"
+                  aria-orientation="vertical"
+                  aria-label="Flavours"
+                  className="tricc-flavour-list"
+                  data-testid="concept-flavour"
+                  data-value={flavour ?? ''}
                 >
-                  <SelectTrigger
-                    id="concept-flavour"
-                    size="sm"
-                    className="min-w-40"
-                    data-testid="concept-flavour"
-                    data-value={flavour ?? ''}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem
-                      value={DEFAULT_FLAVOUR}
-                      data-testid="concept-flavour-option-default"
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      className="tricc-flavour-list__new"
+                      data-testid="concept-flavour-add"
+                      title="Another wording of this concept, with its own questionnaire text, hint and help, for a question to pick"
+                      onClick={addFlavour}
                     >
-                      Default
-                    </SelectItem>
-                    {flavours.map((f, n) => (
-                      <SelectItem
-                        key={n}
-                        // Radix needs a non-empty value; a name being typed can be empty.
-                        value={f || EMPTY_NAME}
-                        data-testid={`concept-flavour-option-${n}`}
-                      >
-                        {f || '(no name)'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {flavour !== undefined && (
-                  <>
-                    <Input
-                      size="sm"
-                      aria-label="Flavour name"
-                      data-testid="concept-flavour-name"
-                      value={flavour}
-                      disabled={readOnly}
-                      onChange={(e) => renameSelected(e.target.value)}
-                    />
-                    <span data-testid="concept-flavour-uses">
-                      {flavourCount === 0
-                        ? 'Unused'
-                        : `${flavourCount} question${flavourCount === 1 ? '' : 's'}`}
-                    </span>
-                    {!readOnly && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
+                      + New flavour
+                    </button>
+                  )}
+                  {[undefined, ...flavours].map((f, n) => {
+                    const text = conceptText(
+                      draft,
+                      'q-display',
+                      lang,
+                      lang,
+                      f ? { flavour: f } : {},
+                    )
+                    return (
+                      <button
+                        key={f === undefined ? ':default' : n - 1}
                         type="button"
-                        data-testid="concept-flavour-remove"
-                        title={
-                          flavourCount
-                            ? 'Those questions show the default texts until another flavour is picked.'
-                            : undefined
+                        role="tab"
+                        aria-selected={flavour === f}
+                        className="tricc-flavour-list__tab"
+                        data-testid={
+                          f === undefined
+                            ? 'concept-flavour-tab-default'
+                            : `concept-flavour-tab-${n - 1}`
                         }
-                        onClick={removeSelected}
+                        title={text}
+                        onClick={() => setFlavour(f)}
                       >
-                        Remove
-                      </Button>
+                        <span className="tricc-flavour-list__name">
+                          {f === undefined ? 'Default' : f || '(no name)'}
+                        </span>
+                        <span className="tricc-flavour-list__text">{text || '—'}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div role="tabpanel" className="tricc-form-grid tricc-flavour-detail">
+                  <h4 className="tricc-concept__section">
+                    {flavour === undefined ? (
+                      'Default texts'
+                    ) : (
+                      <>
+                        Texts of the flavour <q>{flavour || '(no name)'}</q>
+                      </>
+                    )}
+                  </h4>
+                  {flavour === undefined ? (
+                    <p className="tricc-concept__hint">
+                      Shown by every question of this concept that picks no flavour.
+                    </p>
+                  ) : (
+                    <>
+                      <label htmlFor="concept-flavour-name">Flavour name</label>
+                      <div className="tricc-concept__flavour">
+                        <Input
+                          id="concept-flavour-name"
+                          data-testid="concept-flavour-name"
+                          value={flavour}
+                          disabled={readOnly}
+                          onChange={(e) => renameSelected(e.target.value)}
+                        />
+                        {!readOnly && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            type="button"
+                            className="text-destructive"
+                            data-testid="concept-flavour-remove"
+                            title={
+                              flavourCount
+                                ? 'Those questions show the default texts until another flavour is picked.'
+                                : undefined
+                            }
+                            onClick={removeSelected}
+                          >
+                            Remove flavour
+                          </Button>
+                        )}
+                      </div>
+                      <p className="tricc-concept__hint" data-testid="concept-flavour-uses">
+                        {flavourCount === 0
+                          ? 'No question shows it yet.'
+                          : `Shown by ${flavourCount} question${flavourCount === 1 ? '' : 's'}.`}{' '}
+                        Lowercase letters, digits and _. An empty field shows the default text.
+                      </p>
+                    </>
+                  )}
+                  <RichTextField
+                    key={`q-${flavour === undefined ? '' : originOf(flavour)}`}
+                    id="concept-q-display"
+                    testId="concept-q-display"
+                    label="Questionnaire text"
+                    value={ownText('q-display')}
+                    placeholder={fallback('q-display')}
+                    disabled={readOnly}
+                    onChange={(t) => setText('q-display', t)}
+                  />
+                  <RichTextField
+                    key={`h-${flavour === undefined ? '' : originOf(flavour)}`}
+                    id="concept-hint"
+                    testId="concept-hint"
+                    label="Hint"
+                    value={ownText('hint')}
+                    placeholder={fallback('hint')}
+                    disabled={readOnly}
+                    onChange={(t) => setText('hint', t)}
+                  />
+                  <RichTextField
+                    key={`p-${flavour === undefined ? '' : originOf(flavour)}`}
+                    id="concept-help"
+                    testId="concept-help"
+                    label="Help"
+                    value={ownText('help')}
+                    placeholder={fallback('help')}
+                    disabled={readOnly}
+                    onChange={(t) => setText('help', t)}
+                  />
+                </div>
+              </TabsContent>
+            )}
+            {translations && (
+              <TabsContent value="translations" className="tricc-form-grid">
+                {translations && (
+                  <>
+                    <p className="tricc-concept__intro">
+                      Texts in other languages, and wordings for a single intervention. A question
+                      shows them instead of the default texts in that language or intervention.
+                    </p>
+                    <datalist id="concept-languages">
+                      {project.languages.available.map((l) => (
+                        <option key={l} value={l} />
+                      ))}
+                    </datalist>
+                    {others.length > 0 && (
+                      <table className="tricc-concept__texts" data-testid="concept-texts">
+                        <thead>
+                          <tr>
+                            <th>Use</th>
+                            <th>Language</th>
+                            <th>Applies to</th>
+                            <th>Text</th>
+                            <th />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {others.map(({ d, index }) => {
+                            const use = designationUse(d)
+                            const scope = designationInterventions(d)
+                            const flavour = designationFlavour(d)
+                            return (
+                              <tr key={index} data-testid={`concept-text-${index}`}>
+                                <td>
+                                  <SimpleSelect
+                                    testId={`concept-text-${index}-use`}
+                                    ariaLabel="Use"
+                                    value={use ?? 'other'}
+                                    disabled={readOnly || use === undefined}
+                                    onValueChange={(v) =>
+                                      updateAt(index, {
+                                        ...d,
+                                        use: { ...DESIGNATION_USES[v as DesignationUse] },
+                                      })
+                                    }
+                                    options={[
+                                      ...(Object.keys(USE_LABELS) as DesignationUse[]).map((u) => ({
+                                        value: u,
+                                        label: USE_LABELS[u],
+                                      })),
+                                      ...(use === undefined
+                                        ? [{ value: 'other', label: d.use?.code ?? 'Other' }]
+                                        : []),
+                                    ]}
+                                  />
+                                </td>
+                                <td>
+                                  <Input
+                                    data-testid={`concept-text-${index}-language`}
+                                    aria-label="Language"
+                                    placeholder="fr"
+                                    list="concept-languages"
+                                    htmlSize={4}
+                                    value={d.language}
+                                    disabled={readOnly}
+                                    onChange={(e) =>
+                                      updateAt(index, { ...d, language: e.target.value })
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  {scope.length > 1 ? (
+                                    <span>{scope.join(', ')}</span>
+                                  ) : (
+                                    <SimpleSelect
+                                      testId={`concept-text-${index}-scope`}
+                                      ariaLabel="Intervention"
+                                      value={scope[0] ?? ''}
+                                      disabled={readOnly}
+                                      onValueChange={(v) => {
+                                        const kept = (d.extension ?? []).filter(
+                                          (x) =>
+                                            (x as { url?: string }).url !== INTERVENTION_SCOPE_URL,
+                                        )
+                                        const extension = [...kept, ...scopeExtension(v ? [v] : [])]
+                                        const next: Designation = { ...d }
+                                        if (extension.length) next.extension = extension
+                                        else delete next.extension
+                                        updateAt(index, next)
+                                      }}
+                                      options={[
+                                        { value: '', label: 'All interventions' },
+                                        ...project.interventions.map((iv) => ({
+                                          value: iv.id,
+                                          label: resolve(iv.title, lang, lang) ?? iv.id,
+                                        })),
+                                      ]}
+                                    />
+                                  )}
+                                  {flavours.length > 0 && (
+                                    <SimpleSelect
+                                      testId={`concept-text-${index}-flavour`}
+                                      ariaLabel="Flavour"
+                                      value={flavour ?? ''}
+                                      disabled={readOnly}
+                                      onValueChange={(v) =>
+                                        updateAt(index, withFlavour(d, v || undefined))
+                                      }
+                                      options={[
+                                        { value: '', label: 'Default text' },
+                                        ...flavours
+                                          .filter(Boolean)
+                                          .map((f) => ({ value: f, label: `Flavour ${f}` })),
+                                      ]}
+                                    />
+                                  )}
+                                </td>
+                                <td className="tricc-concept__text">
+                                  {use && RICH.includes(use) ? (
+                                    <RichTextField
+                                      id={`concept-text-${index}-value`}
+                                      testId={`concept-text-${index}-value`}
+                                      label="Text"
+                                      value={designationText(d)}
+                                      disabled={readOnly}
+                                      onChange={(t) => updateAt(index, withDesignationText(d, t))}
+                                    />
+                                  ) : (
+                                    <WrappingInput
+                                      data-testid={`concept-text-${index}-value`}
+                                      aria-label="Text"
+                                      value={d.value}
+                                      disabled={readOnly}
+                                      onChange={(e) =>
+                                        updateAt(index, { ...d, value: e.target.value })
+                                      }
+                                    />
+                                  )}
+                                </td>
+                                <td>
+                                  {!readOnly && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      type="button"
+                                      className="text-destructive w-9 px-0"
+                                      aria-label="Remove this text"
+                                      title="Remove this text"
+                                      data-testid={`concept-text-${index}-remove`}
+                                      onClick={() => {
+                                        if (index < opened.current) opened.current -= 1
+                                        setDraft({
+                                          ...draft,
+                                          designations: draft.designations.filter(
+                                            (_, i) => i !== index,
+                                          ),
+                                        })
+                                      }}
+                                    >
+                                      <Icon name="delete" size={18} />
+                                    </Button>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                    {!readOnly && (
+                      <p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          type="button"
+                          data-testid="concept-text-add"
+                          onClick={() => {
+                            // The next project language not used yet; otherwise the author types one.
+                            const used = new Set(draft.designations.map((d) => d.language))
+                            const other = project.languages.available.find(
+                              (l) => l !== lang && !used.has(l),
+                            )
+                            const row: Designation = {
+                              language: other ?? '',
+                              use: { ...DESIGNATION_USES['q-display'] },
+                              value: '',
+                            }
+                            setDraft({ ...draft, designations: [...draft.designations, row] })
+                          }}
+                        >
+                          + Add a text
+                        </Button>
+                      </p>
                     )}
                   </>
                 )}
-                {!readOnly && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    type="button"
-                    data-testid="concept-flavour-add"
-                    title="Another wording of this concept, with its own questionnaire text, hint and help, for a question to pick"
-                    onClick={addFlavour}
-                  >
-                    + New flavour
-                  </Button>
-                )}
-              </div>
-              <p>
-                {flavour === undefined
-                  ? 'The texts every question of this concept shows. A flavour is another wording a question can pick, with its own questionnaire text, hint and help.'
-                  : 'The texts of this flavour. An empty one shows the default text.'}
-              </p>
-              <RichTextField
-                key={`q-${flavour === undefined ? '' : originOf(flavour)}`}
-                id="concept-q-display"
-                testId="concept-q-display"
-                label="Questionnaire text"
-                value={ownText('q-display')}
-                placeholder={fallback('q-display')}
-                disabled={readOnly}
-                onChange={(t) => setText('q-display', t)}
-              />
-              <RichTextField
-                key={`h-${flavour === undefined ? '' : originOf(flavour)}`}
-                id="concept-hint"
-                testId="concept-hint"
-                label="Hint"
-                value={ownText('hint')}
-                placeholder={fallback('hint')}
-                disabled={readOnly}
-                onChange={(t) => setText('hint', t)}
-              />
-              <RichTextField
-                key={`p-${flavour === undefined ? '' : originOf(flavour)}`}
-                id="concept-help"
-                testId="concept-help"
-                label="Help"
-                value={ownText('help')}
-                placeholder={fallback('help')}
-                disabled={readOnly}
-                onChange={(t) => setText('help', t)}
-              />
-            </>
-          )}
-          <label htmlFor="concept-definition">Definition</label>
-          <Textarea
-            id="concept-definition"
-            data-testid="concept-definition"
-            rows={2}
-            value={draft.definition ?? ''}
-            disabled={locked}
-            onChange={(e) => set({ definition: e.target.value })}
-          />
-
-          {isRetrieval ? (
-            <RetrievalFields
-              project={project}
-              value={retrieval}
-              disabled={readOnly}
-              onChange={(next) => setDraft({ ...draft, retrieval: next })}
-            />
-          ) : (
-            <>
-              <label htmlFor="concept-data-type">Data type</label>
-              <SimpleSelect
-                id="concept-data-type"
-                testId="concept-data-type"
-                value={draft.dataType ?? ''}
-                disabled={locked}
-                onValueChange={(v) => set({ dataType: v })}
-                options={[
-                  { value: '', label: '—' },
-                  ...withCurrent(DATA_TYPES, draft.dataType).map((t) => ({ value: t, label: t })),
-                ]}
-              />
-
-              <label htmlFor="concept-type">Concept type</label>
-              <SimpleSelect
-                id="concept-type"
-                testId="concept-type"
-                value={draft.conceptType ?? ''}
-                disabled={locked}
-                onValueChange={(v) => set({ conceptType: v })}
-                options={[
-                  { value: '', label: '—' },
-                  ...withCurrent(conceptTypes, draft.conceptType).map((t) => ({
-                    value: t,
-                    label: t,
-                  })),
-                ]}
-              />
-
-              <label htmlFor="concept-unit">Unit</label>
-              <Input
-                id="concept-unit"
-                data-testid="concept-unit"
-                value={draft.unit ?? ''}
-                disabled={locked}
-                onChange={(e) => set({ unit: e.target.value })}
-              />
-              <label htmlFor="concept-target-resource">Stored in — resource</label>
-              <Input
-                id="concept-target-resource"
-                data-testid="concept-target-resource"
-                value={draft.targetResource ?? ''}
-                disabled={locked}
-                onChange={(e) => set({ targetResource: e.target.value })}
-              />
-              <label htmlFor="concept-target-path">Stored in — path</label>
-              <Input
-                id="concept-target-path"
-                data-testid="concept-target-path"
-                value={draft.targetPath ?? ''}
-                disabled={locked}
-                onChange={(e) => set({ targetPath: e.target.value })}
-              />
-            </>
-          )}
-
-          <h3>Other languages, interventions and flavours</h3>
-          <datalist id="concept-languages">
-            {project.languages.available.map((l) => (
-              <option key={l} value={l} />
-            ))}
-          </datalist>
-          {others.length > 0 && (
-            <table className="tricc-concept__texts" data-testid="concept-texts">
-              <thead>
-                <tr>
-                  <th>Use</th>
-                  <th>Language</th>
-                  <th>For</th>
-                  <th>Text</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {others.map(({ d, index }) => {
-                  const use = designationUse(d)
-                  const scope = designationInterventions(d)
-                  const flavour = designationFlavour(d)
-                  return (
-                    <tr key={index} data-testid={`concept-text-${index}`}>
-                      <td>
-                        <SimpleSelect
-                          testId={`concept-text-${index}-use`}
-                          ariaLabel="Use"
-                          value={use ?? 'other'}
-                          disabled={readOnly || use === undefined}
-                          onValueChange={(v) =>
-                            updateAt(index, {
-                              ...d,
-                              use: { ...DESIGNATION_USES[v as DesignationUse] },
-                            })
-                          }
-                          options={[
-                            ...(Object.keys(USE_LABELS) as DesignationUse[]).map((u) => ({
-                              value: u,
-                              label: USE_LABELS[u],
-                            })),
-                            ...(use === undefined
-                              ? [{ value: 'other', label: d.use?.code ?? 'Other' }]
-                              : []),
-                          ]}
-                        />
-                      </td>
-                      <td>
-                        <Input
-                          data-testid={`concept-text-${index}-language`}
-                          aria-label="Language"
-                          placeholder="fr"
-                          list="concept-languages"
-                          htmlSize={4}
-                          value={d.language}
-                          disabled={readOnly}
-                          onChange={(e) => updateAt(index, { ...d, language: e.target.value })}
-                        />
-                      </td>
-                      <td>
-                        {scope.length > 1 ? (
-                          <span>{scope.join(', ')}</span>
-                        ) : (
-                          <SimpleSelect
-                            testId={`concept-text-${index}-scope`}
-                            ariaLabel="Intervention"
-                            value={scope[0] ?? ''}
-                            disabled={readOnly}
-                            onValueChange={(v) => {
-                              const kept = (d.extension ?? []).filter(
-                                (x) => (x as { url?: string }).url !== INTERVENTION_SCOPE_URL,
-                              )
-                              const extension = [...kept, ...scopeExtension(v ? [v] : [])]
-                              const next: Designation = { ...d }
-                              if (extension.length) next.extension = extension
-                              else delete next.extension
-                              updateAt(index, next)
-                            }}
-                            options={[
-                              { value: '', label: 'All interventions' },
-                              ...project.interventions.map((iv) => ({
-                                value: iv.id,
-                                label: resolve(iv.title, lang, lang) ?? iv.id,
-                              })),
-                            ]}
-                          />
-                        )}
-                        {flavours.length > 0 && (
-                          <SimpleSelect
-                            testId={`concept-text-${index}-flavour`}
-                            ariaLabel="Flavour"
-                            value={flavour ?? ''}
-                            disabled={readOnly}
-                            onValueChange={(v) => updateAt(index, withFlavour(d, v || undefined))}
-                            options={[
-                              { value: '', label: 'Default text' },
-                              ...flavours
-                                .filter(Boolean)
-                                .map((f) => ({ value: f, label: `Flavour ${f}` })),
-                            ]}
-                          />
-                        )}
-                      </td>
-                      <td className="tricc-concept__text">
-                        {use && RICH.includes(use) ? (
-                          <RichTextField
-                            id={`concept-text-${index}-value`}
-                            testId={`concept-text-${index}-value`}
-                            label="Text"
-                            value={designationText(d)}
-                            disabled={readOnly}
-                            onChange={(t) => updateAt(index, withDesignationText(d, t))}
-                          />
-                        ) : (
-                          <WrappingInput
-                            data-testid={`concept-text-${index}-value`}
-                            aria-label="Text"
-                            value={d.value}
-                            disabled={readOnly}
-                            onChange={(e) => updateAt(index, { ...d, value: e.target.value })}
-                          />
-                        )}
-                      </td>
-                      <td>
-                        {!readOnly && (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            type="button"
-                            data-testid={`concept-text-${index}-remove`}
-                            onClick={() => {
-                              if (index < opened.current) opened.current -= 1
-                              setDraft({
-                                ...draft,
-                                designations: draft.designations.filter((_, i) => i !== index),
-                              })
-                            }}
-                          >
-                            Remove
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          )}
-          {!readOnly && (
-            <p>
-              <Button
-                variant="outline"
-                size="sm"
-                type="button"
-                data-testid="concept-text-add"
-                onClick={() => {
-                  // The next project language not used yet; otherwise the author types one.
-                  const used = new Set(draft.designations.map((d) => d.language))
-                  const other = project.languages.available.find((l) => l !== lang && !used.has(l))
-                  const row: Designation = {
-                    language: other ?? '',
-                    use: { ...DESIGNATION_USES['q-display'] },
-                    value: '',
-                  }
-                  setDraft({ ...draft, designations: [...draft.designations, row] })
-                }}
-              >
-                Add a translation, an intervention or a flavour text
-              </Button>
-            </p>
-          )}
+              </TabsContent>
+            )}
+          </Tabs>
 
           {!isNew && (
             <>
@@ -866,7 +978,7 @@ export function ConceptDialog({
                 <p data-testid="concept-unused">
                   {isRetrieval
                     ? 'No expression uses this retrieval yet, so no form loads it.'
-                    : 'No node uses this concept yet.'}
+                    : 'No question uses this concept yet.'}
                 </p>
               ) : uses.length === 0 ? null : (
                 <ul data-testid="concept-uses">
@@ -975,10 +1087,6 @@ function paramOwner(project: Project, code: string): string | undefined {
   }
   return undefined
 }
-
-/** The picker value of the Default flavour, and of a flavour whose name is being typed. */
-const DEFAULT_FLAVOUR = ':default'
-const EMPTY_NAME = ':empty'
 
 /** The concept with a new flavour, its questionnaire text in `lang` set to `text`. */
 function withFlavourRow(concept: Concept, lang: string, code: string, text: DisplayText): Concept {

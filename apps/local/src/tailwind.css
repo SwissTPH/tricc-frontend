@@ -71,10 +71,12 @@
     line-height: inherit;
     text-decoration: none;
   }
-  [data-slot='select-trigger'] {
+  [data-slot='select-trigger'],
+  [data-slot='tabs-trigger'] {
     box-sizing: border-box;
     margin: 0;
     border: 0 solid var(--border);
+    background-color: transparent;
     color: inherit;
     font-family: inherit;
     line-height: inherit;

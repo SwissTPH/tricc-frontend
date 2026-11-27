@@ -289,6 +289,45 @@ export function ActivityEditor({
     setFocusThread(focusDiscussion.discussionId)
   }, [focusDiscussion, openDiscuss])
 
+  // Ctrl+M opens the concept of the one selected node: its dialog lives in the node's concept
+  // card, so the panel opens on Details and the card is asked to open it (once).
+  const [conceptRequested, setConceptRequested] = useState(false)
+  const conceptNode =
+    selectedId && boxSelection.length <= 1 ? activity?.nodes[selectedId] : undefined
+  const hasConceptCard = Boolean(conceptNode && CONCEPT_NODE_TYPES.includes(conceptNode.type))
+  const openSelectedConcept = useCallback(() => {
+    layout.setCollapsed(false)
+    setPanel('details')
+    setConceptRequested(true)
+  }, [layout])
+  useRegisterCommands(
+    hasConceptCard
+      ? [
+          {
+            id: 'node.concept',
+            group: 'Edit',
+            label: 'Edit the concept of the selected node',
+            keywords: ['concept', 'texts', 'flavour', 'dictionary'],
+            shortcut: 'Ctrl+M',
+            run: openSelectedConcept,
+          },
+        ]
+      : [],
+  )
+  useEffect(() => {
+    if (!hasConceptCard) return
+    const onKey = (event: KeyboardEvent) => {
+      // Ctrl only: Cmd+M minimises the window on a Mac.
+      if (!event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
+      if (event.code !== 'KeyM' || event.repeat) return
+      if (document.querySelector('[role="dialog"]')) return
+      event.preventDefault()
+      openSelectedConcept()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [hasConceptCard, openSelectedConcept])
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.repeat || event.altKey || event.shiftKey) return
@@ -688,6 +727,8 @@ export function ActivityEditor({
                     setSelectedId(undefined)
                   }}
                   onMoved={() => setSelectedId(undefined)}
+                  conceptRequested={conceptRequested}
+                  onConceptOpened={() => setConceptRequested(false)}
                 />
               )}
               {selectedEdge && (
@@ -840,6 +881,8 @@ export function NodeProperties({
   onOpenActivity,
   onOpenCaller,
   onMoved,
+  conceptRequested,
+  onConceptOpened,
 }: {
   activityId: string
   node: TriccNode
@@ -855,6 +898,9 @@ export function NodeProperties({
   onOpenCaller?: (activityId: string, nodeId: string) => void
   /** A prefilled value moved to the retrieval dictionary: the node is gone. */
   onMoved?: (code: string) => void
+  /** Ctrl+M asked for the node's concept dialog; `onConceptOpened` says it was opened. */
+  conceptRequested?: boolean
+  onConceptOpened?: () => void
 }) {
   const mutate = useMutate()
   const project = useProjectSnapshot()
@@ -909,6 +955,8 @@ export function NodeProperties({
           lang={lang}
           readOnly={readOnly}
           onOpenNode={onReveal}
+          openRequested={conceptRequested}
+          onOpened={onConceptOpened}
         />
       )}
 
