@@ -56,7 +56,8 @@ export function RepeatFields({
             size="sm"
             id={`${idPrefix}-instance`}
             type="number"
-            min={-1}
+            // -1 used to put a goto's nodes here; Show as: Inline does that now.
+            min={goto || start ? 0 : -1}
             step={1}
             placeholder="1"
             data-testid="field-instance"
@@ -67,7 +68,7 @@ export function RepeatFields({
           />
           <p data-testid="field-instance-help">
             {goto
-              ? 'Which copy of the activity: the same number shares it, 0 makes a new one each time, -1 puts its nodes here.'
+              ? 'Which copy of the activity: the same number shares it, 0 makes a new one each time. Use Show as: Inline to put its nodes here.'
               : 'The same collection reached at several points: collected once, then reused. It is not repeated with its activity.'}
           </p>
         </>

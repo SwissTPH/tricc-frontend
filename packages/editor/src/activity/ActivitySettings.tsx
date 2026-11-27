@@ -4,12 +4,14 @@ import {
   processOf,
   resolve,
   rootNode,
+  defaultShowAs,
   type Activity,
   type Project,
 } from '@tricc/core'
 import { useMutate } from '../runtime/context.js'
 import { CqlExpressionField } from '../cql/CqlExpressionField.js'
 import { RepeatFields } from './RepeatFields.js'
+import { ShowAsField } from './ShowAsField.js'
 import { ConfirmDelete, Dialog, mergeExpression } from '../components/Dialog.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
@@ -243,6 +245,18 @@ export function ActivitySettings({
           <p>
             Applies on top of the start condition of every intervention that lists this activity.
           </p>
+
+          {(root?.type === 'activity_start' || root?.type === 'block_start') && (
+            <ShowAsField
+              value={root}
+              resolved={defaultShowAs(root, project)}
+              readOnly={readOnly}
+              idPrefix="act"
+              onChange={(patch) =>
+                mutate((tx) => tx.updateNode(activity.id, { ...root, ...patch }))
+              }
+            />
+          )}
 
           {root?.type === 'activity_start' && (
             <RepeatFields

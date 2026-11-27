@@ -100,7 +100,7 @@ async function open(seeded: Project = seed()) {
 beforeEach(cleanup)
 
 describe('sequence-driven calculation', () => {
-  it('lists the decision points of each path from the activity start, and hides them once it has an expression', async () => {
+  it('lists the decision points of each path from the activity start, and keeps them once it has an expression', async () => {
     const user = userEvent.setup()
     await open()
     fireEvent.click(screen.getByTestId('node-calc'))
@@ -108,8 +108,12 @@ describe('sequence-driven calculation', () => {
     const paths = screen.getAllByTestId('sequence-path').map((li) => li.textContent)
     expect(paths).toEqual(['Activity started → Fever: Yes', 'Activity started → Fever: No'])
 
+    expect(screen.getByTestId('sequence-paths')).toHaveTextContent('Sequence-driven')
+
+    // With an expression, the paths stay, as for any node: they no longer give its value.
     await user.type(screen.getByTestId('field-calculate'), 'true')
-    expect(screen.queryByTestId('sequence-paths')).not.toBeInTheDocument()
+    expect(screen.getByTestId('sequence-paths')).not.toHaveTextContent('Sequence-driven')
+    expect(screen.getAllByTestId('sequence-path')).toHaveLength(2)
   })
 
   it('drops what lies between the two ends of a follow link, and merges the paths through it', async () => {
@@ -118,5 +122,14 @@ describe('sequence-driven calculation', () => {
 
     const paths = screen.getAllByTestId('sequence-path').map((li) => li.textContent)
     expect(paths).toEqual(['Activity started → Fever: Yes'])
+  })
+
+  it('lists the paths on any node a link leads to', async () => {
+    await open(followSeed())
+    fireEvent.click(screen.getByTestId('node-chest'))
+
+    const paths = screen.getAllByTestId('sequence-path').map((li) => li.textContent)
+    expect(paths).toEqual(['Activity started → Cough: Yes'])
+    expect(screen.getByTestId('sequence-paths')).toHaveTextContent('Reached when')
   })
 })

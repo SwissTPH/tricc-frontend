@@ -134,6 +134,9 @@ export const nodeSchema = z
 
     repeat: z.number().int().optional(),
     instance: z.number().int().optional(),
+    /** Show as: its own page; a section (true) or inline (false). */
+    page: z.boolean().optional(),
+    asGroup: z.boolean().optional(),
     /** The concept text the node shows (a flavour code of its concept). */
     flavour: z.string().min(1).optional(),
 
@@ -254,6 +257,8 @@ export const activitySchema = z
             name: z.string().min(1).optional(),
             label: localizedTextSchema.optional(),
             parent: z.string().min(1).optional(),
+            page: z.boolean().optional(),
+            asGroup: z.boolean().optional(),
             ui: z
               .object({
                 x: z.number(),

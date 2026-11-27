@@ -172,6 +172,44 @@ describe('planPaste', () => {
     expect(plan.nodes[0]?.ui).toMatchObject({ x: 108, y: 60 })
   })
 
+  it('keeps Show as on a copied group and a copied goto', () => {
+    const grouped = activity({
+      id: 'a',
+      groups: [
+        {
+          id: 'box',
+          page: true,
+          asGroup: true,
+          color: 'grey',
+          x: 10,
+          y: 10,
+          width: 200,
+          height: 200,
+        },
+      ],
+      nodeOrder: ['g'],
+      nodes: {
+        g: {
+          id: 'g',
+          type: 'goto',
+          link: 'x',
+          group: 'box',
+          page: false,
+          asGroup: false,
+          ui: { x: 8, y: 10 },
+        },
+      },
+    })
+    const clip: CanvasClipboard = {
+      fromActivityId: 'a',
+      cut: false,
+      ...selectionSnapshot(grouped, ['group:box']),
+    }
+    const plan = planPaste(clip, grouped, project, 32)
+    expect(plan.groups[0]).toMatchObject({ page: true, asGroup: true })
+    expect(plan.nodes[0]).toMatchObject({ page: false, asGroup: false })
+  })
+
   it('selects a copied group and not the nodes it carries', () => {
     const grouped = activity({
       id: 'a',

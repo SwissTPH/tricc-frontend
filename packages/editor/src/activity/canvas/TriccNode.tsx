@@ -1,9 +1,12 @@
 import { createContext, useContext, useState } from 'react'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import {
+  SHOW_AS_LABEL,
   hasInternalName,
+  hasShowAs,
   isSequenceNode,
   resolve,
+  showAsOf,
   type NodeType,
   type TriccNode as Model,
 } from '@tricc/core'
@@ -73,6 +76,8 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
     needsValue,
   } = data
   const visual = visualFor(model.type as NodeType)
+  // Show as: a badge when it is not Default (feature/20261126-questionnaire-pages.md §3).
+  const showAs = hasShowAs(model.type as NodeType) ? showAsOf(model) : undefined
   const { diagramStyle } = useEditorPreferences()
   const follow = useContext(FollowContext)
   const display = activityTitle ?? callLabel ?? displayText(model, lang, conceptDisplay)
@@ -119,6 +124,15 @@ export function TriccNodeView({ data, selected }: NodeProps<TriccFlowNode>) {
             title="The concept's text this node shows"
           >
             {model.flavour}
+          </span>
+        )}
+        {showAs && (
+          <span
+            className="tricc-badge"
+            data-testid={`node-${model.id}-show-as`}
+            title="Show as: how it appears in the form"
+          >
+            {SHOW_AS_LABEL[showAs]}
           </span>
         )}
         {model.instance !== undefined && model.instance !== 1 && (

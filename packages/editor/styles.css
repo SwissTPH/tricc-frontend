@@ -2071,6 +2071,15 @@ ol.tricc-segment-rows > li::before {
   background: var(--tricc-swatch-pink-frame);
   border-color: var(--tricc-swatch-pink-edge);
 }
+/* Show as: Inline. The group is only a frame on the canvas, no section in the form. */
+.tricc-group.tricc-group--inline {
+  border-style: dotted;
+  background: transparent;
+}
+.tricc-group__badge {
+  margin-left: 6px;
+  font-weight: 500;
+}
 .tricc-group__title {
   padding: 4px 8px;
   font-size: 12px;
